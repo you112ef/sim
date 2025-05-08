@@ -135,19 +135,87 @@ volumes:
       console.log(chalk.green('✓ docker-compose.yml created'))
     }
 
+    // Check if Docker daemon is running
+    try {
+      console.log(chalk.blue('🔍 Checking Docker daemon...'))
+      execSync('docker info', { stdio: 'ignore' })
+    } catch (error) {
+      console.error(chalk.red('❌ Docker daemon is not running. Please start Docker Desktop or the Docker service.'))
+      process.exit(1)
+    }
+
+    // Handle Docker network issues
+    try {
+      console.log(chalk.blue('🔍 Testing Docker networking...'))
+      execSync('docker network ls', { stdio: 'ignore' })
+    } catch (error) {
+      console.error(chalk.red('❌ Docker networking issue detected. Please check your Docker installation.'))
+      process.exit(1)
+    }
+
+    // Add permission check for Docker socket
+    if (process.platform === 'linux') {
+      try {
+        execSync('ls -l /var/run/docker.sock', { stdio: 'ignore' })
+      } catch (error) {
+        console.warn(chalk.yellow('⚠️ Could not check Docker socket permissions. You might need to run with sudo.'))
+      }
+    }
+
+    // Add timeout handling for image pull
+    try {
+      console.log(chalk.blue('🚚 Pulling latest Docker image...'))
+      // Set a timeout and capture output
+      const pullProcess = execSync('docker pull ghcr.io/simstudioai/sim:latest', { 
+        timeout: 180000, // 3 minutes 
+        stdio: 'pipe' 
+      })
+      console.log(chalk.green('✓ Successfully pulled Docker image'))
+    } catch (error: unknown) {
+      if (error && typeof error === 'object' && 'code' in error && error.code === 'ETIMEDOUT') {
+        console.error(chalk.red('❌ Image pull timed out. Check your internet connection.'))
+      } else {
+        const errorMessage = error instanceof Error ? error.message : String(error)
+        console.error(chalk.red('❌ Failed to pull Docker image:'), errorMessage)
+        console.log(chalk.yellow('Attempting to use cached image if available...'))
+      }
+    }
+
+    // Handle database connectivity issues
+    setTimeout(() => {
+      try {
+        execSync('docker compose exec -T db pg_isready -U postgres', { stdio: 'ignore' })
+        console.log(chalk.green('✓ Database is ready'))
+      } catch (error) {
+        console.error(chalk.red('❌ Could not connect to the database. Check the logs with:'))
+        console.log(chalk.yellow('  docker compose logs db'))
+      }
+    }, 10000)
+
+    // Handle port conflicts
+    try {
+      console.log(chalk.blue(`🔍 Checking if port ${answers.port} is available...`))
+      execSync(`lsof -i :${answers.port} || true`, { stdio: 'pipe' }).toString()
+      // If we get output, the port is in use
+      console.warn(chalk.yellow(`⚠️ Port ${answers.port} may already be in use. This could cause conflicts.`))
+    } catch (error) {
+      // Port is likely available, which is good
+    }
+
+    // Add graceful shutdown handling
+    process.on('SIGINT', () => {
+      console.log(chalk.blue('\n👋 Shutting down Sim Studio...'))
+      try {
+        execSync('docker compose down', { stdio: 'inherit' })
+        console.log(chalk.green('✓ Shutdown complete'))
+      } catch (error) {
+        console.error(chalk.red('❌ Error during shutdown:'), error)
+      }
+      process.exit(0)
+    })
+
     // Start Docker Compose
     try {
-      // Check if the docker image exists locally, otherwise pull it
-      try {
-        console.log(chalk.blue('🔍 Checking for Docker image...'))
-        execSync('docker image inspect ghcr.io/simstudioai/sim:latest', { stdio: 'ignore' })
-        console.log(chalk.green('✓ Found existing Docker image'))
-      } catch (error) {
-        console.log(chalk.blue('🚚 Pulling latest Docker image...'))
-        execSync('docker pull ghcr.io/simstudioai/sim:latest', { stdio: 'inherit' })
-        console.log(chalk.green('✓ Successfully pulled Docker image'))
-      }
-
       console.log(chalk.blue('🚀 Starting Sim Studio with Docker Compose...'))
       execSync('docker compose up -d', { stdio: 'inherit' })
 
