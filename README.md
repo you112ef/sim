@@ -14,11 +14,19 @@
   <strong>Sim Studio</strong> is a lightweight, user-friendly platform for building AI agent workflows.
 </p>
 
-## Quick Start
+## Getting Started
+
+### Run on [Sim Studio Cloud](https://simstudio.ai)
+
+The fastest way to get started is to use our [cloud-hosted version](https://simstudio.ai) - no setup required!
+
+### Self-host Sim Studio
+
+If you prefer to self-host, there are several options available:
 
 ### Option 1: Using CLI (Recommended)
 
-The easiest way to get started:
+The easiest way to self-host:
 
 ```bash
 npx simstudio
@@ -40,10 +48,6 @@ docker compose up -d --build
 ```
 
 Once running, access the application at [http://localhost:3000/w/](http://localhost:3000/w/)
-
-### Option 3: Cloud Hosted Version
-
-Visit [https://simstudio.ai](https://simstudio.ai) to use our cloud-hosted version without any setup.
 
 ## Working with Local Models
 
@@ -141,6 +145,6 @@ We welcome contributions! Please see our [Contributing Guide](.github/CONTRIBUTI
 
 ## License
 
-Apache-2.0
+This project is licensed under the Apache License 2.0 - see the [LICENSE](LICENSE) file for details.
 
 <p align="center">Made with ❤️ by the Sim Studio Team</p>
