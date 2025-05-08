@@ -22,24 +22,21 @@ The easiest way to get started:
 
 ```bash
 npx simstudio
+# This will set up and run Sim Studio locally with minimal configuration
 ```
 
-
-### Option 2: Using Docker Compose Directly
+### Option 2: Using Docker Compose
 
 ```bash
 # Clone the repository
 git clone https://github.com/simstudioai/sim.git
 cd sim
 
-# Create environment file
+# Create environment file (update BETTER_AUTH_SECRET and ENCRYPTION_KEY with secure random values)
 cp sim/.env.example sim/.env
 
 # Start with Docker Compose
 docker compose up -d --build
-
-# Or use the provided script
-./start_simstudio_docker.sh
 ```
 
 Once running, access the application at [http://localhost:3000/w/](http://localhost:3000/w/)
@@ -96,18 +93,15 @@ services:
 
 ### Required Environment Variables
 
-For local development, the minimal required variables are:
+For local development, create a `.env` file with these minimum variables:
 
 ```env
 DATABASE_URL=postgresql://postgres:postgres@db:5432/simstudio
-POSTGRES_URL=postgresql://postgres:postgres@db:5432/simstudio
-BETTER_AUTH_SECRET=your_auth_secret_here
-ENCRYPTION_KEY=your_encryption_key_here
+BETTER_AUTH_SECRET=<generate_a_secure_random_value>
+ENCRYPTION_KEY=<generate_a_secure_random_value>
 ```
 
 ⚠️ **Note:** Without `RESEND_API_KEY`, verification codes will be logged to the console for local testing.
-
-See `.env.example` for all available configuration options.
 
 ### Dev Container Option
 1. Open in VS Code with the Remote-Containers extension
@@ -123,18 +117,13 @@ npx drizzle-kit push
 npm run dev
 ```
 
-## Useful Docker Commands
+## Troubleshooting
 
-```bash
-# View application logs
-docker compose logs -f simstudio
+Common issues and solutions:
 
-# Access PostgreSQL database
-docker compose exec db psql -U postgres -d simstudio
-
-# Stop the environment
-docker compose down
-```
+- **Authentication problems**: Check console logs for verification codes if `RESEND_API_KEY` is not set
+- **Database connection errors**: Verify PostgreSQL is running and credentials are correct
+- **Port conflicts**: Check if port 3000 is already in use by another application
 
 ## Tech Stack
 
