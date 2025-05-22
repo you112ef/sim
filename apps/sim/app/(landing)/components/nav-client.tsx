@@ -90,7 +90,7 @@ const NavLinks = ({
     ...(currentPath !== '/' ? [{ href: '/', label: 'Home' }] : []),
     { href: 'https://docs.simstudio.ai/', label: 'Docs', external: true },
     // { href: '/', label: 'Blog' },
-    { href: 'https://github.com/simstudioai/sim', label: 'Contributors', external: true },
+    { href: '/blogs', label: 'Blogs' },
   ]
 
   // Common CSS class for navigation items

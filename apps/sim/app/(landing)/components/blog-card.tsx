@@ -12,13 +12,13 @@ type BlogCardProps = {
   type: string
   readTime?: string
   image?: string
+  variant?: 'default' | 'featured' | 'compact'
 }
 
 const blogConfig = {
   agents: '#802efc',
   functions: '#FC2E31',
   workflows: '#2E8CFC',
-  // ADD MORE
 }
 
 export const BlogCard = ({
@@ -32,11 +32,16 @@ export const BlogCard = ({
   authorRole,
   type,
   readTime,
+  variant = 'default',
 }: BlogCardProps) => {
   return (
     <Link href={href}>
-      <div className="p-8 bg-[#101010] border border-[#606060]/40 rounded-3xl flex flex-col transition-all duration-500 hover:bg-[#202020]">
-        {image ? (
+      <div
+        className={`p-8 bg-[#101010] border border-[#606060]/40 rounded-3xl flex flex-col transition-all duration-500 hover:bg-[#202020] ${
+          variant === 'featured' ? 'h-full' : ''
+        }`}
+      >
+        {image && variant !== 'compact' ? (
           <Image
             src={image}
             alt="Image"
@@ -55,12 +60,24 @@ export const BlogCard = ({
           <></>
         )}
         <div className="flex flex-col gap-6">
-          <p className="text-2xl lg:text-3xl font-medium text-white/80 leading-[1.2] tracking-normal max-w-96">
+          <p
+            className={`${
+              variant === 'featured'
+                ? 'text-3xl'
+                : variant === 'compact'
+                  ? 'text-xl'
+                  : 'text-2xl lg:text-3xl'
+            } font-medium text-white/80 leading-[1.2] tracking-normal max-w-96`}
+          >
             {title}
           </p>
-          <p className="text-lg text-white/60 leading-[1.5] font-light">{description}</p>
+          {variant !== 'compact' && description ? (
+            <p className="text-lg text-white/60 leading-[1.5] font-light">{description}</p>
+          ) : null}
         </div>
-        <div className="pt-16 flex flex-col gap-6">
+        <div
+          className={`${variant === 'featured' ? 'mt-auto pt-12' : 'pt-16'} flex flex-col gap-6`}
+        >
           <div className="flex gap-4 items-center">
             {avatar ? (
               <Image
@@ -68,14 +85,18 @@ export const BlogCard = ({
                 alt="Avatar"
                 width={64}
                 height={64}
-                className="w-16 h-16 rounded-full"
+                className={`rounded-full ${variant === 'compact' ? 'w-12 h-12' : 'w-16 h-16'}`}
               />
             ) : (
               <></>
             )}
 
             <div className="flex flex-col gap-0">
-              <p className="text-xl font-medium text-white/90">{author}</p>
+              <p
+                className={`${variant === 'compact' ? 'text-lg' : 'text-xl'} font-medium text-white/90`}
+              >
+                {author}
+              </p>
               <p className="text-base font-normal text-white/60">{authorRole}</p>
             </div>
           </div>

@@ -21,7 +21,7 @@ export default function Landing() {
       <Testimonials />
       {/* <Features /> */}
       <Integrations />
-      {/* <Blogs /> */}
+      <Blogs />
 
       {/* Footer */}
       <Footer onOpenTypeformLink={handleOpenTypeformLink} />
