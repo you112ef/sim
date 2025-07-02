@@ -128,6 +128,7 @@ import { xReadTool, xSearchTool, xUserTool, xWriteTool } from '@/tools/x'
 import { youtubeSearchTool } from '@/tools/youtube'
 import { gmailDraftTool, gmailReadTool, gmailSearchTool, gmailSendTool } from './gmail'
 import { searchTool as googleSearchTool } from './google'
+import { redtailReadNoteTool } from './redtail'
 
 // Registry of all available tools
 export const tools: Record<string, ToolConfig> = {
@@ -265,4 +266,5 @@ export const tools: Record<string, ToolConfig> = {
   qdrant_fetch_points: qdrantFetchTool,
   qdrant_search_vector: qdrantSearchTool,
   qdrant_upsert_points: qdrantUpsertTool,
+  redtail_read_note: redtailReadNoteTool,
 }

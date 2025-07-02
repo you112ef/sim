@@ -67,6 +67,7 @@ import { WorkflowBlock } from '@/blocks/blocks/workflow'
 import { XBlock } from '@/blocks/blocks/x'
 import { YouTubeBlock } from '@/blocks/blocks/youtube'
 import type { BlockConfig } from '@/blocks/types'
+import { RedtailBlock } from './blocks/redtail'
 
 // Registry of all available blocks, alphabetically sorted
 export const registry: Record<string, BlockConfig> = {
@@ -133,6 +134,7 @@ export const registry: Record<string, BlockConfig> = {
   workflow: WorkflowBlock,
   x: XBlock,
   youtube: YouTubeBlock,
+  redtail: RedtailBlock,
 }
 
 export const getBlock = (type: string): BlockConfig | undefined => registry[type]
