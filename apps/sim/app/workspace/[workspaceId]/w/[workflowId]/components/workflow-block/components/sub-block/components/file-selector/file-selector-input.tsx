@@ -20,6 +20,8 @@ import type { JiraIssueInfo } from './components/jira-issue-selector'
 import { JiraIssueSelector } from './components/jira-issue-selector'
 import type { MicrosoftFileInfo } from './components/microsoft-file-selector'
 import { MicrosoftFileSelector } from './components/microsoft-file-selector'
+import type { RedtailContactInfo } from './components/redtail-contact-selector'
+import { RedtailContactSelector } from './components/redtail-contact-selector'
 import type { TeamsMessageInfo } from './components/teams-message-selector'
 import { TeamsMessageSelector } from './components/teams-message-selector'
 import type { WealthboxItemInfo } from './components/wealthbox-file-selector'
@@ -58,6 +60,8 @@ export function FileSelectorInput({
   const [calendarInfo, setCalendarInfo] = useState<GoogleCalendarInfo | null>(null)
   const [selectedWealthboxItemId, setSelectedWealthboxItemId] = useState<string>('')
   const [wealthboxItemInfo, setWealthboxItemInfo] = useState<WealthboxItemInfo | null>(null)
+  const [selectedContactId, setSelectedContactId] = useState<string>('')
+  const [contactInfo, setContactInfo] = useState<RedtailContactInfo | null>(null)
 
   // Get provider-specific values
   const provider = subBlock.provider || 'google-drive'
@@ -68,6 +72,7 @@ export function FileSelectorInput({
   const isMicrosoftExcel = provider === 'microsoft-excel'
   const isGoogleCalendar = subBlock.provider === 'google-calendar'
   const isWealthbox = provider === 'wealthbox'
+  const isRedtail = provider === 'redtail'
   // For Confluence and Jira, we need the domain and credentials
   const domain = isConfluence || isJira ? (getValue(blockId, 'domain') as string) || '' : ''
   // For Discord, we need the bot token and server ID
@@ -92,6 +97,8 @@ export function FileSelectorInput({
           setSelectedCalendarId(value)
         } else if (isWealthbox) {
           setSelectedWealthboxItemId(value)
+        } else if (isRedtail) {
+          setSelectedContactId(value)
         } else {
           setSelectedFileId(value)
         }
@@ -109,6 +116,8 @@ export function FileSelectorInput({
           setSelectedCalendarId(value)
         } else if (isWealthbox) {
           setSelectedWealthboxItemId(value)
+        } else if (isRedtail) {
+          setSelectedContactId(value)
         } else {
           setSelectedFileId(value)
         }
@@ -123,6 +132,7 @@ export function FileSelectorInput({
     isMicrosoftTeams,
     isGoogleCalendar,
     isWealthbox,
+    isRedtail,
     isPreview,
     previewValue,
   ])
@@ -166,6 +176,13 @@ export function FileSelectorInput({
     setSelectedWealthboxItemId(itemId)
     setWealthboxItemInfo(info || null)
     setStoreValue(itemId)
+  }
+
+  // Handle contact selection
+  const handleContactChange = (contactId: string, info?: RedtailContactInfo) => {
+    setSelectedContactId(contactId)
+    setContactInfo(info || null)
+    setStoreValue(contactId)
   }
 
   // For Google Drive
@@ -425,6 +442,19 @@ export function FileSelectorInput({
     }
     // If it's noteId or taskId, we should not render the file selector since they now use short-input
     return null
+  }
+  // Render Redtail contact selector
+  if (isRedtail) {
+    return (
+      <RedtailContactSelector
+        value={selectedContactId}
+        onChange={handleContactChange}
+        label={subBlock.placeholder || 'Search and select a contact'}
+        disabled={disabled}
+        showPreview={true}
+        onContactInfoChange={setContactInfo}
+      />
+    )
   }
 
   // Default to Google Drive picker
