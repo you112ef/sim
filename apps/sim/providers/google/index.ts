@@ -380,7 +380,15 @@ export const googleProvider: ProviderConfig = {
                     duration: firstResponseTime,
                   },
                 ],
+<<<<<<< HEAD
                 // Cost will be calculated in logger
+=======
+                cost: {
+                  total: 0.0, // Initial estimate, updated as tokens are processed
+                  input: 0.0,
+                  output: 0.0,
+                },
+>>>>>>> 34b590a10 (merged improvement/connection into staging (#604))
               },
             },
             logs: [],
@@ -776,6 +784,14 @@ export const googleProvider: ProviderConfig = {
                           firstResponseTime,
                           iterations: iterationCount + 1,
                           timeSegments,
+<<<<<<< HEAD
+=======
+                        },
+                        cost: {
+                          total: (tokens.total || 0) * 0.0001, // Estimate cost based on tokens
+                          input: (tokens.prompt || 0) * 0.0001,
+                          output: (tokens.completion || 0) * 0.0001,
+>>>>>>> 34b590a10 (merged improvement/connection into staging (#604))
                         },
                         // Cost will be calculated in logger
                       },
