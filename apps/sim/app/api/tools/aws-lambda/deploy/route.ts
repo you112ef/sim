@@ -73,8 +73,6 @@ async function createLambdaPackage(params: DeployRequest): Promise<Buffer> {
     zip.file(filePath, codeContent)
   }
 
-
-
   return await zip.generateAsync({ type: 'nodebuffer' })
 }
 
@@ -236,13 +234,19 @@ export async function POST(request: NextRequest) {
     if (typeof body.memorySize === 'string') {
       try {
         body.memorySize = JSON.parse(body.memorySize)
-        logger.info(`[${requestId}] Parsed memorySize field:`, { parsedMemorySize: body.memorySize })
+        logger.info(`[${requestId}] Parsed memorySize field:`, {
+          parsedMemorySize: body.memorySize,
+        })
       } catch (parseError) {
         logger.error(`[${requestId}] Failed to parse memorySize field as JSON`, {
           error: parseError instanceof Error ? parseError.message : String(parseError),
           memorySizeString: body.memorySize,
         })
-        return createErrorResponse('Invalid JSON in memorySize field', 400, 'INVALID_MEMORYSIZE_JSON')
+        return createErrorResponse(
+          'Invalid JSON in memorySize field',
+          400,
+          'INVALID_MEMORYSIZE_JSON'
+        )
       }
     }
 
