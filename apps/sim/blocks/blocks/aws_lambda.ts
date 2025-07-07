@@ -165,7 +165,8 @@ export const AWSLambdaBlock: BlockConfig<AWSLambdaResponse> = {
       type: 'code',
       layout: 'full',
       language: 'json',
-      placeholder: '{\n  "index.js": "exports.handler = async (event) => {\\n    return {\\n      statusCode: 200,\\n      body: JSON.stringify({\\n        message: \\"Hello from Lambda!\\"\\n      })\\n    };\\n  };"\n}',
+      placeholder:
+        '{\n  "index.js": "exports.handler = async (event) => {\\n    return {\\n      statusCode: 200,\\n      body: JSON.stringify({\\n        message: \\"Hello from Lambda!\\"\\n      })\\n    };\\n  };"\n}',
       condition: {
         field: 'operationType',
         value: ['create/update'],

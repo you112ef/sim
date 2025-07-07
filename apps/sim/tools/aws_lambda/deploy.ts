@@ -81,7 +81,8 @@ export const awsLambdaDeployTool: ToolConfig<AWSLambdaDeployInput, AWSLambdaDepl
     code: {
       type: 'object',
       required: true,
-      description: 'Function code files as JSON object with file paths as keys and code content as values',
+      description:
+        'Function code files as JSON object with file paths as keys and code content as values',
     },
     requirements: {
       type: 'string',
