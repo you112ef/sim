@@ -6,7 +6,7 @@ import {
   UpdateFunctionCodeCommand,
 } from '@aws-sdk/client-lambda'
 import JSZip from 'jszip'
-import { type NextRequest, NextResponse } from 'next/server'
+import type { NextRequest } from 'next/server'
 import { z } from 'zod'
 import { createLogger } from '@/lib/logs/console-logger'
 import { createErrorResponse, createSuccessResponse } from '@/app/api/workflows/utils'
@@ -60,8 +60,6 @@ function getFileExtension(runtime: string): string {
   if (runtime.startsWith('ruby')) return 'rb'
   return 'js' // default
 }
-
-
 
 /**
  * Create a ZIP file with the Lambda code and dependencies
@@ -193,11 +191,7 @@ export async function POST(request: NextRequest) {
     const validationResult = DeployRequestSchema.safeParse(body)
     if (!validationResult.success) {
       logger.warn(`[${requestId}] Invalid request body`, { errors: validationResult.error.errors })
-      return createErrorResponse(
-        'Invalid request parameters',
-        400,
-        'VALIDATION_ERROR'
-      )
+      return createErrorResponse('Invalid request parameters', 400, 'VALIDATION_ERROR')
     }
 
     const params = validationResult.data
@@ -222,12 +216,18 @@ export async function POST(request: NextRequest) {
       logger.info(`[${requestId}] Function ${params.functionName} already exists, updating code`)
       await updateLambdaFunction(lambdaClient, params.functionName, zipBuffer)
     } else {
-      logger.info(`[${requestId}] Function ${params.functionName} does not exist, creating new function`)
+      logger.info(
+        `[${requestId}] Function ${params.functionName} does not exist, creating new function`
+      )
       await createLambdaFunction(lambdaClient, params, zipBuffer)
     }
 
     // Get function details for response
-    const functionDetails = await getFunctionDetails(lambdaClient, params.functionName, params.region)
+    const functionDetails = await getFunctionDetails(
+      lambdaClient,
+      params.functionName,
+      params.region
+    )
 
     logger.info(`[${requestId}] Lambda function deployment completed successfully`, {
       functionName: params.functionName,
