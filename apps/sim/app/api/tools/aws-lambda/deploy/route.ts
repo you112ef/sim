@@ -9,6 +9,7 @@ import JSZip from 'jszip'
 import { type NextRequest, NextResponse } from 'next/server'
 import { z } from 'zod'
 import { createLogger } from '@/lib/logs/console-logger'
+import { createErrorResponse, createSuccessResponse } from '@/app/api/workflows/utils'
 
 const logger = createLogger('AWSLambdaDeployAPI')
 
@@ -30,6 +31,148 @@ const DeployRequestSchema = z.object({
   role: z.string().min(1, 'Role ARN is required'),
 })
 
+type DeployRequest = z.infer<typeof DeployRequestSchema>
+
+interface LambdaFunctionDetails {
+  functionArn: string
+  functionName: string
+  runtime: string
+  region: string
+  status: string
+  lastModified: string
+  codeSize: number
+  description: string
+  timeout: number
+  memorySize: number
+  environment: Record<string, string>
+  tags: Record<string, string>
+}
+
+/**
+ * Get the appropriate file extension for the given runtime
+ */
+function getFileExtension(runtime: string): string {
+  if (runtime.startsWith('nodejs')) return 'js'
+  if (runtime.startsWith('python')) return 'py'
+  if (runtime.startsWith('java')) return 'java'
+  if (runtime.startsWith('dotnet')) return 'cs'
+  if (runtime.startsWith('go')) return 'go'
+  if (runtime.startsWith('ruby')) return 'rb'
+  return 'js' // default
+}
+
+
+
+/**
+ * Create a ZIP file with the Lambda code and dependencies
+ */
+async function createLambdaPackage(params: DeployRequest): Promise<Buffer> {
+  const zip = new JSZip()
+
+  // Add the main function code
+  const fileExtension = getFileExtension(params.runtime)
+  const fileName = `index.${fileExtension}`
+  zip.file(fileName, params.code)
+
+  // Add dependencies based on runtime
+  if (params.runtime.startsWith('python') && params.requirements?.trim()) {
+    zip.file('requirements.txt', params.requirements)
+  } else if (params.runtime.startsWith('nodejs') && params.packageJson?.trim()) {
+    zip.file('package.json', params.packageJson)
+  }
+
+  return await zip.generateAsync({ type: 'nodebuffer' })
+}
+
+/**
+ * Check if a Lambda function already exists
+ */
+async function checkFunctionExists(
+  lambdaClient: LambdaClient,
+  functionName: string
+): Promise<boolean> {
+  try {
+    await lambdaClient.send(new GetFunctionCommand({ FunctionName: functionName }))
+    return true
+  } catch (error: any) {
+    if (error.name === 'ResourceNotFoundException') {
+      return false
+    }
+    throw error
+  }
+}
+
+/**
+ * Create a new Lambda function
+ */
+async function createLambdaFunction(
+  lambdaClient: LambdaClient,
+  params: DeployRequest,
+  zipBuffer: Buffer
+): Promise<any> {
+  const createParams = {
+    FunctionName: params.functionName,
+    Runtime: params.runtime as Runtime,
+    Role: params.role,
+    Handler: params.handler,
+    Code: {
+      ZipFile: zipBuffer,
+    },
+    Timeout: params.timeout,
+    MemorySize: params.memorySize,
+    Environment: {
+      Variables: params.environmentVariables,
+    },
+    Tags: params.tags,
+  }
+
+  return await lambdaClient.send(new CreateFunctionCommand(createParams))
+}
+
+/**
+ * Update an existing Lambda function's code
+ */
+async function updateLambdaFunction(
+  lambdaClient: LambdaClient,
+  functionName: string,
+  zipBuffer: Buffer
+): Promise<any> {
+  const updateParams = {
+    FunctionName: functionName,
+    ZipFile: zipBuffer,
+  }
+
+  return await lambdaClient.send(new UpdateFunctionCodeCommand(updateParams))
+}
+
+/**
+ * Get detailed information about a Lambda function
+ */
+async function getFunctionDetails(
+  lambdaClient: LambdaClient,
+  functionName: string,
+  region: string
+): Promise<LambdaFunctionDetails> {
+  const functionDetails = await lambdaClient.send(
+    new GetFunctionCommand({ FunctionName: functionName })
+  )
+
+  return {
+    functionArn: functionDetails.Configuration?.FunctionArn || '',
+    functionName: functionDetails.Configuration?.FunctionName || '',
+    runtime: functionDetails.Configuration?.Runtime || '',
+    region,
+    status: functionDetails.Configuration?.State || '',
+    lastModified: functionDetails.Configuration?.LastModified || '',
+    codeSize: functionDetails.Configuration?.CodeSize || 0,
+    description: functionDetails.Configuration?.Description || '',
+    timeout: functionDetails.Configuration?.Timeout || 0,
+    memorySize: functionDetails.Configuration?.MemorySize || 0,
+    environment: functionDetails.Configuration?.Environment?.Variables || {},
+    tags: functionDetails.Tags || {},
+  }
+}
+
 export async function POST(request: NextRequest) {
   const requestId = crypto.randomUUID().slice(0, 8)
 
@@ -37,19 +180,27 @@ export async function POST(request: NextRequest) {
     logger.info(`[${requestId}] Processing AWS Lambda deployment request`)
 
     // Parse and validate request body
-    const body = await request.json()
+    let body: any
+    try {
+      body = await request.json()
+    } catch (parseError) {
+      logger.error(`[${requestId}] Failed to parse request body`, {
+        error: parseError instanceof Error ? parseError.message : String(parseError),
+      })
+      return createErrorResponse('Invalid JSON in request body', 400, 'INVALID_JSON')
+    }
 
     const validationResult = DeployRequestSchema.safeParse(body)
     if (!validationResult.success) {
       logger.warn(`[${requestId}] Invalid request body`, { errors: validationResult.error.errors })
-      return NextResponse.json(
-        { error: 'Invalid request parameters', details: validationResult.error.errors },
-        { status: 400 }
+      return createErrorResponse(
+        'Invalid request parameters',
+        400,
+        'VALIDATION_ERROR'
       )
     }
 
     const params = validationResult.data
-    console.log(`[${requestId}] Received params:`, JSON.stringify(params, null, 2))
     logger.info(`[${requestId}] Deploying Lambda function: ${params.functionName}`)
 
     // Create Lambda client
@@ -62,140 +213,57 @@ export async function POST(request: NextRequest) {
     })
 
     // Create ZIP file with the Lambda code and dependencies
-    const zip = new JSZip()
-
-    // Add the main function code
-    const fileExtension = getFileExtension(params.runtime)
-    const fileName = `index.${fileExtension}`
-    zip.file(fileName, params.code)
-
-    // Add dependencies based on runtime
-    if (
-      params.runtime.startsWith('python') &&
-      params.requirements &&
-      params.requirements.trim() !== ''
-    ) {
-      zip.file('requirements.txt', params.requirements)
-    } else if (
-      params.runtime.startsWith('nodejs') &&
-      params.packageJson &&
-      params.packageJson.trim() !== ''
-    ) {
-      zip.file('package.json', params.packageJson)
-    }
-
-    const zipBuffer = await zip.generateAsync({ type: 'nodebuffer' })
+    const zipBuffer = await createLambdaPackage(params)
 
     // Check if function already exists
-    let functionExists = false
-    try {
-      await lambdaClient.send(new GetFunctionCommand({ FunctionName: params.functionName }))
-      functionExists = true
-      logger.info(`[${requestId}] Function ${params.functionName} already exists, updating code`)
-    } catch (error: any) {
-      if (error.name === 'ResourceNotFoundException') {
-        functionExists = false
-        logger.info(
-          `[${requestId}] Function ${params.functionName} does not exist, creating new function`
-        )
-      } else {
-        throw error
-      }
-    }
-
-    let result: any
+    const functionExists = await checkFunctionExists(lambdaClient, params.functionName)
 
     if (functionExists) {
-      // Update existing function code
-      const updateParams = {
-        FunctionName: params.functionName,
-        ZipFile: zipBuffer,
-      }
-
-      result = await lambdaClient.send(new UpdateFunctionCodeCommand(updateParams))
-      logger.info(`[${requestId}] Lambda function code updated: ${result.FunctionArn}`)
+      logger.info(`[${requestId}] Function ${params.functionName} already exists, updating code`)
+      await updateLambdaFunction(lambdaClient, params.functionName, zipBuffer)
     } else {
-      // Create new function
-      if (!params.role) {
-        throw new Error(
-          'Role ARN is required for creating new Lambda functions. Please provide a valid IAM Role ARN.'
-        )
-      }
-
-      const createParams = {
-        FunctionName: params.functionName,
-        Runtime: params.runtime as Runtime,
-        Role: params.role,
-        Handler: params.handler || getDefaultHandler(params.runtime),
-        Code: {
-          ZipFile: zipBuffer,
-        },
-        Timeout: params.timeout,
-        MemorySize: params.memorySize,
-        Environment: {
-          Variables: params.environmentVariables,
-        },
-        Tags: params.tags,
-      }
-
-      result = await lambdaClient.send(new CreateFunctionCommand(createParams))
-      logger.info(`[${requestId}] Lambda function created: ${result.FunctionArn}`)
+      logger.info(`[${requestId}] Function ${params.functionName} does not exist, creating new function`)
+      await createLambdaFunction(lambdaClient, params, zipBuffer)
     }
 
     // Get function details for response
-    const functionDetails = await lambdaClient.send(
-      new GetFunctionCommand({ FunctionName: params.functionName })
-    )
+    const functionDetails = await getFunctionDetails(lambdaClient, params.functionName, params.region)
 
-    const response = {
-      functionArn: functionDetails.Configuration?.FunctionArn || '',
-      functionName: functionDetails.Configuration?.FunctionName || '',
-      runtime: functionDetails.Configuration?.Runtime || '',
-      region: params.region,
-      status: functionDetails.Configuration?.State || '',
-      lastModified: functionDetails.Configuration?.LastModified || '',
-      codeSize: functionDetails.Configuration?.CodeSize || 0,
-      description: functionDetails.Configuration?.Description || '',
-      timeout: functionDetails.Configuration?.Timeout || 0,
-      memorySize: functionDetails.Configuration?.MemorySize || 0,
-      environment: functionDetails.Configuration?.Environment?.Variables || {},
-      tags: functionDetails.Tags || {},
+    logger.info(`[${requestId}] Lambda function deployment completed successfully`, {
+      functionName: params.functionName,
+      functionArn: functionDetails.functionArn,
+    })
+
+    return createSuccessResponse({
+      success: true,
+      output: functionDetails,
+    })
+  } catch (error: any) {
+    logger.error(`[${requestId}] Error deploying Lambda function`, {
+      error: error instanceof Error ? error.message : String(error),
+      stack: error instanceof Error ? error.stack : undefined,
+    })
+
+    // Handle specific AWS errors
+    let errorMessage = 'Failed to deploy Lambda function'
+    let statusCode = 500
+
+    if (error.name === 'AccessDeniedException') {
+      errorMessage = 'Access denied. Please check your AWS credentials and permissions.'
+      statusCode = 403
+    } else if (error.name === 'InvalidParameterValueException') {
+      errorMessage = `Invalid parameter: ${error.message}`
+      statusCode = 400
+    } else if (error.name === 'ResourceConflictException') {
+      errorMessage = 'Resource conflict. The function may be in use or being updated.'
+      statusCode = 409
+    } else if (error.name === 'ServiceException') {
+      errorMessage = 'AWS Lambda service error. Please try again later.'
+      statusCode = 503
+    } else if (error instanceof Error) {
+      errorMessage = error.message
     }
 
-    return NextResponse.json({
-      success: true,
-      output: response,
-    })
-  } catch (error) {
-    logger.error(`[${requestId}] Error deploying Lambda function`, error)
-    return NextResponse.json(
-      {
-        success: false,
-        error: error instanceof Error ? error.message : 'Failed to deploy Lambda function',
-      },
-      { status: 500 }
-    )
+    return createErrorResponse(errorMessage, statusCode, 'DEPLOYMENT_ERROR')
   }
-}
-
-// Helper functions
-function getFileExtension(runtime: string): string {
-  if (runtime.startsWith('nodejs')) return 'js'
-  if (runtime.startsWith('python')) return 'py'
-  if (runtime.startsWith('java')) return 'java'
-  if (runtime.startsWith('dotnet')) return 'cs'
-  if (runtime.startsWith('go')) return 'go'
-  if (runtime.startsWith('ruby')) return 'rb'
-  return 'js' // default
-}
-
-function getDefaultHandler(runtime: string): string {
-  if (runtime.startsWith('nodejs')) return 'index.handler'
-  if (runtime.startsWith('python')) return 'index.lambda_handler'
-  if (runtime.startsWith('java')) return 'com.example.LambdaFunction::handleRequest'
-  if (runtime.startsWith('dotnet'))
-    return 'LambdaFunction::LambdaFunction.Function::FunctionHandler'
-  if (runtime.startsWith('go')) return 'main'
-  if (runtime.startsWith('ruby')) return 'index.lambda_handler'
-  return 'index.handler' // default
 }
