@@ -34,6 +34,17 @@ export const AWSLambdaBlock: BlockConfig<AWSLambdaResponse> = {
   icon: S3Icon,
   subBlocks: [
     {
+      id: 'operation',
+      title: 'Operation',
+      type: 'dropdown',
+      layout: 'full',
+      options: [
+        { label: 'Fetch', id: 'fetch' },
+        { label: 'Create/Update', id: 'create/update' },
+        { label: 'Get Prompts', id: 'getPrompts' },
+      ],
+    },
+    {
       id: 'accessKeyId',
       title: 'AWS Access Key ID',
       type: 'short-input',
@@ -52,6 +63,18 @@ export const AWSLambdaBlock: BlockConfig<AWSLambdaResponse> = {
       layout: 'full',
       placeholder: 'Enter AWS Secret Access Key',
       password: true,
+      condition: {
+        field: 'operation',
+        value: ['fetch', 'create/update'],
+      },
+    },
+    {
+      id: 'role',
+      title: 'Role ARN',
+      type: 'short-input',
+      layout: 'full',
+      placeholder: 'Enter the IAM Role ARN for Lambda execution',
+      password: false,
       condition: {
         field: 'operation',
         value: ['fetch', 'create/update'],
@@ -91,29 +114,6 @@ export const AWSLambdaBlock: BlockConfig<AWSLambdaResponse> = {
       },
     },
     {
-      id: 'role',
-      title: 'Role ARN',
-      type: 'short-input',
-      layout: 'full',
-      placeholder: 'Enter the IAM Role ARN for Lambda execution',
-      password: false,
-      condition: {
-        field: 'operation',
-        value: ['fetch', 'create/update'],
-      },
-    },
-    {
-      id: 'operation',
-      title: 'Operation',
-      type: 'dropdown',
-      layout: 'full',
-      options: [
-        { label: 'Fetch', id: 'fetch' },
-        { label: 'Create/Update', id: 'create/update' },
-        { label: 'Get Prompts', id: 'getPrompts' },
-      ],
-    },
-    {
       id: 'functionName',
       title: 'Function Name',
       type: 'short-input',
@@ -147,20 +147,6 @@ export const AWSLambdaBlock: BlockConfig<AWSLambdaResponse> = {
       },
     },
     {
-      id: 'code',
-      title: 'Function Code',
-      type: 'code',
-      layout: 'full',
-      language: 'json',
-      placeholder:
-        '{\n  "index.js": "exports.handler = async (event) => {...};"\n}',
-      condition: {
-        field: 'operation',
-        value: ['create/update'],
-      },
-    },
-
-    {
       id: 'timeout',
       title: 'Timeout (seconds)',
       type: 'short-input',
@@ -177,6 +163,18 @@ export const AWSLambdaBlock: BlockConfig<AWSLambdaResponse> = {
       type: 'short-input',
       layout: 'half',
       placeholder: 'Enter memory in MB (128-10240)',
+      condition: {
+        field: 'operation',
+        value: ['create/update'],
+      },
+    },
+    {
+      id: 'code',
+      title: 'Function Code',
+      type: 'code',
+      layout: 'full',
+      language: 'json',
+      placeholder: '{\n  "index.js": "exports.handler = async (event) => {...};"\n}',
       condition: {
         field: 'operation',
         value: ['create/update'],
