@@ -1,1 +1,1 @@
-export { awsLambdaDeployTool } from './deploy' 
+export { awsLambdaDeployTool } from './deploy'

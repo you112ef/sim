@@ -1,7 +1,6 @@
 import { S3Icon } from '@/components/icons'
-import type { BlockConfig } from '../types'
-
 import type { ToolResponse } from '@/tools/types'
+import type { BlockConfig } from '../types'
 
 // Define the expected response type for AWS Lambda operations
 interface AWSLambdaResponse extends ToolResponse {
@@ -123,7 +122,20 @@ export const AWSLambdaBlock: BlockConfig<AWSLambdaResponse> = {
       placeholder: 'e.g., index.handler',
       condition: {
         field: 'runtime',
-        value: ['nodejs18.x', 'nodejs16.x', 'nodejs14.x', 'python3.11', 'python3.10', 'python3.9', 'python3.8', 'java11', 'java8.al2', 'dotnet6', 'dotnetcore3.1', 'ruby2.7'],
+        value: [
+          'nodejs18.x',
+          'nodejs16.x',
+          'nodejs14.x',
+          'python3.11',
+          'python3.10',
+          'python3.9',
+          'python3.8',
+          'java11',
+          'java8.al2',
+          'dotnet6',
+          'dotnetcore3.1',
+          'ruby2.7',
+        ],
       },
     },
     {
@@ -141,7 +153,8 @@ export const AWSLambdaBlock: BlockConfig<AWSLambdaResponse> = {
       type: 'code',
       layout: 'full',
       language: 'javascript',
-      placeholder: '// Enter Python dependencies (requirements.txt format)\n// e.g., requests==2.31.0\n// boto3==1.34.0',
+      placeholder:
+        '// Enter Python dependencies (requirements.txt format)\n// e.g., requests==2.31.0\n// boto3==1.34.0',
       condition: {
         field: 'runtime',
         value: ['python3.11', 'python3.10', 'python3.9', 'python3.8'],
@@ -153,7 +166,8 @@ export const AWSLambdaBlock: BlockConfig<AWSLambdaResponse> = {
       type: 'code',
       layout: 'full',
       language: 'json',
-      placeholder: '{\n  "name": "lambda-function",\n  "version": "1.0.0",\n  "dependencies": {\n    "axios": "^1.6.0",\n    "lodash": "^4.17.21"\n  }\n}',
+      placeholder:
+        '{\n  "name": "lambda-function",\n  "version": "1.0.0",\n  "dependencies": {\n    "axios": "^1.6.0",\n    "lodash": "^4.17.21"\n  }\n}',
       condition: {
         field: 'runtime',
         value: ['nodejs18.x', 'nodejs16.x', 'nodejs14.x'],

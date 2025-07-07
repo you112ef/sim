@@ -1,6 +1,12 @@
-import { NextRequest, NextResponse } from 'next/server'
-import { LambdaClient, CreateFunctionCommand, UpdateFunctionCodeCommand, GetFunctionCommand, Runtime } from '@aws-sdk/client-lambda'
+import {
+  CreateFunctionCommand,
+  GetFunctionCommand,
+  LambdaClient,
+  type Runtime,
+  UpdateFunctionCodeCommand,
+} from '@aws-sdk/client-lambda'
 import JSZip from 'jszip'
+import { type NextRequest, NextResponse } from 'next/server'
 import { z } from 'zod'
 import { createLogger } from '@/lib/logs/console-logger'
 
@@ -32,7 +38,7 @@ export async function POST(request: NextRequest) {
 
     // Parse and validate request body
     const body = await request.json()
-    
+
     const validationResult = DeployRequestSchema.safeParse(body)
     if (!validationResult.success) {
       logger.warn(`[${requestId}] Invalid request body`, { errors: validationResult.error.errors })
@@ -57,16 +63,24 @@ export async function POST(request: NextRequest) {
 
     // Create ZIP file with the Lambda code and dependencies
     const zip = new JSZip()
-    
+
     // Add the main function code
     const fileExtension = getFileExtension(params.runtime)
     const fileName = `index.${fileExtension}`
     zip.file(fileName, params.code)
 
     // Add dependencies based on runtime
-    if (params.runtime.startsWith('python') && params.requirements && params.requirements.trim() !== '') {
+    if (
+      params.runtime.startsWith('python') &&
+      params.requirements &&
+      params.requirements.trim() !== ''
+    ) {
       zip.file('requirements.txt', params.requirements)
-    } else if (params.runtime.startsWith('nodejs') && params.packageJson && params.packageJson.trim() !== '') {
+    } else if (
+      params.runtime.startsWith('nodejs') &&
+      params.packageJson &&
+      params.packageJson.trim() !== ''
+    ) {
       zip.file('package.json', params.packageJson)
     }
 
@@ -81,7 +95,9 @@ export async function POST(request: NextRequest) {
     } catch (error: any) {
       if (error.name === 'ResourceNotFoundException') {
         functionExists = false
-        logger.info(`[${requestId}] Function ${params.functionName} does not exist, creating new function`)
+        logger.info(
+          `[${requestId}] Function ${params.functionName} does not exist, creating new function`
+        )
       } else {
         throw error
       }
@@ -101,7 +117,9 @@ export async function POST(request: NextRequest) {
     } else {
       // Create new function
       if (!params.role) {
-        throw new Error('Role ARN is required for creating new Lambda functions. Please provide a valid IAM Role ARN.')
+        throw new Error(
+          'Role ARN is required for creating new Lambda functions. Please provide a valid IAM Role ARN.'
+        )
       }
 
       const createParams = {
@@ -148,13 +166,12 @@ export async function POST(request: NextRequest) {
       success: true,
       output: response,
     })
-
   } catch (error) {
     logger.error(`[${requestId}] Error deploying Lambda function`, error)
     return NextResponse.json(
-      { 
+      {
         success: false,
-        error: error instanceof Error ? error.message : 'Failed to deploy Lambda function' 
+        error: error instanceof Error ? error.message : 'Failed to deploy Lambda function',
       },
       { status: 500 }
     )
@@ -176,8 +193,9 @@ function getDefaultHandler(runtime: string): string {
   if (runtime.startsWith('nodejs')) return 'index.handler'
   if (runtime.startsWith('python')) return 'index.lambda_handler'
   if (runtime.startsWith('java')) return 'com.example.LambdaFunction::handleRequest'
-  if (runtime.startsWith('dotnet')) return 'LambdaFunction::LambdaFunction.Function::FunctionHandler'
+  if (runtime.startsWith('dotnet'))
+    return 'LambdaFunction::LambdaFunction.Function::FunctionHandler'
   if (runtime.startsWith('go')) return 'main'
   if (runtime.startsWith('ruby')) return 'index.lambda_handler'
   return 'index.handler' // default
-} 
+}
