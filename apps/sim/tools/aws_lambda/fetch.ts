@@ -56,6 +56,7 @@ export const awsLambdaFetchTool: ToolConfig<AWSLambdaFetchParams, AWSLambdaFetch
       required: true,
       description: 'Name of the Lambda function to fetch',
     },
+
   },
 
   request: {

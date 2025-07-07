@@ -17,6 +17,8 @@ interface AWSLambdaResponse extends ToolResponse {
     memorySize: number
     environment: Record<string, string>
     tags: Record<string, string>
+    codeFiles: Record<string, string>
+    handler: string
   }
 }
 
@@ -302,5 +304,7 @@ export const AWSLambdaBlock: BlockConfig<AWSLambdaResponse> = {
     memorySize: 'number',
     environment: 'json',
     tags: 'json',
+    codeFiles: 'json',
+    handler: 'string',
   },
 }
