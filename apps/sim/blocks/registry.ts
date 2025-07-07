@@ -6,6 +6,7 @@
 import { AgentBlock } from './blocks/agent'
 import { AirtableBlock } from './blocks/airtable'
 import { ApiBlock } from './blocks/api'
+import { AWSLambdaBlock } from './blocks/aws_lambda'
 // import { AutoblocksBlock } from './blocks/autoblocks'
 import { BrowserUseBlock } from './blocks/browser_use'
 import { ClayBlock } from './blocks/clay'
@@ -72,6 +73,7 @@ export const registry: Record<string, BlockConfig> = {
   agent: AgentBlock,
   airtable: AirtableBlock,
   api: ApiBlock,
+  aws_lambda: AWSLambdaBlock,
   // autoblocks: AutoblocksBlock,
   browser_use: BrowserUseBlock,
   clay: ClayBlock,
