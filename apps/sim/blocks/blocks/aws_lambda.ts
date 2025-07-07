@@ -77,17 +77,17 @@ export const AWSLambdaBlock: BlockConfig<AWSLambdaResponse> = {
       ],
     },
     {
-        id: 'role',
-        title: 'Role ARN',
-        type: 'short-input',
-        layout: 'full',
-        placeholder: 'Enter the IAM Role ARN for Lambda execution',
-        password: false,
-        condition: {
-          field: 'operationType',
-          value: ['create/update'],
-        },
+      id: 'role',
+      title: 'Role ARN',
+      type: 'short-input',
+      layout: 'full',
+      placeholder: 'Enter the IAM Role ARN for Lambda execution',
+      password: false,
+      condition: {
+        field: 'operationType',
+        value: ['create/update'],
       },
+    },
     {
       id: 'operationType',
       title: 'Operation Type',
