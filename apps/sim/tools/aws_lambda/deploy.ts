@@ -8,7 +8,7 @@ interface AWSLambdaDeployInput {
   functionName: string
   handler?: string
   runtime: string
-  code: string
+  code: Record<string, string>
   requirements?: string
   packageJson?: string
   timeout: number
@@ -79,9 +79,9 @@ export const awsLambdaDeployTool: ToolConfig<AWSLambdaDeployInput, AWSLambdaDepl
       description: 'Lambda runtime (e.g., nodejs18.x, python3.11)',
     },
     code: {
-      type: 'string',
+      type: 'object',
       required: true,
-      description: 'Function code to deploy',
+      description: 'Function code files as JSON object with file paths as keys and code content as values',
     },
     requirements: {
       type: 'string',

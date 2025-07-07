@@ -21,7 +21,7 @@ const DeployRequestSchema = z.object({
   functionName: z.string().min(1, 'Function name is required'),
   handler: z.string().optional(),
   runtime: z.string().min(1, 'Runtime is required'),
-  code: z.string().min(1, 'Function code is required'),
+  code: z.record(z.string()).refine((val) => Object.keys(val).length > 0, 'At least one code file is required'),
   requirements: z.string().nullable().optional(),
   packageJson: z.string().nullable().optional(),
   timeout: z.number().min(1).max(900),
@@ -67,10 +67,10 @@ function getFileExtension(runtime: string): string {
 async function createLambdaPackage(params: DeployRequest): Promise<Buffer> {
   const zip = new JSZip()
 
-  // Add the main function code
-  const fileExtension = getFileExtension(params.runtime)
-  const fileName = `index.${fileExtension}`
-  zip.file(fileName, params.code)
+  // Add all code files from the JSON object
+  for (const [filePath, codeContent] of Object.entries(params.code)) {
+    zip.file(filePath, codeContent)
+  }
 
   // Add dependencies based on runtime
   if (params.runtime.startsWith('python') && params.requirements?.trim()) {
@@ -108,6 +108,8 @@ async function createLambdaFunction(
   params: DeployRequest,
   zipBuffer: Buffer
 ): Promise<any> {
+
+
   const createParams = {
     FunctionName: params.functionName,
     Runtime: params.runtime as Runtime,
@@ -188,6 +190,26 @@ export async function POST(request: NextRequest) {
       return createErrorResponse('Invalid JSON in request body', 400, 'INVALID_JSON')
     }
 
+    logger.info(`[${requestId}] Request body received:`, { 
+      body,
+      codeType: typeof body.code,
+      codeValue: body.code
+    })
+    
+    // Parse the code field if it's a JSON string
+    if (typeof body.code === 'string') {
+      try {
+        body.code = JSON.parse(body.code)
+        logger.info(`[${requestId}] Parsed code field:`, { parsedCode: body.code })
+      } catch (parseError) {
+        logger.error(`[${requestId}] Failed to parse code field as JSON`, { 
+          error: parseError instanceof Error ? parseError.message : String(parseError),
+          codeString: body.code 
+        })
+        return createErrorResponse('Invalid JSON in code field', 400, 'INVALID_CODE_JSON')
+      }
+    }
+    
     const validationResult = DeployRequestSchema.safeParse(body)
     if (!validationResult.success) {
       logger.warn(`[${requestId}] Invalid request body`, { errors: validationResult.error.errors })
@@ -195,7 +217,12 @@ export async function POST(request: NextRequest) {
     }
 
     const params = validationResult.data
-    logger.info(`[${requestId}] Deploying Lambda function: ${params.functionName}`)
+    logger.info(`[${requestId}] Validation successful, params:`, { 
+      functionName: params.functionName,
+      runtime: params.runtime,
+      codeKeys: Object.keys(params.code),
+      hasRole: !!params.role
+    })
 
     // Create Lambda client
     const lambdaClient = new LambdaClient({
