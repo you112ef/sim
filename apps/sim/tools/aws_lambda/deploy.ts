@@ -4,6 +4,7 @@ interface AWSLambdaDeployInput {
   accessKeyId: string
   secretAccessKey: string
   region: string
+  role: string
   functionName: string
   handler?: string
   runtime: string
@@ -14,7 +15,6 @@ interface AWSLambdaDeployInput {
   memorySize: number
   environmentVariables: Record<string, string>
   tags: Record<string, string>
-  role: string
 }
 
 interface AWSLambdaDeployOutput {
@@ -39,14 +39,17 @@ export const awsLambdaDeployTool: ToolConfig<AWSLambdaDeployInput, AWSLambdaDepl
   version: '1.0.0',
 
   params: {
+    // Common AWS parameters (always at the top)
     accessKeyId: {
       type: 'string',
       required: true,
+      requiredForToolCall: true,
       description: 'AWS Access Key ID for authentication',
     },
     secretAccessKey: {
       type: 'string',
       required: true,
+      requiredForToolCall: true,
       description: 'AWS Secret Access Key for authentication',
     },
     region: {
@@ -54,6 +57,12 @@ export const awsLambdaDeployTool: ToolConfig<AWSLambdaDeployInput, AWSLambdaDepl
       required: true,
       description: 'AWS region where the Lambda function will be deployed',
     },
+    role: {
+      type: 'string',
+      required: true,
+      description: 'IAM Role ARN for Lambda execution',
+    },
+    // Operation-specific parameters
     functionName: {
       type: 'string',
       required: true,
@@ -106,11 +115,6 @@ export const awsLambdaDeployTool: ToolConfig<AWSLambdaDeployInput, AWSLambdaDepl
       description: 'Tags for the function',
       default: {},
     },
-    role: {
-      type: 'string',
-      required: true,
-      description: 'IAM Role ARN for Lambda execution',
-    },
   },
 
   request: {
@@ -123,6 +127,7 @@ export const awsLambdaDeployTool: ToolConfig<AWSLambdaDeployInput, AWSLambdaDepl
       accessKeyId: params.accessKeyId,
       secretAccessKey: params.secretAccessKey,
       region: params.region,
+      role: params.role,
       functionName: params.functionName,
       handler: params.handler,
       runtime: params.runtime,
@@ -133,7 +138,6 @@ export const awsLambdaDeployTool: ToolConfig<AWSLambdaDeployInput, AWSLambdaDepl
       memorySize: params.memorySize,
       environmentVariables: params.environmentVariables || {},
       tags: params.tags || {},
-      role: params.role,
     }),
   },
 }

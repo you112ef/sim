@@ -1,14 +1,13 @@
 import type { ToolConfig } from '../types'
 
-interface AWSLambdaFetchInput {
+interface AWSLambdaFetchParams {
   accessKeyId: string
   secretAccessKey: string
   region: string
-  functionName?: string
-  fetchFunctionName?: string
+  functionName: string
 }
 
-interface AWSLambdaFetchOutput {
+interface AWSLambdaFetchResponse {
   functionArn: string
   functionName: string
   runtime: string
@@ -26,21 +25,24 @@ interface AWSLambdaFetchOutput {
   role: string
 }
 
-export const awsLambdaFetchTool: ToolConfig<AWSLambdaFetchInput, AWSLambdaFetchOutput> = {
+export const awsLambdaFetchTool: ToolConfig<AWSLambdaFetchParams, AWSLambdaFetchResponse> = {
   id: 'aws_lambda_fetch',
   name: 'AWS Lambda Fetch',
   description: 'Fetch AWS Lambda function details and code',
   version: '1.0.0',
 
   params: {
+    // Common AWS parameters (always at the top)
     accessKeyId: {
       type: 'string',
       required: true,
+      requiredForToolCall: true,
       description: 'AWS Access Key ID for authentication',
     },
     secretAccessKey: {
       type: 'string',
       required: true,
+      requiredForToolCall: true,
       description: 'AWS Secret Access Key for authentication',
     },
     region: {
@@ -48,14 +50,10 @@ export const awsLambdaFetchTool: ToolConfig<AWSLambdaFetchInput, AWSLambdaFetchO
       required: true,
       description: 'AWS region where the Lambda function is located',
     },
+    // Operation-specific parameters
     functionName: {
       type: 'string',
-      required: false,
-      description: 'Name of the Lambda function to fetch (legacy)',
-    },
-    fetchFunctionName: {
-      type: 'string',
-      required: false,
+      required: true,
       description: 'Name of the Lambda function to fetch',
     },
   },
@@ -66,11 +64,11 @@ export const awsLambdaFetchTool: ToolConfig<AWSLambdaFetchInput, AWSLambdaFetchO
     headers: () => ({
       'Content-Type': 'application/json',
     }),
-    body: (params: AWSLambdaFetchInput) => ({
+    body: (params: AWSLambdaFetchParams) => ({
       accessKeyId: params.accessKeyId,
       secretAccessKey: params.secretAccessKey,
       region: params.region,
-      functionName: params.fetchFunctionName || params.functionName,
+      functionName: params.functionName,
     }),
   },
-} 
+}

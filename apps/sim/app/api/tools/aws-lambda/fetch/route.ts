@@ -3,12 +3,14 @@ import {
   GetFunctionConfigurationCommand,
   LambdaClient,
 } from '@aws-sdk/client-lambda'
-import { S3Client, GetObjectCommand } from '@aws-sdk/client-s3'
+import { GetObjectCommand, S3Client } from '@aws-sdk/client-s3'
 import JSZip from 'jszip'
 import type { NextRequest } from 'next/server'
 import { z } from 'zod'
 import { createLogger } from '@/lib/logs/console-logger'
 import { createErrorResponse, createSuccessResponse } from '@/app/api/workflows/utils'
+
+export const dynamic = 'force-dynamic'
 
 const logger = createLogger('AWSLambdaFetchAPI')
 
@@ -43,18 +45,19 @@ interface LambdaFunctionDetails {
 /**
  * Extract code from Lambda function ZIP file
  */
-async function extractCodeFromZip(zipBuffer: Buffer, runtime: string): Promise<{ mainCode: string; allFiles: Record<string, string> }> {
+async function extractCodeFromZip(
+  zipBuffer: Buffer,
+  runtime: string
+): Promise<{ mainCode: string; allFiles: Record<string, string> }> {
   try {
     const zip = await JSZip.loadAsync(zipBuffer)
-    
-    // Log all files in the ZIP for debugging
     const allFiles = Object.keys(zip.files)
-    console.log('Files in ZIP:', allFiles)
-    
+    logger.info('Files in ZIP:', allFiles)
+
     // Extract all text files
     const allFilesContent: Record<string, string> = {}
     let mainCode = ''
-    
+
     // Determine the main file based on runtime
     let mainFile = 'index.js' // default
     if (runtime.startsWith('python')) {
@@ -69,7 +72,7 @@ async function extractCodeFromZip(zipBuffer: Buffer, runtime: string): Promise<{
       mainFile = 'index.rb'
     }
 
-    console.log('Looking for main file:', mainFile)
+    logger.info('Looking for main file:', mainFile)
 
     // Extract all non-directory files
     for (const fileName of allFiles) {
@@ -78,32 +81,37 @@ async function extractCodeFromZip(zipBuffer: Buffer, runtime: string): Promise<{
           const fileContent = await zip.file(fileName)?.async('string')
           if (fileContent !== undefined) {
             allFilesContent[fileName] = fileContent
-            
+
             // Set main code if this is the main file
             if (fileName === mainFile) {
               mainCode = fileContent
-              console.log('Found main file content, length:', mainCode.length)
+              logger.info('Found main file content, length:', mainCode.length)
             }
           }
         } catch (error) {
-          console.log(`Failed to extract file ${fileName}:`, error)
+          logger.warn(`Failed to extract file ${fileName}:`, error)
         }
       }
     }
 
     // If main file not found, try to find any code file
     if (!mainCode) {
-      const codeFiles = Object.keys(allFilesContent).filter(file => 
-        file.endsWith('.js') || file.endsWith('.py') || file.endsWith('.java') || 
-        file.endsWith('.cs') || file.endsWith('.go') || file.endsWith('.rb')
+      const codeFiles = Object.keys(allFilesContent).filter(
+        (file) =>
+          file.endsWith('.js') ||
+          file.endsWith('.py') ||
+          file.endsWith('.java') ||
+          file.endsWith('.cs') ||
+          file.endsWith('.go') ||
+          file.endsWith('.rb')
       )
 
-      console.log('Found code files:', codeFiles)
+      logger.info('Found code files:', codeFiles)
 
       if (codeFiles.length > 0) {
         const firstCodeFile = codeFiles[0]
         mainCode = allFilesContent[firstCodeFile]
-        console.log('Using first code file as main, length:', mainCode.length)
+        logger.info('Using first code file as main, length:', mainCode.length)
       }
     }
 
@@ -111,13 +119,13 @@ async function extractCodeFromZip(zipBuffer: Buffer, runtime: string): Promise<{
     if (!mainCode && Object.keys(allFilesContent).length > 0) {
       const firstFile = Object.keys(allFilesContent)[0]
       mainCode = allFilesContent[firstFile]
-      console.log('Using first file as main, length:', mainCode.length)
+      logger.info('Using first file as main, length:', mainCode.length)
     }
 
-    console.log(`Extracted ${Object.keys(allFilesContent).length} files`)
+    logger.info(`Extracted ${Object.keys(allFilesContent).length} files`)
     return { mainCode, allFiles: allFilesContent }
   } catch (error) {
-    console.error('Failed to extract code from ZIP', { error })
+    logger.error('Failed to extract code from ZIP', { error })
     return { mainCode: '', allFiles: {} }
   }
 }
@@ -145,15 +153,15 @@ async function getFunctionDetailsWithCode(
   let codeFiles: Record<string, string> = {}
   if (functionCode.Code?.Location) {
     try {
-      console.log('Downloading code from:', functionCode.Code.Location)
-      
+      logger.info('Downloading code from:', functionCode.Code.Location)
+
       // Parse the S3 URL to extract bucket and key
       const s3Url = new URL(functionCode.Code.Location)
       const bucketName = s3Url.hostname.split('.')[0]
       const objectKey = s3Url.pathname.substring(1) // Remove leading slash
-      
-      console.log('Parsed S3 details:', { bucketName, objectKey })
-      
+
+      logger.info('Parsed S3 details:', { bucketName, objectKey })
+
       // Create S3 client with the same credentials
       const s3Client = new S3Client({
         region: region,
@@ -162,57 +170,57 @@ async function getFunctionDetailsWithCode(
           secretAccessKey: secretAccessKey,
         },
       })
-      
+
       // Download the object directly using AWS SDK
       const getObjectCommand = new GetObjectCommand({
         Bucket: bucketName,
         Key: objectKey,
       })
-      
+
       const s3Response = await s3Client.send(getObjectCommand)
-      
+
       if (s3Response.Body) {
         // Convert the readable stream to buffer
         const chunks: Uint8Array[] = []
         const reader = s3Response.Body.transformToWebStream().getReader()
-        
+
         while (true) {
           const { done, value } = await reader.read()
           if (done) break
           chunks.push(value)
         }
-        
+
         const zipBuffer = Buffer.concat(chunks)
-        console.log('ZIP buffer size:', zipBuffer.length)
+        logger.info('ZIP buffer size:', zipBuffer.length)
         const extractedCode = await extractCodeFromZip(zipBuffer, functionConfig.Runtime || '')
         codeFiles = extractedCode.allFiles
-        console.log('Extracted files count:', Object.keys(codeFiles).length)
+        logger.info('Extracted files count:', Object.keys(codeFiles).length)
       }
     } catch (error) {
-      console.error('Failed to download function code using S3 SDK', { error })
-      
+      logger.error('Failed to download function code using S3 SDK', { error })
+
       // Fallback to fetch method if S3 SDK fails
       try {
-        console.log('Trying fallback fetch method...')
+        logger.info('Trying fallback fetch method...')
         const response = await fetch(functionCode.Code.Location)
-        console.log('Fetch response status:', response.status)
+        logger.info('Fetch response status:', response.status)
         if (response.ok) {
           const zipBuffer = Buffer.from(await response.arrayBuffer())
-          console.log('ZIP buffer size (fetch):', zipBuffer.length)
+          logger.info('ZIP buffer size (fetch):', zipBuffer.length)
           const extractedCode = await extractCodeFromZip(zipBuffer, functionConfig.Runtime || '')
           codeFiles = extractedCode.allFiles
-          console.log('Extracted files count (fetch):', Object.keys(codeFiles).length)
+          logger.info('Extracted files count (fetch):', Object.keys(codeFiles).length)
         } else {
-          console.log('Fetch failed with status:', response.status)
+          logger.warn('Fetch failed with status:', response.status)
           const errorText = await response.text()
-          console.log('Error response:', errorText)
+          logger.warn('Error response:', errorText)
         }
       } catch (fetchError) {
-        console.error('Fetch fallback also failed', { fetchError })
+        logger.error('Fetch fallback also failed', { fetchError })
       }
     }
   } else {
-    console.log('No code location found in function response')
+    logger.info('No code location found in function response')
   }
 
   return {
@@ -278,24 +286,15 @@ export async function POST(request: NextRequest) {
       params.secretAccessKey
     )
 
-    console.log('Final function details:', {
+    logger.info(`[${requestId}] Successfully fetched Lambda function: ${params.functionName}`, {
       functionName: functionDetails.functionName,
       filesCount: Object.keys(functionDetails.codeFiles).length,
       hasFiles: Object.keys(functionDetails.codeFiles).length > 0,
-      allFields: Object.keys(functionDetails)
     })
 
-    logger.info(`[${requestId}] Successfully fetched Lambda function: ${params.functionName}`)
-
-    // Return the response directly to see if createSuccessResponse is filtering fields
-    return new Response(JSON.stringify({
+    return createSuccessResponse({
       success: true,
-      output: functionDetails
-    }), {
-      status: 200,
-      headers: {
-        'Content-Type': 'application/json',
-      },
+      output: functionDetails,
     })
   } catch (error: any) {
     logger.error(`[${requestId}] Failed to fetch Lambda function`, {
@@ -328,17 +327,9 @@ export async function POST(request: NextRequest) {
     }
 
     if (error.name === 'InvalidParameterValueException') {
-      return createErrorResponse(
-        'Invalid parameter value provided',
-        400,
-        'INVALID_PARAMETER'
-      )
+      return createErrorResponse('Invalid parameter value provided', 400, 'INVALID_PARAMETER')
     }
 
-    return createErrorResponse(
-      'Failed to fetch Lambda function',
-      500,
-      'FETCH_ERROR'
-    )
+    return createErrorResponse('Failed to fetch Lambda function', 500, 'FETCH_ERROR')
   }
-} 
+}
