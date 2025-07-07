@@ -115,7 +115,6 @@ export const awsLambdaDeployTool: ToolConfig<AWSLambdaDeployInput, AWSLambdaDepl
       description: 'Tags for the function',
       default: {},
     },
-
   },
 
   request: {
