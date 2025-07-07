@@ -9,10 +9,8 @@ interface AWSLambdaDeployInput {
   handler?: string
   runtime: string
   code: Record<string, string>
-  requirements?: string
-  packageJson?: string
-  timeout: number
-  memorySize: number
+  timeout?: number
+  memorySize?: number
   environmentVariables: Record<string, string>
   tags: Record<string, string>
 }
@@ -76,7 +74,7 @@ export const awsLambdaDeployTool: ToolConfig<AWSLambdaDeployInput, AWSLambdaDepl
     runtime: {
       type: 'string',
       required: true,
-      description: 'Lambda runtime (e.g., nodejs18.x, python3.11)',
+      description: 'Lambda runtime (e.g., nodejs18.x, python3.11, java11)',
     },
     code: {
       type: 'object',
@@ -84,25 +82,18 @@ export const awsLambdaDeployTool: ToolConfig<AWSLambdaDeployInput, AWSLambdaDepl
       description:
         'Function code files as JSON object with file paths as keys and code content as values',
     },
-    requirements: {
-      type: 'string',
-      required: false,
-      description: 'Python requirements.txt content',
-    },
-    packageJson: {
-      type: 'string',
-      required: false,
-      description: 'Node.js package.json content',
-    },
+
     timeout: {
       type: 'number',
-      required: true,
+      required: false,
       description: 'Function timeout in seconds (1-900)',
+      default: 3,
     },
     memorySize: {
       type: 'number',
-      required: true,
+      required: false,
       description: 'Function memory size in MB (128-10240)',
+      default: 128,
     },
     environmentVariables: {
       type: 'object',
@@ -133,10 +124,9 @@ export const awsLambdaDeployTool: ToolConfig<AWSLambdaDeployInput, AWSLambdaDepl
       handler: params.handler,
       runtime: params.runtime,
       code: params.code,
-      requirements: params.requirements,
-      packageJson: params.packageJson,
-      timeout: params.timeout,
-      memorySize: params.memorySize,
+
+      timeout: params.timeout || 30,
+      memorySize: params.memorySize || 128,
       environmentVariables: params.environmentVariables || {},
       tags: params.tags || {},
     }),

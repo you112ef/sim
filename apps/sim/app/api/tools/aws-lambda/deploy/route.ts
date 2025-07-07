@@ -20,14 +20,13 @@ const DeployRequestSchema = z.object({
   region: z.string().min(1, 'AWS Region is required'),
   functionName: z.string().min(1, 'Function name is required'),
   handler: z.string().optional(),
-  runtime: z.string().min(1, 'Runtime is required').optional().default('nodejs18.x'),
+  runtime: z.string().min(1, 'Runtime is required'),
   code: z
     .record(z.string())
     .refine((val) => Object.keys(val).length > 0, 'At least one code file is required'),
-  requirements: z.string().nullable().optional(),
-  packageJson: z.string().nullable().optional(),
-  timeout: z.number().min(1).max(900).optional().default(3),
-  memorySize: z.number().min(128).max(10240),
+
+  timeout: z.coerce.number().min(1).max(900).optional().default(3),
+  memorySize: z.coerce.number().min(128).max(10240).optional().default(128),
   environmentVariables: z.record(z.string()).default({}),
   tags: z.record(z.string()).default({}),
   role: z.string().min(1, 'Role ARN is required'),
@@ -74,12 +73,7 @@ async function createLambdaPackage(params: DeployRequest): Promise<Buffer> {
     zip.file(filePath, codeContent)
   }
 
-  // Add dependencies based on runtime
-  if (params.runtime.startsWith('python') && params.requirements?.trim()) {
-    zip.file('requirements.txt', params.requirements)
-  } else if (params.runtime.startsWith('nodejs') && params.packageJson?.trim()) {
-    zip.file('package.json', params.packageJson)
-  }
+
 
   return await zip.generateAsync({ type: 'nodebuffer' })
 }
@@ -207,6 +201,48 @@ export async function POST(request: NextRequest) {
           codeString: body.code,
         })
         return createErrorResponse('Invalid JSON in code field', 400, 'INVALID_CODE_JSON')
+      }
+    }
+
+    // Parse the runtime field if it's a JSON string
+    if (typeof body.runtime === 'string') {
+      try {
+        body.runtime = JSON.parse(body.runtime)
+        logger.info(`[${requestId}] Parsed runtime field:`, { parsedRuntime: body.runtime })
+      } catch (parseError) {
+        logger.error(`[${requestId}] Failed to parse runtime field as JSON`, {
+          error: parseError instanceof Error ? parseError.message : String(parseError),
+          runtimeString: body.runtime,
+        })
+        return createErrorResponse('Invalid JSON in runtime field', 400, 'INVALID_RUNTIME_JSON')
+      }
+    }
+
+    // Parse the timeout field if it's a JSON string
+    if (typeof body.timeout === 'string') {
+      try {
+        body.timeout = JSON.parse(body.timeout)
+        logger.info(`[${requestId}] Parsed timeout field:`, { parsedTimeout: body.timeout })
+      } catch (parseError) {
+        logger.error(`[${requestId}] Failed to parse timeout field as JSON`, {
+          error: parseError instanceof Error ? parseError.message : String(parseError),
+          timeoutString: body.timeout,
+        })
+        return createErrorResponse('Invalid JSON in timeout field', 400, 'INVALID_TIMEOUT_JSON')
+      }
+    }
+
+    // Parse the memorySize field if it's a JSON string
+    if (typeof body.memorySize === 'string') {
+      try {
+        body.memorySize = JSON.parse(body.memorySize)
+        logger.info(`[${requestId}] Parsed memorySize field:`, { parsedMemorySize: body.memorySize })
+      } catch (parseError) {
+        logger.error(`[${requestId}] Failed to parse memorySize field as JSON`, {
+          error: parseError instanceof Error ? parseError.message : String(parseError),
+          memorySizeString: body.memorySize,
+        })
+        return createErrorResponse('Invalid JSON in memorySize field', 400, 'INVALID_MEMORYSIZE_JSON')
       }
     }
 

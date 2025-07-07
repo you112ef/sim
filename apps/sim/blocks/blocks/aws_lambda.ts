@@ -107,25 +107,9 @@ export const AWSLambdaBlock: BlockConfig<AWSLambdaResponse> = {
     {
       id: 'runtime',
       title: 'Runtime',
-      type: 'dropdown',
+      type: 'short-input',
       layout: 'full',
-      options: [
-        'nodejs18.x',
-        'nodejs16.x',
-        'nodejs14.x',
-        'python3.11',
-        'python3.10',
-        'python3.9',
-        'python3.8',
-        'java11',
-        'java8.al2',
-        'dotnet6',
-        'dotnetcore3.1',
-        'go1.x',
-        'ruby2.7',
-        'provided.al2',
-        'provided',
-      ],
+      placeholder: 'e.g., nodejs18.x, python3.11, java11',
       condition: {
         field: 'operationType',
         value: ['create/update'],
@@ -140,23 +124,6 @@ export const AWSLambdaBlock: BlockConfig<AWSLambdaResponse> = {
       condition: {
         field: 'operationType',
         value: ['create/update'],
-        and: {
-          field: 'runtime',
-          value: [
-            'nodejs18.x',
-            'nodejs16.x',
-            'nodejs14.x',
-            'python3.11',
-            'python3.10',
-            'python3.9',
-            'python3.8',
-            'java11',
-            'java8.al2',
-            'dotnet6',
-            'dotnetcore3.1',
-            'ruby2.7',
-          ],
-        },
       },
     },
     {
@@ -172,49 +139,13 @@ export const AWSLambdaBlock: BlockConfig<AWSLambdaResponse> = {
         value: ['create/update'],
       },
     },
-    {
-      id: 'requirements',
-      title: 'Requirements (Python)',
-      type: 'code',
-      layout: 'full',
-      language: 'javascript',
-      placeholder:
-        '// Enter Python dependencies (requirements.txt format)\n// e.g., requests==2.31.0\n// boto3==1.34.0',
-      condition: {
-        field: 'operationType',
-        value: ['create/update'],
-        and: {
-          field: 'runtime',
-          value: ['python3.11', 'python3.10', 'python3.9', 'python3.8'],
-        },
-      },
-    },
-    {
-      id: 'packageJson',
-      title: 'Package.json (Node.js)',
-      type: 'code',
-      layout: 'full',
-      language: 'json',
-      placeholder:
-        '{\n  "name": "lambda-function",\n  "version": "1.0.0",\n  "dependencies": {\n    "axios": "^1.6.0",\n    "lodash": "^4.17.21"\n  }\n}',
-      condition: {
-        field: 'operationType',
-        value: ['create/update'],
-        and: {
-          field: 'runtime',
-          value: ['nodejs18.x', 'nodejs16.x', 'nodejs14.x'],
-        },
-      },
-    },
+
     {
       id: 'timeout',
       title: 'Timeout (seconds)',
-      type: 'slider',
-      layout: 'full',
-      min: 1,
-      max: 900,
-      step: 1,
-      integer: true,
+      type: 'short-input',
+      layout: 'half',
+      placeholder: 'Enter timeout in seconds (1-900)',
       condition: {
         field: 'operationType',
         value: ['create/update'],
@@ -223,12 +154,9 @@ export const AWSLambdaBlock: BlockConfig<AWSLambdaResponse> = {
     {
       id: 'memorySize',
       title: 'Memory (MB)',
-      type: 'slider',
+      type: 'short-input',
       layout: 'half',
-      min: 128,
-      max: 10240,
-      step: 64,
-      integer: true,
+      placeholder: 'Enter memory in MB (128-10240)',
       condition: {
         field: 'operationType',
         value: ['create/update'],
@@ -260,7 +188,7 @@ export const AWSLambdaBlock: BlockConfig<AWSLambdaResponse> = {
     },
   ],
   tools: {
-    access: ['aws_lambda_deploy', 'aws_lambda_update', 'aws_lambda_invoke', 'aws_lambda_fetch'],
+    access: ['aws_lambda_deploy', 'aws_lambda_fetch'],
     config: {
       tool: (params: Record<string, any>) => {
         switch (params.operationType) {
@@ -284,8 +212,6 @@ export const AWSLambdaBlock: BlockConfig<AWSLambdaResponse> = {
     handler: { type: 'string', required: false },
     runtime: { type: 'string', required: false },
     code: { type: 'json', required: false },
-    requirements: { type: 'string', required: false },
-    packageJson: { type: 'string', required: false },
     timeout: { type: 'number', required: false },
     memorySize: { type: 'number', required: false },
     environmentVariables: { type: 'json', required: false },
