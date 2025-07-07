@@ -22,44 +22,44 @@ Your output should be a valid JSON object, with the following structure:
 ]`
 
 const schema = {
-  "name": "aws_lambda_function",
-  "description": "Defines the structure for an AWS Lambda function configuration.",
-  "strict": true,
-  "schema": {
-    "type": "object",
-    "properties": {
-      "runtime": {
-        "type": "string",
-        "description": "The runtime environment for the Lambda function."
+  name: 'aws_lambda_function',
+  description: 'Defines the structure for an AWS Lambda function configuration.',
+  strict: true,
+  schema: {
+    type: 'object',
+    properties: {
+      runtime: {
+        type: 'string',
+        description: 'The runtime environment for the Lambda function.',
       },
-      "handler": {
-        "type": "string",
-        "description": "The function handler that Lambda calls to start execution."
+      handler: {
+        type: 'string',
+        description: 'The function handler that Lambda calls to start execution.',
       },
-      "memory": {
-        "type": "integer",
-        "description": "The amount of memory allocated to the Lambda function in MB (128-10240).",
-        "minimum": 128,
-        "maximum": 10240
+      memory: {
+        type: 'integer',
+        description: 'The amount of memory allocated to the Lambda function in MB (128-10240).',
+        minimum: 128,
+        maximum: 10240,
       },
-      "timeout": {
-        "type": "integer",
-        "description": "The maximum execution time for the Lambda function in seconds (1-900).",
-        "minimum": 1,
-        "maximum": 900
+      timeout: {
+        type: 'integer',
+        description: 'The maximum execution time for the Lambda function in seconds (1-900).',
+        minimum: 1,
+        maximum: 900,
       },
-      "files": {
-        "type": "object",
-        "description": "A mapping of file paths to their respective code strings.",
-        "additionalProperties": {
-          "type": "string",
-          "description": "The code string for a specific file."
-        }
-      }
+      files: {
+        type: 'object',
+        description: 'A mapping of file paths to their respective code strings.',
+        additionalProperties: {
+          type: 'string',
+          description: 'The code string for a specific file.',
+        },
+      },
     },
-    "additionalProperties": false,
-    "required": ["runtime", "handler", "files", "memory", "timeout"]
-  }
+    additionalProperties: false,
+    required: ['runtime', 'handler', 'files', 'memory', 'timeout'],
+  },
 }
 
 export async function POST(request: NextRequest) {
@@ -86,10 +86,6 @@ export async function POST(request: NextRequest) {
       stack: error instanceof Error ? error.stack : undefined,
     })
 
-    return createErrorResponse(
-      'Failed to get prompts and schema',
-      500,
-      'GET_PROMPTS_ERROR'
-    )
+    return createErrorResponse('Failed to get prompts and schema', 500, 'GET_PROMPTS_ERROR')
   }
-} 
+}

@@ -1,17 +1,16 @@
 import type { ToolConfig } from '../types'
 
-interface AWSLambdaGetPromptsParams {
-  // No parameters needed for this operation
-}
+type AWSLambdaGetPromptsParams = {}
 
 interface AWSLambdaGetPromptsResponse {
   systemPrompt: string
   schema: Record<string, any>
 }
 
-
-
-export const awsLambdaGetPromptsTool: ToolConfig<AWSLambdaGetPromptsParams, AWSLambdaGetPromptsResponse> = {
+export const awsLambdaGetPromptsTool: ToolConfig<
+  AWSLambdaGetPromptsParams,
+  AWSLambdaGetPromptsResponse
+> = {
   id: 'aws_lambda_get_prompts',
   name: 'AWS Lambda Get Prompts',
   description: 'Get system prompt and schema for AWS Lambda operations',
@@ -29,4 +28,4 @@ export const awsLambdaGetPromptsTool: ToolConfig<AWSLambdaGetPromptsParams, AWSL
     }),
     body: () => ({}), // No body needed
   },
-} 
+}

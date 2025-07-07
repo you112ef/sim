@@ -202,18 +202,13 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    // Parse the runtime field if it's a JSON string
-    if (typeof body.runtime === 'string') {
-      try {
-        body.runtime = JSON.parse(body.runtime)
-        logger.info(`[${requestId}] Parsed runtime field:`, { parsedRuntime: body.runtime })
-      } catch (parseError) {
-        logger.error(`[${requestId}] Failed to parse runtime field as JSON`, {
-          error: parseError instanceof Error ? parseError.message : String(parseError),
-          runtimeString: body.runtime,
-        })
-        return createErrorResponse('Invalid JSON in runtime field', 400, 'INVALID_RUNTIME_JSON')
-      }
+    // Runtime field should be a string, no JSON parsing needed
+    if (typeof body.runtime !== 'string') {
+      logger.error(`[${requestId}] Runtime field must be a string`, {
+        runtimeType: typeof body.runtime,
+        runtimeValue: body.runtime,
+      })
+      return createErrorResponse('Runtime field must be a string', 400, 'INVALID_RUNTIME_TYPE')
     }
 
     // Parse the timeout field if it's a JSON string

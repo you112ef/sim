@@ -2,8 +2,6 @@ import { S3Icon } from '@/components/icons'
 import type { ToolResponse } from '@/tools/types'
 import type { BlockConfig } from '../types'
 
-
-
 // Define the expected response type for AWS Lambda operations
 interface AWSLambdaResponse extends ToolResponse {
   output: {
@@ -63,7 +61,7 @@ export const AWSLambdaBlock: BlockConfig<AWSLambdaResponse> = {
       id: 'region',
       title: 'AWS Region',
       type: 'dropdown',
-      layout: 'half',
+      layout: 'full',
       options: [
         'us-east-1',
         'us-east-2',
@@ -101,7 +99,7 @@ export const AWSLambdaBlock: BlockConfig<AWSLambdaResponse> = {
       password: false,
       condition: {
         field: 'operation',
-        value: ['create/update'],
+        value: ['fetch', 'create/update'],
       },
     },
     {
@@ -155,7 +153,7 @@ export const AWSLambdaBlock: BlockConfig<AWSLambdaResponse> = {
       layout: 'full',
       language: 'json',
       placeholder:
-        '{\n  "index.js": "exports.handler = async (event) => {\n    return {\n      statusCode: 200,\n      body: JSON.stringify({\n        message: \"Hello from Lambda!\"\n      })\n    };\n  };"\n}',
+        '{\n  "index.js": "exports.handler = async (event) => {...};"\n}',
       condition: {
         field: 'operation',
         value: ['create/update'],
@@ -213,15 +211,15 @@ export const AWSLambdaBlock: BlockConfig<AWSLambdaResponse> = {
     access: ['aws_lambda_deploy', 'aws_lambda_fetch', 'aws_lambda_get_prompts'],
     config: {
       tool: (params: Record<string, any>) => {
-        const operation = String(params.operation || '').trim();
+        const operation = String(params.operation || '').trim()
         // Only map user-facing names; pass through tool IDs as-is
         const operationMap: Record<string, string> = {
-          'fetch': 'aws_lambda_fetch',
+          fetch: 'aws_lambda_fetch',
           'create/update': 'aws_lambda_deploy',
-          'getPrompts': 'aws_lambda_get_prompts',
-        };
+          getPrompts: 'aws_lambda_get_prompts',
+        }
         if (operationMap[operation]) {
-          return operationMap[operation];
+          return operationMap[operation]
         }
         // If already a tool ID, return as-is
         if (
@@ -229,19 +227,19 @@ export const AWSLambdaBlock: BlockConfig<AWSLambdaResponse> = {
           operation === 'aws_lambda_deploy' ||
           operation === 'aws_lambda_get_prompts'
         ) {
-          return operation;
+          return operation
         }
         // Default fallback
-        console.warn(`Unknown operation: "${operation}", defaulting to aws_lambda_fetch`);
-        return 'aws_lambda_fetch';
+        console.warn(`Unknown operation: "${operation}", defaulting to aws_lambda_fetch`)
+        return 'aws_lambda_fetch'
       },
     },
   },
   inputs: {
-    accessKeyId: { type: 'string', required: false },
-    secretAccessKey: { type: 'string', required: false },
-    region: { type: 'string', required: false },
-    role: { type: 'string', required: false },
+    accessKeyId: { type: 'string', required: true },
+    secretAccessKey: { type: 'string', required: true },
+    region: { type: 'string', required: true },
+    role: { type: 'string', required: true },
     operation: { type: 'string', required: true },
     functionName: { type: 'string', required: false },
     handler: { type: 'string', required: false },
