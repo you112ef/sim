@@ -78,6 +78,14 @@ export const AWSLambdaBlock: BlockConfig<AWSLambdaResponse> = {
       ],
     },
     {
+      id: 'role',
+      title: 'Role ARN',
+      type: 'short-input',
+      layout: 'full',
+      placeholder: 'Enter the IAM Role ARN for Lambda execution',
+      password: false,
+    },
+    {
       id: 'functionName',
       title: 'Function Name',
       type: 'short-input',
@@ -195,6 +203,7 @@ export const AWSLambdaBlock: BlockConfig<AWSLambdaResponse> = {
     accessKeyId: { type: 'string', required: true },
     secretAccessKey: { type: 'string', required: true },
     region: { type: 'string', required: true },
+    role: { type: 'string', required: true },
     functionName: { type: 'string', required: true },
     handler: { type: 'string', required: false },
     runtime: { type: 'string', required: true },

@@ -103,6 +103,7 @@ import { whatsappSendMessageTool } from './whatsapp'
 import { workflowExecutorTool } from './workflow'
 import { xReadTool, xSearchTool, xUserTool, xWriteTool } from './x'
 import { youtubeSearchTool } from './youtube'
+import { awsLambdaDeployTool } from './aws_lambda'
 
 // Registry of all available tools
 export const tools: Record<string, ToolConfig> = {
@@ -223,4 +224,5 @@ export const tools: Record<string, ToolConfig> = {
   google_calendar_quick_add: googleCalendarQuickAddTool,
   google_calendar_invite: googleCalendarInviteTool,
   workflow_executor: workflowExecutorTool,
+  aws_lambda_deploy: awsLambdaDeployTool,
 }
