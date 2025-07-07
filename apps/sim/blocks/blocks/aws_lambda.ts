@@ -77,12 +77,34 @@ export const AWSLambdaBlock: BlockConfig<AWSLambdaResponse> = {
       ],
     },
     {
+      id: 'operationType',
+      title: 'Operation Type',
+      type: 'dropdown',
+      layout: 'full',
+      options: ['fetch', 'create/update'],
+    },
+    {
+      id: 'fetchFunctionName',
+      title: 'Function Name',
+      type: 'short-input',
+      layout: 'full',
+      placeholder: 'Enter Lambda function name to fetch',
+      condition: {
+        field: 'operationType',
+        value: ['fetch'],
+      },
+    },
+    {
       id: 'role',
       title: 'Role ARN',
       type: 'short-input',
       layout: 'full',
       placeholder: 'Enter the IAM Role ARN for Lambda execution',
       password: false,
+      condition: {
+        field: 'operationType',
+        value: ['create/update'],
+      },
     },
     {
       id: 'functionName',
@@ -90,6 +112,10 @@ export const AWSLambdaBlock: BlockConfig<AWSLambdaResponse> = {
       type: 'short-input',
       layout: 'full',
       placeholder: 'Enter Lambda function name',
+      condition: {
+        field: 'operationType',
+        value: ['create/update'],
+      },
     },
     {
       id: 'runtime',
@@ -113,6 +139,10 @@ export const AWSLambdaBlock: BlockConfig<AWSLambdaResponse> = {
         'provided.al2',
         'provided',
       ],
+      condition: {
+        field: 'operationType',
+        value: ['create/update'],
+      },
     },
     {
       id: 'handler',
@@ -121,21 +151,25 @@ export const AWSLambdaBlock: BlockConfig<AWSLambdaResponse> = {
       layout: 'full',
       placeholder: 'e.g., index.handler',
       condition: {
-        field: 'runtime',
-        value: [
-          'nodejs18.x',
-          'nodejs16.x',
-          'nodejs14.x',
-          'python3.11',
-          'python3.10',
-          'python3.9',
-          'python3.8',
-          'java11',
-          'java8.al2',
-          'dotnet6',
-          'dotnetcore3.1',
-          'ruby2.7',
-        ],
+        field: 'operationType',
+        value: ['create/update'],
+        and: {
+          field: 'runtime',
+          value: [
+            'nodejs18.x',
+            'nodejs16.x',
+            'nodejs14.x',
+            'python3.11',
+            'python3.10',
+            'python3.9',
+            'python3.8',
+            'java11',
+            'java8.al2',
+            'dotnet6',
+            'dotnetcore3.1',
+            'ruby2.7',
+          ],
+        },
       },
     },
     {
@@ -146,6 +180,10 @@ export const AWSLambdaBlock: BlockConfig<AWSLambdaResponse> = {
       language: 'javascript',
       generationType: 'javascript-function-body',
       placeholder: '// Enter your Lambda function code here',
+      condition: {
+        field: 'operationType',
+        value: ['create/update'],
+      },
     },
     {
       id: 'requirements',
@@ -156,8 +194,12 @@ export const AWSLambdaBlock: BlockConfig<AWSLambdaResponse> = {
       placeholder:
         '// Enter Python dependencies (requirements.txt format)\n// e.g., requests==2.31.0\n// boto3==1.34.0',
       condition: {
-        field: 'runtime',
-        value: ['python3.11', 'python3.10', 'python3.9', 'python3.8'],
+        field: 'operationType',
+        value: ['create/update'],
+        and: {
+          field: 'runtime',
+          value: ['python3.11', 'python3.10', 'python3.9', 'python3.8'],
+        },
       },
     },
     {
@@ -169,8 +211,12 @@ export const AWSLambdaBlock: BlockConfig<AWSLambdaResponse> = {
       placeholder:
         '{\n  "name": "lambda-function",\n  "version": "1.0.0",\n  "dependencies": {\n    "axios": "^1.6.0",\n    "lodash": "^4.17.21"\n  }\n}',
       condition: {
-        field: 'runtime',
-        value: ['nodejs18.x', 'nodejs16.x', 'nodejs14.x'],
+        field: 'operationType',
+        value: ['create/update'],
+        and: {
+          field: 'runtime',
+          value: ['nodejs18.x', 'nodejs16.x', 'nodejs14.x'],
+        },
       },
     },
     {
@@ -182,6 +228,10 @@ export const AWSLambdaBlock: BlockConfig<AWSLambdaResponse> = {
       max: 900,
       step: 1,
       integer: true,
+      condition: {
+        field: 'operationType',
+        value: ['create/update'],
+      },
     },
     {
       id: 'memorySize',
@@ -192,6 +242,10 @@ export const AWSLambdaBlock: BlockConfig<AWSLambdaResponse> = {
       max: 10240,
       step: 64,
       integer: true,
+      condition: {
+        field: 'operationType',
+        value: ['create/update'],
+      },
     },
     {
       id: 'environmentVariables',
@@ -200,6 +254,10 @@ export const AWSLambdaBlock: BlockConfig<AWSLambdaResponse> = {
       layout: 'full',
       columns: ['Key', 'Value'],
       placeholder: 'Add environment variables as key-value pairs',
+      condition: {
+        field: 'operationType',
+        value: ['create/update'],
+      },
     },
     {
       id: 'tags',
@@ -208,26 +266,44 @@ export const AWSLambdaBlock: BlockConfig<AWSLambdaResponse> = {
       layout: 'full',
       columns: ['Key', 'Value'],
       placeholder: 'Add tags as key-value pairs',
+      condition: {
+        field: 'operationType',
+        value: ['create/update'],
+      },
     },
   ],
   tools: {
-    access: ['aws_lambda_deploy', 'aws_lambda_update', 'aws_lambda_invoke'],
+    access: ['aws_lambda_deploy', 'aws_lambda_update', 'aws_lambda_invoke', 'aws_lambda_fetch'],
+    config: {
+      tool: (params: Record<string, any>) => {
+        switch (params.operationType) {
+          case 'fetch':
+            return 'aws_lambda_fetch'
+          case 'create/update':
+            return 'aws_lambda_deploy'
+          default:
+            return 'aws_lambda_deploy' // Default to deploy
+        }
+      },
+    },
   },
   inputs: {
     accessKeyId: { type: 'string', required: true },
     secretAccessKey: { type: 'string', required: true },
     region: { type: 'string', required: true },
-    role: { type: 'string', required: true },
-    functionName: { type: 'string', required: true },
+    operationType: { type: 'string', required: true },
+    fetchFunctionName: { type: 'string', required: false },
+    role: { type: 'string', required: false },
+    functionName: { type: 'string', required: false },
     handler: { type: 'string', required: false },
-    runtime: { type: 'string', required: true },
-    code: { type: 'string', required: true },
+    runtime: { type: 'string', required: false },
+    code: { type: 'string', required: false },
     requirements: { type: 'string', required: false },
     packageJson: { type: 'string', required: false },
-    timeout: { type: 'number', required: true },
-    memorySize: { type: 'number', required: true },
-    environmentVariables: { type: 'json', required: true },
-    tags: { type: 'json', required: true },
+    timeout: { type: 'number', required: false },
+    memorySize: { type: 'number', required: false },
+    environmentVariables: { type: 'json', required: false },
+    tags: { type: 'json', required: false },
   },
   outputs: {
     functionArn: 'string',

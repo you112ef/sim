@@ -5,7 +5,7 @@ import {
   airtableUpdateRecordTool,
 } from './airtable'
 import { autoblocksPromptManagerTool } from './autoblocks'
-import { awsLambdaDeployTool } from './aws_lambda'
+import { awsLambdaDeployTool, awsLambdaFetchTool } from './aws_lambda'
 import { browserUseRunTaskTool } from './browser_use'
 import { clayPopulateTool } from './clay'
 import { confluenceRetrieveTool, confluenceUpdateTool } from './confluence'
@@ -225,4 +225,5 @@ export const tools: Record<string, ToolConfig> = {
   google_calendar_invite: googleCalendarInviteTool,
   workflow_executor: workflowExecutorTool,
   aws_lambda_deploy: awsLambdaDeployTool,
+  aws_lambda_fetch: awsLambdaFetchTool,
 }
