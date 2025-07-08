@@ -7,6 +7,8 @@ interface AWSLambdaResponse extends ToolResponse {
   output: {
     functionArn: string
     functionName: string
+    endpointName?: string
+    endpointUrl?: string
     runtime: string
     region: string
     status: string
@@ -19,6 +21,8 @@ interface AWSLambdaResponse extends ToolResponse {
     tags: Record<string, string>
     codeFiles: Record<string, string>
     handler: string
+    apiGatewayId?: string
+    stageName?: string
   }
 }
 
@@ -41,6 +45,7 @@ export const AWSLambdaBlock: BlockConfig<AWSLambdaResponse> = {
       options: [
         { label: 'Fetch', id: 'fetch' },
         { label: 'Create/Update', id: 'create/update' },
+        { label: 'Deploy Endpoint', id: 'deploy_endpoint' },
         { label: 'Get Prompts', id: 'getPrompts' },
       ],
     },
@@ -54,7 +59,7 @@ export const AWSLambdaBlock: BlockConfig<AWSLambdaResponse> = {
       description: 'AWS Access Key ID for authentication. Required for all operations.',
       condition: {
         field: 'operation',
-        value: ['fetch', 'create/update'],
+        value: ['fetch', 'create/update', 'deploy_endpoint'],
       },
     },
     {
@@ -67,7 +72,7 @@ export const AWSLambdaBlock: BlockConfig<AWSLambdaResponse> = {
       description: 'AWS Secret Access Key for authentication. Required for all operations.',
       condition: {
         field: 'operation',
-        value: ['fetch', 'create/update'],
+        value: ['fetch', 'create/update', 'deploy_endpoint'],
       },
     },
     {
@@ -80,7 +85,7 @@ export const AWSLambdaBlock: BlockConfig<AWSLambdaResponse> = {
       description: 'IAM Role ARN that the Lambda function will assume during execution. Must have appropriate permissions.',
       condition: {
         field: 'operation',
-        value: ['fetch', 'create/update'],
+        value: ['fetch', 'create/update', 'deploy_endpoint'],
       },
     },
     {
@@ -114,7 +119,7 @@ export const AWSLambdaBlock: BlockConfig<AWSLambdaResponse> = {
       description: 'AWS region where the Lambda function will be deployed or is located.',
       condition: {
         field: 'operation',
-        value: ['fetch', 'create/update'],
+        value: ['fetch', 'create/update', 'deploy_endpoint'],
       },
     },
     {
@@ -126,7 +131,19 @@ export const AWSLambdaBlock: BlockConfig<AWSLambdaResponse> = {
       description: 'Name of the Lambda function. For fetch operations, this must be an existing function to understand its current state. For create/update, this will be the name of the new function or the existing function to update with any desired changes.',
       condition: {
         field: 'operation',
-        value: ['fetch', 'create/update'],
+        value: ['fetch', 'create/update', 'deploy_endpoint'],
+      },
+    },
+    {
+      id: 'endpointName',
+      title: 'Endpoint Name',
+      type: 'short-input',
+      layout: 'full',
+      placeholder: 'Enter API Gateway endpoint name',
+      description: 'Name for the API Gateway HTTP API endpoint. This will be used to create the API Gateway and will appear in the endpoint URL.',
+      condition: {
+        field: 'operation',
+        value: ['deploy_endpoint'],
       },
     },
     {
@@ -218,7 +235,7 @@ export const AWSLambdaBlock: BlockConfig<AWSLambdaResponse> = {
     },
   ],
   tools: {
-    access: ['aws_lambda_deploy', 'aws_lambda_fetch', 'aws_lambda_get_prompts'],
+    access: ['aws_lambda_deploy', 'aws_lambda_deploy_endpoint', 'aws_lambda_fetch', 'aws_lambda_get_prompts'],
     config: {
       tool: (params: Record<string, any>) => {
         const operation = String(params.operation || '').trim()
@@ -226,6 +243,7 @@ export const AWSLambdaBlock: BlockConfig<AWSLambdaResponse> = {
         const operationMap: Record<string, string> = {
           fetch: 'aws_lambda_fetch',
           'create/update': 'aws_lambda_deploy',
+          deploy_endpoint: 'aws_lambda_deploy_endpoint',
           getPrompts: 'aws_lambda_get_prompts',
         }
         if (operationMap[operation]) {
@@ -235,6 +253,7 @@ export const AWSLambdaBlock: BlockConfig<AWSLambdaResponse> = {
         if (
           operation === 'aws_lambda_fetch' ||
           operation === 'aws_lambda_deploy' ||
+          operation === 'aws_lambda_deploy_endpoint' ||
           operation === 'aws_lambda_get_prompts'
         ) {
           return operation
@@ -252,17 +271,20 @@ export const AWSLambdaBlock: BlockConfig<AWSLambdaResponse> = {
     role: { type: 'string', required: true },
     operation: { type: 'string', required: true },
     functionName: { type: 'string', required: true },
-    handler: { type: 'string', required: true },
-    runtime: { type: 'string', required: true },
-    code: { type: 'json', required: true },
-    timeout: { type: 'number', required: true },
-    memorySize: { type: 'number', required: true },
+    endpointName: { type: 'string', required: false },
+    handler: { type: 'string', required: false },
+    runtime: { type: 'string', required: false },
+    code: { type: 'json', required: false },
+    timeout: { type: 'number', required: false },
+    memorySize: { type: 'number', required: false },
     environmentVariables: { type: 'json', required: false },
     tags: { type: 'json', required: false },
   },
   outputs: {
     functionArn: 'string',
     functionName: 'string',
+    endpointName: 'any',
+    endpointUrl: 'any',
     runtime: 'string',
     region: 'string',
     status: 'string',
@@ -275,5 +297,7 @@ export const AWSLambdaBlock: BlockConfig<AWSLambdaResponse> = {
     tags: 'json',
     codeFiles: 'json',
     handler: 'string',
+    apiGatewayId: 'any',
+    stageName: 'any',
   },
 }
