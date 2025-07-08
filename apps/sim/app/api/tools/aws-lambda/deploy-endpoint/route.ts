@@ -5,6 +5,8 @@ import {
   CreateRouteCommand,
   CreateStageCommand,
   GetApisCommand,
+  GetIntegrationsCommand,
+  GetRoutesCommand,
   GetStagesCommand,
 } from '@aws-sdk/client-apigatewayv2'
 import { AddPermissionCommand, GetFunctionCommand, LambdaClient } from '@aws-sdk/client-lambda'
@@ -77,6 +79,43 @@ async function checkApiExists(
     return existingApi?.ApiId || null
   } catch (error) {
     logger.error('Error checking for existing API', { error })
+    return null
+  }
+}
+
+/**
+ * Check if a route already exists for the API Gateway
+ */
+async function checkRouteExists(
+  apiGatewayClient: ApiGatewayV2Client,
+  apiId: string,
+  routeKey: string
+): Promise<boolean> {
+  try {
+    const routes = await apiGatewayClient.send(new GetRoutesCommand({ ApiId: apiId }))
+    return routes.Items?.some((route: any) => route.RouteKey === routeKey) || false
+  } catch (error) {
+    logger.error('Error checking for existing route', { error })
+    return false
+  }
+}
+
+/**
+ * Check if an integration already exists for the API Gateway
+ */
+async function checkIntegrationExists(
+  apiGatewayClient: ApiGatewayV2Client,
+  apiId: string,
+  functionArn: string
+): Promise<string | null> {
+  try {
+    const integrations = await apiGatewayClient.send(new GetIntegrationsCommand({ ApiId: apiId }))
+    const existingIntegration = integrations.Items?.find(
+      (integration) => integration.IntegrationUri === functionArn
+    )
+    return existingIntegration?.IntegrationId || null
+  } catch (error) {
+    logger.error('Error checking for existing integration', { error })
     return null
   }
 }
@@ -337,13 +376,26 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Create API integration with Lambda
-    logger.info(`[${requestId}] Creating API Gateway integration`)
-    const integrationId = await createApiIntegration(apiGatewayClient, apiId, functionArn)
+    // Check if integration already exists before creating a new one
+    let integrationId = await checkIntegrationExists(apiGatewayClient, apiId, functionArn)
+    
+    if (integrationId) {
+      logger.info(`[${requestId}] Integration for function ${params.functionName} already exists for API ${apiId}, using existing integration`)
+    } else {
+      logger.info(`[${requestId}] Creating API Gateway integration`)
+      integrationId = await createApiIntegration(apiGatewayClient, apiId, functionArn)
+    }
 
-    // Create route for the API
-    logger.info(`[${requestId}] Creating API Gateway route`)
-    await createApiRoute(apiGatewayClient, apiId, integrationId)
+    // Check if route already exists before creating a new one
+    const routeKey = 'ANY /'
+    const routeExists = await checkRouteExists(apiGatewayClient, apiId, routeKey)
+    
+    if (routeExists) {
+      logger.info(`[${requestId}] Route ${routeKey} already exists for API ${apiId}, skipping route creation`)
+    } else {
+      logger.info(`[${requestId}] Creating API Gateway route`)
+      await createApiRoute(apiGatewayClient, apiId, integrationId)
+    }
 
     // Add Lambda permission for API Gateway
     logger.info(`[${requestId}] Adding Lambda permission for API Gateway`)
