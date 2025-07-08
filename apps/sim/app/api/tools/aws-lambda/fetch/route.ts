@@ -3,7 +3,6 @@ import {
   GetFunctionConfigurationCommand,
   LambdaClient,
 } from '@aws-sdk/client-lambda'
-import { GetObjectCommand, S3Client } from '@aws-sdk/client-s3'
 import JSZip from 'jszip'
 import type { NextRequest } from 'next/server'
 import { z } from 'zod'
@@ -20,6 +19,7 @@ const FetchRequestSchema = z.object({
   secretAccessKey: z.string().min(1, 'AWS Secret Access Key is required'),
   region: z.string().min(1, 'AWS Region is required'),
   functionName: z.string().min(1, 'Function name is required'),
+  role: z.string().min(1, 'IAM Role ARN is required'),
 })
 
 type FetchRequest = z.infer<typeof FetchRequestSchema>
@@ -154,70 +154,23 @@ async function getFunctionDetailsWithCode(
   if (functionCode.Code?.Location) {
     try {
       logger.info('Downloading code from:', functionCode.Code.Location)
-
-      // Parse the S3 URL to extract bucket and key
-      const s3Url = new URL(functionCode.Code.Location)
-      const bucketName = s3Url.hostname.split('.')[0]
-      const objectKey = s3Url.pathname.substring(1) // Remove leading slash
-
-      logger.info('Parsed S3 details:', { bucketName, objectKey })
-
-      // Create S3 client with the same credentials
-      const s3Client = new S3Client({
-        region: region,
-        credentials: {
-          accessKeyId: accessKeyId,
-          secretAccessKey: secretAccessKey,
-        },
-      })
-
-      // Download the object directly using AWS SDK
-      const getObjectCommand = new GetObjectCommand({
-        Bucket: bucketName,
-        Key: objectKey,
-      })
-
-      const s3Response = await s3Client.send(getObjectCommand)
-
-      if (s3Response.Body) {
-        // Convert the readable stream to buffer
-        const chunks: Uint8Array[] = []
-        const reader = s3Response.Body.transformToWebStream().getReader()
-
-        while (true) {
-          const { done, value } = await reader.read()
-          if (done) break
-          chunks.push(value)
-        }
-
-        const zipBuffer = Buffer.concat(chunks)
+      
+      const response = await fetch(functionCode.Code.Location)
+      logger.info('Fetch response status:', response.status)
+      
+      if (response.ok) {
+        const zipBuffer = Buffer.from(await response.arrayBuffer())
         logger.info('ZIP buffer size:', zipBuffer.length)
         const extractedCode = await extractCodeFromZip(zipBuffer, functionConfig.Runtime || '')
         codeFiles = extractedCode.allFiles
         logger.info('Extracted files count:', Object.keys(codeFiles).length)
+      } else {
+        logger.warn('Fetch failed with status:', response.status)
+        const errorText = await response.text()
+        logger.warn('Error response:', errorText)
       }
-    } catch (error) {
-      logger.error('Failed to download function code using S3 SDK', { error })
-
-      // Fallback to fetch method if S3 SDK fails
-      try {
-        logger.info('Trying fallback fetch method...')
-        const response = await fetch(functionCode.Code.Location)
-        logger.info('Fetch response status:', response.status)
-        if (response.ok) {
-          const zipBuffer = Buffer.from(await response.arrayBuffer())
-          logger.info('ZIP buffer size (fetch):', zipBuffer.length)
-          const extractedCode = await extractCodeFromZip(zipBuffer, functionConfig.Runtime || '')
-          codeFiles = extractedCode.allFiles
-          logger.info('Extracted files count (fetch):', Object.keys(codeFiles).length)
-        } else {
-          logger.warn('Fetch failed with status:', response.status)
-          const errorText = await response.text()
-          logger.warn('Error response:', errorText)
-        }
-      } catch (fetchError) {
-        logger.error('Fetch fallback also failed', { fetchError })
-      }
+    } catch (fetchError) {
+      logger.error('Failed to download function code using fetch', { fetchError })
     }
   } else {
     logger.info('No code location found in function response')
@@ -266,6 +219,18 @@ export async function POST(request: NextRequest) {
     }
 
     const params = validationResult.data
+    
+    // Log the payload (excluding sensitive credentials)
+    logger.info(`[${requestId}] AWS Lambda fetch payload received`, {
+      functionName: params.functionName,
+      region: params.region,
+      accessKeyId: params.accessKeyId ? `${params.accessKeyId.substring(0, 4)}...` : undefined,
+      hasSecretAccessKey: !!params.secretAccessKey,
+      hasFunctionName: !!params.functionName,
+      hasRole: !!params.role,
+      role: params.role ? `${params.role.substring(0, 20)}...` : undefined,
+    })
+    
     logger.info(`[${requestId}] Fetching Lambda function: ${params.functionName}`)
 
     // Create Lambda client
@@ -278,24 +243,57 @@ export async function POST(request: NextRequest) {
     })
 
     // Fetch function details and code
-    const functionDetails = await getFunctionDetailsWithCode(
-      lambdaClient,
-      params.functionName,
-      params.region,
-      params.accessKeyId,
-      params.secretAccessKey
-    )
+    try {
+      const functionDetails = await getFunctionDetailsWithCode(
+        lambdaClient,
+        params.functionName,
+        params.region,
+        params.accessKeyId,
+        params.secretAccessKey
+      )
 
-    logger.info(`[${requestId}] Successfully fetched Lambda function: ${params.functionName}`, {
-      functionName: functionDetails.functionName,
-      filesCount: Object.keys(functionDetails.codeFiles).length,
-      hasFiles: Object.keys(functionDetails.codeFiles).length > 0,
-    })
+      logger.info(`[${requestId}] Successfully fetched Lambda function: ${params.functionName}`, {
+        functionName: functionDetails.functionName,
+        filesCount: Object.keys(functionDetails.codeFiles).length,
+        hasFiles: Object.keys(functionDetails.codeFiles).length > 0,
+      })
 
-    return createSuccessResponse({
-      success: true,
-      output: functionDetails,
-    })
+      return createSuccessResponse({
+        success: true,
+        output: functionDetails,
+      })
+    } catch (fetchError: any) {
+      // Handle ResourceNotFoundException gracefully - return empty function details
+      if (fetchError.name === 'ResourceNotFoundException') {
+        logger.info(`[${requestId}] Lambda function '${params.functionName}' not found, returning empty response`)
+        
+        const emptyFunctionDetails: LambdaFunctionDetails = {
+          functionArn: '',
+          functionName: params.functionName,
+          runtime: '',
+          region: params.region,
+          status: '',
+          lastModified: '',
+          codeSize: 0,
+          description: '',
+          timeout: 0,
+          memorySize: 0,
+          environment: {},
+          tags: {},
+          codeFiles: {},
+          handler: '',
+          role: '',
+        }
+
+        return createSuccessResponse({
+          success: true,
+          output: emptyFunctionDetails,
+        })
+      }
+      
+      // Re-throw other errors to be handled by the outer catch block
+      throw fetchError
+    }
   } catch (error: any) {
     logger.error(`[${requestId}] Failed to fetch Lambda function`, {
       error: error.message,
@@ -303,20 +301,7 @@ export async function POST(request: NextRequest) {
     })
 
     // Handle specific AWS errors
-    if (error.name === 'ResourceNotFoundException') {
-      let functionName = 'unknown'
-      try {
-        const errorBody = await request.json()
-        functionName = errorBody?.functionName || 'unknown'
-      } catch {
-        // Ignore parsing errors for error handling
-      }
-      return createErrorResponse(
-        `Lambda function '${functionName}' not found`,
-        404,
-        'FUNCTION_NOT_FOUND'
-      )
-    }
+    // Note: ResourceNotFoundException is now handled gracefully in the inner try-catch
 
     if (error.name === 'AccessDeniedException') {
       return createErrorResponse(

@@ -252,12 +252,28 @@ export async function POST(request: NextRequest) {
     }
 
     const params = validationResult.data
-    logger.info(`[${requestId}] Validation successful, params:`, {
+    
+    // Log the deployment payload (excluding sensitive credentials)
+    logger.info(`[${requestId}] AWS Lambda deployment payload received`, {
       functionName: params.functionName,
+      region: params.region,
       runtime: params.runtime,
-      codeKeys: Object.keys(params.code),
+      handler: params.handler,
+      timeout: params.timeout,
+      memorySize: params.memorySize,
+      accessKeyId: params.accessKeyId ? `${params.accessKeyId.substring(0, 4)}...` : undefined,
+      hasSecretAccessKey: !!params.secretAccessKey,
       hasRole: !!params.role,
+      role: params.role ? `${params.role.substring(0, 20)}...` : undefined,
+      codeFiles: Object.keys(params.code),
+      codeFilesCount: Object.keys(params.code).length,
+      environmentVariables: params.environmentVariables,
+      environmentVariablesCount: Object.keys(params.environmentVariables || {}).length,
+      tags: params.tags,
+      tagsCount: Object.keys(params.tags || {}).length,
     })
+    
+    logger.info(`[${requestId}] Deploying Lambda function: ${params.functionName}`)
 
     // Create Lambda client
     const lambdaClient = new LambdaClient({

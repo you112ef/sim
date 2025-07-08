@@ -27,7 +27,7 @@ export const AWSLambdaBlock: BlockConfig<AWSLambdaResponse> = {
   name: 'AWS Lambda',
   description: 'Deploy and manage AWS Lambda functions',
   longDescription:
-    'Create, update, and manage AWS Lambda functions with automatic deployment. Configure runtime environments, memory allocation, timeout settings, and environment variables for serverless function execution.',
+    'Create, update, and manage AWS Lambda functions with automatic deployment. Configure runtime environments, memory allocation, timeout settings, and environment variables for serverless function execution. Use fetch to retrieve existing function details and code files to understand the current state, then deploy with any desired changes to the function configuration and code.',
   docsLink: 'https://docs.simstudio.ai/tools/aws-lambda',
   category: 'tools',
   bgColor: '#FF9900',
@@ -51,6 +51,7 @@ export const AWSLambdaBlock: BlockConfig<AWSLambdaResponse> = {
       layout: 'full',
       placeholder: 'Enter AWS Access Key ID',
       password: true,
+      description: 'AWS Access Key ID for authentication. Required for all operations.',
       condition: {
         field: 'operation',
         value: ['fetch', 'create/update'],
@@ -63,6 +64,7 @@ export const AWSLambdaBlock: BlockConfig<AWSLambdaResponse> = {
       layout: 'full',
       placeholder: 'Enter AWS Secret Access Key',
       password: true,
+      description: 'AWS Secret Access Key for authentication. Required for all operations.',
       condition: {
         field: 'operation',
         value: ['fetch', 'create/update'],
@@ -75,6 +77,7 @@ export const AWSLambdaBlock: BlockConfig<AWSLambdaResponse> = {
       layout: 'full',
       placeholder: 'Enter the IAM Role ARN for Lambda execution',
       password: false,
+      description: 'IAM Role ARN that the Lambda function will assume during execution. Must have appropriate permissions.',
       condition: {
         field: 'operation',
         value: ['fetch', 'create/update'],
@@ -108,6 +111,7 @@ export const AWSLambdaBlock: BlockConfig<AWSLambdaResponse> = {
         'me-south-1',
         'sa-east-1',
       ],
+      description: 'AWS region where the Lambda function will be deployed or is located.',
       condition: {
         field: 'operation',
         value: ['fetch', 'create/update'],
@@ -119,6 +123,7 @@ export const AWSLambdaBlock: BlockConfig<AWSLambdaResponse> = {
       type: 'short-input',
       layout: 'full',
       placeholder: 'Enter Lambda function name',
+      description: 'Name of the Lambda function. For fetch operations, this must be an existing function to understand its current state. For create/update, this will be the name of the new function or the existing function to update with any desired changes.',
       condition: {
         field: 'operation',
         value: ['fetch', 'create/update'],
@@ -130,6 +135,7 @@ export const AWSLambdaBlock: BlockConfig<AWSLambdaResponse> = {
       type: 'short-input',
       layout: 'full',
       placeholder: 'e.g., nodejs18.x, python3.11, java11',
+      description: 'Lambda runtime environment. Common values: nodejs18.x, python3.11, java11, go1.x, dotnet6, ruby2.7',
       condition: {
         field: 'operation',
         value: ['create/update'],
@@ -141,6 +147,7 @@ export const AWSLambdaBlock: BlockConfig<AWSLambdaResponse> = {
       type: 'short-input',
       layout: 'full',
       placeholder: 'e.g., index.handler',
+      description: 'Function handler that Lambda calls to start execution. Format varies by runtime: index.handler (Node.js), lambda_function.lambda_handler (Python), etc.',
       condition: {
         field: 'operation',
         value: ['create/update'],
@@ -152,6 +159,7 @@ export const AWSLambdaBlock: BlockConfig<AWSLambdaResponse> = {
       type: 'short-input',
       layout: 'half',
       placeholder: 'Enter timeout in seconds (1-900)',
+      description: 'Function timeout in seconds. Must be between 1 and 900 seconds (15 minutes).',
       condition: {
         field: 'operation',
         value: ['create/update'],
@@ -163,6 +171,7 @@ export const AWSLambdaBlock: BlockConfig<AWSLambdaResponse> = {
       type: 'short-input',
       layout: 'half',
       placeholder: 'Enter memory in MB (128-10240)',
+      description: 'Amount of memory allocated to the function in MB. Must be between 128 and 10240 MB.',
       condition: {
         field: 'operation',
         value: ['create/update'],
@@ -175,6 +184,7 @@ export const AWSLambdaBlock: BlockConfig<AWSLambdaResponse> = {
       layout: 'full',
       language: 'json',
       placeholder: '{\n  "index.js": "exports.handler = async (event) => {...};"\n}',
+      description: 'Function code files as JSON object. Keys are file paths, values are file contents. For Node.js, typically include index.js with the handler function.',
       condition: {
         field: 'operation',
         value: ['create/update'],
@@ -187,6 +197,7 @@ export const AWSLambdaBlock: BlockConfig<AWSLambdaResponse> = {
       layout: 'full',
       columns: ['Key', 'Value'],
       placeholder: 'Add environment variables as key-value pairs',
+      description: 'Environment variables that will be available to the Lambda function during execution.',
       condition: {
         field: 'operation',
         value: ['create/update'],
@@ -199,6 +210,7 @@ export const AWSLambdaBlock: BlockConfig<AWSLambdaResponse> = {
       layout: 'full',
       columns: ['Key', 'Value'],
       placeholder: 'Add tags as key-value pairs',
+      description: 'Tags to associate with the Lambda function for organization and cost tracking.',
       condition: {
         field: 'operation',
         value: ['create/update'],
