@@ -1,12 +1,8 @@
-import {
-  CreateFunctionCommand,
-  GetFunctionCommand,
-  LambdaClient,
-  type Runtime,
-  UpdateFunctionCodeCommand,
-} from '@aws-sdk/client-lambda'
-import JSZip from 'jszip'
+import { GetFunctionCommand, LambdaClient } from '@aws-sdk/client-lambda'
+import { promises as fs } from 'fs'
 import type { NextRequest } from 'next/server'
+import { tmpdir } from 'os'
+import { join } from 'path'
 import { z } from 'zod'
 import { createLogger } from '@/lib/logs/console-logger'
 import { createErrorResponse, createSuccessResponse } from '@/app/api/workflows/utils'
@@ -63,78 +59,186 @@ function getFileExtension(runtime: string): string {
 }
 
 /**
- * Create a ZIP file with the Lambda code and dependencies
+ * Sanitize function name for SAM/CloudFormation resource naming
+ * SAM resource names must be alphanumeric only (letters and numbers)
  */
-async function createLambdaPackage(params: DeployRequest): Promise<Buffer> {
-  const zip = new JSZip()
-
-  // Add all code files from the JSON object
-  for (const [filePath, codeContent] of Object.entries(params.code)) {
-    zip.file(filePath, codeContent)
-  }
-
-  return await zip.generateAsync({ type: 'nodebuffer' })
+function sanitizeResourceName(functionName: string): string {
+  return functionName
+    .replace(/[^a-zA-Z0-9]/g, '') // Remove all non-alphanumeric characters
+    .replace(/^(\d)/, 'Func$1') // Ensure it starts with a letter if it starts with a number
+    .substring(0, 64) // Ensure reasonable length limit
+    || 'LambdaFunction' // Fallback if name becomes empty
 }
 
 /**
- * Check if a Lambda function already exists
+ * Create SAM template for the Lambda function
  */
-async function checkFunctionExists(
-  lambdaClient: LambdaClient,
-  functionName: string
-): Promise<boolean> {
+function createSamTemplate(params: DeployRequest): string {
+  // Sanitize the function name for CloudFormation resource naming
+  const resourceName = sanitizeResourceName(params.functionName)
+  
+  const template = {
+    AWSTemplateFormatVersion: '2010-09-09',
+    Transform: 'AWS::Serverless-2016-10-31',
+    Resources: {
+      [resourceName]: {
+        Type: 'AWS::Serverless::Function',
+        Properties: {
+          FunctionName: params.functionName, // Use original function name for actual Lambda function
+          CodeUri: './src',
+          Handler: params.handler,
+          Runtime: params.runtime,
+          Role: params.role,
+          Timeout: params.timeout,
+          MemorySize: params.memorySize,
+          Environment: {
+            Variables: params.environmentVariables,
+          },
+          Tags: params.tags,
+        },
+      },
+    },
+    Outputs: {
+      FunctionArn: {
+        Value: { 'Fn::GetAtt': [resourceName, 'Arn'] },
+        Export: { Name: `${params.functionName}-Arn` },
+      },
+    },
+  }
+
+  return JSON.stringify(template, null, 2)
+}
+
+/**
+ * Execute a shell command and return the result
+ */
+async function execCommand(
+  command: string, 
+  cwd: string, 
+  env?: Record<string, string>
+): Promise<{ stdout: string; stderr: string }> {
+  const { exec } = await import('child_process')
+  const { promisify } = await import('util')
+  const execAsync = promisify(exec)
+  
+  return await execAsync(command, { 
+    cwd,
+    env: env ? { ...process.env, ...env } : process.env 
+  })
+}
+
+/**
+ * Deploy Lambda function using SAM CLI
+ */
+async function deployWithSam(params: DeployRequest, requestId: string): Promise<LambdaFunctionDetails> {
+  const tempDir = join(tmpdir(), `lambda-deploy-${requestId}`)
+  const srcDir = join(tempDir, 'src')
+  
   try {
-    await lambdaClient.send(new GetFunctionCommand({ FunctionName: functionName }))
-    return true
-  } catch (error: any) {
-    if (error.name === 'ResourceNotFoundException') {
-      return false
+    // Create temporary directory structure
+    await fs.mkdir(tempDir, { recursive: true })
+    await fs.mkdir(srcDir, { recursive: true })
+    
+    logger.info(`[${requestId}] Created temporary directory: ${tempDir}`)
+
+    // Write SAM template
+    const samTemplate = createSamTemplate(params)
+    await fs.writeFile(join(tempDir, 'template.yaml'), samTemplate)
+    
+    logger.info(`[${requestId}] Created SAM template`)
+
+    // Write source code files
+    for (const [filePath, codeContent] of Object.entries(params.code)) {
+      const fullPath = join(srcDir, filePath)
+      const fileDir = join(fullPath, '..')
+      
+      // Ensure directory exists
+      await fs.mkdir(fileDir, { recursive: true })
+      await fs.writeFile(fullPath, codeContent)
+      
+      logger.info(`[${requestId}] Created source file: ${filePath}`)
     }
+
+    // Set AWS credentials in environment
+    const env = {
+      AWS_ACCESS_KEY_ID: params.accessKeyId,
+      AWS_SECRET_ACCESS_KEY: params.secretAccessKey,
+      AWS_DEFAULT_REGION: params.region,
+    }
+
+    // Build the SAM application
+    logger.info(`[${requestId}] Building SAM application...`)
+    const buildCommand = 'sam build --no-cached'
+    const buildResult = await execCommand(buildCommand, tempDir, env)
+    
+    logger.info(`[${requestId}] SAM build output:`, { 
+      stdout: buildResult.stdout, 
+      stderr: buildResult.stderr 
+    })
+    
+    if (buildResult.stderr && !buildResult.stderr.includes('Successfully built')) {
+      logger.warn(`[${requestId}] SAM build warnings:`, { stderr: buildResult.stderr })
+    }
+    
+    logger.info(`[${requestId}] SAM build completed`)
+
+    // Deploy the SAM application
+    logger.info(`[${requestId}] Deploying SAM application...`)
+    const stackName = `${sanitizeResourceName(params.functionName)}Stack`
+    const deployCommand = [
+      'sam deploy',
+      '--no-confirm-changeset',
+      '--no-fail-on-empty-changeset',
+      `--stack-name ${stackName}`,
+      `--region ${params.region}`,
+      '--resolve-s3',
+      '--capabilities CAPABILITY_IAM',
+      '--no-progressbar'
+    ].join(' ')
+    
+    const deployResult = await execCommand(deployCommand, tempDir, env)
+    
+    logger.info(`[${requestId}] SAM deploy output:`, { 
+      stdout: deployResult.stdout, 
+      stderr: deployResult.stderr 
+    })
+    
+    if (deployResult.stderr && !deployResult.stderr.includes('Successfully created/updated stack')) {
+      logger.warn(`[${requestId}] SAM deploy warnings:`, { stderr: deployResult.stderr })
+    }
+    
+    logger.info(`[${requestId}] SAM deploy completed`)
+
+    // Get function details using AWS SDK
+    const lambdaClient = new LambdaClient({
+      region: params.region,
+      credentials: {
+        accessKeyId: params.accessKeyId,
+        secretAccessKey: params.secretAccessKey,
+      },
+    })
+
+    const functionDetails = await getFunctionDetails(lambdaClient, params.functionName, params.region)
+    
+    return functionDetails
+
+  } catch (error) {
+    logger.error(`[${requestId}] Error during SAM deployment`, {
+      error: error instanceof Error ? error.message : String(error),
+      stack: error instanceof Error ? error.stack : undefined,
+    })
     throw error
+  } finally {
+    // Clean up temporary directory
+    try {
+      await fs.rm(tempDir, { recursive: true, force: true })
+      logger.info(`[${requestId}] Cleaned up temporary directory: ${tempDir}`)
+    } catch (cleanupError) {
+      logger.warn(`[${requestId}] Failed to clean up temporary directory`, {
+        error: cleanupError instanceof Error ? cleanupError.message : String(cleanupError),
+      })
+    }
   }
-}
-
-/**
- * Create a new Lambda function
- */
-async function createLambdaFunction(
-  lambdaClient: LambdaClient,
-  params: DeployRequest,
-  zipBuffer: Buffer
-): Promise<any> {
-  const createParams = {
-    FunctionName: params.functionName,
-    Runtime: params.runtime as Runtime,
-    Role: params.role,
-    Handler: params.handler,
-    Code: {
-      ZipFile: zipBuffer,
-    },
-    Timeout: params.timeout,
-    MemorySize: params.memorySize,
-    Environment: {
-      Variables: params.environmentVariables,
-    },
-    Tags: params.tags,
-  }
-
-  return await lambdaClient.send(new CreateFunctionCommand(createParams))
-}
-
-/**
- * Update an existing Lambda function's code
- */
-async function updateLambdaFunction(
-  lambdaClient: LambdaClient,
-  functionName: string,
-  zipBuffer: Buffer
-): Promise<any> {
-  const updateParams = {
-    FunctionName: functionName,
-    ZipFile: zipBuffer,
-  }
-
-  return await lambdaClient.send(new UpdateFunctionCodeCommand(updateParams))
 }
 
 /**
@@ -279,39 +383,10 @@ export async function POST(request: NextRequest) {
       tagsCount: Object.keys(params.tags || {}).length,
     })
 
-    logger.info(`[${requestId}] Deploying Lambda function: ${params.functionName}`)
+    logger.info(`[${requestId}] Deploying Lambda function with SAM: ${params.functionName}`)
 
-    // Create Lambda client
-    const lambdaClient = new LambdaClient({
-      region: params.region,
-      credentials: {
-        accessKeyId: params.accessKeyId,
-        secretAccessKey: params.secretAccessKey,
-      },
-    })
-
-    // Create ZIP file with the Lambda code and dependencies
-    const zipBuffer = await createLambdaPackage(params)
-
-    // Check if function already exists
-    const functionExists = await checkFunctionExists(lambdaClient, params.functionName)
-
-    if (functionExists) {
-      logger.info(`[${requestId}] Function ${params.functionName} already exists, updating code`)
-      await updateLambdaFunction(lambdaClient, params.functionName, zipBuffer)
-    } else {
-      logger.info(
-        `[${requestId}] Function ${params.functionName} does not exist, creating new function`
-      )
-      await createLambdaFunction(lambdaClient, params, zipBuffer)
-    }
-
-    // Get function details for response
-    const functionDetails = await getFunctionDetails(
-      lambdaClient,
-      params.functionName,
-      params.region
-    )
+    // Deploy using SAM CLI
+    const functionDetails = await deployWithSam(params, requestId)
 
     logger.info(`[${requestId}] Lambda function deployment completed successfully`, {
       functionName: params.functionName,
@@ -332,7 +407,10 @@ export async function POST(request: NextRequest) {
     let errorMessage = 'Failed to deploy Lambda function'
     let statusCode = 500
 
-    if (error.name === 'AccessDeniedException') {
+    if (error.message?.includes('sam: command not found')) {
+      errorMessage = 'SAM CLI is not installed or not available in PATH'
+      statusCode = 500
+    } else if (error.name === 'AccessDeniedException') {
       errorMessage = 'Access denied. Please check your AWS credentials and permissions.'
       statusCode = 403
     } else if (error.name === 'InvalidParameterValueException') {
