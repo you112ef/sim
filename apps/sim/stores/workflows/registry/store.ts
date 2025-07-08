@@ -804,6 +804,8 @@ export const useWorkflowRegistry = create<WorkflowRegistry>()(
             }))
           }
 
+          // Note: JSON imports are handled separately in createWorkflowFromJSON function
+
           // Don't set as active workflow here - let the navigation/URL change handle that
           // This prevents race conditions and flickering
           logger.info(

@@ -2,15 +2,17 @@
 
 import { useState } from 'react'
 import { logger } from '@sentry/nextjs'
-import { File, Folder, Plus } from 'lucide-react'
-import { useParams } from 'next/navigation'
+import { File, Folder, Plus, Upload } from 'lucide-react'
+import { useParams, useRouter } from 'next/navigation'
 import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
+import { Textarea } from '@/components/ui/textarea'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
 import { cn } from '@/lib/utils'
 import { useFolderStore } from '@/stores/folders/store'
+import { parseWorkflowJSON, createWorkflowFromJSON } from '@/lib/workflows/import-export'
 
 interface CreateMenuProps {
   onCreateWorkflow: (folderId?: string) => void
@@ -27,9 +29,13 @@ export function CreateMenu({
   const [folderName, setFolderName] = useState('')
   const [isCreating, setIsCreating] = useState(false)
   const [isHoverOpen, setIsHoverOpen] = useState(false)
+  const [showImportDialog, setShowImportDialog] = useState(false)
+  const [importJson, setImportJson] = useState('')
+  const [isImporting, setIsImporting] = useState(false)
 
   const params = useParams()
   const workspaceId = params.workspaceId as string
+  const router = useRouter()
   const { createFolder } = useFolderStore()
 
   const handleCreateWorkflow = () => {
@@ -64,6 +70,42 @@ export function CreateMenu({
   const handleCancel = () => {
     setFolderName('')
     setShowFolderDialog(false)
+  }
+
+  const handleImportWorkflow = () => {
+    setIsHoverOpen(false)
+    setShowImportDialog(true)
+  }
+
+  const handleImportSubmit = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!importJson.trim()) return
+
+    setIsImporting(true)
+    try {
+      const workflowData = parseWorkflowJSON(importJson.trim())
+
+      const workflowId = await createWorkflowFromJSON(workflowData, {
+        workspaceId,
+        namePrefix: 'Imported'
+      })
+      
+      // Navigate to the new workflow
+      router.push(`/workspace/${workspaceId}/w/${workflowId}`)
+      
+      logger.info(`Successfully imported workflow: ${workflowData.metadata.name}`)
+      setImportJson('')
+      setShowImportDialog(false)
+    } catch (error) {
+      logger.error('Failed to import workflow:', { error })
+    } finally {
+      setIsImporting(false)
+    }
+  }
+
+  const handleImportCancel = () => {
+    setImportJson('')
+    setShowImportDialog(false)
   }
 
   return (
@@ -126,8 +168,55 @@ export function CreateMenu({
             <Folder className='h-4 w-4' />
             New Folder
           </button>
+          <button
+            className={cn(
+              'flex w-full cursor-default select-none items-center gap-2 rounded-sm px-2 py-1.5 text-sm outline-none transition-colors',
+              isImporting
+                ? 'cursor-not-allowed opacity-50'
+                : 'hover:bg-accent hover:text-accent-foreground'
+            )}
+            onClick={handleImportWorkflow}
+            disabled={isImporting}
+          >
+            <Upload className='h-4 w-4' />
+            {isImporting ? 'Importing...' : 'Import from JSON'}
+          </button>
         </PopoverContent>
       </Popover>
+
+      {/* Import workflow dialog */}
+      <Dialog open={showImportDialog} onOpenChange={setShowImportDialog}>
+        <DialogContent className='sm:max-w-[600px]'>
+          <DialogHeader>
+            <DialogTitle>Import Workflow from JSON</DialogTitle>
+          </DialogHeader>
+          <form onSubmit={handleImportSubmit} className='space-y-4'>
+            <div className='space-y-2'>
+              <Label htmlFor='workflow-json'>Workflow JSON</Label>
+              <Textarea
+                id='workflow-json'
+                value={importJson}
+                onChange={(e) => setImportJson(e.target.value)}
+                placeholder='Paste your workflow JSON here...'
+                className='min-h-[300px] font-mono text-sm'
+                autoFocus
+                required
+              />
+              <p className='text-muted-foreground text-sm'>
+                Paste the exported workflow JSON data to import it as a new workflow.
+              </p>
+            </div>
+            <div className='flex justify-end space-x-2'>
+              <Button type='button' variant='outline' onClick={handleImportCancel}>
+                Cancel
+              </Button>
+              <Button type='submit' disabled={!importJson.trim() || isImporting}>
+                {isImporting ? 'Importing...' : 'Import Workflow'}
+              </Button>
+            </div>
+          </form>
+        </DialogContent>
+      </Dialog>
 
       {/* Folder creation dialog */}
       <Dialog open={showFolderDialog} onOpenChange={setShowFolderDialog}>

@@ -7,6 +7,7 @@ import {
   Bug,
   ChevronDown,
   Copy,
+  Download,
   History,
   Layers,
   Loader2,
@@ -40,6 +41,7 @@ import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip
 import { useSession } from '@/lib/auth-client'
 import { createLogger } from '@/lib/logs/console-logger'
 import { cn } from '@/lib/utils'
+import { exportWorkflowAsJSON, downloadWorkflowJSON } from '@/lib/workflows/import-export'
 import { useUserPermissionsContext } from '@/app/workspace/[workspaceId]/w/components/providers/workspace-permissions-provider'
 import { useExecutionStore } from '@/stores/execution/store'
 import { useFolderStore } from '@/stores/folders/store'
@@ -1044,6 +1046,56 @@ export function ControlBar({ hasValidationErrors = false }: ControlBarProps) {
   }
 
   /**
+   * Render export workflow button
+   */
+  const renderExportButton = () => {
+    const handleExportWorkflow = () => {
+      try {
+        const workflowData = exportWorkflowAsJSON()
+        if (workflowData) {
+          downloadWorkflowJSON(workflowData)
+          addNotification(
+            'info',
+            `${workflowData.metadata.name} has been exported successfully`,
+            activeWorkflowId
+          )
+        } else {
+          addNotification(
+            'error',
+            'No active workflow to export',
+            activeWorkflowId
+          )
+        }
+      } catch (error) {
+        logger.error('Error exporting workflow:', error)
+        addNotification(
+          'error',
+          'Failed to export workflow JSON',
+          activeWorkflowId
+        )
+      }
+    }
+
+    return (
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <Button
+            variant='ghost'
+            size='icon'
+            onClick={handleExportWorkflow}
+            className='h-10 w-10'
+            disabled={!activeWorkflowId}
+          >
+            <Download className='h-4 w-4' />
+            <span className='sr-only'>Export Workflow JSON</span>
+          </Button>
+        </TooltipTrigger>
+        <TooltipContent>Export Workflow JSON</TooltipContent>
+      </Tooltip>
+    )
+  }
+
+  /**
    * Render debug mode toggle button
    */
   const renderDebugModeToggle = () => {
@@ -1286,6 +1338,7 @@ export function ControlBar({ hasValidationErrors = false }: ControlBarProps) {
         {renderNotificationsDropdown()}
         {renderDuplicateButton()}
         {renderAutoLayoutButton()}
+        {renderExportButton()}
         {renderDebugModeToggle()}
         {/* {renderPublishButton()} */}
         {renderDeployButton()}
