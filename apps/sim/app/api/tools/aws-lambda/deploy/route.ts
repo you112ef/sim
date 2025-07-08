@@ -247,7 +247,13 @@ export async function POST(request: NextRequest) {
 
     const validationResult = DeployRequestSchema.safeParse(body)
     if (!validationResult.success) {
-      logger.warn(`[${requestId}] Invalid request body`, { errors: validationResult.error.errors })
+      logger.warn(`[${requestId}] Invalid request body`, { 
+        errors: validationResult.error.errors,
+        codeField: body.code,
+        codeType: typeof body.code,
+        hasCode: 'code' in body,
+        bodyKeys: Object.keys(body)
+      })
       return createErrorResponse('Invalid request parameters', 400, 'VALIDATION_ERROR')
     }
 

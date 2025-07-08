@@ -294,6 +294,11 @@ export async function POST(request: NextRequest) {
       return createErrorResponse('Invalid JSON in request body', 400, 'INVALID_JSON')
     }
 
+    // Log the raw request body for debugging
+    logger.info(`[${requestId}] Raw request body received`, {
+      body: JSON.stringify(body, null, 2),
+    })
+
     const validationResult = DeployEndpointRequestSchema.safeParse(body)
     if (!validationResult.success) {
       logger.warn(`[${requestId}] Invalid request body`, { errors: validationResult.error.errors })
@@ -378,9 +383,11 @@ export async function POST(request: NextRequest) {
 
     // Check if integration already exists before creating a new one
     let integrationId = await checkIntegrationExists(apiGatewayClient, apiId, functionArn)
-    
+
     if (integrationId) {
-      logger.info(`[${requestId}] Integration for function ${params.functionName} already exists for API ${apiId}, using existing integration`)
+      logger.info(
+        `[${requestId}] Integration for function ${params.functionName} already exists for API ${apiId}, using existing integration`
+      )
     } else {
       logger.info(`[${requestId}] Creating API Gateway integration`)
       integrationId = await createApiIntegration(apiGatewayClient, apiId, functionArn)
@@ -389,9 +396,11 @@ export async function POST(request: NextRequest) {
     // Check if route already exists before creating a new one
     const routeKey = 'ANY /'
     const routeExists = await checkRouteExists(apiGatewayClient, apiId, routeKey)
-    
+
     if (routeExists) {
-      logger.info(`[${requestId}] Route ${routeKey} already exists for API ${apiId}, skipping route creation`)
+      logger.info(
+        `[${requestId}] Route ${routeKey} already exists for API ${apiId}, skipping route creation`
+      )
     } else {
       logger.info(`[${requestId}] Creating API Gateway route`)
       await createApiRoute(apiGatewayClient, apiId, integrationId)
