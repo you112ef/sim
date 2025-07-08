@@ -1,12 +1,12 @@
 import crypto from 'crypto'
+import { eq } from 'drizzle-orm'
 import { type NextRequest, NextResponse } from 'next/server'
 import { z } from 'zod'
-import { eq } from 'drizzle-orm'
 import { getSession } from '@/lib/auth'
 import { createLogger } from '@/lib/logs/console-logger'
+import { saveWorkflowToNormalizedTables } from '@/lib/workflows/db-helpers'
 import { db } from '@/db'
 import { workflow } from '@/db/schema'
-import { saveWorkflowToNormalizedTables } from '@/lib/workflows/db-helpers'
 import type { WorkflowState } from '@/stores/workflows/workflow/types'
 
 const logger = createLogger('WorkflowImportAPI')
@@ -38,13 +38,16 @@ export async function POST(req: NextRequest) {
 
   try {
     const body = await req.json()
-    const { name, description, color, workspaceId, folderId, state } = ImportWorkflowSchema.parse(body)
+    const { name, description, color, workspaceId, folderId, state } =
+      ImportWorkflowSchema.parse(body)
 
     const workflowId = crypto.randomUUID()
     const now = new Date()
 
     logger.info(`[${requestId}] Importing workflow ${workflowId} for user ${session.user.id}`)
-    logger.debug(`[${requestId}] Blocks: ${Object.keys(state.blocks || {}).length}, Edges: ${(state.edges || []).length}`)
+    logger.debug(
+      `[${requestId}] Blocks: ${Object.keys(state.blocks || {}).length}, Edges: ${(state.edges || []).length}`
+    )
 
     // Create workflow state object
     const workflowState: WorkflowState = {
@@ -89,7 +92,9 @@ export async function POST(req: NextRequest) {
     if (!saveResult.success) {
       // If saving to normalized tables fails, clean up the workflow
       await db.delete(workflow).where(eq(workflow.id, workflowId))
-      logger.error(`[${requestId}] Failed to save imported state, cleaned up workflow: ${saveResult.error}`)
+      logger.error(
+        `[${requestId}] Failed to save imported state, cleaned up workflow: ${saveResult.error}`
+      )
       return NextResponse.json(
         { error: `Failed to save workflow state: ${saveResult.error}` },
         { status: 500 }
@@ -97,13 +102,12 @@ export async function POST(req: NextRequest) {
     }
 
     logger.info(`[${requestId}] Successfully imported workflow ${workflowId}`)
-    
-    return NextResponse.json({ 
+
+    return NextResponse.json({
       success: true,
       id: workflowId,
-      message: 'Workflow imported successfully'
+      message: 'Workflow imported successfully',
     })
-
   } catch (error: any) {
     if (error instanceof z.ZodError) {
       logger.warn(`[${requestId}] Invalid import data`, {
@@ -118,4 +122,4 @@ export async function POST(req: NextRequest) {
     logger.error(`[${requestId}] Error importing workflow`, error)
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
   }
-} 
+}

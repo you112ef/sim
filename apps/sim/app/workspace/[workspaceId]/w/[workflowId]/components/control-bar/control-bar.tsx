@@ -41,7 +41,7 @@ import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip
 import { useSession } from '@/lib/auth-client'
 import { createLogger } from '@/lib/logs/console-logger'
 import { cn } from '@/lib/utils'
-import { exportWorkflowAsJSON, downloadWorkflowJSON } from '@/lib/workflows/import-export'
+import { downloadWorkflowJSON, exportWorkflowAsJSON } from '@/lib/workflows/import-export'
 import { useUserPermissionsContext } from '@/app/workspace/[workspaceId]/w/components/providers/workspace-permissions-provider'
 import { useExecutionStore } from '@/stores/execution/store'
 import { useFolderStore } from '@/stores/folders/store'
@@ -1060,19 +1060,11 @@ export function ControlBar({ hasValidationErrors = false }: ControlBarProps) {
             activeWorkflowId
           )
         } else {
-          addNotification(
-            'error',
-            'No active workflow to export',
-            activeWorkflowId
-          )
+          addNotification('error', 'No active workflow to export', activeWorkflowId)
         }
       } catch (error) {
         logger.error('Error exporting workflow:', error)
-        addNotification(
-          'error',
-          'Failed to export workflow JSON',
-          activeWorkflowId
-        )
+        addNotification('error', 'Failed to export workflow JSON', activeWorkflowId)
       }
     }
 

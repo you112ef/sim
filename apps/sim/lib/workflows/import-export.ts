@@ -1,9 +1,7 @@
 import { createLogger } from '@/lib/logs/console-logger'
-import { useWorkflowRegistry } from '@/stores/workflows/registry/store'
-import { useWorkflowStore } from '@/stores/workflows/workflow/store'
-import { getWorkflowWithValues } from '@/stores/workflows'
-import type { WorkflowState } from '@/stores/workflows/workflow/types'
 import { getBlock } from '@/blocks'
+import { getWorkflowWithValues } from '@/stores/workflows'
+import { useWorkflowRegistry } from '@/stores/workflows/registry/store'
 
 const logger = createLogger('WorkflowImportExport')
 
@@ -29,14 +27,14 @@ export interface ExportedWorkflow {
  */
 export function exportWorkflowAsJSON(): ExportedWorkflow | null {
   const { activeWorkflowId } = useWorkflowRegistry.getState()
-  
+
   if (!activeWorkflowId) {
     logger.warn('No active workflow to export')
     return null
   }
 
   const workflowWithValues = getWorkflowWithValues(activeWorkflowId)
-  
+
   if (!workflowWithValues) {
     logger.warn(`Could not get workflow data for export: ${activeWorkflowId}`)
     return null
@@ -55,7 +53,7 @@ export function exportWorkflowAsJSON(): ExportedWorkflow | null {
       edges: workflowWithValues.state.edges,
       loops: workflowWithValues.state.loops,
       parallels: workflowWithValues.state.parallels,
-    }
+    },
   }
 
   logger.info(`Exported workflow: ${workflowWithValues.name}`)
@@ -69,7 +67,7 @@ export function downloadWorkflowJSON(workflowData: ExportedWorkflow) {
   const jsonString = JSON.stringify(workflowData, null, 2)
   const blob = new Blob([jsonString], { type: 'application/json' })
   const url = URL.createObjectURL(blob)
-  
+
   const link = document.createElement('a')
   link.href = url
   link.download = `${workflowData.metadata.name.replace(/[^a-zA-Z0-9]/g, '_')}_workflow.json`
@@ -77,7 +75,7 @@ export function downloadWorkflowJSON(workflowData: ExportedWorkflow) {
   link.click()
   document.body.removeChild(link)
   URL.revokeObjectURL(url)
-  
+
   logger.info(`Downloaded workflow JSON: ${workflowData.metadata.name}`)
 }
 
@@ -127,19 +125,23 @@ async function traverseAndCopyWorkflow(importedState: any): Promise<{
   const newEdges: any[] = []
   const visited = new Set<string>()
   const edgeQueue: any[] = []
-  
+
   // Validate all blocks exist in current registry and filter out unsupported blocks
   const validBlocks: Record<string, any> = {}
-  
+
   for (const [blockId, block] of Object.entries(importedState.blocks || {})) {
     const blockData = block as any
-    
+
     // Allow starter, loop, and parallel blocks (special cases)
-    if (blockData.type === 'starter' || blockData.type === 'loop' || blockData.type === 'parallel') {
+    if (
+      blockData.type === 'starter' ||
+      blockData.type === 'loop' ||
+      blockData.type === 'parallel'
+    ) {
       validBlocks[blockId] = blockData
       continue
     }
-    
+
     // Check if block type exists in current registry
     const blockConfig = getBlock(blockData.type)
     if (blockConfig) {
@@ -148,69 +150,69 @@ async function traverseAndCopyWorkflow(importedState: any): Promise<{
       logger.warn(`Skipping unsupported block type: ${blockData.type} (ID: ${blockId})`)
     }
   }
-  
+
   // Update importedState to only include valid blocks
   importedState.blocks = validBlocks
-  
+
   // Find the start block in validated data
   const startBlockEntry = Object.entries(validBlocks).find(
     ([_, block]) => (block as any).type === 'starter'
   )
-  
+
   if (!startBlockEntry) {
     throw new Error('No start block found in imported workflow')
   }
-  
+
   const [originalStartId, startBlock] = startBlockEntry as [string, any]
-  
+
   // Generate ID for start block (this will replace the default one)
   const newStartId = crypto.randomUUID()
   idMapping[originalStartId] = newStartId
-  
+
   // Copy start block with new ID
   newBlocks[newStartId] = {
     ...startBlock,
     id: newStartId,
   }
-  
+
   // Queue for traversal (breadth-first)
   const blockQueue: string[] = [originalStartId]
   visited.add(originalStartId)
-  
+
   // Traverse from start block following edges
   while (blockQueue.length > 0) {
     const currentOriginalId = blockQueue.shift()!
-    
+
     // Find all edges from this block that point to blocks that exist in our imported data
     const outgoingEdges = (importedState.edges || []).filter(
       (edge: any) => edge.source === currentOriginalId && importedState.blocks[edge.target]
     )
-    
+
     for (const edge of outgoingEdges) {
       const targetOriginalId = edge.target
-      
+
       // Copy target block if not already copied and it exists in imported data
       if (!visited.has(targetOriginalId) && importedState.blocks[targetOriginalId]) {
         const targetBlock = importedState.blocks[targetOriginalId]
         const newTargetId = crypto.randomUUID()
         idMapping[targetOriginalId] = newTargetId
-        
+
         newBlocks[newTargetId] = {
           ...targetBlock,
           id: newTargetId,
         }
-        
+
         visited.add(targetOriginalId)
         blockQueue.push(targetOriginalId)
       }
-      
+
       // Only queue edge if both source and target blocks exist in our data
       if (importedState.blocks[edge.source] && importedState.blocks[edge.target]) {
         edgeQueue.push(edge)
       }
     }
   }
-  
+
   // Process all valid edges with new IDs
   for (const edge of edgeQueue) {
     // Double-check that both blocks exist in our mapping
@@ -223,7 +225,7 @@ async function traverseAndCopyWorkflow(importedState: any): Promise<{
       })
     }
   }
-  
+
   // Handle any remaining blocks that weren't reached by traversal
   for (const [blockId, block] of Object.entries(importedState.blocks || {})) {
     if (!idMapping[blockId]) {
@@ -235,15 +237,15 @@ async function traverseAndCopyWorkflow(importedState: any): Promise<{
       }
     }
   }
-  
+
   // Handle any remaining edges (only if both blocks exist in imported data)
   for (const edge of importedState.edges || []) {
     const sourceExists = importedState.blocks[edge.source]
     const targetExists = importedState.blocks[edge.target]
-    const alreadyProcessed = newEdges.find(e => 
-      e.source === idMapping[edge.source] && e.target === idMapping[edge.target]
+    const alreadyProcessed = newEdges.find(
+      (e) => e.source === idMapping[edge.source] && e.target === idMapping[edge.target]
     )
-    
+
     if (sourceExists && targetExists && !alreadyProcessed) {
       newEdges.push({
         ...edge,
@@ -253,7 +255,7 @@ async function traverseAndCopyWorkflow(importedState: any): Promise<{
       })
     }
   }
-  
+
   // Copy loops with updated block references
   const newLoops: Record<string, any> = {}
   Object.entries(importedState.loops || {}).forEach(([oldId, loop]: [string, any]) => {
@@ -264,7 +266,7 @@ async function traverseAndCopyWorkflow(importedState: any): Promise<{
       nodes: (loop.nodes || []).map((nodeId: string) => idMapping[nodeId] || nodeId),
     }
   })
-  
+
   // Copy parallels with updated block references
   const newParallels: Record<string, any> = {}
   Object.entries(importedState.parallels || {}).forEach(([oldId, parallel]: [string, any]) => {
@@ -275,7 +277,7 @@ async function traverseAndCopyWorkflow(importedState: any): Promise<{
       nodes: (parallel.nodes || []).map((nodeId: string) => idMapping[nodeId] || nodeId),
     }
   })
-  
+
   return {
     blocks: newBlocks,
     edges: newEdges,
@@ -303,7 +305,9 @@ export async function createWorkflowFromJSON(
   }
 
   // Traverse and copy workflow elements systematically
-  const { blocks, edges, loops, parallels, idMapping } = await traverseAndCopyWorkflow(jsonData.state)
+  const { blocks, edges, loops, parallels, idMapping } = await traverseAndCopyWorkflow(
+    jsonData.state
+  )
   logger.debug('Traversed and copied imported workflow', {
     originalBlocks: Object.keys(jsonData.state.blocks || {}).length,
     newBlocks: Object.keys(blocks || {}).length,
@@ -314,11 +318,11 @@ export async function createWorkflowFromJSON(
 
   // Prepare the workflow name
   const baseName = jsonData.metadata.name
-  const workflowName = options.namePrefix 
-    ? `${options.namePrefix} ${baseName}` 
+  const workflowName = options.namePrefix
+    ? `${options.namePrefix} ${baseName}`
     : `${baseName} (Imported)`
 
-  // Create the workflow using the new import API that handles the traversal properly  
+  // Create the workflow using the new import API that handles the traversal properly
   const response = await fetch('/api/workflows/import', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
@@ -348,7 +352,7 @@ export async function createWorkflowFromJSON(
   // Update the workflow color after creation
   const { updateWorkflow } = useWorkflowRegistry.getState()
   await updateWorkflow(workflowId, {
-    color: jsonData.metadata.color
+    color: jsonData.metadata.color,
   })
 
   logger.info(`Created workflow from JSON: ${workflowName} (ID: ${workflowId})`)
@@ -361,12 +365,12 @@ export async function createWorkflowFromJSON(
 export function parseWorkflowJSON(jsonString: string): ExportedWorkflow {
   try {
     const jsonData = JSON.parse(jsonString)
-    
+
     const validation = validateWorkflowJSON(jsonData)
     if (!validation.valid) {
       throw new Error(validation.error || 'Invalid workflow JSON')
     }
-    
+
     return jsonData
   } catch (error) {
     if (error instanceof SyntaxError) {
@@ -374,4 +378,4 @@ export function parseWorkflowJSON(jsonString: string): ExportedWorkflow {
     }
     throw error
   }
-} 
+}

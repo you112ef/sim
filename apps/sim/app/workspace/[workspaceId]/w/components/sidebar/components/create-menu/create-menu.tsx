@@ -8,11 +8,11 @@ import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import { Textarea } from '@/components/ui/textarea'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
+import { Textarea } from '@/components/ui/textarea'
 import { cn } from '@/lib/utils'
+import { createWorkflowFromJSON, parseWorkflowJSON } from '@/lib/workflows/import-export'
 import { useFolderStore } from '@/stores/folders/store'
-import { parseWorkflowJSON, createWorkflowFromJSON } from '@/lib/workflows/import-export'
 
 interface CreateMenuProps {
   onCreateWorkflow: (folderId?: string) => void
@@ -87,12 +87,12 @@ export function CreateMenu({
 
       const workflowId = await createWorkflowFromJSON(workflowData, {
         workspaceId,
-        namePrefix: 'Imported'
+        namePrefix: 'Imported',
       })
-      
+
       // Navigate to the new workflow
       router.push(`/workspace/${workspaceId}/w/${workflowId}`)
-      
+
       logger.info(`Successfully imported workflow: ${workflowData.metadata.name}`)
       setImportJson('')
       setShowImportDialog(false)

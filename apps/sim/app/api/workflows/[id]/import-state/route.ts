@@ -32,7 +32,9 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     const { blocks, edges, loops, parallels } = ImportStateSchema.parse(body)
 
     logger.info(`[${requestId}] Importing workflow state for ${workflowId}`)
-    logger.debug(`[${requestId}] Blocks: ${Object.keys(blocks || {}).length}, Edges: ${(edges || []).length}`)
+    logger.debug(
+      `[${requestId}] Blocks: ${Object.keys(blocks || {}).length}, Edges: ${(edges || []).length}`
+    )
 
     // Create workflow state object
     const workflowState: WorkflowState = {
@@ -59,12 +61,11 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     }
 
     logger.info(`[${requestId}] Successfully imported workflow state for ${workflowId}`)
-    
-    return NextResponse.json({ 
-      success: true,
-      message: 'Workflow state imported successfully'
-    })
 
+    return NextResponse.json({
+      success: true,
+      message: 'Workflow state imported successfully',
+    })
   } catch (error: any) {
     if (error instanceof z.ZodError) {
       logger.warn(`[${requestId}] Invalid import state data for ${workflowId}`, {
@@ -79,4 +80,4 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     logger.error(`[${requestId}] Error importing workflow state for ${workflowId}`, error)
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
   }
-} 
+}
