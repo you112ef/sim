@@ -1,8 +1,8 @@
-import { GetFunctionCommand, LambdaClient } from '@aws-sdk/client-lambda'
 import { promises as fs } from 'fs'
-import type { NextRequest } from 'next/server'
 import { tmpdir } from 'os'
 import { join } from 'path'
+import { GetFunctionCommand, LambdaClient } from '@aws-sdk/client-lambda'
+import type { NextRequest } from 'next/server'
 import { z } from 'zod'
 import { createLogger } from '@/lib/logs/console-logger'
 import { createErrorResponse, createSuccessResponse } from '@/app/api/workflows/utils'
@@ -63,11 +63,13 @@ function getFileExtension(runtime: string): string {
  * SAM resource names must be alphanumeric only (letters and numbers)
  */
 function sanitizeResourceName(functionName: string): string {
-  return functionName
-    .replace(/[^a-zA-Z0-9]/g, '') // Remove all non-alphanumeric characters
-    .replace(/^(\d)/, 'Func$1') // Ensure it starts with a letter if it starts with a number
-    .substring(0, 64) // Ensure reasonable length limit
-    || 'LambdaFunction' // Fallback if name becomes empty
+  return (
+    functionName
+      .replace(/[^a-zA-Z0-9]/g, '') // Remove all non-alphanumeric characters
+      .replace(/^(\d)/, 'Func$1') // Ensure it starts with a letter if it starts with a number
+      .substring(0, 64) || // Ensure reasonable length limit
+    'LambdaFunction'
+  ) // Fallback if name becomes empty
 }
 
 /**
@@ -76,7 +78,7 @@ function sanitizeResourceName(functionName: string): string {
 function createSamTemplate(params: DeployRequest): string {
   // Sanitize the function name for CloudFormation resource naming
   const resourceName = sanitizeResourceName(params.functionName)
-  
+
   const template = {
     AWSTemplateFormatVersion: '2010-09-09',
     Transform: 'AWS::Serverless-2016-10-31',
@@ -113,49 +115,52 @@ function createSamTemplate(params: DeployRequest): string {
  * Execute a shell command and return the result
  */
 async function execCommand(
-  command: string, 
-  cwd: string, 
+  command: string,
+  cwd: string,
   env?: Record<string, string>
 ): Promise<{ stdout: string; stderr: string }> {
   const { exec } = await import('child_process')
   const { promisify } = await import('util')
   const execAsync = promisify(exec)
-  
-  return await execAsync(command, { 
+
+  return await execAsync(command, {
     cwd,
-    env: env ? { ...process.env, ...env } : process.env 
+    env: env ? { ...process.env, ...env } : process.env,
   })
 }
 
 /**
  * Deploy Lambda function using SAM CLI
  */
-async function deployWithSam(params: DeployRequest, requestId: string): Promise<LambdaFunctionDetails> {
+async function deployWithSam(
+  params: DeployRequest,
+  requestId: string
+): Promise<LambdaFunctionDetails> {
   const tempDir = join(tmpdir(), `lambda-deploy-${requestId}`)
   const srcDir = join(tempDir, 'src')
-  
+
   try {
     // Create temporary directory structure
     await fs.mkdir(tempDir, { recursive: true })
     await fs.mkdir(srcDir, { recursive: true })
-    
+
     logger.info(`[${requestId}] Created temporary directory: ${tempDir}`)
 
     // Write SAM template
     const samTemplate = createSamTemplate(params)
     await fs.writeFile(join(tempDir, 'template.yaml'), samTemplate)
-    
+
     logger.info(`[${requestId}] Created SAM template`)
 
     // Write source code files
     for (const [filePath, codeContent] of Object.entries(params.code)) {
       const fullPath = join(srcDir, filePath)
       const fileDir = join(fullPath, '..')
-      
+
       // Ensure directory exists
       await fs.mkdir(fileDir, { recursive: true })
       await fs.writeFile(fullPath, codeContent)
-      
+
       logger.info(`[${requestId}] Created source file: ${filePath}`)
     }
 
@@ -170,16 +175,16 @@ async function deployWithSam(params: DeployRequest, requestId: string): Promise<
     logger.info(`[${requestId}] Building SAM application...`)
     const buildCommand = 'sam build --no-cached'
     const buildResult = await execCommand(buildCommand, tempDir, env)
-    
-    logger.info(`[${requestId}] SAM build output:`, { 
-      stdout: buildResult.stdout, 
-      stderr: buildResult.stderr 
+
+    logger.info(`[${requestId}] SAM build output:`, {
+      stdout: buildResult.stdout,
+      stderr: buildResult.stderr,
     })
-    
+
     if (buildResult.stderr && !buildResult.stderr.includes('Successfully built')) {
       logger.warn(`[${requestId}] SAM build warnings:`, { stderr: buildResult.stderr })
     }
-    
+
     logger.info(`[${requestId}] SAM build completed`)
 
     // Deploy the SAM application
@@ -193,20 +198,23 @@ async function deployWithSam(params: DeployRequest, requestId: string): Promise<
       `--region ${params.region}`,
       '--resolve-s3',
       '--capabilities CAPABILITY_IAM',
-      '--no-progressbar'
+      '--no-progressbar',
     ].join(' ')
-    
+
     const deployResult = await execCommand(deployCommand, tempDir, env)
-    
-    logger.info(`[${requestId}] SAM deploy output:`, { 
-      stdout: deployResult.stdout, 
-      stderr: deployResult.stderr 
+
+    logger.info(`[${requestId}] SAM deploy output:`, {
+      stdout: deployResult.stdout,
+      stderr: deployResult.stderr,
     })
-    
-    if (deployResult.stderr && !deployResult.stderr.includes('Successfully created/updated stack')) {
+
+    if (
+      deployResult.stderr &&
+      !deployResult.stderr.includes('Successfully created/updated stack')
+    ) {
       logger.warn(`[${requestId}] SAM deploy warnings:`, { stderr: deployResult.stderr })
     }
-    
+
     logger.info(`[${requestId}] SAM deploy completed`)
 
     // Get function details using AWS SDK
@@ -218,10 +226,13 @@ async function deployWithSam(params: DeployRequest, requestId: string): Promise<
       },
     })
 
-    const functionDetails = await getFunctionDetails(lambdaClient, params.functionName, params.region)
-    
-    return functionDetails
+    const functionDetails = await getFunctionDetails(
+      lambdaClient,
+      params.functionName,
+      params.region
+    )
 
+    return functionDetails
   } catch (error) {
     logger.error(`[${requestId}] Error during SAM deployment`, {
       error: error instanceof Error ? error.message : String(error),
