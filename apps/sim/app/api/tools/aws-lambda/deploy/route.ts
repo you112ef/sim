@@ -252,7 +252,7 @@ export async function POST(request: NextRequest) {
     }
 
     const params = validationResult.data
-    
+
     // Log the deployment payload (excluding sensitive credentials)
     logger.info(`[${requestId}] AWS Lambda deployment payload received`, {
       functionName: params.functionName,
@@ -272,7 +272,7 @@ export async function POST(request: NextRequest) {
       tags: params.tags,
       tagsCount: Object.keys(params.tags || {}).length,
     })
-    
+
     logger.info(`[${requestId}] Deploying Lambda function: ${params.functionName}`)
 
     // Create Lambda client

@@ -154,10 +154,10 @@ async function getFunctionDetailsWithCode(
   if (functionCode.Code?.Location) {
     try {
       logger.info('Downloading code from:', functionCode.Code.Location)
-      
+
       const response = await fetch(functionCode.Code.Location)
       logger.info('Fetch response status:', response.status)
-      
+
       if (response.ok) {
         const zipBuffer = Buffer.from(await response.arrayBuffer())
         logger.info('ZIP buffer size:', zipBuffer.length)
@@ -219,7 +219,7 @@ export async function POST(request: NextRequest) {
     }
 
     const params = validationResult.data
-    
+
     // Log the payload (excluding sensitive credentials)
     logger.info(`[${requestId}] AWS Lambda fetch payload received`, {
       functionName: params.functionName,
@@ -230,7 +230,7 @@ export async function POST(request: NextRequest) {
       hasRole: !!params.role,
       role: params.role ? `${params.role.substring(0, 20)}...` : undefined,
     })
-    
+
     logger.info(`[${requestId}] Fetching Lambda function: ${params.functionName}`)
 
     // Create Lambda client
@@ -265,8 +265,10 @@ export async function POST(request: NextRequest) {
     } catch (fetchError: any) {
       // Handle ResourceNotFoundException gracefully - return empty function details
       if (fetchError.name === 'ResourceNotFoundException') {
-        logger.info(`[${requestId}] Lambda function '${params.functionName}' not found, returning empty response`)
-        
+        logger.info(
+          `[${requestId}] Lambda function '${params.functionName}' not found, returning empty response`
+        )
+
         const emptyFunctionDetails: LambdaFunctionDetails = {
           functionArn: '',
           functionName: params.functionName,
@@ -290,7 +292,7 @@ export async function POST(request: NextRequest) {
           output: emptyFunctionDetails,
         })
       }
-      
+
       // Re-throw other errors to be handled by the outer catch block
       throw fetchError
     }

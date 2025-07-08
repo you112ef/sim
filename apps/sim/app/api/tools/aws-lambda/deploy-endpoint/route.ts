@@ -1,17 +1,13 @@
 import {
-  GetFunctionCommand,
-  LambdaClient,
-  AddPermissionCommand,
-} from '@aws-sdk/client-lambda'
-import {
+  ApiGatewayV2Client,
   CreateApiCommand,
-  GetApisCommand,
   CreateIntegrationCommand,
   CreateRouteCommand,
   CreateStageCommand,
+  GetApisCommand,
   GetStagesCommand,
-  ApiGatewayV2Client,
 } from '@aws-sdk/client-apigatewayv2'
+import { AddPermissionCommand, GetFunctionCommand, LambdaClient } from '@aws-sdk/client-lambda'
 import type { NextRequest } from 'next/server'
 import { z } from 'zod'
 import { createLogger } from '@/lib/logs/console-logger'
@@ -64,10 +60,7 @@ async function checkFunctionExists(
 /**
  * Get Lambda function details
  */
-async function getFunctionDetails(
-  lambdaClient: LambdaClient,
-  functionName: string
-): Promise<any> {
+async function getFunctionDetails(lambdaClient: LambdaClient, functionName: string): Promise<any> {
   return await lambdaClient.send(new GetFunctionCommand({ FunctionName: functionName }))
 }
 
@@ -102,11 +95,11 @@ async function createApiGateway(
       Description: `HTTP API for Lambda function ${apiName}`,
     })
   )
-  
+
   if (!createApiResponse.ApiId) {
     throw new Error('Failed to create API Gateway - no ID returned')
   }
-  
+
   return createApiResponse.ApiId
 }
 
@@ -127,11 +120,11 @@ async function createApiIntegration(
       PayloadFormatVersion: '2.0',
     })
   )
-  
+
   if (!integration.IntegrationId) {
     throw new Error('Failed to create integration - no ID returned')
   }
-  
+
   return integration.IntegrationId
 }
 
@@ -209,15 +202,15 @@ async function createApiStage(
   apiId: string
 ): Promise<string> {
   const stageName = 'prod'
-  
+
   // Check if stage already exists
   const stageExists = await checkStageExists(apiGatewayClient, apiId, stageName)
-  
+
   if (stageExists) {
     logger.info(`Stage ${stageName} already exists for API ${apiId}`)
     return stageName
   }
-  
+
   logger.info(`Creating new stage ${stageName} for API ${apiId}`)
   const stage = await apiGatewayClient.send(
     new CreateStageCommand({
@@ -226,7 +219,7 @@ async function createApiStage(
       AutoDeploy: true,
     })
   )
-  
+
   return stage.StageName || stageName
 }
 
@@ -240,8 +233,8 @@ async function ensureApiDeployed(
 ): Promise<void> {
   // In API Gateway v2, AutoDeploy: true should handle deployment automatically
   // But we can add a small delay to ensure the deployment completes
-  await new Promise(resolve => setTimeout(resolve, 2000))
-  
+  await new Promise((resolve) => setTimeout(resolve, 2000))
+
   logger.info(`API Gateway deployment completed for API ${apiId}, stage ${stageName}`)
 }
 
@@ -269,7 +262,7 @@ export async function POST(request: NextRequest) {
     }
 
     const params = validationResult.data
-    
+
     // Log the deployment payload (excluding sensitive credentials)
     logger.info(`[${requestId}] AWS Lambda deploy endpoint payload received`, {
       functionName: params.functionName,
@@ -280,7 +273,7 @@ export async function POST(request: NextRequest) {
       hasRole: !!params.role,
       role: params.role ? `${params.role.substring(0, 20)}...` : undefined,
     })
-    
+
     logger.info(`[${requestId}] Deploying Lambda function as endpoint: ${params.functionName}`)
 
     // Create Lambda client
@@ -325,17 +318,23 @@ export async function POST(request: NextRequest) {
     const accountId = functionArn.split(':')[4]
     if (!accountId) {
       logger.error(`[${requestId}] Failed to extract account ID from function ARN: ${functionArn}`)
-      return createErrorResponse('Failed to extract account ID from function ARN', 500, 'ACCOUNT_ID_ERROR')
+      return createErrorResponse(
+        'Failed to extract account ID from function ARN',
+        500,
+        'ACCOUNT_ID_ERROR'
+      )
     }
 
     // Check if API Gateway already exists
     let apiId = await checkApiExists(apiGatewayClient, params.endpointName)
-    
+
     if (!apiId) {
       logger.info(`[${requestId}] Creating new API Gateway HTTP API: ${params.endpointName}`)
       apiId = await createApiGateway(apiGatewayClient, params.endpointName)
     } else {
-      logger.info(`[${requestId}] Using existing API Gateway HTTP API: ${params.endpointName} (${apiId})`)
+      logger.info(
+        `[${requestId}] Using existing API Gateway HTTP API: ${params.endpointName} (${apiId})`
+      )
     }
 
     // Create API integration with Lambda
@@ -353,7 +352,7 @@ export async function POST(request: NextRequest) {
     // Create stage for the API Gateway
     logger.info(`[${requestId}] Creating API Gateway stage`)
     const stageName = await createApiStage(apiGatewayClient, apiId)
-    
+
     if (!stageName) {
       logger.error(`[${requestId}] Failed to create or get stage for API ${apiId}`)
       return createErrorResponse('Failed to create API Gateway stage', 500, 'STAGE_CREATION_ERROR')
@@ -417,4 +416,4 @@ export async function POST(request: NextRequest) {
 
     return createErrorResponse(errorMessage, statusCode, 'DEPLOYMENT_ERROR')
   }
-} 
+}

@@ -82,7 +82,8 @@ export const AWSLambdaBlock: BlockConfig<AWSLambdaResponse> = {
       layout: 'full',
       placeholder: 'Enter the IAM Role ARN for Lambda execution',
       password: false,
-      description: 'IAM Role ARN that the Lambda function will assume during execution. Must have appropriate permissions.',
+      description:
+        'IAM Role ARN that the Lambda function will assume during execution. Must have appropriate permissions.',
       condition: {
         field: 'operation',
         value: ['fetch', 'create/update', 'deploy_endpoint'],
@@ -128,7 +129,8 @@ export const AWSLambdaBlock: BlockConfig<AWSLambdaResponse> = {
       type: 'short-input',
       layout: 'full',
       placeholder: 'Enter Lambda function name',
-      description: 'Name of the Lambda function. For fetch operations, this must be an existing function to understand its current state. For create/update, this will be the name of the new function or the existing function to update with any desired changes.',
+      description:
+        'Name of the Lambda function. For fetch operations, this must be an existing function to understand its current state. For create/update, this will be the name of the new function or the existing function to update with any desired changes.',
       condition: {
         field: 'operation',
         value: ['fetch', 'create/update', 'deploy_endpoint'],
@@ -140,7 +142,8 @@ export const AWSLambdaBlock: BlockConfig<AWSLambdaResponse> = {
       type: 'short-input',
       layout: 'full',
       placeholder: 'Enter API Gateway endpoint name',
-      description: 'Name for the API Gateway HTTP API endpoint. This will be used to create the API Gateway and will appear in the endpoint URL.',
+      description:
+        'Name for the API Gateway HTTP API endpoint. This will be used to create the API Gateway and will appear in the endpoint URL.',
       condition: {
         field: 'operation',
         value: ['deploy_endpoint'],
@@ -152,7 +155,8 @@ export const AWSLambdaBlock: BlockConfig<AWSLambdaResponse> = {
       type: 'short-input',
       layout: 'full',
       placeholder: 'e.g., nodejs18.x, python3.11, java11',
-      description: 'Lambda runtime environment. Common values: nodejs18.x, python3.11, java11, go1.x, dotnet6, ruby2.7',
+      description:
+        'Lambda runtime environment. Common values: nodejs18.x, python3.11, java11, go1.x, dotnet6, ruby2.7',
       condition: {
         field: 'operation',
         value: ['create/update'],
@@ -164,7 +168,8 @@ export const AWSLambdaBlock: BlockConfig<AWSLambdaResponse> = {
       type: 'short-input',
       layout: 'full',
       placeholder: 'e.g., index.handler',
-      description: 'Function handler that Lambda calls to start execution. Format varies by runtime: index.handler (Node.js), lambda_function.lambda_handler (Python), etc.',
+      description:
+        'Function handler that Lambda calls to start execution. Format varies by runtime: index.handler (Node.js), lambda_function.lambda_handler (Python), etc.',
       condition: {
         field: 'operation',
         value: ['create/update'],
@@ -188,7 +193,8 @@ export const AWSLambdaBlock: BlockConfig<AWSLambdaResponse> = {
       type: 'short-input',
       layout: 'half',
       placeholder: 'Enter memory in MB (128-10240)',
-      description: 'Amount of memory allocated to the function in MB. Must be between 128 and 10240 MB.',
+      description:
+        'Amount of memory allocated to the function in MB. Must be between 128 and 10240 MB.',
       condition: {
         field: 'operation',
         value: ['create/update'],
@@ -201,7 +207,8 @@ export const AWSLambdaBlock: BlockConfig<AWSLambdaResponse> = {
       layout: 'full',
       language: 'json',
       placeholder: '{\n  "index.js": "exports.handler = async (event) => {...};"\n}',
-      description: 'Function code files as JSON object. Keys are file paths, values are file contents. For Node.js, typically include index.js with the handler function.',
+      description:
+        'Function code files as JSON object. Keys are file paths, values are file contents. For Node.js, typically include index.js with the handler function.',
       condition: {
         field: 'operation',
         value: ['create/update'],
@@ -214,7 +221,8 @@ export const AWSLambdaBlock: BlockConfig<AWSLambdaResponse> = {
       layout: 'full',
       columns: ['Key', 'Value'],
       placeholder: 'Add environment variables as key-value pairs',
-      description: 'Environment variables that will be available to the Lambda function during execution.',
+      description:
+        'Environment variables that will be available to the Lambda function during execution.',
       condition: {
         field: 'operation',
         value: ['create/update'],
@@ -235,7 +243,12 @@ export const AWSLambdaBlock: BlockConfig<AWSLambdaResponse> = {
     },
   ],
   tools: {
-    access: ['aws_lambda_deploy', 'aws_lambda_deploy_endpoint', 'aws_lambda_fetch', 'aws_lambda_get_prompts'],
+    access: [
+      'aws_lambda_deploy',
+      'aws_lambda_deploy_endpoint',
+      'aws_lambda_fetch',
+      'aws_lambda_get_prompts',
+    ],
     config: {
       tool: (params: Record<string, any>) => {
         const operation = String(params.operation || '').trim()

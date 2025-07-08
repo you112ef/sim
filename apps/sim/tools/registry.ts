@@ -5,7 +5,12 @@ import {
   airtableUpdateRecordTool,
 } from './airtable'
 import { autoblocksPromptManagerTool } from './autoblocks'
-import { awsLambdaDeployTool, awsLambdaDeployEndpointTool, awsLambdaFetchTool, awsLambdaGetPromptsTool } from './aws_lambda'
+import {
+  awsLambdaDeployEndpointTool,
+  awsLambdaDeployTool,
+  awsLambdaFetchTool,
+  awsLambdaGetPromptsTool,
+} from './aws_lambda'
 import { browserUseRunTaskTool } from './browser_use'
 import { clayPopulateTool } from './clay'
 import { confluenceRetrieveTool, confluenceUpdateTool } from './confluence'
