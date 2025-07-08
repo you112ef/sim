@@ -89,7 +89,7 @@ export const awsLambdaDeployTool: ToolConfig<AWSLambdaDeployInput, AWSLambdaDepl
         'Lambda runtime environment. Common values: nodejs18.x, python3.11, java11, go1.x, dotnet6, ruby2.7. This determines the execution environment for your function.',
     },
     code: {
-      type: 'object',
+      type: 'json',
       required: true,
       description:
         'Function code files as JSON object with file paths as keys and code content as values. For Node.js, typically include {"index.js": "exports.handler = async (event) => { return { statusCode: 200, body: JSON.stringify({ message: \"Hello World\" }) }; };"}. For Python, include {"lambda_function.py": "def lambda_handler(event, context): return { \"statusCode\": 200, \"body\": \"Hello World\" }"}. The code object must contain at least one file with non-empty string content.',
@@ -148,7 +148,7 @@ export const awsLambdaDeployTool: ToolConfig<AWSLambdaDeployInput, AWSLambdaDepl
       functionName: params.functionName,
       handler: params.handler,
       runtime: params.runtime,
-      code: params.code,
+      code: typeof params.code === 'string' ? params.code : JSON.stringify(params.code),
 
       timeout: params.timeout || 30,
       memorySize: params.memorySize || 128,
