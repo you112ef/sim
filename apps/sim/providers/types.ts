@@ -152,6 +152,8 @@ export interface ProviderRequest {
   // Azure OpenAI specific parameters
   azureEndpoint?: string
   azureApiVersion?: string
+  // xAI specific parameters
+  liveSearch?: string
 }
 
 // Map of provider IDs to their configurations

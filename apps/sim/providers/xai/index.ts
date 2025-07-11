@@ -56,6 +56,7 @@ export const xAIProvider: ProviderConfig = {
       hasResponseFormat: !!request.responseFormat,
       model: request.model || 'grok-3-latest',
       streaming: !!request.stream,
+      liveSearch: request.liveSearch || 'off',
     })
 
     const allMessages: any[] = []
@@ -105,6 +106,13 @@ export const xAIProvider: ProviderConfig = {
 
     if (request.temperature !== undefined) basePayload.temperature = request.temperature
     if (request.maxTokens !== undefined) basePayload.max_tokens = request.maxTokens
+
+    if (request.liveSearch && request.liveSearch !== 'off') {
+      basePayload.search_parameters = {
+        mode: request.liveSearch, // Use the specified mode: 'auto', 'on', or 'off'
+      }
+      logger.info(`XAI Provider - Live Search enabled with mode: ${request.liveSearch}`)
+    }
 
     // Function to create response format configuration
     const createResponseFormatPayload = (messages: any[] = allMessages) => {

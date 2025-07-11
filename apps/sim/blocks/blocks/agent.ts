@@ -204,6 +204,23 @@ export const AgentBlock: BlockConfig<AgentResponse> = {
       language: 'json',
       generationType: 'json-schema',
     },
+    {
+      id: 'liveSearch',
+      title: 'Live Search',
+      type: 'dropdown',
+      layout: 'half',
+      mode: 'advanced',
+      options: [
+        { label: 'Off', id: 'off' },
+        { label: 'Auto (Model Decides)', id: 'auto' },
+        { label: 'Always On', id: 'on' },
+      ],
+      value: () => 'off',
+      condition: {
+        field: 'model',
+        value: providers.xai.models,
+      },
+    },
   ],
   tools: {
     access: [
@@ -330,6 +347,7 @@ export const AgentBlock: BlockConfig<AgentResponse> = {
     },
     temperature: { type: 'number', required: false },
     tools: { type: 'json', required: false },
+    liveSearch: { type: 'string', required: false },
   },
   outputs: {
     content: 'string',

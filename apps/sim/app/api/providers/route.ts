@@ -39,6 +39,7 @@ export async function POST(request: NextRequest) {
       stream,
       messages,
       environmentVariables,
+      liveSearch,
     } = body
 
     logger.info(`[${requestId}] Provider request details`, {
@@ -58,6 +59,7 @@ export async function POST(request: NextRequest) {
       messageCount: messages?.length || 0,
       hasEnvironmentVariables:
         !!environmentVariables && Object.keys(environmentVariables).length > 0,
+      liveSearch: liveSearch || 'off',
     })
 
     let finalApiKey: string
@@ -99,6 +101,7 @@ export async function POST(request: NextRequest) {
       stream,
       messages,
       environmentVariables,
+      liveSearch,
     })
 
     const executionTime = Date.now() - startTime

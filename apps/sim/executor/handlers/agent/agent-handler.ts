@@ -31,6 +31,12 @@ export class AgentBlockHandler implements BlockHandler {
     context: ExecutionContext
   ): Promise<BlockOutput | StreamingExecution> {
     logger.info(`Executing agent block: ${block.id}`)
+    logger.info('Agent inputs received', {
+      model: inputs.model,
+      liveSearch: inputs.liveSearch,
+      hasSystemPrompt: !!inputs.systemPrompt,
+      hasUserPrompt: !!inputs.userPrompt,
+    })
 
     const responseFormat = this.parseResponseFormat(inputs.responseFormat)
     const model = inputs.model || DEFAULT_MODEL
@@ -48,6 +54,7 @@ export class AgentBlockHandler implements BlockHandler {
       responseFormat,
       context,
       streaming: streamingConfig.shouldUseStreaming ?? false,
+      liveSearch: inputs.liveSearch ?? 'off',
     })
 
     this.logRequestDetails(providerRequest, messages, streamingConfig)
@@ -314,6 +321,7 @@ export class AgentBlockHandler implements BlockHandler {
     responseFormat: any
     context: ExecutionContext
     streaming: boolean
+    liveSearch: string
   }) {
     const {
       providerId,
@@ -324,6 +332,7 @@ export class AgentBlockHandler implements BlockHandler {
       responseFormat,
       context,
       streaming,
+      liveSearch,
     } = config
 
     const validMessages = this.validateMessages(messages)
@@ -344,6 +353,7 @@ export class AgentBlockHandler implements BlockHandler {
       stream: streaming,
       messages,
       environmentVariables: context.environmentVariables || {},
+      liveSearch,
     }
   }
 
@@ -378,6 +388,7 @@ export class AgentBlockHandler implements BlockHandler {
       workflowId: providerRequest.workflowId,
       stream: providerRequest.stream,
       messagesCount: messages?.length || 0,
+      liveSearch: providerRequest.liveSearch,
     })
   }
 
@@ -446,6 +457,7 @@ export class AgentBlockHandler implements BlockHandler {
       stream: providerRequest.stream,
       messages: 'messages' in providerRequest ? providerRequest.messages : undefined,
       environmentVariables: context.environmentVariables || {},
+      liveSearch: providerRequest.liveSearch,
     })
 
     this.logExecutionSuccess(providerId, model, context, block, providerStartTime, response)

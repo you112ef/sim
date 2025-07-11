@@ -87,15 +87,6 @@ export async function executeProviderRequest(
     return response
   }
 
-  // At this point, we know we have a ProviderResponse
-  logger.info('Provider response received', {
-    contentLength: response.content ? response.content.length : 0,
-    model: response.model,
-    hasTokens: !!response.tokens,
-    hasToolCalls: !!response.toolCalls,
-    toolCallsCount: response.toolCalls?.length || 0,
-  })
-
   // Calculate cost based on token usage if tokens are available
   if (response.tokens) {
     const { prompt: promptTokens = 0, completion: completionTokens = 0 } = response.tokens

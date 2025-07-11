@@ -10,6 +10,7 @@ export interface AgentInputs {
   apiKey?: string
   azureEndpoint?: string
   azureApiVersion?: string
+  liveSearch?: string
 }
 
 export interface ToolInput {
