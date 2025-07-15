@@ -189,7 +189,7 @@ export function General() {
                   onCheckedChange={handleConsoleExpandedByDefaultChange}
                   disabled={isLoading || isConsoleExpandedByDefaultLoading}
                 />
-              </div>
+              </div> */}
             </>
           )}
         </div>

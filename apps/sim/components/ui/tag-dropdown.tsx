@@ -9,6 +9,7 @@ import { useVariablesStore } from '@/stores/panel/variables/store'
 import type { Variable } from '@/stores/panel/variables/types'
 import { useWorkflowRegistry } from '@/stores/workflows/registry/store'
 import { useWorkflowStore } from '@/stores/workflows/workflow/store'
+import { useSubBlockStore } from '@/stores/workflows/subblock/store'
 
 interface BlockTagGroup {
   blockName: string
