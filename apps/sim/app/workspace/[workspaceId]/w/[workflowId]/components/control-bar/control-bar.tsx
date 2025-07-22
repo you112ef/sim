@@ -108,6 +108,7 @@ export function ControlBar({ hasValidationErrors = false }: ControlBarProps) {
   const [, forceUpdate] = useState({})
   const [isExpanded, setIsExpanded] = useState(false)
   const [isTemplateModalOpen, setIsTemplateModalOpen] = useState(false)
+  const [isAutoLayouting, setIsAutoLayouting] = useState(false)
 
   // Deployed state management
   const [deployedState, setDeployedState] = useState<WorkflowState | null>(null)
@@ -543,21 +544,63 @@ export function ControlBar({ hasValidationErrors = false }: ControlBarProps) {
    * Render auto-layout button
    */
   const renderAutoLayoutButton = () => {
-    const handleAutoLayoutClick = () => {
-      if (isExecuting || isDebugging || !userPermissions.canEdit) {
+    const handleAutoLayoutClick = async () => {
+      if (isExecuting || isDebugging || !userPermissions.canEdit || isAutoLayouting) {
         return
       }
 
-      window.dispatchEvent(new CustomEvent('trigger-auto-layout'))
+      setIsAutoLayouting(true)
+      try {
+        const response = await fetch(`/api/workflows/${activeWorkflowId}/autolayout`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            strategy: 'smart',
+            direction: 'auto',
+            spacing: {
+              horizontal: 500,
+              vertical: 400,
+              layer: 700,
+            },
+            alignment: 'center',
+            padding: {
+              x: 250,
+              y: 250,
+            },
+          }),
+        })
+
+        if (!response.ok) {
+          const errorData = await response.json()
+          logger.error('Auto layout failed:', errorData)
+          // You could add a toast notification here if available
+          return
+        }
+
+        const result = await response.json()
+        logger.info('Auto layout completed successfully:', result)
+        
+        // Refresh the workflow data to show the new positions
+        // This will be handled automatically by the real-time system
+        
+      } catch (error) {
+        logger.error('Auto layout error:', error)
+        // You could add a toast notification here if available
+      } finally {
+        setIsAutoLayouting(false)
+      }
     }
 
     const canEdit = userPermissions.canEdit
-    const isDisabled = isExecuting || isDebugging || !canEdit
+    const isDisabled = isExecuting || isDebugging || !canEdit || isAutoLayouting
 
     const getTooltipText = () => {
       if (!canEdit) return 'Admin permission required to use auto-layout'
       if (isDebugging) return 'Cannot auto-layout while debugging'
       if (isExecuting) return 'Cannot auto-layout while workflow is running'
+      if (isAutoLayouting) return 'Applying auto-layout...'
       return 'Auto layout'
     }
 
@@ -566,15 +609,24 @@ export function ControlBar({ hasValidationErrors = false }: ControlBarProps) {
         <TooltipTrigger asChild>
           {isDisabled ? (
             <div className='inline-flex h-12 w-12 cursor-not-allowed items-center justify-center gap-2 whitespace-nowrap rounded-[11px] border bg-card font-medium text-card-foreground text-sm opacity-50 ring-offset-background transition-colors [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0'>
-              <Layers className='h-5 w-5' />
+              {isAutoLayouting ? (
+                <RefreshCw className='h-5 w-5 animate-spin' />
+              ) : (
+                <Layers className='h-5 w-5' />
+              )}
             </div>
           ) : (
             <Button
               variant='outline'
               onClick={handleAutoLayoutClick}
               className='h-12 w-12 rounded-[11px] border bg-card text-card-foreground shadow-xs hover:bg-secondary'
+              disabled={isAutoLayouting}
             >
-              <Layers className='h-5 w-5' />
+              {isAutoLayouting ? (
+                <RefreshCw className='h-5 w-5 animate-spin' />
+              ) : (
+                <Layers className='h-5 w-5' />
+              )}
               <span className='sr-only'>Auto Layout</span>
             </Button>
           )}

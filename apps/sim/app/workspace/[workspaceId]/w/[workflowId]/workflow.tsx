@@ -29,12 +29,13 @@ import { useWorkflowStore } from '@/stores/workflows/workflow/store'
 import { WorkflowBlock } from './components/workflow-block/workflow-block'
 import { WorkflowEdge } from './components/workflow-edge/workflow-edge'
 import {
-  applyAutoLayoutSmooth,
+  analyzeWorkflowGraph,
   detectHandleOrientation,
   getNodeAbsolutePosition,
   getNodeDepth,
   getNodeHierarchy,
   isPointInLoopNode,
+  LayoutOptions,
   resizeLoopNodes,
   updateNodeParent as updateNodeParentUtil,
 } from './utils'
@@ -213,73 +214,47 @@ const WorkflowContent = React.memo(() => {
     [getNodes]
   )
 
-  // Helper function to get orientation config
-  const getOrientationConfig = useCallback((orientation: string) => {
-    return orientation === 'vertical'
-      ? {
-          // Vertical handles: optimize for top-to-bottom flow
-          horizontalSpacing: 400,
-          verticalSpacing: 300,
-          startX: 200,
-          startY: 200,
-        }
-      : {
-          // Horizontal handles: optimize for left-to-right flow
-          horizontalSpacing: 600,
-          verticalSpacing: 200,
-          startX: 150,
-          startY: 300,
-        }
-  }, [])
-
-  // Auto-layout handler
-  const handleAutoLayout = useCallback(() => {
+  // Auto-layout handler - now uses the centralized backend API
+  const handleAutoLayout = useCallback(async () => {
     if (Object.keys(blocks).length === 0) return
 
-    // Detect the predominant handle orientation in the workflow
-    const detectedOrientation = detectHandleOrientation(blocks)
-
-    // Get spacing configuration based on handle orientation
-    const orientationConfig = getOrientationConfig(detectedOrientation)
-
-    applyAutoLayoutSmooth(
-      blocks,
-      edges,
-      storeUpdateBlockPosition,
-      fitView,
-      resizeLoopNodesWrapper,
-      {
-        ...orientationConfig,
-        alignByLayer: true,
-        animationDuration: 500, // Smooth 500ms animation
-        handleOrientation: detectedOrientation, // Explicitly set the detected orientation
-        onComplete: (finalPositions) => {
-          // Emit collaborative updates for final positions after animation completes
-          finalPositions.forEach((position, blockId) => {
-            collaborativeUpdateBlockPosition(blockId, position)
-          })
+    try {
+      const response = await fetch(`/api/workflows/${activeWorkflowId}/autolayout`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
         },
+        body: JSON.stringify({
+          strategy: 'smart',
+          direction: 'auto',
+          spacing: {
+            horizontal: 500,
+            vertical: 400,
+            layer: 700,
+          },
+          alignment: 'center',
+          padding: {
+            x: 250,
+            y: 250,
+          },
+        }),
+      })
+
+      if (!response.ok) {
+        const errorData = await response.json()
+        logger.error('Auto layout failed:', errorData)
+        return
       }
-    )
 
-    const orientationMessage =
-      detectedOrientation === 'vertical'
-        ? 'Auto-layout applied with vertical flow (top-to-bottom)'
-        : 'Auto-layout applied with horizontal flow (left-to-right)'
-
-    logger.info(orientationMessage, {
-      orientation: detectedOrientation,
-      blockCount: Object.keys(blocks).length,
-    })
-  }, [
-    blocks,
-    edges,
-    storeUpdateBlockPosition,
-    collaborativeUpdateBlockPosition,
-    fitView,
-    resizeLoopNodesWrapper,
-    getOrientationConfig,
-  ])
+      const result = await response.json()
+      logger.info('Auto layout completed successfully:', result)
+      
+      // The real-time system will automatically update the UI with new positions
+      
+    } catch (error) {
+      logger.error('Auto layout error:', error)
+    }
+  }, [activeWorkflowId])
 
   const debouncedAutoLayout = useCallback(() => {
     const debounceTimer = setTimeout(() => {
@@ -320,32 +295,6 @@ const WorkflowContent = React.memo(() => {
       if (cleanup) cleanup()
     }
   }, [debouncedAutoLayout])
-
-  useEffect(() => {
-    let cleanup: (() => void) | null = null
-
-    const handleAutoLayoutEvent = () => {
-      if (cleanup) cleanup()
-
-      // Call auto layout directly without debounce for copilot events
-      handleAutoLayout()
-
-      // Also set up debounced version as backup
-      cleanup = debouncedAutoLayout()
-    }
-
-    window.addEventListener('trigger-auto-layout', handleAutoLayoutEvent)
-
-    return () => {
-      window.removeEventListener('trigger-auto-layout', handleAutoLayoutEvent)
-      if (cleanup) cleanup()
-    }
-  }, [debouncedAutoLayout])
-
-  // Note: Workflow room joining is now handled automatically by socket connect event based on URL
-  // This eliminates the need for manual joining when active workflow changes
-
-  // Note: Workflow initialization now handled by Socket.IO system
 
   // Handle drops
   const findClosestOutput = useCallback(
