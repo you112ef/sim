@@ -97,7 +97,7 @@ export function CopilotSandboxModal({
           'flex flex-col gap-0 p-0',
           isFullscreen
             ? 'h-[100vh] max-h-[100vh] w-[100vw] max-w-[100vw] rounded-none'
-            : 'h-[90vh] max-h-[90vh] overflow-hidden sm:max-w-[1200px]'
+            : 'h-[90vh] max-h-[90vh] w-[95vw] max-w-[95vw] overflow-hidden'
         )}
         hideCloseButton={true}
       >
