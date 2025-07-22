@@ -12,7 +12,8 @@ const TOOL_DISPLAY_NAMES: Record<string, string> = {
   get_blocks_and_tools: 'Getting context',
   get_blocks_metadata: 'Getting context',
   get_yaml_structure: 'Designing an approach',
-  edit_workflow: 'Building your workflow',
+  preview_workflow: 'Generating workflow preview',
+  // edit_workflow: 'Building your workflow', // Commented out - only preview is allowed
 }
 
 // Past tense versions for completed tool calls
@@ -22,7 +23,8 @@ const TOOL_PAST_TENSE_NAMES: Record<string, string> = {
   get_blocks_and_tools: 'Understood context',
   get_blocks_metadata: 'Understood context',
   get_yaml_structure: 'Designed an approach',
-  edit_workflow: 'Built your workflow',
+  preview_workflow: 'Generated workflow preview',
+  // edit_workflow: 'Built your workflow', // Commented out - only preview is allowed
 }
 
 // Regex patterns to detect structured tool call events

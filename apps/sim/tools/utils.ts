@@ -2,7 +2,8 @@ import { createLogger } from '@/lib/logs/console-logger'
 import { getBaseUrl } from '@/lib/urls/utils'
 import { useCustomToolsStore } from '@/stores/custom-tools/store'
 import { useEnvironmentStore } from '@/stores/settings/environment/store'
-import { editWorkflowTool } from '@/tools/blocks/edit-workflow'
+// import { editWorkflowTool } from '@/tools/blocks/edit-workflow' // Commented out - only preview is allowed
+import { previewWorkflowTool } from '@/tools/blocks/preview-workflow'
 import { getAllBlocksTool } from '@/tools/blocks/get-all'
 import { getBlockMetadataTool } from '@/tools/blocks/get-metadata'
 import { getYamlStructureTool } from '@/tools/blocks/get-yaml-structure'
@@ -20,7 +21,8 @@ const internalTools: Record<string, ToolConfig> = {
   get_blocks_and_tools: getAllBlocksTool,
   get_blocks_metadata: getBlockMetadataTool,
   get_yaml_structure: getYamlStructureTool,
-  edit_workflow: editWorkflowTool,
+  // edit_workflow: editWorkflowTool, // Commented out - only preview is allowed
+  preview_workflow: previewWorkflowTool,
 }
 
 // Export the list of internal tool IDs for filtering purposes

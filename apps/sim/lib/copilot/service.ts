@@ -336,30 +336,53 @@ function getAvailableTools(mode: 'ask' | 'agent'): ProviderToolConfig[] {
       },
     },
     {
-      id: 'edit_workflow',
-      name: 'Edit Workflow',
+      id: 'preview_workflow',
+      name: 'Preview Workflow',
       description:
-        'Save/edit the current workflow by providing YAML content. This performs the same action as saving in the YAML code editor.',
+        'Generate a sandbox preview of the workflow without saving it. This allows users to see the proposed changes before applying them. This is the ONLY way to propose workflow changes.',
       params: {},
       parameters: {
         type: 'object',
         properties: {
           yamlContent: {
             type: 'string',
-            description: 'The complete YAML workflow content to save',
+            description: 'The complete YAML workflow content to preview',
           },
           description: {
             type: 'string',
-            description: 'Optional description of the changes being made',
+            description: 'Optional description of the proposed changes',
           },
         },
         required: ['yamlContent'],
       },
     },
+    // {
+    //   id: 'edit_workflow',
+    //   name: 'Edit Workflow',
+    //   description:
+    //     'Save/edit the current workflow by providing YAML content. This performs the same action as saving in the YAML code editor.',
+    //   params: {},
+    //   parameters: {
+    //     type: 'object',
+    //     properties: {
+    //       yamlContent: {
+    //         type: 'string',
+    //         description: 'The complete YAML workflow content to save',
+    //       },
+    //       description: {
+    //         type: 'string',
+    //         description: 'Optional description of the changes being made',
+    //       },
+    //     },
+    //     required: ['yamlContent'],
+    //   },
+    // },
   ]
 
   // Filter tools based on mode
-  return mode === 'ask' ? allTools.filter((tool) => tool.id !== 'edit_workflow') : allTools
+  return mode === 'ask' 
+    ? allTools.filter((tool) => tool.id !== 'preview_workflow') 
+    : allTools
 }
 
 /**

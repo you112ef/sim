@@ -18,6 +18,8 @@ import { CopilotModal } from './components/copilot-modal/copilot-modal'
 import { ProfessionalInput } from './components/professional-input/professional-input'
 import { ProfessionalMessage } from './components/professional-message/professional-message'
 import { CopilotWelcome } from './components/welcome/welcome'
+import { CopilotSandboxModal } from '../../../copilot-sandbox-modal/copilot-sandbox-modal'
+import { useCopilotSandbox } from '../../../../hooks/use-copilot-sandbox'
 
 const logger = createLogger('Copilot')
 
@@ -50,6 +52,9 @@ export const Copilot = forwardRef<CopilotRef, CopilotProps>(
     const [showCheckpoints, setShowCheckpoints] = useState(false)
 
     const { activeWorkflowId } = useWorkflowRegistry()
+
+    // Use copilot sandbox for workflow previews
+    const { sandboxState, showSandbox, closeSandbox, applyToCurrentWorkflow, saveAsNewWorkflow } = useCopilotSandbox()
 
     // Use the new copilot store
     const {
@@ -99,6 +104,102 @@ export const Copilot = forwardRef<CopilotRef, CopilotProps>(
         }
       }
     }, [messages])
+
+    // Watch for completed preview_workflow tool calls and show sandbox modal
+    useEffect(() => {
+      if (!messages.length) return
+
+      const lastMessage = messages[messages.length - 1]
+      if (lastMessage.role !== 'assistant') return
+
+      logger.info('Checking last message for preview_workflow tool calls:', {
+        messageLength: lastMessage.content.length,
+        messagePreview: lastMessage.content.substring(0, 200) + '...',
+      })
+
+      // Look for completed preview_workflow tool calls in the message content
+      const previewToolCallPattern = /__TOOL_CALL_EVENT__(.*?)__TOOL_CALL_EVENT__/g
+      const matches = Array.from(lastMessage.content.matchAll(previewToolCallPattern))
+
+      logger.info('Found tool call events:', { matchCount: matches.length })
+
+      for (const match of matches) {
+        try {
+          const toolCallEvent = JSON.parse(match[1])
+          
+          logger.info('Processing tool call event:', {
+            type: toolCallEvent.type,
+            toolName: toolCallEvent.toolCall?.name,
+            state: toolCallEvent.toolCall?.state,
+            hasResult: !!toolCallEvent.toolCall?.result,
+          })
+
+          // Special logging for preview_workflow
+          if (toolCallEvent.toolCall?.name === 'preview_workflow') {
+            logger.info('Preview workflow tool call detected:', {
+              type: toolCallEvent.type,
+              state: toolCallEvent.toolCall?.state,
+              result: toolCallEvent.toolCall?.result,
+              parameters: toolCallEvent.toolCall?.parameters,
+            })
+          }
+          
+          if (
+            toolCallEvent.type === 'tool_call_complete' &&
+            toolCallEvent.toolCall?.name === 'preview_workflow' &&
+            toolCallEvent.toolCall?.state === 'completed' &&
+            toolCallEvent.toolCall?.result
+          ) {
+            const result = toolCallEvent.toolCall.result
+            
+            logger.info('Preview workflow tool result:', {
+              hasWorkflowState: !!result.workflowState,
+              hasParameters: !!toolCallEvent.toolCall?.parameters,
+              hasYamlContent: !!toolCallEvent.toolCall?.parameters?.yamlContent,
+              resultKeys: Object.keys(result),
+              parametersKeys: toolCallEvent.toolCall?.parameters ? Object.keys(toolCallEvent.toolCall.parameters) : [],
+            })
+            
+            // Extract the workflow state and YAML content from the actual structure
+            let workflowState = null
+            let yamlContent = null
+            let description = null
+
+            // The workflow state is directly in result.workflowState
+            if (result.workflowState) {
+              workflowState = result.workflowState
+            }
+
+            // The YAML content and description are in the tool call parameters
+            if (toolCallEvent.toolCall?.parameters) {
+              yamlContent = toolCallEvent.toolCall.parameters.yamlContent
+              description = toolCallEvent.toolCall.parameters.description
+            }
+
+            if (workflowState && yamlContent) {
+              logger.info('Showing sandbox modal with workflow state', {
+                blocksCount: Object.keys(workflowState.blocks || {}).length,
+                edgesCount: (workflowState.edges || []).length,
+                yamlLength: yamlContent.length,
+                description,
+              })
+              
+              showSandbox(workflowState, yamlContent, description)
+              break // Only handle the first preview tool call
+            } else {
+              logger.warn('Missing required data for sandbox modal:', {
+                hasWorkflowState: !!workflowState,
+                hasYamlContent: !!yamlContent,
+                workflowStateType: typeof workflowState,
+                yamlContentType: typeof yamlContent,
+              })
+            }
+          }
+        } catch (error) {
+          logger.error('Error parsing tool call event:', error)
+        }
+      }
+    }, [messages, showSandbox])
 
     // Handle chat deletion
     const handleDeleteChat = useCallback(
@@ -393,6 +494,20 @@ export const Copilot = forwardRef<CopilotRef, CopilotProps>(
           onDeleteChat={handleDeleteChat}
           mode={mode}
           onModeChange={setMode}
+        />
+        
+        {/* Copilot Sandbox Modal */}
+        <CopilotSandboxModal
+          isOpen={sandboxState.isOpen}
+          onClose={closeSandbox}
+          proposedWorkflowState={sandboxState.proposedWorkflowState}
+          yamlContent={sandboxState.yamlContent}
+          description={sandboxState.description}
+          onApplyToCurrentWorkflow={applyToCurrentWorkflow}
+          onSaveAsNewWorkflow={async (name: string) => {
+            await saveAsNewWorkflow(name)
+          }}
+          isProcessing={sandboxState.isProcessing}
         />
       </>
     )
