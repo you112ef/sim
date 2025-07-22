@@ -88,12 +88,39 @@ export async function POST(request: NextRequest) {
         const loopBlocks = generateLoopBlocks({ [newId]: block } as any)
         previewWorkflowState.loops = { ...previewWorkflowState.loops, ...loopBlocks }
 
+        // Get block config and populate subBlocks with YAML input values
+        const blockConfig = getBlock(block.type)
+        const subBlocks: Record<string, any> = {}
+        
+        if (blockConfig) {
+          // Set up subBlocks from block configuration
+          blockConfig.subBlocks.forEach((subBlock) => {
+            const yamlValue = block.inputs[subBlock.id]
+            subBlocks[subBlock.id] = {
+              id: subBlock.id,
+              type: subBlock.type,
+              value: yamlValue !== undefined ? yamlValue : null,
+            }
+          })
+
+          // Also ensure we have subBlocks for any YAML inputs not in block config
+          Object.keys(block.inputs).forEach((inputKey) => {
+            if (!subBlocks[inputKey]) {
+              subBlocks[inputKey] = {
+                id: inputKey,
+                type: 'short-input',
+                value: block.inputs[inputKey],
+              }
+            }
+          })
+        }
+
         previewWorkflowState.blocks[newId] = {
           id: newId,
           type: 'loop',
           name: block.name,
           position: block.position || { x: 0, y: 0 },
-          subBlocks: {},
+          subBlocks,
           outputs: {},
           enabled: true,
           horizontalHandles: true,
@@ -105,12 +132,39 @@ export async function POST(request: NextRequest) {
         const parallelBlocks = generateParallelBlocks({ [newId]: block } as any)
         previewWorkflowState.parallels = { ...previewWorkflowState.parallels, ...parallelBlocks }
 
+        // Get block config and populate subBlocks with YAML input values
+        const blockConfig = getBlock(block.type)
+        const subBlocks: Record<string, any> = {}
+        
+        if (blockConfig) {
+          // Set up subBlocks from block configuration
+          blockConfig.subBlocks.forEach((subBlock) => {
+            const yamlValue = block.inputs[subBlock.id]
+            subBlocks[subBlock.id] = {
+              id: subBlock.id,
+              type: subBlock.type,
+              value: yamlValue !== undefined ? yamlValue : null,
+            }
+          })
+
+          // Also ensure we have subBlocks for any YAML inputs not in block config
+          Object.keys(block.inputs).forEach((inputKey) => {
+            if (!subBlocks[inputKey]) {
+              subBlocks[inputKey] = {
+                id: inputKey,
+                type: 'short-input',
+                value: block.inputs[inputKey],
+              }
+            }
+          })
+        }
+
         previewWorkflowState.blocks[newId] = {
           id: newId,
           type: 'parallel',
           name: block.name,
           position: block.position || { x: 0, y: 0 },
-          subBlocks: {},
+          subBlocks,
           outputs: {},
           enabled: true,
           horizontalHandles: true,
@@ -126,20 +180,22 @@ export async function POST(request: NextRequest) {
 
           // Set up subBlocks from block configuration
           blockConfig.subBlocks.forEach((subBlock) => {
+            // Use the actual value from YAML inputs if available
+            const yamlValue = block.inputs[subBlock.id]
             subBlocks[subBlock.id] = {
               id: subBlock.id,
               type: subBlock.type,
-              value: null,
+              value: yamlValue !== undefined ? yamlValue : null,
             }
           })
 
-          // Also ensure we have subBlocks for any YAML inputs
+          // Also ensure we have subBlocks for any YAML inputs not in block config
           Object.keys(block.inputs).forEach((inputKey) => {
             if (!subBlocks[inputKey]) {
               subBlocks[inputKey] = {
                 id: inputKey,
                 type: 'short-input',
-                value: null,
+                value: block.inputs[inputKey],
               }
             }
           })
