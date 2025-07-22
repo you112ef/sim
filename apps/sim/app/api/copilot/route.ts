@@ -371,6 +371,7 @@ export async function PATCH(req: NextRequest) {
     const chat = await updateChat(chatId, session.user.id, {
       messages,
       title: titleToUse,
+      filterToolCalls: true, // Apply filtering when updating chat via API
     })
 
     if (!chat) {
