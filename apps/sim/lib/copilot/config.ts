@@ -118,19 +118,19 @@ function parseBooleanEnv(value: string | undefined): boolean | null {
 
 /**
  * Default copilot configuration
- * Uses Claude 3.7 Sonnet as requested
+ * Uses Claude 4 Sonnet as requested
  */
 export const DEFAULT_COPILOT_CONFIG: CopilotConfig = {
   chat: {
     defaultProvider: 'anthropic',
-    defaultModel: 'claude-3-7-sonnet-latest',
+    defaultModel: 'claude-sonnet-4-0',
     temperature: 0.1,
-    maxTokens: 4000,
+    maxTokens: 8192,
     systemPrompt: AGENT_MODE_SYSTEM_PROMPT,
   },
   rag: {
     defaultProvider: 'anthropic',
-    defaultModel: 'claude-3-7-sonnet-latest',
+    defaultModel: 'claude-sonnet-4-0',
     temperature: 0.1,
     maxTokens: 2000,
     embeddingModel: 'text-embedding-3-small',
