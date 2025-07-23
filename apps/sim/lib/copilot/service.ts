@@ -529,6 +529,7 @@ export async function generateChatResponse(
       streamToolCalls: true, // Enable tool call streaming for copilot
       workflowId: options.workflowId,
       chatId: options.chatId,
+      copilotContext: true, // Flag to enable native SSE streaming for copilot
     })
 
     // Handle StreamingExecution (from providers with tool calls)

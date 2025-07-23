@@ -154,68 +154,16 @@ export async function POST(req: NextRequest) {
     }
 
     if (streamToRead) {
-      logger.info(`[${requestId}] Returning streaming response`)
+      logger.info(`[${requestId}] Returning native SSE streaming response`)
 
-      const encoder = new TextEncoder()
-
-      return new Response(
-        new ReadableStream({
-          async start(controller) {
-            const reader = streamToRead!.getReader()
-            let accumulatedResponse = ''
-
-            // Send initial metadata
-            const metadata = {
-              type: 'metadata',
-              chatId: result.chatId,
-              metadata: {
-                requestId,
-                message,
-              },
-            }
-            controller.enqueue(encoder.encode(`data: ${JSON.stringify(metadata)}\n\n`))
-
-            try {
-              while (true) {
-                const { done, value } = await reader.read()
-                if (done) break
-
-                const chunkText = new TextDecoder().decode(value)
-                accumulatedResponse += chunkText
-
-                const contentChunk = {
-                  type: 'content',
-                  content: chunkText,
-                }
-                controller.enqueue(encoder.encode(`data: ${JSON.stringify(contentChunk)}\n\n`))
-              }
-
-              // Send completion signal
-              const completion = {
-                type: 'complete',
-                finalContent: accumulatedResponse,
-              }
-              controller.enqueue(encoder.encode(`data: ${JSON.stringify(completion)}\n\n`))
-              controller.close()
-            } catch (error) {
-              logger.error(`[${requestId}] Streaming error:`, error)
-              const errorChunk = {
-                type: 'error',
-                error: 'Streaming failed',
-              }
-              controller.enqueue(encoder.encode(`data: ${JSON.stringify(errorChunk)}\n\n`))
-              controller.close()
-            }
-          },
-        }),
-        {
-          headers: {
-            'Content-Type': 'text/event-stream',
-            'Cache-Control': 'no-cache',
-            Connection: 'keep-alive',
-          },
-        }
-      )
+      // Pass through native Anthropic SSE events directly to the frontend
+      return new Response(streamToRead, {
+        headers: {
+          'Content-Type': 'text/event-stream',
+          'Cache-Control': 'no-cache',
+          Connection: 'keep-alive',
+        },
+      })
     }
 
     // Handle non-streaming response

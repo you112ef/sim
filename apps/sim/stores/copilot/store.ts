@@ -521,6 +521,11 @@ export const useCopilotStore = create<CopilotStore>()(
         let newChatId: string | undefined
         let streamComplete = false
 
+        // Track tool calls for native Anthropic events
+        let currentBlockType: 'text' | 'tool_use' | null = null
+        let toolCallBuffer: any = null
+        const toolCalls: any[] = []
+
         try {
           while (true) {
             const { done, value } = await reader.read()
@@ -535,91 +540,76 @@ export const useCopilotStore = create<CopilotStore>()(
                 try {
                   const data = JSON.parse(line.slice(6))
 
-                  if (data.type === 'metadata') {
-                    if (data.chatId) {
-                      newChatId = data.chatId
-                    }
-                  } else if (data.type === 'content') {
-                    // Add a space before new content if this is a continuation
-                    if (isContinuation && accumulatedContent && !accumulatedContent.endsWith(' ') && data.content && !data.content.startsWith(' ')) {
-                      accumulatedContent += ' ' + data.content
-                    } else {
-                      accumulatedContent += data.content
-                    }
-
-                    // Check if we just completed a preview_workflow tool call and should stop streaming
-                    // Skip this check during continuation since the existing content already contains the tool call
-                    const shouldStopStreaming = !isContinuation && checkForPreviewToolCompletion(accumulatedContent)
-                    if (shouldStopStreaming) {
-                      logger.info('Preview workflow tool completed - stopping stream with small delay to allow UI updates')
-                      
-                      // Add a small delay to allow the review button to appear before processing
-                      setTimeout(() => {
-                        streamComplete = true
-                        
-                        // Final update with current content
-                        set((state) => ({
-                          messages: state.messages.map((msg) =>
-                            msg.id === messageId ? { ...msg, content: accumulatedContent } : msg
-                          ),
-                          isSendingMessage: false,
-                        }))
-
-                        // Save chat immediately when stopping for preview
-                        const chatIdToSave = newChatId || get().currentChat?.id
-                        if (chatIdToSave) {
-                          try {
-                            get().saveChatMessages(chatIdToSave)
-                          } catch (saveError) {
-                            logger.warn(`Chat save failed after preview stop: ${saveError}`)
-                          }
-                        }
-                                               
-                         // Close the reader to stop the stream
-                         try {
-                           reader.cancel()
-                         } catch (error) {
-                           // Ignore cancellation errors
-                         }
-                      }, 100) // Small 100ms delay
-                      
-                      return // Exit the entire streaming function
-                    }
-
-                    // Update the streaming message
-                    set((state) => ({
-                      messages: state.messages.map((msg) =>
-                        msg.id === messageId ? { ...msg, content: accumulatedContent } : msg
-                      ),
-                    }))
-                  } else if (data.type === 'complete') {
-                    // Final update
-                    set((state) => ({
-                      messages: state.messages.map((msg) =>
-                        msg.id === messageId ? { ...msg, content: accumulatedContent } : msg
-                      ),
-                      isSendingMessage: false,
-                    }))
-
-                    // Save chat to database after streaming completes
-                    const chatIdToSave = newChatId || get().currentChat?.id
-                    if (chatIdToSave) {
-                      try {
-                        await get().saveChatMessages(chatIdToSave)
-                      } catch (saveError) {
-                        logger.warn(`Chat save failed after streaming: ${saveError}`)
+                  // Handle native Anthropic SSE events
+                  if (data.type === 'message_start') {
+                    logger.info('Message started')
+                  } else if (data.type === 'content_block_start') {
+                    currentBlockType = data.content_block?.type
+                    
+                    if (currentBlockType === 'tool_use') {
+                      // Start buffering a tool call
+                      toolCallBuffer = {
+                        id: data.content_block.id,
+                        name: data.content_block.name,
+                        input: {},
+                        partialInput: '',
                       }
+                      logger.info(`Starting tool call: ${data.content_block.name}`)
+                      
+                      // Don't show any messages - backend handles tool execution automatically
                     }
+                  } else if (data.type === 'content_block_delta') {
+                    if (currentBlockType === 'text' && data.delta?.text) {
+                      // Add text content normally
+                      if (isContinuation && accumulatedContent && !accumulatedContent.endsWith(' ') && data.delta.text && !data.delta.text.startsWith(' ')) {
+                        accumulatedContent += ' ' + data.delta.text
+                      } else {
+                        accumulatedContent += data.delta.text
+                      }
 
-                    // Handle new chat creation
-                    if (newChatId && !get().currentChat) {
-                      await get().handleNewChatCreation(newChatId)
+                      // Update message in real-time
+                      set((state) => ({
+                        messages: state.messages.map((msg) =>
+                          msg.id === messageId ? { ...msg, content: accumulatedContent } : msg
+                        ),
+                      }))
+                    } else if (currentBlockType === 'tool_use' && data.delta?.partial_json && toolCallBuffer) {
+                      // Buffer partial JSON for tool calls (silently)
+                      toolCallBuffer.partialInput += data.delta.partial_json
                     }
-
+                  } else if (data.type === 'content_block_stop') {
+                    if (currentBlockType === 'tool_use' && toolCallBuffer) {
+                      try {
+                        // Parse complete tool call input
+                        toolCallBuffer.input = JSON.parse(toolCallBuffer.partialInput || '{}')
+                        toolCalls.push(toolCallBuffer)
+                        logger.info(`Tool call completed: ${toolCallBuffer.name}`, toolCallBuffer.input)
+                        
+                        // Don't show any messages - backend handles execution
+                      } catch (error) {
+                        logger.error('Error parsing tool call input:', error)
+                      }
+                      toolCallBuffer = null
+                    }
+                    currentBlockType = null
+                  } else if (data.type === 'message_delta') {
+                    // Handle token usage updates silently
+                    if (data.delta?.stop_reason === 'tool_use') {
+                      logger.info('Message stopped for tool use - backend will handle execution')
+                      // Don't complete the stream - backend will continue with tool results
+                    }
+                  } else if (data.type === 'message_stop') {
+                    // Only complete if this is the final stop (not a tool use stop)
+                    // The backend will send another message_stop after tool execution
+                    logger.info('Message stop received - checking if final')
+                    
+                    // Don't complete yet - let the backend continue if there are tools
+                    // The stream will naturally complete when the backend closes it
+                  } else if (data.type === 'error') {
+                    // Handle error events from backend
+                    logger.error('Backend error:', data.error)
                     streamComplete = true
                     break
-                  } else if (data.type === 'error') {
-                    throw new Error(data.error || 'Streaming error')
                   }
                 } catch (parseError) {
                   logger.warn('Failed to parse SSE data:', parseError)
@@ -628,7 +618,16 @@ export const useCopilotStore = create<CopilotStore>()(
             }
           }
 
+          // Stream ended naturally - finalize the message
           logger.info(`Completed streaming response, content length: ${accumulatedContent.length}`)
+          
+          // Final update when stream actually ends
+          set((state) => ({
+            messages: state.messages.map((msg) =>
+              msg.id === messageId ? { ...msg, content: accumulatedContent } : msg
+            ),
+            isSendingMessage: false,
+          }))
         } catch (error) {
           logger.error('Error handling streaming response:', error)
           throw error
