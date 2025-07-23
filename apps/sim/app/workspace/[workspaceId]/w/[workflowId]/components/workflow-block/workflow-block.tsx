@@ -28,6 +28,7 @@ interface WorkflowBlockProps {
   isPending?: boolean
   isPreview?: boolean
   subBlockValues?: Record<string, any>
+  blockState?: any  // Block state data passed in preview mode
 }
 
 // Combine both interfaces into a single component
@@ -63,9 +64,9 @@ export function WorkflowBlock({ id, data }: NodeProps<WorkflowBlockProps>) {
   // Workflow store selectors
   const lastUpdate = useWorkflowStore((state) => state.lastUpdate)
   const isEnabled = useWorkflowStore((state) => state.blocks[id]?.enabled ?? true)
-  const horizontalHandles = useWorkflowStore(
-    (state) => state.blocks[id]?.horizontalHandles ?? false
-  )
+  const horizontalHandles = data.isPreview 
+    ? (data.blockState?.horizontalHandles ?? true)  // In preview mode, use blockState and default to horizontal
+    : useWorkflowStore((state) => state.blocks[id]?.horizontalHandles ?? true)  // Changed default to true for consistency
   const isWide = useWorkflowStore((state) => state.blocks[id]?.isWide ?? false)
   const blockHeight = useWorkflowStore((state) => state.blocks[id]?.height ?? 0)
   // Get per-block webhook status by checking if webhook is configured

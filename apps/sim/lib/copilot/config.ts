@@ -118,7 +118,7 @@ function parseBooleanEnv(value: string | undefined): boolean | null {
 
 /**
  * Default copilot configuration
- * Uses Claude 4 Sonnet as requested
+ * Uses Claude 4 Sonnet
  */
 export const DEFAULT_COPILOT_CONFIG: CopilotConfig = {
   chat: {
