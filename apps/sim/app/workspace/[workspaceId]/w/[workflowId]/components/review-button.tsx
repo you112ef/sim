@@ -274,7 +274,7 @@ export function ReviewButton() {
               className='h-8 bg-purple-600 px-3 hover:bg-purple-700'
             >
               <FileText className='mr-1 h-3 w-3' />
-              Review Files
+              Review Changes
             </Button>
           </div>
         </div>

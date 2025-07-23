@@ -207,7 +207,7 @@ export function ReviewFilesButton() {
               </div>
               <div className='flex flex-col gap-1'>
                 <div className='flex items-center gap-2'>
-                  <span className='font-medium text-sm'>Copilot has proposed changes</span>
+                  <span className='font-medium text-sm'></span>
                   <Badge variant='secondary' className='text-xs'>
                     {blockCount} blocks, {edgeCount} connections
                   </Badge>

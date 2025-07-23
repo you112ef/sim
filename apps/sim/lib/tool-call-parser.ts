@@ -10,9 +10,9 @@ const TOOL_DISPLAY_NAMES: Record<string, string> = {
   docs_search_internal: 'Searching documentation',
   get_user_workflow: 'Analyzing your workflow',
   get_blocks_and_tools: 'Getting context',
-  get_blocks_metadata: 'Getting context',
-  get_yaml_structure: 'Designing an approach',
-  preview_workflow: 'Generating workflow preview',
+  get_blocks_metadata: 'Diving deeper',
+  get_yaml_structure: 'Structuring your workflow',
+  preview_workflow: 'Preview Ready',
   // edit_workflow: 'Building your workflow', // Commented out - only preview is allowed
 }
 
@@ -20,12 +20,19 @@ const TOOL_DISPLAY_NAMES: Record<string, string> = {
 const TOOL_PAST_TENSE_NAMES: Record<string, string> = {
   docs_search_internal: 'Searched documentation',
   get_user_workflow: 'Analyzed your workflow',
-  get_blocks_and_tools: 'Understood context',
-  get_blocks_metadata: 'Understood context',
-  get_yaml_structure: 'Designed an approach',
-  preview_workflow: 'Generated workflow preview',
+  get_blocks_and_tools: 'Got context',
+  get_blocks_metadata: 'Dove deeper',
+  get_yaml_structure: 'Structured your workflow',
+  preview_workflow: 'Built Workflow',
   // edit_workflow: 'Built your workflow', // Commented out - only preview is allowed
 }
+
+// Tool grouping for "Designing an Approach"
+const DESIGN_APPROACH_TOOLS = new Set([
+  'get_blocks_and_tools',
+  'get_blocks_metadata',
+  'get_yaml_structure'
+])
 
 // Regex patterns to detect structured tool call events
 const TOOL_CALL_PATTERNS = {
@@ -66,6 +73,71 @@ export function getToolDisplayName(toolId: string, isCompleted = false): string 
 }
 
 /**
+ * Check if a tool is part of the "Designing an Approach" group
+ */
+export function isDesignApproachTool(toolId: string): boolean {
+  return DESIGN_APPROACH_TOOLS.has(toolId)
+}
+
+/**
+ * Group consecutive design approach tools together
+ */
+export function groupDesignApproachTools(inlineContent: InlineContent[]): { 
+  groupStart: number
+  groupEnd: number
+  groupedTools: ToolCallState[]
+} | null {
+  if (inlineContent.length < 2) return null
+  
+  // Find consecutive design approach tools in the inline content
+  let groupStart = -1
+  let groupEnd = -1
+  const groupedTools: ToolCallState[] = []
+  let consecutiveDesignTools = 0
+  
+  for (let i = 0; i < inlineContent.length; i++) {
+    const item = inlineContent[i]
+    
+    if (item.type === 'tool_call' && item.toolCall && isDesignApproachTool(item.toolCall.name)) {
+      if (groupStart === -1) {
+        groupStart = i
+      }
+      groupEnd = i
+      groupedTools.push(item.toolCall)
+      consecutiveDesignTools++
+    } else if (item.type === 'tool_call' && item.toolCall && !isDesignApproachTool(item.toolCall.name)) {
+      // Found a non-design tool call - if we have at least 2 design tools, stop the group
+      if (consecutiveDesignTools >= 2) {
+        break
+      } else {
+        // Reset if we haven't found enough consecutive design tools yet
+        groupStart = -1
+        groupEnd = -1
+        groupedTools.length = 0
+        consecutiveDesignTools = 0
+      }
+    }
+    // Note: Text content doesn't break the group, only non-design tool calls do
+  }
+  
+  // Only group if we have at least 2 consecutive design tools
+  if (groupStart !== -1 && groupEnd > groupStart && groupedTools.length >= 2) {
+    // Ensure all tools in the group are either completed or in error state for stability
+    const allToolsFinished = groupedTools.every(tool => 
+      tool.state === 'completed' || tool.state === 'error'
+    )
+    
+    return {
+      groupStart,
+      groupEnd,
+      groupedTools
+    }
+  }
+  
+  return null
+}
+
+/**
  * Parse structured tool call events from the stream and maintain state transitions
  */
 export function parseToolCallEvents(
@@ -88,28 +160,35 @@ export function parseToolCallEvents(
       switch (eventData.type) {
         case 'tool_call_detected':
           if (!toolCallsMap.has(eventData.toolCall.id)) {
-            toolCallsMap.set(eventData.toolCall.id, {
+            const toolCall = {
               ...eventData.toolCall,
+              displayName: getToolDisplayName(eventData.toolCall.name), // Ensure displayName is set
               startTime: Date.now(),
-            })
+            }
+            toolCallsMap.set(eventData.toolCall.id, toolCall)
           }
           break
 
         case 'tool_calls_start':
           eventData.toolCalls.forEach((toolCall: any) => {
             if (!toolCallsMap.has(toolCall.id)) {
-              toolCallsMap.set(toolCall.id, {
+              const enhancedToolCall = {
                 ...toolCall,
+                displayName: getToolDisplayName(toolCall.name), // Ensure displayName is set
+                state: 'executing' as const, // Explicitly set state for new tool calls
                 startTime: Date.now(),
-              })
+              }
+              toolCallsMap.set(toolCall.id, enhancedToolCall)
             } else {
               // Update existing tool call to executing state
               const existing = toolCallsMap.get(toolCall.id)!
-              toolCallsMap.set(toolCall.id, {
+              const updatedToolCall = {
                 ...existing,
-                state: 'executing',
+                displayName: getToolDisplayName(existing.name), // Ensure displayName is set
+                state: 'executing' as const,
                 parameters: toolCall.parameters || existing.parameters,
-              })
+              }
+              toolCallsMap.set(toolCall.id, updatedToolCall)
             }
           })
           break
@@ -119,17 +198,26 @@ export function parseToolCallEvents(
           if (toolCallsMap.has(completedToolCall.id)) {
             // Update existing tool call to completed state
             const existing = toolCallsMap.get(completedToolCall.id)!
-            toolCallsMap.set(completedToolCall.id, {
+            const state = completedToolCall.state === 'error' ? 'error' : 'completed'
+            const updatedToolCall = {
               ...existing,
-              state: completedToolCall.state,
+              displayName: getToolDisplayName(existing.name, true), // Use past tense for completed
+              state: state as 'completed' | 'error',
               endTime: completedToolCall.endTime,
               duration: completedToolCall.duration,
               result: completedToolCall.result,
               error: completedToolCall.error,
-            })
+            }
+            toolCallsMap.set(completedToolCall.id, updatedToolCall)
           } else {
             // Create new completed tool call if it doesn't exist
-            toolCallsMap.set(completedToolCall.id, completedToolCall)
+            const state = completedToolCall.state === 'error' ? 'error' : 'completed'
+            const enhancedToolCall = {
+              ...completedToolCall,
+              displayName: getToolDisplayName(completedToolCall.name, true), // Use past tense for completed
+              state: state as 'completed' | 'error',
+            }
+            toolCallsMap.set(completedToolCall.id, enhancedToolCall)
           }
           break
         }
@@ -236,77 +324,121 @@ export function parseMessageContent(
 
     if (segment.match(/__TOOL_CALL_EVENT__.*?__TOOL_CALL_EVENT__/)) {
       // This is a tool call event
-
       try {
         const eventMatch = segment.match(/__TOOL_CALL_EVENT__(.*?)__TOOL_CALL_EVENT__/)
         if (eventMatch) {
           const eventData = JSON.parse(eventMatch[1])
-          let toolCallId: string | undefined
-          let toolCall: ToolCallState | undefined
-
+          
+          // Handle different event types
           switch (eventData.type) {
             case 'tool_call_detected': {
               const id = eventData.toolCall?.id
-              if (id) {
-                toolCallId = id
-                toolCall = toolCallsMap.get(id)
+              if (id && toolCallsMap.has(id) && !toolCallPositions.has(id)) {
+                // Add text buffer before tool call
+                if (currentTextBuffer.trim()) {
+                  inlineContent.push({
+                    type: 'text',
+                    content: currentTextBuffer.trim(),
+                  })
+                  currentTextBuffer = ''
+                }
+
+                // Add tool call
+                const toolCall = toolCallsMap.get(id)!
+                const newIndex = inlineContent.length
+                inlineContent.push({
+                  type: 'tool_call',
+                  content: segment,
+                  toolCall,
+                })
+                toolCallPositions.set(id, newIndex)
+              } else if (id && toolCallsMap.has(id) && toolCallPositions.has(id)) {
+                // Update existing tool call in place
+                const existingIndex = toolCallPositions.get(id)!
+                if (inlineContent[existingIndex]?.type === 'tool_call') {
+                  inlineContent[existingIndex].toolCall = toolCallsMap.get(id)!
+                }
               }
               break
             }
+            
             case 'tool_calls_start': {
-              // For multiple tool calls, use the first one
-              const id = eventData.toolCalls?.[0]?.id
-              if (id) {
-                toolCallId = id
-                toolCall = toolCallsMap.get(id)
+              // Handle each tool call in the start event
+              if (eventData.toolCalls && Array.isArray(eventData.toolCalls)) {
+                let hasAddedToolCalls = false
+                
+                eventData.toolCalls.forEach((tc: any) => {
+                  const id = tc.id
+                  if (id && toolCallsMap.has(id)) {
+                    if (!toolCallPositions.has(id)) {
+                      // First time seeing this tool call - add text buffer once
+                      if (!hasAddedToolCalls && currentTextBuffer.trim()) {
+                        inlineContent.push({
+                          type: 'text',
+                          content: currentTextBuffer.trim(),
+                        })
+                        currentTextBuffer = ''
+                        hasAddedToolCalls = true
+                      }
+
+                      // Add each tool call
+                      const toolCallFromMap = toolCallsMap.get(id)!
+                      const newIndex = inlineContent.length
+                      inlineContent.push({
+                        type: 'tool_call',
+                        content: segment,
+                        toolCall: toolCallFromMap,
+                      })
+                      toolCallPositions.set(id, newIndex)
+                    } else {
+                      // Update existing tool call in place
+                      const existingIndex = toolCallPositions.get(id)!
+                      if (inlineContent[existingIndex]?.type === 'tool_call') {
+                        inlineContent[existingIndex].toolCall = toolCallsMap.get(id)!
+                      }
+                    }
+                  }
+                })
               }
               break
             }
+            
             case 'tool_call_complete': {
               const id = eventData.toolCall?.id
-              if (id) {
-                toolCallId = id
-                toolCall = toolCallsMap.get(id)
+              if (id && toolCallsMap.has(id)) {
+                if (!toolCallPositions.has(id)) {
+                  // Add text buffer before tool call
+                  if (currentTextBuffer.trim()) {
+                    inlineContent.push({
+                      type: 'text',
+                      content: currentTextBuffer.trim(),
+                    })
+                    currentTextBuffer = ''
+                  }
+
+                  // Add tool call
+                  const toolCall = toolCallsMap.get(id)!
+                  const newIndex = inlineContent.length
+                  inlineContent.push({
+                    type: 'tool_call',
+                    content: segment,
+                    toolCall,
+                  })
+                  toolCallPositions.set(id, newIndex)
+                } else {
+                  // Update existing tool call in place
+                  const existingIndex = toolCallPositions.get(id)!
+                  if (inlineContent[existingIndex]?.type === 'tool_call') {
+                    inlineContent[existingIndex].toolCall = toolCallsMap.get(id)!
+                  }
+                }
               }
               break
             }
-          }
-
-          if (toolCallId && toolCall) {
-            if (toolCallPositions.has(toolCallId)) {
-              // Update existing tool call in place
-              const existingIndex = toolCallPositions.get(toolCallId)!
-              if (
-                inlineContent[existingIndex] &&
-                inlineContent[existingIndex].type === 'tool_call'
-              ) {
-                inlineContent[existingIndex].toolCall = toolCall
-              }
-            } else {
-              // First time seeing this tool call - add accumulated text first
-              if (currentTextBuffer.trim()) {
-                inlineContent.push({
-                  type: 'text',
-                  content: currentTextBuffer.trim(),
-                })
-                currentTextBuffer = ''
-              }
-
-              // Add new tool call and remember its position
-              const newIndex = inlineContent.length
-              inlineContent.push({
-                type: 'tool_call',
-                content: segment,
-                toolCall,
-              })
-              toolCallPositions.set(toolCallId, newIndex)
-            }
-          } else {
-            // If parsing fails or no tool call found, treat as text
-            currentTextBuffer += segment
           }
         }
       } catch (error) {
+        console.warn('Failed to parse tool call event:', error)
         // If parsing fails, treat as text
         currentTextBuffer += segment
       }
@@ -323,6 +455,25 @@ export function parseMessageContent(
       content: currentTextBuffer.trim(),
     })
   }
+
+  // FALLBACK: Ensure all tool calls from toolCallsMap are included in inlineContent
+  // This prevents tool calls from disappearing if parsing failed to include them
+  const missingToolCalls: ToolCallState[] = []
+  for (const [id, toolCall] of toolCallsMap.entries()) {
+    if (!toolCallPositions.has(id)) {
+      missingToolCalls.push(toolCall)
+      console.warn('Tool call was not included in inline content, adding as fallback:', toolCall.name, toolCall.id)
+    }
+  }
+
+  // Add missing tool calls at the end
+  missingToolCalls.forEach((toolCall) => {
+    inlineContent.push({
+      type: 'tool_call',
+      content: `__TOOL_CALL_EVENT__{"type":"tool_call_complete","toolCall":${JSON.stringify(toolCall)}}__TOOL_CALL_EVENT__`,
+      toolCall,
+    })
+  })
 
   // Create clean text content for fallback
   const cleanTextContent = content.replace(TOOL_CALL_PATTERNS.toolCallEvent, '').trim()

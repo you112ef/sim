@@ -447,20 +447,24 @@ export const Copilot = forwardRef<CopilotRef, CopilotProps>(
               {showCheckpoints ? (
                 <CheckpointPanel />
               ) : (
-                <ScrollArea ref={scrollAreaRef} className='max-w-full flex-1 overflow-hidden'>
-                  {messages.length === 0 ? (
-                    <CopilotWelcome onQuestionClick={handleSubmit} mode={mode} />
-                  ) : (
-                    messages.map((message) => (
-                      <ProfessionalMessage
-                        key={message.id}
-                        message={message}
-                        isStreaming={
-                          isSendingMessage && message.id === messages[messages.length - 1]?.id
-                        }
-                      />
-                    ))
-                  )}
+                <ScrollArea ref={scrollAreaRef} className='flex-1 overflow-hidden px-2'>
+                  <div className='space-y-1'>
+                    {messages.length === 0 ? (
+                      <div className='flex h-full items-center justify-center p-4'>
+                        <CopilotWelcome onQuestionClick={handleSubmit} mode={mode} />
+                      </div>
+                    ) : (
+                      messages.map((message) => (
+                        <ProfessionalMessage
+                          key={message.id}
+                          message={message}
+                          isStreaming={
+                            isSendingMessage && message.id === messages[messages.length - 1]?.id
+                          }
+                        />
+                      ))
+                    )}
+                  </div>
                 </ScrollArea>
               )}
 
