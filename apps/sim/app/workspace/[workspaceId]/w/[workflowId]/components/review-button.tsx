@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useCallback, useMemo } from 'react'
+import { useState, useEffect, useCallback, useMemo, useRef } from 'react'
 import { useParams } from 'next/navigation'
 import { Eye, FileText } from 'lucide-react'
 import { Button } from '@/components/ui/button'
@@ -13,7 +13,7 @@ import { createLogger } from '@/lib/logs/console-logger'
 const logger = createLogger('ReviewButton')
 
 // Helper function to extract preview data from messages
-function getLatestUnseenPreview(messages: any[], isToolCallSeen: (id: string) => boolean) {
+export function getLatestUnseenPreview(messages: any[], isToolCallSeen: (id: string) => boolean) {
   if (!messages.length) return null
 
   const foundPreviews: { toolCallId: string; messageIndex: number; workflowState: any; yamlContent: string; description?: string }[] = []
@@ -109,6 +109,10 @@ export function ReviewButton() {
   )
   const [showModal, setShowModal] = useState(false)
   const [isProcessing, setIsProcessing] = useState(false)
+  
+  // Add debounce timer ref to prevent premature invalidation
+  const invalidationTimerRef = useRef<NodeJS.Timeout | null>(null)
+  const lastToolCallIdRef = useRef<string | null>(null)
 
   // Get the latest unseen preview from messages
   const latestPreview = useMemo(() => {
@@ -118,13 +122,41 @@ export function ReviewButton() {
     return preview
   }, [messages, isToolCallSeen, seenToolCallIds])
 
-  // Invalidate older previews when a new one is detected
+  // Debounced invalidation of older previews when a new one is detected
+  // Add a 5-second delay to give users time to see and interact with the button
   useEffect(() => {
+    // Clear existing timer
+    if (invalidationTimerRef.current) {
+      clearTimeout(invalidationTimerRef.current)
+      invalidationTimerRef.current = null
+    }
+
     if (latestPreview && latestPreview.olderPreviewIds && latestPreview.olderPreviewIds.length > 0) {
-      console.log('Invalidating older previews:', latestPreview.olderPreviewIds)
-      latestPreview.olderPreviewIds.forEach(id => {
-        markToolCallAsSeen(id)
-      })
+      // Check if this is actually a new preview (different from the last one)
+      const currentToolCallId = latestPreview.latestPreview?.toolCallId
+      const isNewPreview = currentToolCallId !== lastToolCallIdRef.current
+      
+      if (isNewPreview && currentToolCallId) {
+        console.log('New preview detected, scheduling invalidation of older previews in 5 seconds:', latestPreview.olderPreviewIds)
+        lastToolCallIdRef.current = currentToolCallId
+        
+        // Set a timer to invalidate older previews after 5 seconds
+        invalidationTimerRef.current = setTimeout(() => {
+          console.log('Invalidating older previews after delay:', latestPreview.olderPreviewIds)
+          latestPreview.olderPreviewIds.forEach(id => {
+            markToolCallAsSeen(id)
+          })
+          invalidationTimerRef.current = null
+        }, 5000) // 5 second delay
+      }
+    }
+
+    // Cleanup function
+    return () => {
+      if (invalidationTimerRef.current) {
+        clearTimeout(invalidationTimerRef.current)
+        invalidationTimerRef.current = null
+      }
     }
   }, [latestPreview?.latestPreview?.toolCallId, latestPreview?.olderPreviewIds, markToolCallAsSeen])
 
@@ -145,46 +177,202 @@ export function ReviewButton() {
   }
 
   const handleApply = async () => {
-    if (!activeWorkflowId || !latestPreview.latestPreview.yamlContent) {
-      logger.error('No active workflow or YAML content')
-      return
-    }
-
+    if (!latestPreview?.latestPreview) return
+    
     try {
       setIsProcessing(true)
 
-      logger.info('Applying preview to current workflow', {
+      logger.info('Applying preview to current workflow (store-first)', {
         workflowId: activeWorkflowId,
         yamlLength: latestPreview.latestPreview.yamlContent.length,
       })
 
-      // Use the existing YAML endpoint to apply the changes
-      const response = await fetch(`/api/workflows/${activeWorkflowId}/yaml`, {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          yamlContent: latestPreview.latestPreview.yamlContent,
-          description: latestPreview.latestPreview.description || 'Applied copilot proposal',
-          source: 'copilot',
-          applyAutoLayout: true,
-          createCheckpoint: true,
-        }),
-      })
+      // STEP 1: Parse YAML and update local store immediately
+      try {
+        // Import the necessary modules
+        const { parseWorkflowYaml, convertYamlToWorkflow } = await import('@/stores/workflows/yaml/importer')
+        const { useWorkflowStore } = await import('@/stores/workflows/workflow/store')
+        const { useSubBlockStore } = await import('@/stores/workflows/subblock/store')
+        const { getBlock } = await import('@/blocks')
+        const { generateLoopBlocks, generateParallelBlocks } = await import('@/stores/workflows/workflow/utils')
 
-      if (!response.ok) {
-        const errorData = await response.json()
-        throw new Error(errorData.message || `Failed to apply workflow: ${response.statusText}`)
+        // Parse YAML content
+        const { data: yamlWorkflow, errors: parseErrors } = parseWorkflowYaml(latestPreview.latestPreview.yamlContent)
+
+        if (!yamlWorkflow || parseErrors.length > 0) {
+          throw new Error(`Failed to parse YAML: ${parseErrors.join(', ')}`)
+        }
+
+        // Convert YAML to workflow format  
+        const { blocks, edges, errors: convertErrors } = convertYamlToWorkflow(yamlWorkflow)
+
+        if (convertErrors.length > 0) {
+          throw new Error(`Failed to convert YAML: ${convertErrors.join(', ')}`)
+        }
+
+        // Convert ImportedBlocks to workflow store format
+        const workflowBlocks: Record<string, any> = {}
+        const workflowEdges: any[] = []
+        
+        // Process blocks - convert from array to record format
+        for (const block of blocks) {
+          const blockId = block.id
+          const blockConfig = getBlock(block.type)
+          
+          if (!blockConfig && (block.type === 'loop' || block.type === 'parallel')) {
+            // Handle loop/parallel blocks
+            workflowBlocks[blockId] = {
+              id: blockId,
+              type: block.type,
+              name: block.name,
+              position: block.position,
+              subBlocks: {},
+              outputs: {},
+              enabled: true,
+              horizontalHandles: true,
+              isWide: false,
+              height: 0,
+              data: (block as any).data || {},
+            }
+          } else if (blockConfig) {
+            // Handle regular blocks with proper subBlocks setup
+            const subBlocks: Record<string, any> = {}
+            
+            // Set up subBlocks from block configuration
+            blockConfig.subBlocks.forEach((subBlock) => {
+              subBlocks[subBlock.id] = {
+                id: subBlock.id,
+                type: subBlock.type,
+                value: (block as any).inputs?.[subBlock.id] || null,
+              }
+            })
+            
+            workflowBlocks[blockId] = {
+              id: blockId,
+              type: block.type,
+              name: block.name,
+              position: block.position,
+              subBlocks,
+              outputs: (block as any).outputs || {},
+              enabled: true,
+              horizontalHandles: true,
+              isWide: false,
+              height: 0,
+              data: (block as any).data || {},
+            }
+          }
+        }
+        
+        // Process edges
+        for (const edge of edges) {
+          workflowEdges.push({
+            id: edge.id,
+            source: edge.source,
+            target: edge.target,
+            sourceHandle: edge.sourceHandle,
+            targetHandle: edge.targetHandle,
+            type: edge.type || 'default',
+          })
+        }
+
+        // Generate loops and parallels
+        const loops = generateLoopBlocks(workflowBlocks)
+        const parallels = generateParallelBlocks(workflowBlocks)
+
+        // Apply auto layout using the shared utility
+        const { applyAutoLayoutToBlocks } = await import('../utils/auto-layout')
+        const layoutResult = await applyAutoLayoutToBlocks(workflowBlocks, workflowEdges)
+        
+        const layoutedBlocks = layoutResult.success ? layoutResult.layoutedBlocks! : workflowBlocks
+        
+        if (layoutResult.success) {
+          logger.info('Successfully applied auto layout to preview blocks')
+        } else {
+          logger.warn('Auto layout failed, using original positions:', layoutResult.error)
+        }
+
+        // Update workflow store immediately
+        const workflowStore = useWorkflowStore.getState()
+        const newWorkflowState = {
+          blocks: layoutedBlocks,
+          edges: workflowEdges,
+          loops,
+          parallels,
+          lastSaved: Date.now(),
+          isDeployed: workflowStore.isDeployed,
+          deployedAt: workflowStore.deployedAt,
+          deploymentStatuses: workflowStore.deploymentStatuses,
+          hasActiveWebhook: workflowStore.hasActiveWebhook,
+        }
+
+        useWorkflowStore.setState(newWorkflowState)
+
+        // Extract and update subblock values
+        const subblockValues: Record<string, Record<string, any>> = {}
+        Object.entries(layoutedBlocks).forEach(([blockId, block]) => {
+          subblockValues[blockId] = {}
+          Object.entries(block.subBlocks || {}).forEach(([subblockId, subblock]) => {
+            subblockValues[blockId][subblockId] = (subblock as any).value
+          })
+        })
+
+        // Update subblock store
+        if (activeWorkflowId) {
+          useSubBlockStore.setState((state) => ({
+            workflowValues: {
+              ...state.workflowValues,
+              [activeWorkflowId]: subblockValues,
+            },
+          }))
+        }
+
+        logger.info('Successfully updated local stores with preview changes')
+
+      } catch (storeError) {
+        logger.error('Failed to update local stores:', storeError)
+        throw new Error(`Store update failed: ${storeError instanceof Error ? storeError.message : 'Unknown error'}`)
       }
 
-      const result = await response.json()
-      
-      if (!result.success) {
-        throw new Error(result.message || 'Failed to apply workflow changes')
+      // STEP 2: Save to database (in background, don't await to keep UI responsive)
+      const saveToDatabase = async () => {
+        try {
+          const response = await fetch(`/api/workflows/${activeWorkflowId}/yaml`, {
+            method: 'PUT',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+              yamlContent: latestPreview.latestPreview.yamlContent,
+              description: latestPreview.latestPreview.description || 'Applied copilot proposal',
+              source: 'copilot',
+              applyAutoLayout: true,
+              createCheckpoint: true,
+            }),
+          })
+
+          if (!response.ok) {
+            const errorData = await response.json()
+            throw new Error(errorData.message || `Failed to apply workflow: ${response.statusText}`)
+          }
+
+          const result = await response.json()
+          
+          if (!result.success) {
+            throw new Error(result.message || 'Failed to apply workflow changes')
+          }
+
+          logger.info('Successfully saved preview to database')
+        } catch (dbError) {
+          logger.error('Failed to save preview to database (store already updated):', dbError)
+          // Don't throw - the store is already updated, so the UI is correct
+          // The socket will eventually sync when the database is available
+        }
       }
 
-      logger.info('Successfully applied preview to workflow')
+      // Save to database without blocking UI
+      saveToDatabase()
+
+      // STEP 3: Only dismiss preview after successful store update (user has accepted)
       console.log('Marking tool call as seen:', latestPreview.latestPreview.toolCallId)
       markToolCallAsSeen(latestPreview.latestPreview.toolCallId)
       console.log('Tool call marked as seen, closing modal')

@@ -215,47 +215,26 @@ const WorkflowContent = React.memo(() => {
     [getNodes]
   )
 
-  // Auto-layout handler - now uses the centralized backend API
+  // Auto-layout handler - now uses frontend auto layout for immediate updates
   const handleAutoLayout = useCallback(async () => {
     if (Object.keys(blocks).length === 0) return
 
     try {
-      const response = await fetch(`/api/workflows/${activeWorkflowId}/autolayout`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          strategy: 'smart',
-          direction: 'auto',
-          spacing: {
-            horizontal: 500,
-            vertical: 400,
-            layer: 700,
-          },
-          alignment: 'center',
-          padding: {
-            x: 250,
-            y: 250,
-          },
-        }),
-      })
-
-      if (!response.ok) {
-        const errorData = await response.json()
-        logger.error('Auto layout failed:', errorData)
-        return
-      }
-
-      const result = await response.json()
-      logger.info('Auto layout completed successfully:', result)
+      // Use the shared auto layout utility for immediate frontend updates
+      const { applyAutoLayoutAndUpdateStore } = await import('./utils/auto-layout')
       
-      // The real-time system will automatically update the UI with new positions
+      const result = await applyAutoLayoutAndUpdateStore(activeWorkflowId!)
+      
+      if (result.success) {
+        logger.info('Auto layout completed successfully')
+      } else {
+        logger.error('Auto layout failed:', result.error)
+      }
       
     } catch (error) {
       logger.error('Auto layout error:', error)
     }
-  }, [activeWorkflowId])
+  }, [activeWorkflowId, blocks])
 
   const debouncedAutoLayout = useCallback(() => {
     const debounceTimer = setTimeout(() => {

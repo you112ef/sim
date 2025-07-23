@@ -45,49 +45,212 @@ export function ReviewFilesButton() {
     try {
       setIsProcessing(true)
 
-      logger.info('Applying preview to current workflow', {
-        workflowId: activeWorkflowId,
+      logger.info('Applying preview to current workflow (store-first)', {
         previewId: pendingPreview?.id,
         yamlLength: pendingPreview?.yamlContent.length,
       })
 
-      // Use the existing YAML endpoint to apply the changes
-      const response = await fetch(`/api/workflows/${activeWorkflowId}/yaml`, {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          yamlContent: pendingPreview?.yamlContent,
-          description: pendingPreview?.description || 'Applied copilot proposal',
-          source: 'copilot',
-          applyAutoLayout: true,
-          createCheckpoint: true, // Always create checkpoints for copilot changes
-        }),
-      })
+      // STEP 1: Parse YAML and update local store immediately
+      try {
+        // Import the YAML parser
+        const { parseWorkflowYaml, convertYamlToWorkflow } = await import('@/stores/workflows/yaml/importer')
+        const { useWorkflowStore } = await import('@/stores/workflows/workflow/store')
+        const { useSubBlockStore } = await import('@/stores/workflows/subblock/store')
 
-      if (!response.ok) {
-        const errorData = await response.json()
-        throw new Error(errorData.message || `Failed to apply workflow: ${response.statusText}`)
+        // Parse YAML content
+        const { data: yamlWorkflow, errors: parseErrors } = parseWorkflowYaml(pendingPreview.yamlContent)
+
+        if (!yamlWorkflow || parseErrors.length > 0) {
+          throw new Error(`Failed to parse YAML: ${parseErrors.join(', ')}`)
+        }
+
+        // Convert YAML to workflow format  
+        const { blocks, edges, errors: convertErrors } = convertYamlToWorkflow(yamlWorkflow)
+
+        if (convertErrors.length > 0) {
+          throw new Error(`Failed to convert YAML: ${convertErrors.join(', ')}`)
+        }
+
+        // Convert ImportedBlocks to workflow store format
+        const { getBlock } = await import('@/blocks')
+        const { generateLoopBlocks, generateParallelBlocks } = await import('@/stores/workflows/workflow/utils')
+        
+        const workflowBlocks: Record<string, any> = {}
+        const workflowEdges: any[] = []
+        const blockIdMapping = new Map<string, string>()
+        
+        // Process blocks - convert from array to record format
+        for (const block of blocks) {
+          const blockId = block.id
+          blockIdMapping.set(block.id, blockId)
+          
+          const blockConfig = getBlock(block.type)
+          
+          if (!blockConfig && (block.type === 'loop' || block.type === 'parallel')) {
+            // Handle loop/parallel blocks
+            workflowBlocks[blockId] = {
+              id: blockId,
+              type: block.type,
+              name: block.name,
+              position: block.position,
+              subBlocks: {},
+              outputs: {},
+              enabled: true,
+              horizontalHandles: true,
+              isWide: false,
+              height: 0,
+              data: (block as any).data || {},
+            }
+          } else if (blockConfig) {
+            // Handle regular blocks with proper subBlocks setup
+            const subBlocks: Record<string, any> = {}
+            
+            // Set up subBlocks from block configuration
+            blockConfig.subBlocks.forEach((subBlock) => {
+              subBlocks[subBlock.id] = {
+                id: subBlock.id,
+                type: subBlock.type,
+                value: (block as any).inputs?.[subBlock.id] || null,
+              }
+            })
+            
+            workflowBlocks[blockId] = {
+              id: blockId,
+              type: block.type,
+              name: block.name,
+              position: block.position,
+              subBlocks,
+              outputs: (block as any).outputs || {},
+              enabled: true,
+              horizontalHandles: true,
+              isWide: false,
+              height: 0,
+              data: (block as any).data || {},
+            }
+          }
+        }
+        
+        // Process edges
+        for (const edge of edges) {
+          workflowEdges.push({
+            id: edge.id,
+            source: edge.source,
+            target: edge.target,
+            sourceHandle: edge.sourceHandle,
+            targetHandle: edge.targetHandle,
+            type: edge.type || 'default',
+          })
+        }
+
+        // Generate loops and parallels
+        const loops = generateLoopBlocks(workflowBlocks)
+        const parallels = generateParallelBlocks(workflowBlocks)
+
+        // Apply auto layout using the shared utility
+        const { applyAutoLayoutToBlocks } = await import('../../utils/auto-layout')
+        const layoutResult = await applyAutoLayoutToBlocks(workflowBlocks, workflowEdges)
+        
+        const layoutedBlocks = layoutResult.success ? layoutResult.layoutedBlocks! : workflowBlocks
+        
+        if (layoutResult.success) {
+          logger.info('Successfully applied auto layout to preview blocks')
+        } else {
+          logger.warn('Auto layout failed, using original positions:', layoutResult.error)
+        }
+
+        // Update workflow store immediately
+        const workflowStore = useWorkflowStore.getState()
+        const newWorkflowState = {
+          blocks: layoutedBlocks,
+          edges: workflowEdges,
+          loops,
+          parallels,
+          lastSaved: Date.now(),
+          isDeployed: workflowStore.isDeployed,
+          deployedAt: workflowStore.deployedAt,
+          deploymentStatuses: workflowStore.deploymentStatuses,
+          hasActiveWebhook: workflowStore.hasActiveWebhook,
+        }
+
+        useWorkflowStore.setState(newWorkflowState)
+
+        // Extract and update subblock values
+        const subblockValues: Record<string, Record<string, any>> = {}
+        Object.entries(layoutedBlocks).forEach(([blockId, block]) => {
+          subblockValues[blockId] = {}
+          Object.entries(block.subBlocks || {}).forEach(([subblockId, subblock]) => {
+            subblockValues[blockId][subblockId] = (subblock as any).value
+          })
+        })
+
+        // Update subblock store
+        useSubBlockStore.setState((state) => ({
+          workflowValues: {
+            ...state.workflowValues,
+            [activeWorkflowId]: subblockValues,
+          },
+        }))
+
+        logger.info('Successfully updated local stores with preview changes')
+
+      } catch (storeError) {
+        logger.error('Failed to update local stores:', storeError)
+        throw new Error(`Store update failed: ${storeError instanceof Error ? storeError.message : 'Unknown error'}`)
       }
 
-      const result = await response.json()
-      
-      if (!result.success) {
-        throw new Error(result.message || 'Failed to apply workflow changes')
+      // STEP 2: Save to database (in background, don't await to keep UI responsive)
+      const saveToDatabase = async () => {
+        try {
+          const response = await fetch(`/api/workflows/${activeWorkflowId}/yaml`, {
+            method: 'PUT',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+              yamlContent: pendingPreview?.yamlContent,
+              description: pendingPreview?.description || 'Applied copilot proposal',
+              source: 'copilot',
+              applyAutoLayout: true,
+              createCheckpoint: true, // Always create checkpoints for copilot changes
+            }),
+          })
+
+          if (!response.ok) {
+            const errorData = await response.json()
+            throw new Error(errorData.message || `Failed to apply workflow: ${response.statusText}`)
+          }
+
+          const result = await response.json()
+          
+          if (!result.success) {
+            throw new Error(result.message || 'Failed to apply workflow changes')
+          }
+
+          logger.info('Successfully saved preview to database:', { 
+            previewId: pendingPreview?.id,
+            blocksCount: result.data?.blocksCount,
+            edgesCount: result.data?.edgesCount,
+          })
+        } catch (dbError) {
+          logger.error('Failed to save preview to database (store already updated):', dbError)
+          // Don't throw - the store is already updated, so the UI is correct
+          // The socket will eventually sync when the database is available
+        }
       }
 
+      // Save to database without blocking UI
+      saveToDatabase()
+
+      // STEP 3: Only dismiss preview after successful store update (user has accepted)
       if (pendingPreview) {
         logger.info('Accepting preview:', { previewId: pendingPreview.id })
         previewStore.acceptPreview(pendingPreview.id)
         logger.info('Preview accepted, closing modal')
       }
       setShowModal(false)
-      
-      logger.info('Successfully applied preview to current workflow:', { 
+
+      logger.info('Successfully applied preview to current workflow (store-first):', { 
         previewId: pendingPreview?.id,
-        blocksCount: result.data?.blocksCount,
-        edgesCount: result.data?.edgesCount,
       })
 
     } catch (error) {
@@ -96,7 +259,7 @@ export function ReviewFilesButton() {
     } finally {
       setIsProcessing(false)
     }
-  }, [activeWorkflowId, pendingPreview, acceptPreview])
+  }, [activeWorkflowId, pendingPreview, previewStore])
 
   const handleSaveAsNewWorkflow = useCallback(async (name: string) => {
     if (!pendingPreview?.yamlContent) {
@@ -207,7 +370,7 @@ export function ReviewFilesButton() {
               </div>
               <div className='flex flex-col gap-1'>
                 <div className='flex items-center gap-2'>
-                  <span className='font-medium text-sm'></span>
+                  <span className='font-medium text-sm'>Copilot has proposed changes</span>
                   <Badge variant='secondary' className='text-xs'>
                     {blockCount} blocks, {edgeCount} connections
                   </Badge>

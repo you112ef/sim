@@ -551,34 +551,39 @@ export const useCopilotStore = create<CopilotStore>()(
                     // Skip this check during continuation since the existing content already contains the tool call
                     const shouldStopStreaming = !isContinuation && checkForPreviewToolCompletion(accumulatedContent)
                     if (shouldStopStreaming) {
-                      logger.info('Preview workflow tool completed - stopping stream')
-                      streamComplete = true
+                      logger.info('Preview workflow tool completed - stopping stream with small delay to allow UI updates')
                       
-                      // Final update with current content
-                      set((state) => ({
-                        messages: state.messages.map((msg) =>
-                          msg.id === messageId ? { ...msg, content: accumulatedContent } : msg
-                        ),
-                        isSendingMessage: false,
-                      }))
+                      // Add a small delay to allow the review button to appear before processing
+                      setTimeout(() => {
+                        streamComplete = true
+                        
+                        // Final update with current content
+                        set((state) => ({
+                          messages: state.messages.map((msg) =>
+                            msg.id === messageId ? { ...msg, content: accumulatedContent } : msg
+                          ),
+                          isSendingMessage: false,
+                        }))
 
-                      // Save chat immediately when stopping for preview
-                      const chatIdToSave = newChatId || get().currentChat?.id
-                      if (chatIdToSave) {
-                        try {
-                          await get().saveChatMessages(chatIdToSave)
-                        } catch (saveError) {
-                          logger.warn(`Chat save failed after preview stop: ${saveError}`)
+                        // Save chat immediately when stopping for preview
+                        const chatIdToSave = newChatId || get().currentChat?.id
+                        if (chatIdToSave) {
+                          try {
+                            get().saveChatMessages(chatIdToSave)
+                          } catch (saveError) {
+                            logger.warn(`Chat save failed after preview stop: ${saveError}`)
+                          }
                         }
-                      }
-                                             
-                       // Close the reader to stop the stream
-                       try {
-                         reader.cancel()
-                       } catch (error) {
-                         // Ignore cancellation errors
-                       }
-                       return // Exit the entire streaming function
+                                               
+                         // Close the reader to stop the stream
+                         try {
+                           reader.cancel()
+                         } catch (error) {
+                           // Ignore cancellation errors
+                         }
+                      }, 100) // Small 100ms delay
+                      
+                      return // Exit the entire streaming function
                     }
 
                     // Update the streaming message

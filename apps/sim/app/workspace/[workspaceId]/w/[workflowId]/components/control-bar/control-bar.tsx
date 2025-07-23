@@ -551,39 +551,17 @@ export function ControlBar({ hasValidationErrors = false }: ControlBarProps) {
 
       setIsAutoLayouting(true)
       try {
-        const response = await fetch(`/api/workflows/${activeWorkflowId}/autolayout`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            strategy: 'smart',
-            direction: 'auto',
-            spacing: {
-              horizontal: 500,
-              vertical: 400,
-              layer: 700,
-            },
-            alignment: 'center',
-            padding: {
-              x: 250,
-              y: 250,
-            },
-          }),
-        })
-
-        if (!response.ok) {
-          const errorData = await response.json()
-          logger.error('Auto layout failed:', errorData)
-          // You could add a toast notification here if available
-          return
-        }
-
-        const result = await response.json()
-        logger.info('Auto layout completed successfully:', result)
+        // Use the shared auto layout utility for immediate frontend updates
+        const { applyAutoLayoutAndUpdateStore } = await import('../../utils/auto-layout')
         
-        // Refresh the workflow data to show the new positions
-        // This will be handled automatically by the real-time system
+        const result = await applyAutoLayoutAndUpdateStore(activeWorkflowId!)
+        
+        if (result.success) {
+          logger.info('Auto layout completed successfully')
+        } else {
+          logger.error('Auto layout failed:', result.error)
+          // You could add a toast notification here if available
+        }
         
       } catch (error) {
         logger.error('Auto layout error:', error)

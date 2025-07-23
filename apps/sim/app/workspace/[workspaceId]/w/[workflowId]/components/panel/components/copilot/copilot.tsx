@@ -21,7 +21,7 @@ import { CopilotWelcome } from './components/welcome/welcome'
 import { CopilotSandboxModal } from '../../../copilot-sandbox-modal/copilot-sandbox-modal'
 import { useCopilotSandbox } from '../../../../hooks/use-copilot-sandbox'
 import { usePreviewStore } from '@/stores/copilot/preview-store'
-import { setLatestPreview, clearLatestPreview } from '../../../review-button'
+import { clearLatestPreview, getLatestUnseenPreview } from '../../../review-button'
 
 const logger = createLogger('Copilot')
 
@@ -60,7 +60,7 @@ export const Copilot = forwardRef<CopilotRef, CopilotProps>(
     const { sandboxState, showSandbox, closeSandbox, applyToCurrentWorkflow, saveAsNewWorkflow } = useCopilotSandbox()
     
     // Use preview store to track seen previews
-    const { scanAndMarkExistingPreviews, isToolCallSeen } = usePreviewStore()
+    const { scanAndMarkExistingPreviews, isToolCallSeen, markToolCallAsSeen } = usePreviewStore()
 
     // Use the new copilot store
     const {
@@ -118,15 +118,57 @@ export const Copilot = forwardRef<CopilotRef, CopilotProps>(
     }, [messages])
 
     // Scan existing messages and mark preview tool calls as seen ONLY once per chat session
+    // But preserve any currently visible preview to prevent race conditions
     useEffect(() => {
       const chatId = currentChat?.id || 'no-chat'
       
       if (messages.length > 0 && scannedChatRef.current !== chatId) {
         console.log('Scanning existing messages for chat:', chatId, 'message count:', messages.length)
-        scanAndMarkExistingPreviews(messages)
+        
+        // Before scanning, check if there's currently a visible preview
+        // We'll exclude this from being marked as seen during scanning
+        const currentlyVisiblePreview = getLatestUnseenPreview(messages, isToolCallSeen)
+        const protectedToolCallId = currentlyVisiblePreview?.latestPreview?.toolCallId
+        
+        console.log('Protecting currently visible preview during scan:', protectedToolCallId)
+        
+        // Create a modified version of scanAndMarkExistingPreviews that excludes the protected ID
+        const toolCallIds = new Set<string>()
+        
+        messages.forEach((message) => {
+          if (message.role === 'assistant' && message.content) {
+            const previewToolCallPattern = /__TOOL_CALL_EVENT__(.*?)__TOOL_CALL_EVENT__/g
+            let match
+            
+            while ((match = previewToolCallPattern.exec(message.content)) !== null) {
+              try {
+                const toolCallEvent = JSON.parse(match[1])
+                if (
+                  toolCallEvent.type === 'tool_call_complete' &&
+                  toolCallEvent.toolCall?.name === 'preview_workflow' &&
+                  toolCallEvent.toolCall?.id &&
+                  toolCallEvent.toolCall?.id !== protectedToolCallId // Don't mark the currently visible one as seen
+                ) {
+                  toolCallIds.add(toolCallEvent.toolCall.id)
+                }
+              } catch (error) {
+                console.warn('Failed to parse tool call event while scanning:', error)
+              }
+            }
+          }
+        })
+
+        // Mark the non-protected tool calls as seen
+        if (toolCallIds.size > 0) {
+          console.log('Marking existing preview tool calls as seen (excluding protected):', Array.from(toolCallIds))
+          toolCallIds.forEach(id => {
+            markToolCallAsSeen(id)
+          })
+        }
+        
         scannedChatRef.current = chatId
       }
-    }, [messages, currentChat?.id, scanAndMarkExistingPreviews]) // Run when messages change, but only scan once per chat
+    }, [messages, currentChat?.id, isToolCallSeen]) // Added isToolCallSeen to dependencies
 
     // Watch for completed preview_workflow tool calls and show sandbox modal
     useEffect(() => {
