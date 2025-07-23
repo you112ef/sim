@@ -424,7 +424,7 @@ export const useCopilotStore = create<CopilotStore>()(
 
         try {
           const result = await sendStreamingMessage({
-            message: 'IMPORTANT: You must continue your previous response that was interrupted. The user has provided feedback which is included in the system message. Continue naturally from where you left off and provide a complete, substantial response addressing their feedback.', // Very directive continuation prompt
+            message: 'Please continue your response.', // Simple continuation prompt
             chatId: currentChat?.id,
             workflowId,
             mode,

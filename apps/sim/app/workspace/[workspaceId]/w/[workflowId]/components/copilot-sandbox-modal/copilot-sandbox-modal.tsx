@@ -1,12 +1,11 @@
 'use client'
 
 import { useState } from 'react'
-import { Eye, Maximize2, Minimize2, Save, CheckCircle, X, AlertCircle, XCircle } from 'lucide-react'
+import { Eye, Maximize2, Minimize2, Save, CheckCircle, X, AlertCircle, XCircle, ChevronDown } from 'lucide-react'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
-import { Input } from '@/components/ui/input'
-import { Label } from '@/components/ui/label'
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
 import { createLogger } from '@/lib/logs/console-logger'
 import { cn } from '@/lib/utils'
 import { WorkflowPreview } from '@/app/workspace/[workspaceId]/w/components/workflow-preview/workflow-preview'
@@ -39,8 +38,7 @@ export function CopilotSandboxModal({
   isProcessing = false,
 }: CopilotSandboxModalProps) {
   const [isFullscreen, setIsFullscreen] = useState(false)
-  const [showSaveAsNew, setShowSaveAsNew] = useState(false)
-  const [newWorkflowName, setNewWorkflowName] = useState('')
+  const [saveAsNewMode, setSaveAsNewMode] = useState(false)
   const [isSaving, setIsSaving] = useState(false)
   const [isApplying, setIsApplying] = useState(false)
   const [isRejecting, setIsRejecting] = useState(false)
@@ -65,13 +63,13 @@ export function CopilotSandboxModal({
   }
 
   const handleSaveAsNewWorkflow = async () => {
-    if (!newWorkflowName.trim()) {
-      return
-    }
-
     try {
       setIsSaving(true)
-      await onSaveAsNewWorkflow(newWorkflowName.trim())
+      // Generate auto name based on description or use default
+      const autoName = description 
+        ? `${description.slice(0, 50)}${description.length > 50 ? '...' : ''}`
+        : 'Copilot Generated Workflow'
+      await onSaveAsNewWorkflow(autoName)
       onClose()
     } catch (error) {
       logger.error('Failed to save as new workflow:', error)
@@ -98,8 +96,7 @@ export function CopilotSandboxModal({
   }
 
   const handleClose = () => {
-    setShowSaveAsNew(false)
-    setNewWorkflowName('')
+    setSaveAsNewMode(false)
     onClose()
   }
 
@@ -166,72 +163,20 @@ export function CopilotSandboxModal({
           />
         </div>
 
-        {/* Save As New Workflow Form */}
-        {showSaveAsNew && (
-          <div className='border-t bg-background p-4'>
-            <div className='space-y-3'>
-              <Label htmlFor='workflow-name' className='text-sm font-medium'>
-                New Workflow Name
-              </Label>
-              <Input
-                id='workflow-name'
-                placeholder='Enter workflow name...'
-                value={newWorkflowName}
-                onChange={(e) => setNewWorkflowName(e.target.value)}
-                className='w-full'
-                autoFocus
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter' && newWorkflowName.trim()) {
-                    handleSaveAsNewWorkflow()
-                  }
-                  if (e.key === 'Escape') {
-                    setShowSaveAsNew(false)
-                  }
-                }}
-              />
-              <div className='flex justify-end gap-2'>
-                <Button 
-                  variant='outline' 
-                  size='sm' 
-                  onClick={() => setShowSaveAsNew(false)}
-                  disabled={isSaving}
-                >
-                  Cancel
-                </Button>
-                <Button 
-                  size='sm' 
-                  onClick={handleSaveAsNewWorkflow}
-                  disabled={!newWorkflowName.trim() || isSaving}
-                >
-                  {isSaving ? (
-                    <>
-                      <div className='mr-2 h-3 w-3 animate-spin rounded-full border-2 border-gray-300 border-t-white' />
-                      Saving...
-                    </>
-                  ) : (
-                    <>
-                      <Save className='mr-2 h-3 w-3' />
-                      Save Workflow
-                    </>
-                  )}
-                </Button>
-              </div>
-            </div>
-          </div>
-        )}
+
 
         {/* Action Buttons */}
         <div className='border-t bg-background px-6 py-4'>
           <div className='flex items-center justify-between'>
+            <div className='text-muted-foreground text-sm'>
+              💡 This is a preview of the workflow the copilot wants to create. Choose how to proceed.
+            </div>
+            
             <div className='flex items-center gap-3'>
-              <div className='text-muted-foreground text-sm'>
-                💡 This is a preview of the workflow the copilot wants to create. Choose how to proceed.
-              </div>
-              
               <Button
                 variant='outline'
                 onClick={handleReject}
-                disabled={isProcessing || showSaveAsNew || isSaving || isApplying || isRejecting}
+                disabled={isProcessing || isSaving || isApplying || isRejecting}
                 className='text-red-600 border-red-200 hover:bg-red-50 hover:border-red-300 dark:text-red-400 dark:border-red-800 dark:hover:bg-red-950'
               >
                 {isRejecting ? (
@@ -242,44 +187,74 @@ export function CopilotSandboxModal({
                 ) : (
                   <>
                     <XCircle className='mr-2 h-4 w-4' />
-                    Reject Changes
+                    Reject
                   </>
                 )}
               </Button>
-            </div>
-            
-            <div className='flex items-center gap-3'>
-              <Button
-                variant='outline'
-                onClick={() => setShowSaveAsNew(true)}
-                disabled={isProcessing || showSaveAsNew || isSaving || isApplying || isRejecting}
-              >
-                <Save className='mr-2 h-4 w-4' />
-                Save as New Workflow
-              </Button>
-
-              <Button
-                onClick={handleApplyToCurrentWorkflow}
-                disabled={isProcessing || showSaveAsNew || isSaving || isApplying || isRejecting}
-                className='bg-purple-600 hover:bg-purple-700'
-              >
-                {isApplying ? (
-                  <>
-                    <div className='mr-2 h-3 w-3 animate-spin rounded-full border-2 border-gray-300 border-t-white' />
-                    Applying...
-                  </>
-                ) : (
-                  <>
-                    <CheckCircle className='mr-2 h-4 w-4' />
-                    Apply to Current Workflow
-                  </>
-                )}
-              </Button>
+              {/* Split Accept Button - GitHub Style */}
+              <div className='flex items-stretch'>
+                {/* Main Button - toggles between Accept and Save as New */}
+                <Button
+                  onClick={saveAsNewMode ? handleSaveAsNewWorkflow : handleApplyToCurrentWorkflow}
+                  disabled={isProcessing || isSaving || isApplying || isRejecting}
+                  className={saveAsNewMode 
+                    ? 'bg-gray-600 hover:bg-gray-700 rounded-r-none border-r border-gray-500' 
+                    : 'bg-purple-600 hover:bg-purple-700 rounded-r-none border-r border-purple-500'
+                  }
+                >
+                  {(saveAsNewMode ? isSaving : isApplying) ? (
+                    <>
+                      <div className='mr-2 h-3 w-3 animate-spin rounded-full border-2 border-gray-300 border-t-white' />
+                      {saveAsNewMode ? 'Saving...' : 'Applying...'}
+                    </>
+                  ) : (
+                    <>
+                      {saveAsNewMode ? <Save className='mr-2 h-4 w-4' /> : <CheckCircle className='mr-2 h-4 w-4' />}
+                      {saveAsNewMode ? 'Save as New Workflow' : 'Accept'}
+                    </>
+                  )}
+                </Button>
+                
+                {/* Dropdown Arrow Button */}
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button
+                      variant='default'
+                      size='sm'
+                      disabled={isProcessing || isSaving || isApplying || isRejecting}
+                      className={saveAsNewMode 
+                        ? 'bg-gray-600 hover:bg-gray-700 rounded-l-none border-l-0 px-2 h-10' 
+                        : 'bg-purple-600 hover:bg-purple-700 rounded-l-none border-l-0 px-2 h-10'
+                      }
+                    >
+                      <ChevronDown className='h-4 w-4' />
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align='end' className='w-56'>
+                    <DropdownMenuItem
+                      onClick={() => setSaveAsNewMode(!saveAsNewMode)}
+                      className='cursor-pointer'
+                    >
+                      {saveAsNewMode ? (
+                        <>
+                          <CheckCircle className='mr-2 h-4 w-4' />
+                          Accept (Apply to Current)
+                        </>
+                      ) : (
+                        <>
+                          <Save className='mr-2 h-4 w-4' />
+                          Save as New Workflow
+                        </>
+                      )}
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              </div>
             </div>
           </div>
 
           {/* Warning for current workflow changes */}
-          {currentWorkflow && !showSaveAsNew && (
+          {currentWorkflow && !saveAsNewMode && (
             <div className='mt-3 flex items-start gap-2 rounded-md bg-amber-50 p-3 dark:bg-amber-900/20'>
               <AlertCircle className='mt-0.5 h-4 w-4 text-amber-600 dark:text-amber-400' />
               <div className='text-sm'>
