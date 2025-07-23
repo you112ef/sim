@@ -522,6 +522,10 @@ export const useCopilotStore = create<CopilotStore>()(
         let currentBlockType: 'text' | 'tool_use' | null = null
         let toolCallBuffer: any = null
         const toolCalls: any[] = []
+        
+        // Track content blocks chronologically
+        const contentBlocks: any[] = []
+        let currentTextBlock: any = null
 
         // Add timeout to prevent hanging
         const timeoutId = setTimeout(() => {
@@ -582,7 +586,14 @@ export const useCopilotStore = create<CopilotStore>()(
                   } else if (data.type === 'content_block_start') {
                     currentBlockType = data.content_block?.type
                     
-                    if (currentBlockType === 'tool_use') {
+                    if (currentBlockType === 'text') {
+                      // Start a new text block
+                      currentTextBlock = {
+                        type: 'text',
+                        content: '',
+                        timestamp: Date.now(),
+                      }
+                    } else if (currentBlockType === 'tool_use') {
                       // Start buffering a tool call
                       toolCallBuffer = {
                         id: data.content_block.id,
@@ -594,28 +605,69 @@ export const useCopilotStore = create<CopilotStore>()(
                         startTime: Date.now(),
                       }
                       toolCalls.push(toolCallBuffer)
+                      
+                      // Add tool call to content blocks
+                      const toolCallBlock = {
+                        type: 'tool_call',
+                        toolCall: toolCallBuffer,
+                        timestamp: Date.now(),
+                      }
+                      contentBlocks.push(toolCallBlock)
+                      
                       logger.info(`Starting tool call: ${data.content_block.name}`)
                       
-                      // Update message with tool calls array
+                      // Update message with content blocks
                       set((state) => ({
                         messages: state.messages.map((msg) =>
-                          msg.id === messageId ? { ...msg, content: accumulatedContent, toolCalls: [...toolCalls] } : msg
+                          msg.id === messageId ? { 
+                            ...msg, 
+                            content: accumulatedContent, 
+                            toolCalls: [...toolCalls],
+                            contentBlocks: [...contentBlocks]
+                          } : msg
                         ),
                       }))
                     }
                   } else if (data.type === 'content_block_delta') {
                     if (currentBlockType === 'text' && data.delta?.text) {
-                      // Add text content normally
+                      // Add text content to accumulated content
                       if (isContinuation && accumulatedContent && !accumulatedContent.endsWith(' ') && data.delta.text && !data.delta.text.startsWith(' ')) {
                         accumulatedContent += ' ' + data.delta.text
                       } else {
                         accumulatedContent += data.delta.text
                       }
 
+                      // Add text to current text block
+                      if (currentTextBlock) {
+                        currentTextBlock.content += data.delta.text
+                        
+                        // Update the content blocks array with the streaming text block
+                        const updatedContentBlocks = [...contentBlocks]
+                        const existingBlockIndex = updatedContentBlocks.findIndex(block => 
+                          block.type === 'text' && block.timestamp === currentTextBlock.timestamp
+                        )
+                        
+                        if (existingBlockIndex >= 0) {
+                          // Update existing block
+                          updatedContentBlocks[existingBlockIndex] = { ...currentTextBlock }
+                        } else {
+                          // Add new text block to content blocks for real-time display
+                          updatedContentBlocks.push({ ...currentTextBlock })
+                        }
+                        
+                        // Replace contentBlocks array contents
+                        contentBlocks.splice(0, contentBlocks.length, ...updatedContentBlocks)
+                      }
+
                       // Update message in real-time
                       set((state) => ({
                         messages: state.messages.map((msg) =>
-                          msg.id === messageId ? { ...msg, content: accumulatedContent, toolCalls: [...toolCalls] } : msg
+                          msg.id === messageId ? { 
+                            ...msg, 
+                            content: accumulatedContent, 
+                            toolCalls: [...toolCalls],
+                            contentBlocks: [...contentBlocks]
+                          } : msg
                         ),
                       }))
                     } else if (currentBlockType === 'tool_use' && data.delta?.partial_json && toolCallBuffer) {
@@ -623,7 +675,10 @@ export const useCopilotStore = create<CopilotStore>()(
                       toolCallBuffer.partialInput += data.delta.partial_json
                     }
                   } else if (data.type === 'content_block_stop') {
-                    if (currentBlockType === 'tool_use' && toolCallBuffer) {
+                    if (currentBlockType === 'text' && currentTextBlock) {
+                      // Text block is already in contentBlocks from streaming, just clean up
+                      currentTextBlock = null
+                    } else if (currentBlockType === 'tool_use' && toolCallBuffer) {
                       try {
                         // Parse complete tool call input
                         toolCallBuffer.input = JSON.parse(toolCallBuffer.partialInput || '{}')
@@ -632,10 +687,15 @@ export const useCopilotStore = create<CopilotStore>()(
                         toolCallBuffer.duration = toolCallBuffer.endTime - toolCallBuffer.startTime
                         logger.info(`Tool call completed: ${toolCallBuffer.name}`, toolCallBuffer.input)
                         
-                        // Update message with completed tool call
+                        // Update message with completed tool call and content blocks
                         set((state) => ({
                           messages: state.messages.map((msg) =>
-                            msg.id === messageId ? { ...msg, content: accumulatedContent, toolCalls: [...toolCalls] } : msg
+                            msg.id === messageId ? { 
+                              ...msg, 
+                              content: accumulatedContent, 
+                              toolCalls: [...toolCalls],
+                              contentBlocks: [...contentBlocks]
+                            } : msg
                           ),
                         }))
                         
@@ -685,10 +745,17 @@ export const useCopilotStore = create<CopilotStore>()(
           // Stream ended naturally - finalize the message
           logger.info(`Completed streaming response, content length: ${accumulatedContent.length}`)
           
+          // Text blocks are already in contentBlocks from streaming, no need to add again
+
           // Final update when stream actually ends
           set((state) => ({
             messages: state.messages.map((msg) =>
-              msg.id === messageId ? { ...msg, content: accumulatedContent, toolCalls: [...toolCalls] } : msg
+              msg.id === messageId ? { 
+                ...msg, 
+                content: accumulatedContent, 
+                toolCalls: [...toolCalls],
+                contentBlocks: [...contentBlocks]
+              } : msg
             ),
             isSendingMessage: false,
           }))

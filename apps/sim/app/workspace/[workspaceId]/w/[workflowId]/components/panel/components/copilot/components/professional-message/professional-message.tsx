@@ -313,30 +313,85 @@ const ProfessionalMessage: FC<ProfessionalMessageProps> = memo(({ message, isStr
 
             {/* Message content */}
             <div className='min-w-0 flex-1'>
-              {/* Tool calls and content */}
+              {/* Content blocks in chronological order or fallback to old layout */}
               <div className='space-y-3'>
-                {/* Tool calls if available */}
-                {message.toolCalls && message.toolCalls.length > 0 && (
-                  <div className='space-y-2'>
-                    {message.toolCalls.map((toolCall) => (
-                      <InlineToolCall key={toolCall.id} tool={toolCall} />
-                    ))}
-                  </div>
-                )}
-                
-                {/* Regular text content */}
-                {cleanTextContent && (
-                  <div className='overflow-hidden rounded-2xl rounded-tl-lg border bg-muted/30 px-4 py-3 shadow-sm'>
-                    <div className='prose prose-sm dark:prose-invert max-w-none'>
-                      <ReactMarkdown remarkPlugins={[remarkGfm]} components={markdownComponents}>
-                        {cleanTextContent}
-                      </ReactMarkdown>
-                    </div>
-                  </div>
+                {message.contentBlocks && message.contentBlocks.length > 0 ? (
+                  // Render content blocks in chronological order
+                  <>
+                    {message.contentBlocks.map((block, index) => {
+                      if (block.type === 'text') {
+                        const isLastTextBlock = index === message.contentBlocks!.length - 1 && block.type === 'text'
+                        return (
+                          <div key={`text-${index}`} className='overflow-hidden rounded-2xl rounded-tl-lg border bg-muted/30 px-4 py-3 shadow-sm'>
+                            <div className='prose prose-sm dark:prose-invert max-w-none'>
+                              <ReactMarkdown remarkPlugins={[remarkGfm]} components={markdownComponents}>
+                                {block.content}
+                              </ReactMarkdown>
+                              {/* Show streaming indicator for the last text block if message is streaming */}
+                              {isStreaming && isLastTextBlock && (
+                                <span className='ml-1 inline-block h-4 w-2 animate-pulse bg-current opacity-60' />
+                              )}
+                            </div>
+                          </div>
+                        )
+                      } else if (block.type === 'tool_call') {
+                        return (
+                          <InlineToolCall key={`tool-${block.toolCall.id}`} tool={block.toolCall} />
+                        )
+                      }
+                      return null
+                    })}
+                    
+                    {/* Show streaming indicator if streaming but no text content yet after tool calls */}
+                    {isStreaming && !message.content && message.contentBlocks.every(block => block.type === 'tool_call') && (
+                      <div className='overflow-hidden rounded-2xl rounded-tl-lg border bg-muted/30 px-4 py-3 shadow-sm'>
+                        <div className='flex items-center gap-2 py-2 text-muted-foreground'>
+                          <div className='flex space-x-1'>
+                            <div
+                              className='h-2 w-2 animate-bounce rounded-full bg-current'
+                              style={{ animationDelay: '0ms' }}
+                            />
+                            <div
+                              className='h-2 w-2 animate-bounce rounded-full bg-current'
+                              style={{ animationDelay: '150ms' }}
+                            />
+                            <div
+                              className='h-2 w-2 animate-bounce rounded-full bg-current'
+                              style={{ animationDelay: '300ms' }}
+                            />
+                          </div>
+                          <span className='text-sm'>Thinking...</span>
+                        </div>
+                      </div>
+                    )}
+                  </>
+                ) : (
+                  // Fallback to old layout for messages without content blocks
+                  <>
+                    {/* Tool calls if available */}
+                    {message.toolCalls && message.toolCalls.length > 0 && (
+                      <div className='space-y-2'>
+                        {message.toolCalls.map((toolCall) => (
+                          <InlineToolCall key={toolCall.id} tool={toolCall} />
+                        ))}
+                      </div>
+                    )}
+                    
+                    {/* Regular text content */}
+                    {cleanTextContent && (
+                      <div className='overflow-hidden rounded-2xl rounded-tl-lg border bg-muted/30 px-4 py-3 shadow-sm'>
+                        <div className='prose prose-sm dark:prose-invert max-w-none'>
+                          <ReactMarkdown remarkPlugins={[remarkGfm]} components={markdownComponents}>
+                            {cleanTextContent}
+                          </ReactMarkdown>
+                        </div>
+                      </div>
+                    )}
+                  </>
                 )}
                 
                 {/* Streaming indicator when no content yet */}
-                {!cleanTextContent && isStreaming && (
+                {!cleanTextContent && !message.contentBlocks?.length && isStreaming && (
                   <div className='overflow-hidden rounded-2xl rounded-tl-lg border bg-muted/30 px-4 py-3 shadow-sm'>
                     <div className='flex items-center gap-2 py-2 text-muted-foreground'>
                       <div className='flex space-x-1'>

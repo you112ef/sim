@@ -25,6 +25,23 @@ export interface CopilotToolCall {
 }
 
 /**
+ * Content block types for preserving chronological order
+ */
+export interface TextContentBlock {
+  type: 'text'
+  content: string
+  timestamp: number
+}
+
+export interface ToolCallContentBlock {
+  type: 'tool_call'
+  toolCall: CopilotToolCall
+  timestamp: number
+}
+
+export type ContentBlock = TextContentBlock | ToolCallContentBlock
+
+/**
  * Copilot message interface
  */
 export interface CopilotMessage {
@@ -34,6 +51,7 @@ export interface CopilotMessage {
   timestamp: string
   citations?: Citation[]
   toolCalls?: CopilotToolCall[]
+  contentBlocks?: ContentBlock[] // New chronological content structure
 }
 
 /**
