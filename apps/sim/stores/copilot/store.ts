@@ -407,27 +407,46 @@ export const useCopilotStore = create<CopilotStore>()(
 
         // Update the preview_workflow tool call state if provided
         if (toolCallState) {
+          logger.info(`Updating preview tool call state to: ${toolCallState}`)
+          
           // Find the last message with a preview_workflow tool call
           const lastMessageWithPreview = [...messages].reverse().find(msg => 
             msg.role === 'assistant' && msg.toolCalls?.some(tc => tc.name === 'preview_workflow')
           )
 
           if (lastMessageWithPreview) {
+            logger.info(`Found message to update with preview tool call:`, {
+              messageId: lastMessageWithPreview.id,
+              toolCallsCount: lastMessageWithPreview.toolCalls?.length,
+              contentBlocksCount: lastMessageWithPreview.contentBlocks?.length,
+            })
+
             set((state) => ({
-              messages: state.messages.map((msg) =>
-                msg.id === lastMessageWithPreview.id ? {
-                  ...msg,
-                  toolCalls: msg.toolCalls?.map(tc => 
-                    tc.name === 'preview_workflow' ? { ...tc, state: toolCallState } : tc
-                  ),
-                  contentBlocks: msg.contentBlocks?.map(block =>
-                    block.type === 'tool_call' && block.toolCall.name === 'preview_workflow'
-                      ? { ...block, toolCall: { ...block.toolCall, state: toolCallState } }
-                      : block
-                  )
-                } : msg
-              ),
+              messages: state.messages.map((msg) => {
+                if (msg.id === lastMessageWithPreview.id) {
+                  const updatedMsg = {
+                    ...msg,
+                    toolCalls: msg.toolCalls?.map(tc => 
+                      tc.name === 'preview_workflow' ? { ...tc, state: toolCallState } : tc
+                    ),
+                    contentBlocks: msg.contentBlocks?.map(block =>
+                      block.type === 'tool_call' && block.toolCall.name === 'preview_workflow'
+                        ? { ...block, toolCall: { ...block.toolCall, state: toolCallState } }
+                        : block
+                    )
+                  }
+                  logger.info(`Updated message:`, {
+                    messageId: updatedMsg.id,
+                    toolCallStates: updatedMsg.toolCalls?.map(tc => ({ name: tc.name, state: tc.state })),
+                    contentBlockStates: updatedMsg.contentBlocks?.filter(b => b.type === 'tool_call').map(b => ({ name: b.toolCall.name, state: b.toolCall.state }))
+                  })
+                  return updatedMsg
+                }
+                return msg
+              }),
             }))
+          } else {
+            logger.warn('No message found with preview_workflow tool call to update')
           }
         }
 
@@ -582,18 +601,45 @@ export const useCopilotStore = create<CopilotStore>()(
                   }
                   // Handle tool result events (our custom event for preview_workflow)
                   else if (data.type === 'tool_result') {
-                    const { toolCallId, result } = data
-                    if (toolCallId && result) {
+                    const { toolCallId, result, success } = data
+                    if (toolCallId) {
                       // Find the corresponding tool call and update its result
                       const existingToolCall = toolCalls.find(tc => tc.id === toolCallId)
                       if (existingToolCall) {
-                        existingToolCall.result = result
-                        logger.info('Updated tool call result:', toolCallId, existingToolCall.name)
+                        if (success) {
+                          existingToolCall.result = result
+                          logger.info('Updated tool call result:', toolCallId, existingToolCall.name)
+                        } else {
+                          // Tool execution failed
+                          existingToolCall.state = 'error'
+                          existingToolCall.error = result || 'Tool execution failed'
+                          logger.error('Tool call failed:', toolCallId, existingToolCall.name, result)
+                          
+                          // If this is a preview_workflow tool that failed, send error back to agent
+                          if (existingToolCall.name === 'preview_workflow') {
+                            logger.info('Preview workflow tool execution failed, sending error back to agent for retry')
+                            // Send the error back to the agent after a brief delay to let the UI update
+                            setTimeout(() => {
+                              get().sendImplicitFeedback(
+                                `The previous workflow YAML generation failed with error: "${existingToolCall.error}". Please analyze the error and try generating the workflow YAML again with the necessary fixes.`
+                              )
+                            }, 1000)
+                          }
+                        }
                         
-                        // Update message with the result
+                        // Update message with the result and content blocks
                         set((state) => ({
                           messages: state.messages.map((msg) =>
-                            msg.id === messageId ? { ...msg, content: accumulatedContent, toolCalls: [...toolCalls] } : msg
+                            msg.id === messageId ? { 
+                              ...msg, 
+                              content: accumulatedContent, 
+                              toolCalls: [...toolCalls],
+                              contentBlocks: msg.contentBlocks?.map(block =>
+                                block.type === 'tool_call' && block.toolCall.id === toolCallId
+                                  ? { ...block, toolCall: { ...existingToolCall } }
+                                  : block
+                              )
+                            } : msg
                           ),
                         }))
                       }
@@ -714,7 +760,11 @@ export const useCopilotStore = create<CopilotStore>()(
                               ...msg, 
                               content: accumulatedContent, 
                               toolCalls: [...toolCalls],
-                              contentBlocks: [...contentBlocks]
+                              contentBlocks: contentBlocks.map(block =>
+                                block.type === 'tool_call' && block.toolCall.id === toolCallBuffer.id
+                                  ? { ...block, toolCall: { ...toolCallBuffer } }
+                                  : block
+                              )
                             } : msg
                           ),
                         }))
@@ -729,6 +779,18 @@ export const useCopilotStore = create<CopilotStore>()(
                         toolCallBuffer.state = 'error'
                         toolCallBuffer.endTime = Date.now()
                         toolCallBuffer.duration = toolCallBuffer.endTime - toolCallBuffer.startTime
+                        toolCallBuffer.error = error instanceof Error ? error.message : String(error)
+                        
+                        // If this is a preview_workflow tool that failed, send error back to agent
+                        if (toolCallBuffer.name === 'preview_workflow') {
+                          logger.info('Preview workflow tool failed, sending error back to agent for retry')
+                          // Send the error back to the agent after a brief delay to let the UI update
+                          setTimeout(() => {
+                            get().sendImplicitFeedback(
+                              `The previous workflow YAML generation failed with error: "${toolCallBuffer.error}". Please analyze the error and try generating the workflow YAML again with the necessary fixes.`
+                            )
+                          }, 1000)
+                        }
                       }
                       toolCallBuffer = null
                     }
