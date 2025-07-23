@@ -28,6 +28,7 @@ const SendMessageSchema = z.object({
   mode: z.enum(['ask', 'agent']).optional().default('ask'),
   createNewChat: z.boolean().optional().default(false),
   stream: z.boolean().optional().default(false),
+  implicitFeedback: z.string().optional(),
 })
 
 // Schema for docs queries
@@ -91,7 +92,7 @@ export async function POST(req: NextRequest) {
 
   try {
     const body = await req.json()
-    const { message, chatId, workflowId, mode, createNewChat, stream } =
+    const { message, chatId, workflowId, mode, createNewChat, stream, implicitFeedback } =
       SendMessageSchema.parse(body)
 
     const session = await getSession()
@@ -116,6 +117,7 @@ export async function POST(req: NextRequest) {
       mode,
       createNewChat,
       stream,
+      implicitFeedback,
       userId: session.user.id,
     })
 

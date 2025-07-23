@@ -397,6 +397,64 @@ export const useCopilotStore = create<CopilotStore>()(
         }
       },
 
+      // Send implicit feedback to continue conversation without showing user message
+      sendImplicitFeedback: async (implicitFeedback: string) => {
+        const { workflowId, currentChat, mode, messages } = get()
+
+        if (!workflowId) {
+          logger.warn('Cannot send implicit feedback: no workflow ID set')
+          return
+        }
+
+        set({ isSendingMessage: true, error: null })
+
+        // Find the last assistant message (the one that was cut off by preview tool)
+        let lastAssistantMessage = null
+        for (let i = messages.length - 1; i >= 0; i--) {
+          if (messages[i].role === 'assistant') {
+            lastAssistantMessage = messages[i]
+            break
+          }
+        }
+
+        if (!lastAssistantMessage) {
+          logger.warn('No previous assistant message found to continue')
+          return
+        }
+
+        try {
+          const result = await sendStreamingMessage({
+            message: 'IMPORTANT: You must continue your previous response that was interrupted. The user has provided feedback which is included in the system message. Continue naturally from where you left off and provide a complete, substantial response addressing their feedback.', // Very directive continuation prompt
+            chatId: currentChat?.id,
+            workflowId,
+            mode,
+            createNewChat: !currentChat,
+            stream: true,
+            implicitFeedback, // Pass the implicit feedback
+          })
+
+          if (result.success && result.stream) {
+            // Continue streaming to the existing assistant message
+            await get().handleStreamingResponse(result.stream, lastAssistantMessage.id, true)
+          } else {
+            throw new Error(result.error || 'Failed to send implicit feedback')
+          }
+        } catch (error) {
+          const errorMessage = createErrorMessage(
+            lastAssistantMessage?.id || crypto.randomUUID(),
+            'Sorry, I encountered an error while processing your feedback. Please try again.'
+          )
+
+          set((state) => ({
+            messages: state.messages.map((msg) =>
+              msg.id === lastAssistantMessage?.id ? errorMessage : msg
+            ),
+            error: handleStoreError(error, 'Failed to send implicit feedback'),
+            isSendingMessage: false,
+          }))
+        }
+      },
+
       // Send a docs RAG message
       sendDocsMessage: async (query: string, options = {}) => {
         const { workflowId, currentChat } = get()
@@ -448,10 +506,18 @@ export const useCopilotStore = create<CopilotStore>()(
       },
 
       // Handle streaming response
-      handleStreamingResponse: async (stream: ReadableStream, messageId: string) => {
+      handleStreamingResponse: async (stream: ReadableStream, messageId: string, isContinuation = false) => {
         const reader = stream.getReader()
         const decoder = new TextDecoder()
+        
+        // If this is a continuation, start with the existing message content
         let accumulatedContent = ''
+        if (isContinuation) {
+          const { messages } = get()
+          const existingMessage = messages.find(msg => msg.id === messageId)
+          accumulatedContent = existingMessage?.content || ''
+        }
+        
         let newChatId: string | undefined
         let streamComplete = false
 
@@ -474,10 +540,16 @@ export const useCopilotStore = create<CopilotStore>()(
                       newChatId = data.chatId
                     }
                   } else if (data.type === 'content') {
-                    accumulatedContent += data.content
+                    // Add a space before new content if this is a continuation
+                    if (isContinuation && accumulatedContent && !accumulatedContent.endsWith(' ') && data.content && !data.content.startsWith(' ')) {
+                      accumulatedContent += ' ' + data.content
+                    } else {
+                      accumulatedContent += data.content
+                    }
 
                     // Check if we just completed a preview_workflow tool call and should stop streaming
-                    const shouldStopStreaming = checkForPreviewToolCompletion(accumulatedContent)
+                    // Skip this check during continuation since the existing content already contains the tool call
+                    const shouldStopStreaming = !isContinuation && checkForPreviewToolCompletion(accumulatedContent)
                     if (shouldStopStreaming) {
                       logger.info('Preview workflow tool completed - stopping stream')
                       streamComplete = true

@@ -126,6 +126,7 @@ export interface GenerateChatResponseOptions {
   requestId?: string
   mode?: 'ask' | 'agent'
   chatId?: string
+  implicitFeedback?: string
 }
 
 /**
@@ -138,6 +139,7 @@ export interface SendMessageRequest {
   mode?: 'ask' | 'agent'
   createNewChat?: boolean
   stream?: boolean
+  implicitFeedback?: string
   userId: string
 }
 
@@ -211,7 +213,8 @@ function getProviderApiKey(provider: string, model: string): string {
 function buildConversationMessages(
   message: string,
   conversationHistory: CopilotMessage[],
-  maxHistory: number
+  maxHistory: number,
+  implicitFeedback?: string
 ): Array<{ role: 'user' | 'assistant' | 'system'; content: string }> {
   const messages = []
 
@@ -222,6 +225,14 @@ function buildConversationMessages(
     messages.push({
       role: msg.role as 'user' | 'assistant' | 'system',
       content: msg.content,
+    })
+  }
+
+  // Add implicit system feedback if provided (for preview accept/reject)
+  if (implicitFeedback) {
+    messages.push({
+      role: 'system' as const,
+      content: implicitFeedback,
     })
   }
 
@@ -493,7 +504,8 @@ export async function generateChatResponse(
     const messages = buildConversationMessages(
       message,
       conversationHistory,
-      config.general.maxConversationHistory
+      config.general.maxConversationHistory,
+      options.implicitFeedback
     )
 
     // Get available tools for the mode
@@ -781,6 +793,7 @@ export async function sendMessage(request: SendMessageRequest): Promise<{
       workflowId,
       mode,
       chatId: currentChat?.id,
+      implicitFeedback: request.implicitFeedback,
     })
 
     // For non-streaming responses, save immediately

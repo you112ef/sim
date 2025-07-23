@@ -1,7 +1,7 @@
 'use client'
 
 import { useState } from 'react'
-import { Eye, Maximize2, Minimize2, Save, CheckCircle, X, AlertCircle } from 'lucide-react'
+import { Eye, Maximize2, Minimize2, Save, CheckCircle, X, AlertCircle, XCircle } from 'lucide-react'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
@@ -23,6 +23,7 @@ interface CopilotSandboxModalProps {
   description?: string
   onApplyToCurrentWorkflow: () => Promise<void>
   onSaveAsNewWorkflow: (name: string) => Promise<void>
+  onReject?: () => Promise<void>
   isProcessing?: boolean
 }
 
@@ -34,6 +35,7 @@ export function CopilotSandboxModal({
   description,
   onApplyToCurrentWorkflow,
   onSaveAsNewWorkflow,
+  onReject,
   isProcessing = false,
 }: CopilotSandboxModalProps) {
   const [isFullscreen, setIsFullscreen] = useState(false)
@@ -41,6 +43,7 @@ export function CopilotSandboxModal({
   const [newWorkflowName, setNewWorkflowName] = useState('')
   const [isSaving, setIsSaving] = useState(false)
   const [isApplying, setIsApplying] = useState(false)
+  const [isRejecting, setIsRejecting] = useState(false)
 
   const { workflows, activeWorkflowId } = useWorkflowRegistry()
   const currentWorkflow = activeWorkflowId ? workflows[activeWorkflowId] : null
@@ -74,6 +77,23 @@ export function CopilotSandboxModal({
       logger.error('Failed to save as new workflow:', error)
     } finally {
       setIsSaving(false)
+    }
+  }
+
+  const handleReject = async () => {
+    if (!onReject) {
+      handleClose()
+      return
+    }
+
+    try {
+      setIsRejecting(true)
+      await onReject()
+      onClose()
+    } catch (error) {
+      logger.error('Failed to reject workflow:', error)
+    } finally {
+      setIsRejecting(false)
     }
   }
 
@@ -203,15 +223,36 @@ export function CopilotSandboxModal({
         {/* Action Buttons */}
         <div className='border-t bg-background px-6 py-4'>
           <div className='flex items-center justify-between'>
-            <div className='text-muted-foreground text-sm'>
-              💡 This is a preview of the workflow the copilot wants to create. Choose how to proceed.
+            <div className='flex items-center gap-3'>
+              <div className='text-muted-foreground text-sm'>
+                💡 This is a preview of the workflow the copilot wants to create. Choose how to proceed.
+              </div>
+              
+              <Button
+                variant='outline'
+                onClick={handleReject}
+                disabled={isProcessing || showSaveAsNew || isSaving || isApplying || isRejecting}
+                className='text-red-600 border-red-200 hover:bg-red-50 hover:border-red-300 dark:text-red-400 dark:border-red-800 dark:hover:bg-red-950'
+              >
+                {isRejecting ? (
+                  <>
+                    <div className='mr-2 h-3 w-3 animate-spin rounded-full border-2 border-red-300 border-t-red-600' />
+                    Rejecting...
+                  </>
+                ) : (
+                  <>
+                    <XCircle className='mr-2 h-4 w-4' />
+                    Reject Changes
+                  </>
+                )}
+              </Button>
             </div>
             
             <div className='flex items-center gap-3'>
               <Button
                 variant='outline'
                 onClick={() => setShowSaveAsNew(true)}
-                disabled={isProcessing || showSaveAsNew || isSaving || isApplying}
+                disabled={isProcessing || showSaveAsNew || isSaving || isApplying || isRejecting}
               >
                 <Save className='mr-2 h-4 w-4' />
                 Save as New Workflow
@@ -219,7 +260,7 @@ export function CopilotSandboxModal({
 
               <Button
                 onClick={handleApplyToCurrentWorkflow}
-                disabled={isProcessing || showSaveAsNew || isSaving || isApplying}
+                disabled={isProcessing || showSaveAsNew || isSaving || isApplying || isRejecting}
                 className='bg-purple-600 hover:bg-purple-700'
               >
                 {isApplying ? (

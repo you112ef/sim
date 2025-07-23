@@ -80,7 +80,7 @@ export function ReviewButton() {
   const params = useParams()
   const workspaceId = params.workspaceId as string
   const { activeWorkflowId, createWorkflow } = useWorkflowRegistry()
-  const { messages, sendMessage } = useCopilotStore()
+  const { messages, sendImplicitFeedback } = useCopilotStore()
   const { markToolCallAsSeen, isToolCallSeen, seenToolCallIds } = usePreviewStore(
     (state) => ({
       markToolCallAsSeen: state.markToolCallAsSeen,
@@ -162,7 +162,7 @@ export function ReviewButton() {
       setShowModal(false)
       
       // Continue the copilot conversation with acceptance message
-      await sendMessage('I have accepted and applied the workflow changes. Please continue.')
+      await sendImplicitFeedback('SYSTEM: The user has ACCEPTED your workflow proposal and the changes have been successfully applied to their workflow. You must now continue your previous response by: 1) Acknowledging the successful application 2) Explaining what was added/changed 3) Suggesting next steps or additional improvements. Provide a complete, helpful response of at least 2-3 sentences.')
     } catch (error) {
       logger.error('Failed to apply preview:', error)
     } finally {
@@ -226,7 +226,7 @@ export function ReviewButton() {
       setShowModal(false)
       
       // Continue the copilot conversation with save as new message
-      await sendMessage(`I have saved the workflow changes as a new workflow named "${name}". Please continue.`)
+      await sendImplicitFeedback(`SYSTEM: The user has SAVED your workflow proposal as a new workflow named "${name}". You must now continue your previous response by: 1) Acknowledging the successful creation of the new workflow 2) Explaining what the new workflow contains 3) Suggesting how they can use or modify it further. Provide a complete, helpful response of at least 2-3 sentences.`)
     } catch (error) {
       logger.error('Failed to save preview as new workflow:', error)
     } finally {
@@ -234,15 +234,25 @@ export function ReviewButton() {
     }
   }
 
-  const handleClose = async () => {
-    setShowModal(false)
+  const handleReject = async () => {
+    if (!latestPreview) return
     
-    // If there's a preview when closing, mark it as seen and send rejection message
-    if (latestPreview) {
+    try {
+      setIsProcessing(true)
       markToolCallAsSeen(latestPreview.toolCallId)
+      setShowModal(false)
+      
       // Continue the copilot conversation with rejection message
-      await sendMessage('I have rejected the workflow changes. Please continue or make different modifications.')
+      await sendImplicitFeedback('SYSTEM: The user has REJECTED your workflow proposal. You must now continue your previous response by: 1) Acknowledging that they declined the changes 2) Asking what specific modifications they would prefer 3) Offering alternative approaches or asking for clarification on their requirements. Provide a complete, helpful response of at least 2-3 sentences.')
+    } catch (error) {
+      logger.error('Failed to reject preview:', error)
+    } finally {
+      setIsProcessing(false)
     }
+  }
+
+  const handleClose = () => {
+    setShowModal(false)
   }
 
   return (
@@ -280,6 +290,7 @@ export function ReviewButton() {
           description={latestPreview.description}
           onApplyToCurrentWorkflow={handleApply}
           onSaveAsNewWorkflow={handleSaveAsNew}
+          onReject={handleReject}
           isProcessing={isProcessing}
         />
       )}

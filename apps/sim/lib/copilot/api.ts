@@ -59,6 +59,7 @@ export interface SendMessageRequest {
   mode?: 'ask' | 'agent'
   createNewChat?: boolean
   stream?: boolean
+  implicitFeedback?: string
 }
 
 /**

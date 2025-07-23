@@ -120,6 +120,7 @@ export interface CopilotActions {
 
   // Message handling
   sendMessage: (message: string, options?: SendMessageOptions) => Promise<void>
+  sendImplicitFeedback: (implicitFeedback: string) => Promise<void>
   sendDocsMessage: (query: string, options?: SendDocsMessageOptions) => Promise<void>
   saveChatMessages: (chatId: string) => Promise<void>
 
@@ -136,7 +137,7 @@ export interface CopilotActions {
   reset: () => void
 
   // Internal helpers (not exposed publicly)
-  handleStreamingResponse: (stream: ReadableStream, messageId: string) => Promise<void>
+  handleStreamingResponse: (stream: ReadableStream, messageId: string, isContinuation?: boolean) => Promise<void>
   handleNewChatCreation: (newChatId: string) => Promise<void>
 }
 
