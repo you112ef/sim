@@ -557,6 +557,25 @@ export const useCopilotStore = create<CopilotStore>()(
                       await get().handleNewChatCreation(newChatId)
                     }
                   }
+                  // Handle tool result events (our custom event for preview_workflow)
+                  else if (data.type === 'tool_result') {
+                    const { toolCallId, result } = data
+                    if (toolCallId && result) {
+                      // Find the corresponding tool call and update its result
+                      const existingToolCall = toolCalls.find(tc => tc.id === toolCallId)
+                      if (existingToolCall) {
+                        existingToolCall.result = result
+                        logger.info('Updated tool call result:', toolCallId, existingToolCall.name)
+                        
+                        // Update message with the result
+                        set((state) => ({
+                          messages: state.messages.map((msg) =>
+                            msg.id === messageId ? { ...msg, content: accumulatedContent, toolCalls: [...toolCalls] } : msg
+                          ),
+                        }))
+                      }
+                    }
+                  }
                   // Handle native Anthropic SSE events
                   else if (data.type === 'message_start') {
                     logger.info('Message started')
@@ -619,6 +638,12 @@ export const useCopilotStore = create<CopilotStore>()(
                             msg.id === messageId ? { ...msg, content: accumulatedContent, toolCalls: [...toolCalls] } : msg
                           ),
                         }))
+                        
+                        // If this is a preview_workflow tool call, set the preview YAML
+                        if (toolCallBuffer.name === 'preview_workflow' && toolCallBuffer.input?.yamlContent) {
+                          logger.info('Setting preview YAML from completed preview_workflow tool call')
+                          get().setPreviewYaml(toolCallBuffer.input.yamlContent)
+                        }
                       } catch (error) {
                         logger.error('Error parsing tool call input:', error)
                         toolCallBuffer.state = 'error'
@@ -826,6 +851,87 @@ export const useCopilotStore = create<CopilotStore>()(
           error: null,
         })
         logger.info('Cleared current chat and messages')
+      },
+
+      // Set preview YAML for current chat
+      setPreviewYaml: async (yamlContent: string) => {
+        const { currentChat } = get()
+        if (!currentChat) {
+          logger.warn('Cannot set preview YAML: no current chat')
+          return
+        }
+
+        try {
+          // Update local state immediately
+          set((state) => ({
+            currentChat: state.currentChat ? {
+              ...state.currentChat,
+              previewYaml: yamlContent
+            } : null
+          }))
+
+          // Update database
+          const response = await fetch('/api/copilot', {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              chatId: currentChat.id,
+              previewYaml: yamlContent,
+            }),
+          })
+
+          if (!response.ok) {
+            throw new Error('Failed to save preview YAML')
+          }
+
+          logger.info('Preview YAML set successfully')
+        } catch (error) {
+          logger.error('Failed to set preview YAML:', error)
+          // Revert local state on error
+          set((state) => ({
+            currentChat: state.currentChat ? {
+              ...state.currentChat,
+              previewYaml: null
+            } : null
+          }))
+        }
+      },
+
+      // Clear preview YAML for current chat
+      clearPreviewYaml: async () => {
+        const { currentChat } = get()
+        if (!currentChat) {
+          logger.warn('Cannot clear preview YAML: no current chat')
+          return
+        }
+
+        try {
+          // Update local state immediately
+          set((state) => ({
+            currentChat: state.currentChat ? {
+              ...state.currentChat,
+              previewYaml: null
+            } : null
+          }))
+
+          // Update database
+          const response = await fetch('/api/copilot', {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              chatId: currentChat.id,
+              previewYaml: null,
+            }),
+          })
+
+          if (!response.ok) {
+            throw new Error('Failed to clear preview YAML')
+          }
+
+          logger.info('Preview YAML cleared successfully')
+        } catch (error) {
+          logger.error('Failed to clear preview YAML:', error)
+        }
       },
 
       // Clear error state

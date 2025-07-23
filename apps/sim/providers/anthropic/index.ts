@@ -418,6 +418,19 @@ ${fieldDescriptions}
                   
                   logger.info(`Tool ${toolCall.name} ${result.success ? 'succeeded' : 'failed'}`)
 
+                  // Send tool result event to frontend for preview_workflow tools
+                  if (toolCall.name === 'preview_workflow' && result.success) {
+                    const toolResultEvent = {
+                      type: 'tool_result',
+                      toolCallId: toolCall.id,
+                      toolName: toolCall.name,
+                      result: result.output,
+                      success: true,
+                    }
+                    controller.enqueue(encoder.encode(`data: ${JSON.stringify(toolResultEvent)}\n\n`))
+                    logger.info('Sent preview_workflow result to frontend:', toolCall.id)
+                  }
+
                   return {
                     toolCall,
                     result: result.success ? result.output : null,
@@ -482,11 +495,18 @@ ${fieldDescriptions}
                     logger.error('Error parsing continuation tool call input:', error)
                   }
                   currentContinuationToolCall = null
-                } else if (chunk.type === 'message_stop' && continuationToolCalls.length > 0) {
-                  // Recursively handle tool calls in the continuation
-                  await executeToolsAndContinue(continuationToolCalls)
-                  continuationToolCalls = []
-                }
+                                 } else if (chunk.type === 'message_stop' && continuationToolCalls.length > 0) {
+                   // Recursively handle tool calls in the continuation
+                   await executeToolsAndContinue(continuationToolCalls)
+                   continuationToolCalls = []
+                 }
+                
+                 // Also check for any preview_workflow results in continuation
+                 continuationToolCalls.forEach(toolCall => {
+                   if (toolCall.name === 'preview_workflow') {
+                     logger.info('Found preview_workflow in continuation, will send result after execution')
+                   }
+                 })
               }
             } catch (error) {
               logger.error('Error executing tools and continuing conversation:', { error })

@@ -1,182 +1,95 @@
 'use client'
 
-import { useState, useEffect, useCallback, useMemo, useRef } from 'react'
+import { useState, useCallback } from 'react'
 import { useParams } from 'next/navigation'
 import { Eye, FileText } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { CopilotSandboxModal } from './copilot-sandbox-modal/copilot-sandbox-modal'
 import { useWorkflowRegistry } from '@/stores/workflows/registry/store'
 import { useCopilotStore } from '@/stores/copilot/store'
-import { usePreviewStore } from '@/stores/copilot/preview-store'
 import { createLogger } from '@/lib/logs/console-logger'
-import type { CopilotToolCall, CopilotMessage } from '@/stores/copilot/types'
 
 const logger = createLogger('ReviewButton')
 
-// Helper function to extract preview data from messages
-export function getLatestUnseenPreview(messages: CopilotMessage[], isToolCallSeen: (id: string) => boolean) {
-  if (!messages.length) return null
-
-  const foundPreviews: { toolCallId: string; messageIndex: number; workflowState: any; yamlContent: string; description?: string }[] = []
-
-  // Go through messages in reverse order (newest first) to find all unseen previews
-  for (let i = messages.length - 1; i >= 0; i--) {
-    const message = messages[i]
-    if (message.role !== 'assistant' || !message.toolCalls) continue
-
-         message.toolCalls.forEach((toolCall: CopilotToolCall) => {
-      if (
-        toolCall.name === 'preview_workflow' &&
-        toolCall.state === 'completed' &&
-        toolCall.result &&
-        toolCall.id &&
-        !isToolCallSeen(toolCall.id)
-      ) {
-        const result = toolCall.result
-        let workflowState = null
-        let yamlContent = null
-        let description = null
-
-        if (result.workflowState) {
-          workflowState = result.workflowState
-        }
-
-        if (toolCall.input) {
-          yamlContent = toolCall.input.yamlContent
-          description = toolCall.input.description
-        }
-
-        if (workflowState && yamlContent) {
-          foundPreviews.push({
-            toolCallId: toolCall.id,
-            messageIndex: i,
-            workflowState,
-            yamlContent,
-            description,
-          })
-        }
-      }
-    })
-  }
-
-  if (foundPreviews.length === 0) {
-    return null
-  }
-
-  // Sort by message index (newest first)
-  foundPreviews.sort((a, b) => b.messageIndex - a.messageIndex)
-
-  // Return both the latest preview and all older preview IDs to invalidate
-  return {
-    latestPreview: {
-      toolCallId: foundPreviews[0].toolCallId,
-      workflowState: foundPreviews[0].workflowState,
-      yamlContent: foundPreviews[0].yamlContent,
-      description: foundPreviews[0].description,
-    },
-    olderPreviewIds: foundPreviews.slice(1).map(p => p.toolCallId)
-  }
-}
-
 // Dummy functions for backward compatibility
 export function setLatestPreview() {
-  // This is now handled automatically by scanning messages
+  // This is now handled automatically by the copilot store
 }
 
 export function clearLatestPreview() {
-  // This is now handled by marking tool calls as seen
+  // This is now handled by clearing preview YAML in the chat
+}
+
+export function getLatestUnseenPreview() {
+  // Deprecated - now using currentChat.previewYaml
+  return null
 }
 
 export function ReviewButton() {
   const params = useParams()
   const workspaceId = params.workspaceId as string
   const { activeWorkflowId, createWorkflow } = useWorkflowRegistry()
-  const { messages, sendImplicitFeedback } = useCopilotStore()
-  const { markToolCallAsSeen, isToolCallSeen, seenToolCallIds } = usePreviewStore(
-    (state) => ({
-      markToolCallAsSeen: state.markToolCallAsSeen,
-      isToolCallSeen: state.isToolCallSeen,
-      seenToolCallIds: state.seenToolCallIds, // Include this to trigger re-renders
-    })
-  )
+  const { currentChat, sendImplicitFeedback, clearPreviewYaml } = useCopilotStore()
   const [showModal, setShowModal] = useState(false)
   const [isProcessing, setIsProcessing] = useState(false)
-  
-  // Add debounce timer ref to prevent premature invalidation
-  const invalidationTimerRef = useRef<NodeJS.Timeout | null>(null)
-  const lastToolCallIdRef = useRef<string | null>(null)
+  const [previewWorkflowState, setPreviewWorkflowState] = useState<any>(null)
 
-  // Get the latest unseen preview from messages
-  const latestPreview = useMemo(() => {
-    console.log('useMemo: Checking for latest unseen preview, seenToolCallIds size:', seenToolCallIds.size)
-    const preview = getLatestUnseenPreview(messages, isToolCallSeen)
-    console.log('useMemo: Found preview:', !!preview, preview?.latestPreview?.toolCallId)
-    return preview
-  }, [messages, isToolCallSeen, seenToolCallIds])
-
-  // Debounced invalidation of older previews when a new one is detected
-  // Add a 5-second delay to give users time to see and interact with the button
-  useEffect(() => {
-    // Clear existing timer
-    if (invalidationTimerRef.current) {
-      clearTimeout(invalidationTimerRef.current)
-      invalidationTimerRef.current = null
-    }
-
-    if (latestPreview && latestPreview.olderPreviewIds && latestPreview.olderPreviewIds.length > 0) {
-      // Check if this is actually a new preview (different from the last one)
-      const currentToolCallId = latestPreview.latestPreview?.toolCallId
-      const isNewPreview = currentToolCallId !== lastToolCallIdRef.current
-      
-      if (isNewPreview && currentToolCallId) {
-        console.log('New preview detected, scheduling invalidation of older previews in 5 seconds:', latestPreview.olderPreviewIds)
-        lastToolCallIdRef.current = currentToolCallId
-        
-        // Set a timer to invalidate older previews after 5 seconds
-        invalidationTimerRef.current = setTimeout(() => {
-          console.log('Invalidating older previews after delay:', latestPreview.olderPreviewIds)
-          latestPreview.olderPreviewIds.forEach(id => {
-            markToolCallAsSeen(id)
-          })
-          invalidationTimerRef.current = null
-        }, 5000) // 5 second delay
-      }
-    }
-
-    // Cleanup function
-    return () => {
-      if (invalidationTimerRef.current) {
-        clearTimeout(invalidationTimerRef.current)
-        invalidationTimerRef.current = null
-      }
-    }
-  }, [latestPreview?.latestPreview?.toolCallId, latestPreview?.olderPreviewIds, markToolCallAsSeen])
+  // Check if current chat has preview YAML
+  const hasPreview = currentChat?.previewYaml !== null && currentChat?.previewYaml !== undefined
 
   // Debug logging
   console.log('ReviewButton render:', {
-    hasLatestPreview: !!latestPreview?.latestPreview,
+    hasPreview,
     activeWorkflowId,
-    messageCount: messages.length
+    previewYamlLength: currentChat?.previewYaml?.length
   })
 
-  // Only show if there's a real preview from copilot
-  if (!latestPreview?.latestPreview) {
+  // Only show if there's a preview YAML in the current chat
+  if (!hasPreview) {
     return null
   }
 
-  const handleShowPreview = () => {
-    setShowModal(true)
+  const handleShowPreview = async () => {
+    if (!currentChat?.previewYaml) return
+    
+    try {
+      // Generate workflow state from YAML for the modal
+      const response = await fetch('/api/workflows/preview', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          yamlContent: currentChat.previewYaml,
+          applyAutoLayout: true,
+        }),
+      })
+
+      if (!response.ok) {
+        throw new Error('Failed to generate preview')
+      }
+
+      const result = await response.json()
+      
+      if (!result.success) {
+        throw new Error(result.message || 'Failed to generate preview')
+      }
+
+      // Set the generated workflow state and open modal
+      setPreviewWorkflowState(result.workflowState)
+      setShowModal(true)
+    } catch (error) {
+      logger.error('Failed to generate preview for modal:', error)
+    }
   }
 
   const handleApply = async () => {
-    if (!latestPreview?.latestPreview) return
+    if (!currentChat?.previewYaml) return
     
     try {
       setIsProcessing(true)
 
       logger.info('Applying preview to current workflow (store-first)', {
         workflowId: activeWorkflowId,
-        yamlLength: latestPreview.latestPreview.yamlContent.length,
+        yamlLength: currentChat.previewYaml.length,
       })
 
       // STEP 1: Parse YAML and update local store immediately
@@ -189,7 +102,7 @@ export function ReviewButton() {
         const { generateLoopBlocks, generateParallelBlocks } = await import('@/stores/workflows/workflow/utils')
 
         // Parse YAML content
-        const { data: yamlWorkflow, errors: parseErrors } = parseWorkflowYaml(latestPreview.latestPreview.yamlContent)
+        const { data: yamlWorkflow, errors: parseErrors } = parseWorkflowYaml(currentChat.previewYaml)
 
         if (!yamlWorkflow || parseErrors.length > 0) {
           throw new Error(`Failed to parse YAML: ${parseErrors.join(', ')}`)
@@ -205,52 +118,48 @@ export function ReviewButton() {
         // Convert ImportedBlocks to workflow store format
         const workflowBlocks: Record<string, any> = {}
         const workflowEdges: any[] = []
-        
-        // Process blocks - convert from array to record format
+
+        // Process blocks
         for (const block of blocks) {
-          const blockId = block.id
           const blockConfig = getBlock(block.type)
-          
-          if (!blockConfig && (block.type === 'loop' || block.type === 'parallel')) {
-            // Handle loop/parallel blocks
-            workflowBlocks[blockId] = {
-              id: blockId,
-              type: block.type,
-              name: block.name,
-              position: block.position,
-              subBlocks: {},
-              outputs: {},
-              enabled: true,
-              horizontalHandles: true,
-              isWide: false,
-              height: 0,
-              data: (block as any).data || {},
-            }
-          } else if (blockConfig) {
-            // Handle regular blocks with proper subBlocks setup
+          if (blockConfig) {
             const subBlocks: Record<string, any> = {}
-            
+
             // Set up subBlocks from block configuration
             blockConfig.subBlocks.forEach((subBlock) => {
+              const yamlValue = block.inputs[subBlock.id]
               subBlocks[subBlock.id] = {
                 id: subBlock.id,
                 type: subBlock.type,
-                value: (block as any).inputs?.[subBlock.id] || null,
+                value: yamlValue !== undefined ? yamlValue : null,
               }
             })
-            
-            workflowBlocks[blockId] = {
-              id: blockId,
+
+            // Also ensure we have subBlocks for any YAML inputs not in block config
+            Object.keys(block.inputs).forEach((inputKey) => {
+              if (!subBlocks[inputKey]) {
+                subBlocks[inputKey] = {
+                  id: inputKey,
+                  type: 'short-input',
+                  value: block.inputs[inputKey],
+                }
+              }
+            })
+
+            const outputs = blockConfig.outputs || {}
+
+            workflowBlocks[block.id] = {
+              id: block.id,
               type: block.type,
               name: block.name,
-              position: block.position,
+              position: block.position || { x: 0, y: 0 },
               subBlocks,
-              outputs: (block as any).outputs || {},
+              outputs,
               enabled: true,
               horizontalHandles: true,
               isWide: false,
               height: 0,
-              data: (block as any).data || {},
+              data: block.data || {},
             }
           }
         }
@@ -301,28 +210,35 @@ export function ReviewButton() {
 
         // Extract and update subblock values
         const subblockValues: Record<string, Record<string, any>> = {}
-        Object.entries(layoutedBlocks).forEach(([blockId, block]) => {
-          subblockValues[blockId] = {}
-          Object.entries(block.subBlocks || {}).forEach(([subblockId, subblock]) => {
-            subblockValues[blockId][subblockId] = (subblock as any).value
-          })
+        Object.values(layoutedBlocks).forEach((block: any) => {
+          if (block.subBlocks) {
+            const blockValues: Record<string, any> = {}
+            Object.entries(block.subBlocks).forEach(([subBlockId, subBlock]: [string, any]) => {
+              if (subBlock.value !== undefined && subBlock.value !== null) {
+                blockValues[subBlockId] = subBlock.value
+              }
+            })
+            if (Object.keys(blockValues).length > 0) {
+              subblockValues[block.id] = blockValues
+            }
+          }
         })
 
         // Update subblock store
-        if (activeWorkflowId) {
+        if (Object.keys(subblockValues).length > 0) {
           useSubBlockStore.setState((state) => ({
             workflowValues: {
               ...state.workflowValues,
-              [activeWorkflowId]: subblockValues,
+              [activeWorkflowId!]: subblockValues,
             },
           }))
         }
 
-        logger.info('Successfully updated local stores with preview changes')
+        logger.info('Successfully updated local stores with preview content')
 
-      } catch (storeError) {
-        logger.error('Failed to update local stores:', storeError)
-        throw new Error(`Store update failed: ${storeError instanceof Error ? storeError.message : 'Unknown error'}`)
+      } catch (parseError) {
+        logger.error('Failed to parse and apply preview locally:', parseError)
+        throw parseError
       }
 
       // STEP 2: Save to database (in background, don't await to keep UI responsive)
@@ -334,8 +250,8 @@ export function ReviewButton() {
               'Content-Type': 'application/json',
             },
             body: JSON.stringify({
-              yamlContent: latestPreview.latestPreview.yamlContent,
-              description: latestPreview.latestPreview.description || 'Applied copilot proposal',
+              yamlContent: currentChat.previewYaml,
+              description: 'Applied copilot proposal',
               source: 'copilot',
               applyAutoLayout: true,
               createCheckpoint: true,
@@ -364,11 +280,12 @@ export function ReviewButton() {
       // Save to database without blocking UI
       saveToDatabase()
 
-      // STEP 3: Only dismiss preview after successful store update (user has accepted)
-      console.log('Marking tool call as seen:', latestPreview.latestPreview.toolCallId)
-      markToolCallAsSeen(latestPreview.latestPreview.toolCallId)
-      console.log('Tool call marked as seen, closing modal')
+      // STEP 3: Clear preview YAML after successful store update (user has accepted)
+      console.log('Clearing preview YAML after successful apply')
+      await clearPreviewYaml()
+      console.log('Preview YAML cleared, closing modal')
       setShowModal(false)
+      setPreviewWorkflowState(null)
       
       // Continue the copilot conversation with acceptance message
       await sendImplicitFeedback('The user has accepted and applied the workflow changes. Please continue.')
@@ -380,7 +297,7 @@ export function ReviewButton() {
   }
 
   const handleSaveAsNew = async (name: string) => {
-    if (!latestPreview.latestPreview.yamlContent) {
+    if (!currentChat?.previewYaml) {
       logger.error('No YAML content to save')
       return
     }
@@ -390,13 +307,13 @@ export function ReviewButton() {
 
       logger.info('Creating new workflow from preview', {
         name,
-        yamlLength: latestPreview.latestPreview.yamlContent.length,
+        yamlLength: currentChat.previewYaml.length,
       })
 
       // First create a new workflow
       const newWorkflowId = await createWorkflow({
         name,
-        description: latestPreview.latestPreview.description,
+        description: 'Created from copilot proposal',
         workspaceId,
       })
 
@@ -411,8 +328,8 @@ export function ReviewButton() {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          yamlContent: latestPreview.latestPreview.yamlContent,
-          description: latestPreview.latestPreview.description || 'Created from copilot proposal',
+          yamlContent: currentChat.previewYaml,
+          description: 'Created from copilot proposal',
           source: 'copilot',
           applyAutoLayout: true,
           createCheckpoint: false,
@@ -431,8 +348,9 @@ export function ReviewButton() {
       }
 
       logger.info('Successfully created new workflow from preview')
-      markToolCallAsSeen(latestPreview.latestPreview.toolCallId)
+      await clearPreviewYaml()
       setShowModal(false)
+      setPreviewWorkflowState(null)
       
       // Continue the copilot conversation with save as new message
       await sendImplicitFeedback(`The user has saved the workflow changes as a new workflow named "${name}". Please continue.`)
@@ -444,12 +362,13 @@ export function ReviewButton() {
   }
 
   const handleReject = async () => {
-    if (!latestPreview?.latestPreview) return
+    if (!currentChat?.previewYaml) return
     
     try {
       setIsProcessing(true)
-      markToolCallAsSeen(latestPreview.latestPreview.toolCallId)
+      await clearPreviewYaml()
       setShowModal(false)
+      setPreviewWorkflowState(null)
       
       // Continue the copilot conversation with rejection message
       await sendImplicitFeedback('The user has rejected the workflow changes. Please continue.')
@@ -462,7 +381,15 @@ export function ReviewButton() {
 
   const handleClose = () => {
     setShowModal(false)
+    setPreviewWorkflowState(null)
   }
+
+  // Create preview data for the sandbox modal
+  const previewData = currentChat?.previewYaml && previewWorkflowState ? {
+    workflowState: previewWorkflowState,
+    yamlContent: currentChat.previewYaml,
+    description: 'Copilot generated workflow preview'
+  } : null
 
   return (
     <>
@@ -490,13 +417,13 @@ export function ReviewButton() {
       </div>
 
       {/* Sandbox Modal */}
-      {showModal && latestPreview?.latestPreview && (
+      {showModal && previewData && (
         <CopilotSandboxModal
           isOpen={showModal}
           onClose={handleClose}
-          proposedWorkflowState={latestPreview.latestPreview.workflowState}
-          yamlContent={latestPreview.latestPreview.yamlContent}
-          description={latestPreview.latestPreview.description}
+          proposedWorkflowState={previewData.workflowState}
+          yamlContent={previewData.yamlContent}
+          description={previewData.description}
           onApplyToCurrentWorkflow={handleApply}
           onSaveAsNewWorkflow={handleSaveAsNew}
           onReject={handleReject}

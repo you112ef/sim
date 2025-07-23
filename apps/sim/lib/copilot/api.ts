@@ -37,7 +37,7 @@ export interface CopilotMessage {
 }
 
 /**
- * Chat interface for copilot conversations
+ * Chat interface for copilot conversations (API layer)
  */
 export interface CopilotChat {
   id: string
@@ -45,6 +45,7 @@ export interface CopilotChat {
   model: string
   messages: CopilotMessage[]
   messageCount: number
+  previewYaml: string | null
   createdAt: Date
   updatedAt: Date
 }

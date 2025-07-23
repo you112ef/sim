@@ -74,6 +74,7 @@ const UpdateChatSchema = z.object({
     )
     .optional(),
   title: z.string().optional(),
+  previewYaml: z.string().nullable().optional(),
 })
 
 // Schema for listing chats
@@ -322,7 +323,7 @@ export async function PATCH(req: NextRequest) {
     }
 
     const body = await req.json()
-    const { chatId, messages, title } = UpdateChatSchema.parse(body)
+    const { chatId, messages, title, previewYaml } = UpdateChatSchema.parse(body)
 
     logger.info(`Updating chat ${chatId} for user ${session.user.id}`)
 
@@ -349,7 +350,7 @@ export async function PATCH(req: NextRequest) {
     const chat = await updateChat(chatId, session.user.id, {
       messages,
       title: titleToUse,
-
+      previewYaml: previewYaml !== undefined ? previewYaml : undefined,
     })
 
     if (!chat) {

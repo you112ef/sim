@@ -59,6 +59,7 @@ export interface CopilotChat {
   model: string
   messages: CopilotMessage[]
   messageCount: number
+  previewYaml: string | null
   createdAt: Date
   updatedAt: Date
 }
@@ -124,6 +125,7 @@ export interface CreateChatOptions {
 export interface UpdateChatOptions {
   title?: string
   messages?: CopilotMessage[]
+  previewYaml?: string | null
 }
 
 /**
@@ -564,6 +566,7 @@ export async function createChat(
       model: newChat.model,
       messages: Array.isArray(newChat.messages) ? newChat.messages : [],
       messageCount: Array.isArray(newChat.messages) ? newChat.messages.length : 0,
+      previewYaml: newChat.previewYaml,
       createdAt: newChat.createdAt,
       updatedAt: newChat.updatedAt,
     }
@@ -596,6 +599,7 @@ export async function getChat(chatId: string, userId: string): Promise<CopilotCh
       model: chat.model,
       messages: Array.isArray(chat.messages) ? chat.messages : [],
       messageCount: Array.isArray(chat.messages) ? chat.messages.length : 0,
+      previewYaml: chat.previewYaml,
       createdAt: chat.createdAt,
       updatedAt: chat.updatedAt,
     }
@@ -630,6 +634,7 @@ export async function listChats(
       model: chat.model,
       messages: Array.isArray(chat.messages) ? chat.messages : [],
       messageCount: Array.isArray(chat.messages) ? chat.messages.length : 0,
+      previewYaml: chat.previewYaml,
       createdAt: chat.createdAt,
       updatedAt: chat.updatedAt,
     }))
@@ -661,6 +666,7 @@ export async function updateChat(
 
     if (updates.title !== undefined) updateData.title = updates.title
     if (updates.messages !== undefined) updateData.messages = updates.messages
+    if (updates.previewYaml !== undefined) updateData.previewYaml = updates.previewYaml
 
     // Update the chat
     const [updatedChat] = await db
@@ -679,6 +685,7 @@ export async function updateChat(
       model: updatedChat.model,
       messages: Array.isArray(updatedChat.messages) ? updatedChat.messages : [],
       messageCount: Array.isArray(updatedChat.messages) ? updatedChat.messages.length : 0,
+      previewYaml: updatedChat.previewYaml,
       createdAt: updatedChat.createdAt,
       updatedAt: updatedChat.updatedAt,
     }

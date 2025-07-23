@@ -63,6 +63,7 @@ export interface CopilotChat {
   model: string
   messages: CopilotMessage[]
   messageCount: number
+  previewYaml: string | null // YAML content for pending workflow preview
   createdAt: Date
   updatedAt: Date
 }
@@ -144,6 +145,10 @@ export interface CopilotActions {
   // Checkpoint management
   loadCheckpoints: (chatId: string) => Promise<void>
   revertToCheckpoint: (checkpointId: string) => Promise<void>
+
+  // Preview management
+  setPreviewYaml: (yamlContent: string) => Promise<void>
+  clearPreviewYaml: () => Promise<void>
 
   // Utility actions
   clearMessages: () => void
