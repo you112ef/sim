@@ -80,7 +80,7 @@ export function ReviewButton() {
   const params = useParams()
   const workspaceId = params.workspaceId as string
   const { activeWorkflowId, createWorkflow } = useWorkflowRegistry()
-  const { messages } = useCopilotStore()
+  const { messages, sendMessage } = useCopilotStore()
   const { markToolCallAsSeen, isToolCallSeen, seenToolCallIds } = usePreviewStore(
     (state) => ({
       markToolCallAsSeen: state.markToolCallAsSeen,
@@ -160,6 +160,9 @@ export function ReviewButton() {
       markToolCallAsSeen(latestPreview.toolCallId)
       console.log('Tool call marked as seen, closing modal')
       setShowModal(false)
+      
+      // Continue the copilot conversation with acceptance message
+      await sendMessage('I have accepted and applied the workflow changes. Please continue.')
     } catch (error) {
       logger.error('Failed to apply preview:', error)
     } finally {
@@ -221,6 +224,9 @@ export function ReviewButton() {
       logger.info('Successfully created new workflow from preview')
       markToolCallAsSeen(latestPreview.toolCallId)
       setShowModal(false)
+      
+      // Continue the copilot conversation with save as new message
+      await sendMessage(`I have saved the workflow changes as a new workflow named "${name}". Please continue.`)
     } catch (error) {
       logger.error('Failed to save preview as new workflow:', error)
     } finally {
@@ -228,8 +234,15 @@ export function ReviewButton() {
     }
   }
 
-  const handleClose = () => {
+  const handleClose = async () => {
     setShowModal(false)
+    
+    // If there's a preview when closing, mark it as seen and send rejection message
+    if (latestPreview) {
+      markToolCallAsSeen(latestPreview.toolCallId)
+      // Continue the copilot conversation with rejection message
+      await sendMessage('I have rejected the workflow changes. Please continue or make different modifications.')
+    }
   }
 
   return (

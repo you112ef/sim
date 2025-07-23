@@ -85,6 +85,33 @@ function handleStoreError(error: unknown, fallbackMessage: string): string {
 }
 
 /**
+ * Helper function to check if a preview_workflow tool call has completed in the content
+ */
+function checkForPreviewToolCompletion(content: string): boolean {
+  // Look for tool call completion events in the content
+  const previewToolCallPattern = /__TOOL_CALL_EVENT__(.*?)__TOOL_CALL_EVENT__/g
+  let match
+
+  while ((match = previewToolCallPattern.exec(content)) !== null) {
+    try {
+      const toolCallEvent = JSON.parse(match[1])
+      if (
+        toolCallEvent.type === 'tool_call_complete' &&
+        toolCallEvent.toolCall?.name === 'preview_workflow' &&
+        toolCallEvent.toolCall?.state === 'completed'
+      ) {
+        return true // Found a completed preview tool call
+      }
+    } catch (error) {
+      // Ignore parsing errors for malformed events
+      continue
+    }
+  }
+
+  return false
+}
+
+/**
  * Copilot store using the new unified API
  */
 export const useCopilotStore = create<CopilotStore>()(
@@ -448,6 +475,39 @@ export const useCopilotStore = create<CopilotStore>()(
                     }
                   } else if (data.type === 'content') {
                     accumulatedContent += data.content
+
+                    // Check if we just completed a preview_workflow tool call and should stop streaming
+                    const shouldStopStreaming = checkForPreviewToolCompletion(accumulatedContent)
+                    if (shouldStopStreaming) {
+                      logger.info('Preview workflow tool completed - stopping stream')
+                      streamComplete = true
+                      
+                      // Final update with current content
+                      set((state) => ({
+                        messages: state.messages.map((msg) =>
+                          msg.id === messageId ? { ...msg, content: accumulatedContent } : msg
+                        ),
+                        isSendingMessage: false,
+                      }))
+
+                      // Save chat immediately when stopping for preview
+                      const chatIdToSave = newChatId || get().currentChat?.id
+                      if (chatIdToSave) {
+                        try {
+                          await get().saveChatMessages(chatIdToSave)
+                        } catch (saveError) {
+                          logger.warn(`Chat save failed after preview stop: ${saveError}`)
+                        }
+                      }
+                                             
+                       // Close the reader to stop the stream
+                       try {
+                         reader.cancel()
+                       } catch (error) {
+                         // Ignore cancellation errors
+                       }
+                       return // Exit the entire streaming function
+                    }
 
                     // Update the streaming message
                     set((state) => ({

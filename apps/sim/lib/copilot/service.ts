@@ -339,7 +339,7 @@ function getAvailableTools(mode: 'ask' | 'agent'): ProviderToolConfig[] {
       id: 'preview_workflow',
       name: 'Preview Workflow',
       description:
-        'Generate a sandbox preview of the workflow without saving it. This allows users to see the proposed changes before applying them. This is the ONLY way to propose workflow changes.',
+        'Generate a sandbox preview of the workflow without saving it. This allows users to see the proposed changes before applying them. This is the ONLY way to propose workflow changes. IMPORTANT: After calling this tool, you MUST stop your response immediately and wait for the user to either accept, reject, or provide additional feedback before continuing the conversation.',
       params: {},
       parameters: {
         type: 'object',
