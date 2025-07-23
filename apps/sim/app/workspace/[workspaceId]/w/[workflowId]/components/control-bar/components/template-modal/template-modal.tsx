@@ -72,7 +72,6 @@ import { Textarea } from '@/components/ui/textarea'
 import { useSession } from '@/lib/auth-client'
 import { createLogger } from '@/lib/logs/console-logger'
 import { cn } from '@/lib/utils'
-import { buildWorkflowStateForTemplate } from '@/lib/workflows/state-builder'
 import { categories } from '@/app/workspace/[workspaceId]/templates/templates'
 
 const logger = createLogger('TemplateModal')
@@ -187,9 +186,7 @@ export function TemplateModal({ open, onOpenChange, workflowId }: TemplateModalP
     setIsSubmitting(true)
 
     try {
-      // Create the template state from current workflow using the same format as deployment
-      const templateState = buildWorkflowStateForTemplate(workflowId)
-
+      // Send only basic template metadata - server will fetch state from normalized tables
       const templateData = {
         workflowId,
         name: data.name,
@@ -198,7 +195,6 @@ export function TemplateModal({ open, onOpenChange, workflowId }: TemplateModalP
         category: data.category,
         icon: data.icon,
         color: data.color,
-        state: templateState,
       }
 
       const response = await fetch('/api/templates', {

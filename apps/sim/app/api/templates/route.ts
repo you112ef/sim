@@ -12,7 +12,6 @@ const logger = createLogger('TemplatesAPI')
 export const dynamic = 'force-dynamic'
 export const revalidate = 0
 
-// Function to sanitize sensitive data from workflow state
 function sanitizeWorkflowState(state: any): any {
   const sanitizedState = JSON.parse(JSON.stringify(state)) // Deep clone
 
@@ -37,7 +36,7 @@ function sanitizeWorkflowState(state: any): any {
 
       // Also clear from data field if present
       if (block.data) {
-        Object.entries(block.data).forEach(([key, value]: [string, any]) => {
+        Object.entries(block.data).forEach(([key, _value]: [string, any]) => {
           if (/credential|oauth|api[_-]?key|token|secret|auth|password|bearer/i.test(key)) {
             block.data[key] = ''
           }
@@ -49,7 +48,6 @@ function sanitizeWorkflowState(state: any): any {
   return sanitizedState
 }
 
-// Schema for creating a template
 const CreateTemplateSchema = z.object({
   workflowId: z.string().min(1, 'Workflow ID is required'),
   name: z.string().min(1, 'Name is required').max(100, 'Name must be less than 100 characters'),
@@ -64,15 +62,8 @@ const CreateTemplateSchema = z.object({
   category: z.string().min(1, 'Category is required'),
   icon: z.string().min(1, 'Icon is required'),
   color: z.string().regex(/^#[0-9A-F]{6}$/i, 'Color must be a valid hex color (e.g., #3972F6)'),
-  state: z.object({
-    blocks: z.record(z.any()),
-    edges: z.array(z.any()),
-    loops: z.record(z.any()),
-    parallels: z.record(z.any()),
-  }),
 })
 
-// Schema for query parameters
 const QueryParamsSchema = z.object({
   category: z.string().optional(),
   limit: z.coerce.number().optional().default(50),
@@ -214,8 +205,99 @@ export async function POST(request: NextRequest) {
     const templateId = uuidv4()
     const now = new Date()
 
-    // Sanitize the workflow state to remove sensitive credentials
-    const sanitizedState = sanitizeWorkflowState(data.state)
+    // Load current state from normalized tables (server-side only, no client state)
+    logger.debug(`[${requestId}] Loading workflow state from normalized tables`)
+    const { loadWorkflowFromNormalizedTables } = await import('@/lib/workflows/db-helpers')
+    const normalizedData = await loadWorkflowFromNormalizedTables(data.workflowId)
+
+    if (!normalizedData) {
+      logger.error(`[${requestId}] No normalized data found for workflow: ${data.workflowId}`)
+      return NextResponse.json(
+        { error: 'Workflow data not found or not migrated to normalized tables' },
+        { status: 404 }
+      )
+    }
+
+    const workflowState = {
+      blocks: normalizedData.blocks,
+      edges: normalizedData.edges,
+      loops: normalizedData.loops,
+      parallels: normalizedData.parallels,
+      lastSaved: Date.now(),
+    }
+    logger.debug(
+      `[${requestId}] Using normalized table data with ${Object.keys(normalizedData.blocks).length} blocks`
+    )
+
+    // Create ID mapping for template (remap all IDs to avoid conflicts)
+    const templateIdMap = new Map<string, string>()
+
+    // Remap block IDs
+    const templateBlocksMap: Record<string, any> = {}
+    Object.values(workflowState.blocks || {}).forEach((block: any) => {
+      const templateBlockId = uuidv4()
+      templateIdMap.set(block.id, templateBlockId)
+
+      templateBlocksMap[templateBlockId] = {
+        ...block,
+        id: templateBlockId,
+        // Preserve subBlocks which contain system prompts for agents
+        subBlocks: block.subBlocks || {},
+        data: block.data || {},
+        outputs: block.outputs || {},
+      }
+    })
+
+    // Remap edge IDs and block references
+    const templateEdges = (workflowState.edges || []).map((edge: any) => ({
+      ...edge,
+      id: uuidv4(),
+      source: templateIdMap.get(edge.source) || edge.source,
+      target: templateIdMap.get(edge.target) || edge.target,
+    }))
+
+    // Remap loop IDs and node references
+    const templateLoops: Record<string, any> = {}
+    Object.entries(workflowState.loops || {}).forEach(([_loopId, loopConfig]: [string, any]) => {
+      const templateLoopId = uuidv4()
+      templateLoops[templateLoopId] = {
+        ...loopConfig,
+        id: templateLoopId,
+        nodes: (loopConfig.nodes || []).map(
+          (nodeId: string) => templateIdMap.get(nodeId) || nodeId
+        ),
+      }
+    })
+
+    // Remap parallel IDs and node references
+    const templateParallels: Record<string, any> = {}
+    Object.entries(workflowState.parallels || {}).forEach(
+      ([_parallelId, parallelConfig]: [string, any]) => {
+        const templateParallelId = uuidv4()
+        templateParallels[templateParallelId] = {
+          ...parallelConfig,
+          id: templateParallelId,
+          nodes: (parallelConfig.nodes || []).map(
+            (nodeId: string) => templateIdMap.get(nodeId) || nodeId
+          ),
+        }
+      }
+    )
+
+    const templateState = {
+      blocks: templateBlocksMap,
+      edges: templateEdges,
+      loops: templateLoops,
+      parallels: templateParallels,
+      lastSaved: Date.now(),
+    }
+
+    logger.debug(
+      `[${requestId}] Template state created with ${Object.keys(templateBlocksMap).length} blocks, ${templateEdges.length} edges`
+    )
+
+    // Sanitize the template state to remove sensitive credentials
+    const sanitizedState = sanitizeWorkflowState(templateState)
 
     const newTemplate = {
       id: templateId,

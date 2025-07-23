@@ -4,7 +4,7 @@ import { v4 as uuidv4 } from 'uuid'
 import { getSession } from '@/lib/auth'
 import { createLogger } from '@/lib/logs/console-logger'
 import { db } from '@/db'
-import { templates, workflow, workflowBlocks, workflowEdges } from '@/db/schema'
+import { templates, workflow } from '@/db/schema'
 
 const logger = createLogger('TemplateUseAPI')
 
@@ -89,86 +89,98 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
         })
         .returning({ id: workflow.id })
 
-      // Create workflow_blocks entries from the template state
+      // Use same robust pattern as workflow deployment with ID remapping
       const templateState = templateData.state as any
-      if (templateState?.blocks) {
-        // Create a mapping from old block IDs to new block IDs for reference updates
-        const blockIdMap = new Map<string, string>()
+      logger.debug(
+        `[${requestId}] Remapping template state with ${Object.keys(templateState.blocks || {}).length} blocks`
+      )
 
-        const blockEntries = Object.values(templateState.blocks).map((block: any) => {
-          const newBlockId = uuidv4()
-          blockIdMap.set(block.id, newBlockId)
+      // Create ID mapping from template IDs to new workflow IDs
+      const workflowIdMap = new Map<string, string>()
 
-          return {
-            id: newBlockId,
-            workflowId: newWorkflowId,
-            type: block.type,
-            name: block.name,
-            positionX: block.position?.x?.toString() || '0',
-            positionY: block.position?.y?.toString() || '0',
-            enabled: block.enabled !== false,
-            horizontalHandles: block.horizontalHandles !== false,
-            isWide: block.isWide || false,
-            advancedMode: block.advancedMode || false,
-            height: block.height?.toString() || '0',
-            subBlocks: block.subBlocks || {},
-            outputs: block.outputs || {},
-            data: block.data || {},
-            parentId: block.parentId ? blockIdMap.get(block.parentId) || null : null,
-            extent: block.extent || null,
-            createdAt: now,
-            updatedAt: now,
+      // Remap block IDs for new workflow
+      const workflowBlocksMap: Record<string, any> = {}
+      Object.values(templateState.blocks || {}).forEach((block: any) => {
+        const newBlockId = uuidv4()
+        workflowIdMap.set(block.id, newBlockId)
+
+        workflowBlocksMap[newBlockId] = {
+          ...block,
+          id: newBlockId,
+          // Preserve subBlocks which contain system prompts for agents
+          subBlocks: block.subBlocks || {},
+          data: block.data || {},
+          outputs: block.outputs || {},
+        }
+      })
+
+      // Remap edges with new block references
+      const workflowEdges = (templateState.edges || []).map((edge: any) => ({
+        ...edge,
+        id: uuidv4(),
+        source: workflowIdMap.get(edge.source) || edge.source,
+        target: workflowIdMap.get(edge.target) || edge.target,
+      }))
+
+      // Remap loops with new node references
+      const workflowLoops: Record<string, any> = {}
+      Object.entries(templateState.loops || {}).forEach(
+        ([_templateLoopId, loopConfig]: [string, any]) => {
+          const newLoopId = uuidv4()
+          workflowLoops[newLoopId] = {
+            ...loopConfig,
+            id: newLoopId,
+            nodes: (loopConfig.nodes || []).map(
+              (nodeId: string) => workflowIdMap.get(nodeId) || nodeId
+            ),
           }
-        })
-
-        // Create edge entries with new IDs
-        const edgeEntries = (templateState.edges || []).map((edge: any) => ({
-          id: uuidv4(),
-          workflowId: newWorkflowId,
-          sourceBlockId: blockIdMap.get(edge.source) || edge.source,
-          targetBlockId: blockIdMap.get(edge.target) || edge.target,
-          sourceHandle: edge.sourceHandle || null,
-          targetHandle: edge.targetHandle || null,
-          createdAt: now,
-        }))
-
-        // Update the workflow state with new block IDs
-        const updatedState = { ...templateState }
-        if (updatedState.blocks) {
-          const newBlocks: any = {}
-          Object.entries(updatedState.blocks).forEach(([oldId, blockData]: [string, any]) => {
-            const newId = blockIdMap.get(oldId)
-            if (newId) {
-              newBlocks[newId] = {
-                ...blockData,
-                id: newId,
-              }
-            }
-          })
-          updatedState.blocks = newBlocks
         }
+      )
 
-        // Update edges to use new block IDs
-        if (updatedState.edges) {
-          updatedState.edges = updatedState.edges.map((edge: any) => ({
-            ...edge,
-            id: uuidv4(),
-            source: blockIdMap.get(edge.source) || edge.source,
-            target: blockIdMap.get(edge.target) || edge.target,
-          }))
+      // Remap parallels with new node references
+      const workflowParallels: Record<string, any> = {}
+      Object.entries(templateState.parallels || {}).forEach(
+        ([_templateParallelId, parallelConfig]: [string, any]) => {
+          const newParallelId = uuidv4()
+          workflowParallels[newParallelId] = {
+            ...parallelConfig,
+            id: newParallelId,
+            nodes: (parallelConfig.nodes || []).map(
+              (nodeId: string) => workflowIdMap.get(nodeId) || nodeId
+            ),
+          }
         }
+      )
 
-        // Update the workflow with the corrected state
-        await tx.update(workflow).set({ state: updatedState }).where(eq(workflow.id, newWorkflowId))
-
-        // Insert blocks and edges
-        if (blockEntries.length > 0) {
-          await tx.insert(workflowBlocks).values(blockEntries)
-        }
-        if (edgeEntries.length > 0) {
-          await tx.insert(workflowEdges).values(edgeEntries)
-        }
+      const finalWorkflowState = {
+        blocks: workflowBlocksMap,
+        edges: workflowEdges,
+        loops: workflowLoops,
+        parallels: workflowParallels,
+        lastSaved: Date.now(),
       }
+
+      // Update the workflow with complete remapped state
+      await tx
+        .update(workflow)
+        .set({ state: finalWorkflowState })
+        .where(eq(workflow.id, newWorkflowId))
+
+      // Also save to normalized tables using the existing helper
+      const { saveWorkflowToNormalizedTables } = await import('@/lib/workflows/db-helpers')
+      const saveResult = await saveWorkflowToNormalizedTables(
+        newWorkflowId,
+        finalWorkflowState as any
+      )
+
+      if (!saveResult.success) {
+        logger.error(`[${requestId}] Failed to save to normalized tables: ${saveResult.error}`)
+        throw new Error(`Failed to save workflow to normalized tables: ${saveResult.error}`)
+      }
+
+      logger.debug(
+        `[${requestId}] Successfully saved workflow to normalized tables with ${Object.keys(workflowBlocksMap).length} blocks`
+      )
 
       return newWorkflow[0]
     })
