@@ -15,6 +15,7 @@ import { getApiKey, getProviderFromModel, transformBlockTool } from '@/providers
 import type { SerializedBlock } from '@/serializer/types'
 import { executeTool } from '@/tools'
 import { getTool, getToolAsync } from '@/tools/utils'
+import { getBaseUrl } from '@/lib/urls/utils'
 
 const logger = createLogger('AgentBlockHandler')
 
@@ -477,7 +478,7 @@ export class AgentBlockHandler implements BlockHandler {
   ) {
     logger.info('Using HTTP provider request (browser environment)')
 
-    const url = new URL('/api/providers', env.NEXT_PUBLIC_APP_URL || '')
+    const url = new URL('/api/providers', getBaseUrl())
     const response = await fetch(url.toString(), {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },

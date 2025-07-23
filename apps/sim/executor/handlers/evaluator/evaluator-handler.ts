@@ -5,6 +5,7 @@ import { BlockType } from '@/executor/consts'
 import type { BlockHandler, ExecutionContext } from '@/executor/types'
 import { calculateCost, getProviderFromModel } from '@/providers/utils'
 import type { SerializedBlock } from '@/serializer/types'
+import { getBaseUrl } from '@/lib/urls/utils'
 
 const logger = createLogger('EvaluatorBlockHandler')
 
@@ -104,8 +105,7 @@ export class EvaluatorBlockHandler implements BlockHandler {
     }
 
     try {
-      const baseUrl = env.NEXT_PUBLIC_APP_URL || ''
-      const url = new URL('/api/providers', baseUrl)
+      const url = new URL('/api/providers', getBaseUrl())
 
       // Make sure we force JSON output in the request
       const providerRequest = {
