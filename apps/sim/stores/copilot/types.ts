@@ -16,7 +16,7 @@ export interface CopilotToolCall {
   name: string
   displayName: string
   input: Record<string, any>
-  state: 'executing' | 'completed' | 'error'
+  state: 'executing' | 'completed' | 'error' | 'ready_for_review' | 'applied' | 'rejected'
   startTime?: number
   endTime?: number
   duration?: number
@@ -156,7 +156,7 @@ export interface CopilotActions {
 
   // Message handling
   sendMessage: (message: string, options?: SendMessageOptions) => Promise<void>
-  sendImplicitFeedback: (implicitFeedback: string) => Promise<void>
+  sendImplicitFeedback: (implicitFeedback: string, toolCallState?: 'applied' | 'rejected') => Promise<void>
   sendDocsMessage: (query: string, options?: SendDocsMessageOptions) => Promise<void>
   saveChatMessages: (chatId: string) => Promise<void>
 

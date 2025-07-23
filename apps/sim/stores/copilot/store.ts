@@ -394,8 +394,8 @@ export const useCopilotStore = create<CopilotStore>()(
         }
       },
 
-      // Send implicit feedback to continue conversation without showing user message
-      sendImplicitFeedback: async (implicitFeedback: string) => {
+      // Send implicit feedback and update preview tool call state
+      sendImplicitFeedback: async (implicitFeedback: string, toolCallState?: 'applied' | 'rejected') => {
         const { workflowId, currentChat, mode, messages } = get()
 
         if (!workflowId) {
@@ -405,19 +405,38 @@ export const useCopilotStore = create<CopilotStore>()(
 
         set({ isSendingMessage: true, error: null })
 
-        // Find the last assistant message (the one that was cut off by preview tool)
-        let lastAssistantMessage = null
-        for (let i = messages.length - 1; i >= 0; i--) {
-          if (messages[i].role === 'assistant') {
-            lastAssistantMessage = messages[i]
-            break
+        // Update the preview_workflow tool call state if provided
+        if (toolCallState) {
+          // Find the last message with a preview_workflow tool call
+          const lastMessageWithPreview = [...messages].reverse().find(msg => 
+            msg.role === 'assistant' && msg.toolCalls?.some(tc => tc.name === 'preview_workflow')
+          )
+
+          if (lastMessageWithPreview) {
+            set((state) => ({
+              messages: state.messages.map((msg) =>
+                msg.id === lastMessageWithPreview.id ? {
+                  ...msg,
+                  toolCalls: msg.toolCalls?.map(tc => 
+                    tc.name === 'preview_workflow' ? { ...tc, state: toolCallState } : tc
+                  ),
+                  contentBlocks: msg.contentBlocks?.map(block =>
+                    block.type === 'tool_call' && block.toolCall.name === 'preview_workflow'
+                      ? { ...block, toolCall: { ...block.toolCall, state: toolCallState } }
+                      : block
+                  )
+                } : msg
+              ),
+            }))
           }
         }
 
-        if (!lastAssistantMessage) {
-          logger.warn('No previous assistant message found to continue')
-          return
-        }
+        // Create a new assistant message for the response
+        const newAssistantMessage = createStreamingMessage()
+
+        set((state) => ({
+          messages: [...state.messages, newAssistantMessage],
+        }))
 
         try {
           const result = await sendStreamingMessage({
@@ -431,20 +450,20 @@ export const useCopilotStore = create<CopilotStore>()(
           })
 
           if (result.success && result.stream) {
-            // Continue streaming to the existing assistant message
-            await get().handleStreamingResponse(result.stream, lastAssistantMessage.id, true)
+            // Stream to the new assistant message (not continuation)
+            await get().handleStreamingResponse(result.stream, newAssistantMessage.id, false)
           } else {
             throw new Error(result.error || 'Failed to send implicit feedback')
           }
         } catch (error) {
           const errorMessage = createErrorMessage(
-            lastAssistantMessage?.id || crypto.randomUUID(),
+            newAssistantMessage.id,
             'Sorry, I encountered an error while processing your feedback. Please try again.'
           )
 
           set((state) => ({
             messages: state.messages.map((msg) =>
-              msg.id === lastAssistantMessage?.id ? errorMessage : msg
+              msg.id === newAssistantMessage.id ? errorMessage : msg
             ),
             error: handleStoreError(error, 'Failed to send implicit feedback'),
             isSendingMessage: false,
@@ -682,7 +701,8 @@ export const useCopilotStore = create<CopilotStore>()(
                       try {
                         // Parse complete tool call input
                         toolCallBuffer.input = JSON.parse(toolCallBuffer.partialInput || '{}')
-                        toolCallBuffer.state = 'completed'
+                        // Set preview_workflow tools to ready_for_review, others to completed
+                        toolCallBuffer.state = toolCallBuffer.name === 'preview_workflow' ? 'ready_for_review' : 'completed'
                         toolCallBuffer.endTime = Date.now()
                         toolCallBuffer.duration = toolCallBuffer.endTime - toolCallBuffer.startTime
                         logger.info(`Tool call completed: ${toolCallBuffer.name}`, toolCallBuffer.input)

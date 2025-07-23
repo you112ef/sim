@@ -53,23 +53,34 @@ export function ReviewButton() {
     if (!currentChat?.previewYaml) return
     
     try {
+      // Validate YAML content before sending
+      const yamlContent = currentChat.previewYaml.trim()
+      if (!yamlContent) {
+        throw new Error('Preview YAML content is empty')
+      }
+
+      logger.info('Generating preview with YAML content (first 200 chars):', yamlContent.substring(0, 200))
+      
       // Generate workflow state from YAML for the modal
       const response = await fetch('/api/workflows/preview', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          yamlContent: currentChat.previewYaml,
+          yamlContent,
           applyAutoLayout: true,
         }),
       })
 
       if (!response.ok) {
-        throw new Error('Failed to generate preview')
+        const errorText = await response.text()
+        logger.error('Preview API response not ok:', { status: response.status, statusText: response.statusText, errorText })
+        throw new Error(`Failed to generate preview: ${response.status} ${response.statusText}`)
       }
 
       const result = await response.json()
       
       if (!result.success) {
+        logger.error('Preview API returned error:', result)
         throw new Error(result.message || 'Failed to generate preview')
       }
 
@@ -77,7 +88,12 @@ export function ReviewButton() {
       setPreviewWorkflowState(result.workflowState)
       setShowModal(true)
     } catch (error) {
-      logger.error('Failed to generate preview for modal:', error)
+      logger.error('Failed to generate preview for modal:', {
+        error: error instanceof Error ? error.message : String(error),
+        yamlLength: currentChat?.previewYaml?.length,
+        yamlPreview: currentChat?.previewYaml?.substring(0, 100)
+      })
+      // TODO: Show user-friendly error message
     }
   }
 
@@ -288,7 +304,10 @@ export function ReviewButton() {
       setPreviewWorkflowState(null)
       
       // Continue the copilot conversation with acceptance message
-      await sendImplicitFeedback('The user has accepted and applied the workflow changes. Please continue.')
+      await sendImplicitFeedback(
+        'The user has accepted and applied the workflow changes. Please provide an acknowledgement.',
+        'applied'
+      )
     } catch (error) {
       logger.error('Failed to apply preview:', error)
     } finally {
@@ -352,8 +371,11 @@ export function ReviewButton() {
       setShowModal(false)
       setPreviewWorkflowState(null)
       
-      // Continue the copilot conversation with save as new message
-      await sendImplicitFeedback(`The user has saved the workflow changes as a new workflow named "${name}". Please continue.`)
+      // Continue the copilot conversation with save as new message  
+      await sendImplicitFeedback(
+        `The user has saved the workflow changes as a new workflow named "${name}". Please continue.`,
+        'applied'
+      )
     } catch (error) {
       logger.error('Failed to save preview as new workflow:', error)
     } finally {
@@ -371,7 +393,10 @@ export function ReviewButton() {
       setPreviewWorkflowState(null)
       
       // Continue the copilot conversation with rejection message
-      await sendImplicitFeedback('The user has rejected the workflow changes. Please continue.')
+      await sendImplicitFeedback(
+        'The user has rejected the workflow changes. Please continue.',
+        'rejected'
+      )
     } catch (error) {
       logger.error('Failed to reject preview:', error)
     } finally {

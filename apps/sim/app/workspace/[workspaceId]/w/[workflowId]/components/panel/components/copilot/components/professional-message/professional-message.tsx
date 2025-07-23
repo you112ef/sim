@@ -28,6 +28,12 @@ function InlineToolCall({ tool, stepNumber }: { tool: ToolCallState | any, stepN
         return <Loader2 className="h-3 w-3 animate-spin text-blue-600 dark:text-blue-400" />
       case 'completed':
         return <CheckCircle className="h-3 w-3 text-green-600 dark:text-green-400" />
+      case 'ready_for_review':
+        return <CheckCircle className="h-3 w-3 text-purple-600 dark:text-purple-400" />
+      case 'applied':
+        return <CheckCircle className="h-3 w-3 text-green-600 dark:text-green-400" />
+      case 'rejected':
+        return <XCircle className="h-3 w-3 text-orange-600 dark:text-orange-400" />
       case 'error':
         return <XCircle className="h-3 w-3 text-red-600 dark:text-red-400" />
       default:
@@ -41,6 +47,12 @@ function InlineToolCall({ tool, stepNumber }: { tool: ToolCallState | any, stepN
         return 'border-blue-200 bg-blue-50 text-blue-900 dark:border-blue-800 dark:bg-blue-950 dark:text-blue-100'
       case 'completed':
         return 'border-green-200 bg-green-50 text-green-900 dark:border-green-800 dark:bg-green-950 dark:text-green-100'
+      case 'ready_for_review':
+        return 'border-purple-200 bg-purple-50 text-purple-900 dark:border-purple-800 dark:bg-purple-950 dark:text-purple-100'
+      case 'applied':
+        return 'border-green-200 bg-green-50 text-green-900 dark:border-green-800 dark:bg-green-950 dark:text-green-100'
+      case 'rejected':
+        return 'border-orange-200 bg-orange-50 text-orange-900 dark:border-orange-800 dark:bg-orange-950 dark:text-orange-100'
       case 'error':
         return 'border-red-200 bg-red-50 text-red-900 dark:border-red-800 dark:bg-red-950 dark:text-red-100'
       default:
@@ -60,45 +72,59 @@ function InlineToolCall({ tool, stepNumber }: { tool: ToolCallState | any, stepN
     return (
       <div className={cn(
         'rounded-xl border-2 p-4 transition-all duration-300',
-        tool.state === 'executing' && 'border-purple-200 bg-gradient-to-r from-purple-50 to-violet-50 dark:border-purple-800 dark:from-purple-950/50 dark:to-violet-950/50',
-        tool.state === 'completed' && 'border-green-200 bg-gradient-to-r from-green-50 to-emerald-50 dark:border-green-800 dark:from-green-950/50 dark:to-emerald-950/50',
+        tool.state === 'executing' && 'border-blue-200 bg-gradient-to-r from-blue-50 to-indigo-50 dark:border-blue-800 dark:from-blue-950/50 dark:to-indigo-950/50',
+        tool.state === 'ready_for_review' && 'border-purple-200 bg-gradient-to-r from-purple-50 to-violet-50 dark:border-purple-800 dark:from-purple-950/50 dark:to-violet-950/50',
+        tool.state === 'applied' && 'border-green-200 bg-gradient-to-r from-green-50 to-emerald-50 dark:border-green-800 dark:from-green-950/50 dark:to-emerald-950/50',
+        tool.state === 'rejected' && 'border-orange-200 bg-gradient-to-r from-orange-50 to-amber-50 dark:border-orange-800 dark:from-orange-950/50 dark:to-amber-950/50',
         tool.state === 'error' && 'border-red-200 bg-gradient-to-r from-red-50 to-pink-50 dark:border-red-800 dark:from-red-950/50 dark:to-pink-950/50'
       )}>
         <div className="flex items-center gap-3">
           <div className={cn(
             'flex h-8 w-8 items-center justify-center rounded-full',
-            tool.state === 'executing' && 'bg-purple-100 dark:bg-purple-900',
-            tool.state === 'completed' && 'bg-green-100 dark:bg-green-900',
+            tool.state === 'executing' && 'bg-blue-100 dark:bg-blue-900',
+            tool.state === 'ready_for_review' && 'bg-purple-100 dark:bg-purple-900',
+            tool.state === 'applied' && 'bg-green-100 dark:bg-green-900',
+            tool.state === 'rejected' && 'bg-orange-100 dark:bg-orange-900',
             tool.state === 'error' && 'bg-red-100 dark:bg-red-900'
           )}>
-            {tool.state === 'executing' && <Loader2 className="h-4 w-4 animate-spin text-purple-600 dark:text-purple-400" />}
-            {tool.state === 'completed' && <CheckCircle className="h-4 w-4 text-green-600 dark:text-green-400" />}
+            {tool.state === 'executing' && <Loader2 className="h-4 w-4 animate-spin text-blue-600 dark:text-blue-400" />}
+            {tool.state === 'ready_for_review' && <CheckCircle className="h-4 w-4 text-purple-600 dark:text-purple-400" />}
+            {tool.state === 'applied' && <CheckCircle className="h-4 w-4 text-green-600 dark:text-green-400" />}
+            {tool.state === 'rejected' && <XCircle className="h-4 w-4 text-orange-600 dark:text-orange-400" />}
             {tool.state === 'error' && <XCircle className="h-4 w-4 text-red-600 dark:text-red-400" />}
           </div>
           <div>
             <div className={cn(
               'font-semibold text-sm',
-              tool.state === 'executing' && 'text-purple-900 dark:text-purple-100',
-              tool.state === 'completed' && 'text-green-900 dark:text-green-100', 
+              tool.state === 'executing' && 'text-blue-900 dark:text-blue-100',
+              tool.state === 'ready_for_review' && 'text-purple-900 dark:text-purple-100',
+              tool.state === 'applied' && 'text-green-900 dark:text-green-100',
+              tool.state === 'rejected' && 'text-orange-900 dark:text-orange-100',
               tool.state === 'error' && 'text-red-900 dark:text-red-100'
             )}>
-              {tool.displayName || tool.name}
+              {tool.state === 'executing' ? 'Building workflow' : (tool.displayName || tool.name)}
             </div>
             <div className={cn(
               'text-xs',
-              tool.state === 'executing' && 'text-purple-700 dark:text-purple-300',
-              tool.state === 'completed' && 'text-green-700 dark:text-green-300',
+              tool.state === 'executing' && 'text-blue-700 dark:text-blue-300',
+              tool.state === 'ready_for_review' && 'text-purple-700 dark:text-purple-300',
+              tool.state === 'applied' && 'text-green-700 dark:text-green-300',
+              tool.state === 'rejected' && 'text-orange-700 dark:text-orange-300',
               tool.state === 'error' && 'text-red-700 dark:text-red-300'
             )}>
               {tool.state === 'executing' 
                 ? 'Building workflow...'
-                : tool.state === 'completed'
-                ? 'Changes ready for review'
+                : tool.state === 'ready_for_review'
+                ? 'Ready for review'
+                : tool.state === 'applied'
+                ? 'Applied changes'
+                : tool.state === 'rejected'
+                ? 'Rejected changes'
                 : 'Workflow generation failed'
               }
             </div>
           </div>
-          {tool.duration && tool.state === 'completed' && (
+          {tool.duration && (tool.state === 'ready_for_review' || tool.state === 'applied' || tool.state === 'rejected') && (
             <Badge variant="secondary" className="ml-auto text-xs">
               {formatDuration(tool.duration)}
             </Badge>
