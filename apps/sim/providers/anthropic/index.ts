@@ -455,10 +455,38 @@ ${fieldDescriptions}
                 stream: true,
               })
 
-              // Stream the continuation response
+              // Stream the continuation response and handle any additional tool calls
+              let continuationToolCalls: any[] = []
+              let currentContinuationToolCall: any = null
+              
               for await (const chunk of nextStreamResponse as any) {
                 const sseEvent = `data: ${JSON.stringify(chunk)}\n\n`
                 controller.enqueue(encoder.encode(sseEvent))
+                
+                // Check if the continuation response has its own tool calls
+                if (chunk.type === 'content_block_start' && chunk.content_block?.type === 'tool_use') {
+                  currentContinuationToolCall = {
+                    id: chunk.content_block.id,
+                    name: chunk.content_block.name,
+                    input: {},
+                    partialInput: '',
+                  }
+                } else if (chunk.type === 'content_block_delta' && currentContinuationToolCall && chunk.delta?.partial_json) {
+                  currentContinuationToolCall.partialInput += chunk.delta.partial_json
+                } else if (chunk.type === 'content_block_stop' && currentContinuationToolCall) {
+                  try {
+                    currentContinuationToolCall.input = JSON.parse(currentContinuationToolCall.partialInput || '{}')
+                    continuationToolCalls.push(currentContinuationToolCall)
+                    logger.info(`Continuation tool call ready: ${currentContinuationToolCall.name}`)
+                  } catch (error) {
+                    logger.error('Error parsing continuation tool call input:', error)
+                  }
+                  currentContinuationToolCall = null
+                } else if (chunk.type === 'message_stop' && continuationToolCalls.length > 0) {
+                  // Recursively handle tool calls in the continuation
+                  await executeToolsAndContinue(continuationToolCalls)
+                  continuationToolCalls = []
+                }
               }
             } catch (error) {
               logger.error('Error executing tools and continuing conversation:', { error })

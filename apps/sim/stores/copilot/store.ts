@@ -523,11 +523,20 @@ export const useCopilotStore = create<CopilotStore>()(
         let toolCallBuffer: any = null
         const toolCalls: any[] = []
 
+        // Add timeout to prevent hanging
+        const timeoutId = setTimeout(() => {
+          logger.warn('Stream timeout reached, completing response')
+          streamComplete = true
+        }, 120000) // 2 minute timeout
+
         try {
           while (true) {
             const { done, value } = await reader.read()
 
-            if (done || streamComplete) break
+            if (done || streamComplete) {
+              logger.info('Stream ended - done:', done, 'streamComplete:', streamComplete)
+              break
+            }
 
             const chunk = decoder.decode(value, { stream: true })
             const lines = chunk.split('\n')
@@ -622,16 +631,24 @@ export const useCopilotStore = create<CopilotStore>()(
                   } else if (data.type === 'message_delta') {
                     // Handle token usage updates silently
                     if (data.delta?.stop_reason === 'tool_use') {
-                      logger.info('Message stopped for tool use - backend will handle execution')
+                      logger.info('Message stopped for tool use - backend will handle execution and continue')
                     }
                   } else if (data.type === 'message_stop') {
-                    // Don't complete yet - let the backend continue if there are tools
-                    logger.info('Message stop received - checking if final')
+                    // Backend will continue streaming if there are tools to execute
+                    // Don't break the loop - just continue listening for more events
+                    logger.info('Message stopped - backend may continue after tool execution')
+                    
+                    // Reset block state for potential continuation
+                    currentBlockType = null
+                    toolCallBuffer = null
                   } else if (data.type === 'error') {
                     // Handle error events from backend
                     logger.error('Backend error:', data.error)
                     streamComplete = true
                     break
+                  } else {
+                    // Log unhandled event types for debugging
+                    logger.debug('Unhandled SSE event type:', data.type)
                   }
                 } catch (parseError) {
                   logger.warn('Failed to parse SSE data:', parseError)
@@ -668,6 +685,8 @@ export const useCopilotStore = create<CopilotStore>()(
         } catch (error) {
           logger.error('Error handling streaming response:', error)
           throw error
+        } finally {
+          clearTimeout(timeoutId)
         }
       },
 
@@ -711,9 +730,9 @@ export const useCopilotStore = create<CopilotStore>()(
             const updatedChat = result.chat
 
             // Update local state with the saved chat
+            // Don't overwrite messages - keep the current local state which has the latest content
             set({
               currentChat: updatedChat,
-              messages: updatedChat.messages,
               isSaving: false,
               saveError: null,
             })
