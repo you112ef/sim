@@ -17,6 +17,7 @@ import { ErrorBoundary } from '@/app/workspace/[workspaceId]/w/[workflowId]/comp
 import { LoopNodeComponent } from '@/app/workspace/[workspaceId]/w/[workflowId]/components/loop-node/loop-node'
 import { Panel } from '@/app/workspace/[workspaceId]/w/[workflowId]/components/panel/panel'
 import { ParallelNodeComponent } from '@/app/workspace/[workspaceId]/w/[workflowId]/components/parallel-node/parallel-node'
+import { ReviewButton } from '@/app/workspace/[workspaceId]/w/[workflowId]/components/review-button'
 import { useUserPermissionsContext } from '@/app/workspace/[workspaceId]/w/components/providers/workspace-permissions-provider'
 import { getBlock } from '@/blocks'
 import { useCollaborativeWorkflow } from '@/hooks/use-collaborative-workflow'
@@ -1529,6 +1530,9 @@ const WorkflowContent = React.memo(() => {
             style={{ backgroundColor: 'hsl(var(--workflow-background))' }}
           />
         </ReactFlow>
+
+        {/* Review Button - appears when there's a pending preview */}
+        <ReviewButton />
       </div>
     </div>
   )

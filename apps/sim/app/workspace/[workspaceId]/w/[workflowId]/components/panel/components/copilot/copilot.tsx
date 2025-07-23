@@ -20,6 +20,8 @@ import { ProfessionalMessage } from './components/professional-message/professio
 import { CopilotWelcome } from './components/welcome/welcome'
 import { CopilotSandboxModal } from '../../../copilot-sandbox-modal/copilot-sandbox-modal'
 import { useCopilotSandbox } from '../../../../hooks/use-copilot-sandbox'
+import { usePreviewStore } from '@/stores/copilot/preview-store'
+import { setLatestPreview, clearLatestPreview } from '../../../review-button'
 
 const logger = createLogger('Copilot')
 
@@ -50,11 +52,15 @@ export const Copilot = forwardRef<CopilotRef, CopilotProps>(
     const scrollAreaRef = useRef<HTMLDivElement>(null)
     const [isDropdownOpen, setIsDropdownOpen] = useState(false)
     const [showCheckpoints, setShowCheckpoints] = useState(false)
+    const scannedChatRef = useRef<string | null>(null)
 
     const { activeWorkflowId } = useWorkflowRegistry()
 
     // Use copilot sandbox for workflow previews
     const { sandboxState, showSandbox, closeSandbox, applyToCurrentWorkflow, saveAsNewWorkflow } = useCopilotSandbox()
+    
+    // Use preview store to track seen previews
+    const { scanAndMarkExistingPreviews, isToolCallSeen } = usePreviewStore()
 
     // Use the new copilot store
     const {
@@ -85,6 +91,12 @@ export const Copilot = forwardRef<CopilotRef, CopilotProps>(
       }
     }, [activeWorkflowId, workflowId, setWorkflowId])
 
+    // Clear any existing preview when component mounts or workflow changes
+    useEffect(() => {
+      console.log('Copilot mounted or workflow changed - clearing preview')
+      clearLatestPreview()
+    }, [activeWorkflowId])
+
     // Safety check: Clear any chat that doesn't belong to current workflow
     useEffect(() => {
       if (activeWorkflowId && workflowId === activeWorkflowId) {
@@ -104,6 +116,17 @@ export const Copilot = forwardRef<CopilotRef, CopilotProps>(
         }
       }
     }, [messages])
+
+    // Scan existing messages and mark preview tool calls as seen ONLY once per chat session
+    useEffect(() => {
+      const chatId = currentChat?.id || 'no-chat'
+      
+      if (messages.length > 0 && scannedChatRef.current !== chatId) {
+        console.log('Scanning existing messages for chat:', chatId, 'message count:', messages.length)
+        scanAndMarkExistingPreviews(messages)
+        scannedChatRef.current = chatId
+      }
+    }, [messages, currentChat?.id, scanAndMarkExistingPreviews]) // Run when messages change, but only scan once per chat
 
     // Watch for completed preview_workflow tool calls and show sandbox modal
     useEffect(() => {
@@ -148,7 +171,9 @@ export const Copilot = forwardRef<CopilotRef, CopilotProps>(
             toolCallEvent.type === 'tool_call_complete' &&
             toolCallEvent.toolCall?.name === 'preview_workflow' &&
             toolCallEvent.toolCall?.state === 'completed' &&
-            toolCallEvent.toolCall?.result
+            toolCallEvent.toolCall?.result &&
+            toolCallEvent.toolCall?.id &&
+            !isToolCallSeen(toolCallEvent.toolCall.id)
           ) {
             const result = toolCallEvent.toolCall.result
             
@@ -177,14 +202,20 @@ export const Copilot = forwardRef<CopilotRef, CopilotProps>(
             }
 
             if (workflowState && yamlContent) {
-              logger.info('Showing sandbox modal with workflow state', {
+              logger.info('Preview workflow completed - storing for review button', {
                 blocksCount: Object.keys(workflowState.blocks || {}).length,
                 edgesCount: (workflowState.edges || []).length,
                 yamlLength: yamlContent.length,
                 description,
               })
               
-              showSandbox(workflowState, yamlContent, description)
+              // Preview will be detected by the review button scanning messages
+              console.log('Preview workflow completed - will be detected by review button:', {
+                hasWorkflowState: !!workflowState,
+                yamlLength: yamlContent?.length,
+                description,
+                toolCallId: toolCallEvent.toolCall.id
+              })
               break // Only handle the first preview tool call
             } else {
               logger.warn('Missing required data for sandbox modal:', {
@@ -199,7 +230,7 @@ export const Copilot = forwardRef<CopilotRef, CopilotProps>(
           logger.error('Error parsing tool call event:', error)
         }
       }
-    }, [messages, showSandbox])
+    }, [messages, isToolCallSeen])
 
     // Handle chat deletion
     const handleDeleteChat = useCallback(
@@ -216,6 +247,9 @@ export const Copilot = forwardRef<CopilotRef, CopilotProps>(
 
     // Handle new chat creation
     const handleStartNewChat = useCallback(() => {
+      // Clear any pending preview when starting new chat
+      clearLatestPreview()
+      
       clearMessages()
       logger.info('Started new chat')
     }, [clearMessages])

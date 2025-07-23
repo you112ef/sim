@@ -1,6 +1,6 @@
 'use client'
 
-import { type FC, memo, useMemo } from 'react'
+import { type FC, memo, useMemo, useEffect } from 'react'
 import { Bot, Copy, User } from 'lucide-react'
 import { useTheme } from 'next-themes'
 import ReactMarkdown from 'react-markdown'
@@ -11,6 +11,7 @@ import { Button } from '@/components/ui/button'
 import { ToolCallCompletion, ToolCallExecution } from '@/components/ui/tool-call'
 import { parseMessageContent, stripToolCallIndicators } from '@/lib/tool-call-parser'
 import type { CopilotMessage } from '@/stores/copilot/types'
+import { setLatestPreview } from '../../../../../review-button'
 
 interface ProfessionalMessageProps {
   message: CopilotMessage
