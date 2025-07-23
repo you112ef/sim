@@ -407,46 +407,27 @@ export const useCopilotStore = create<CopilotStore>()(
 
         // Update the preview_workflow tool call state if provided
         if (toolCallState) {
-          logger.info(`Updating preview tool call state to: ${toolCallState}`)
-          
           // Find the last message with a preview_workflow tool call
           const lastMessageWithPreview = [...messages].reverse().find(msg => 
             msg.role === 'assistant' && msg.toolCalls?.some(tc => tc.name === 'preview_workflow')
           )
 
           if (lastMessageWithPreview) {
-            logger.info(`Found message to update with preview tool call:`, {
-              messageId: lastMessageWithPreview.id,
-              toolCallsCount: lastMessageWithPreview.toolCalls?.length,
-              contentBlocksCount: lastMessageWithPreview.contentBlocks?.length,
-            })
-
             set((state) => ({
-              messages: state.messages.map((msg) => {
-                if (msg.id === lastMessageWithPreview.id) {
-                  const updatedMsg = {
-                    ...msg,
-                    toolCalls: msg.toolCalls?.map(tc => 
-                      tc.name === 'preview_workflow' ? { ...tc, state: toolCallState } : tc
-                    ),
-                    contentBlocks: msg.contentBlocks?.map(block =>
-                      block.type === 'tool_call' && block.toolCall.name === 'preview_workflow'
-                        ? { ...block, toolCall: { ...block.toolCall, state: toolCallState } }
-                        : block
-                    )
-                  }
-                  logger.info(`Updated message:`, {
-                    messageId: updatedMsg.id,
-                    toolCallStates: updatedMsg.toolCalls?.map(tc => ({ name: tc.name, state: tc.state })),
-                    contentBlockStates: updatedMsg.contentBlocks?.filter(b => b.type === 'tool_call').map(b => ({ name: b.toolCall.name, state: b.toolCall.state }))
-                  })
-                  return updatedMsg
-                }
-                return msg
-              }),
+              messages: state.messages.map((msg) =>
+                msg.id === lastMessageWithPreview.id ? {
+                  ...msg,
+                  toolCalls: msg.toolCalls?.map(tc => 
+                    tc.name === 'preview_workflow' ? { ...tc, state: toolCallState } : tc
+                  ),
+                  contentBlocks: msg.contentBlocks?.map(block =>
+                    block.type === 'tool_call' && block.toolCall.name === 'preview_workflow'
+                      ? { ...block, toolCall: { ...block.toolCall, state: toolCallState } }
+                      : block
+                  )
+                } : msg
+              ),
             }))
-          } else {
-            logger.warn('No message found with preview_workflow tool call to update')
           }
         }
 

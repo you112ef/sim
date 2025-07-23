@@ -49,33 +49,24 @@ export const usePreviewStore = create<PreviewStore>()(
           status: 'pending',
         }
 
-        console.log('Adding new preview:', newPreview)
-        
-        set((state) => {
-          const newState = {
-            previews: {
-              ...state.previews,
-              [id]: newPreview,
-            },
-          }
-          console.log('New state after adding preview:', Object.keys(newState.previews))
-          return newState
-        })
+        set((state) => ({
+          previews: {
+            ...state.previews,
+            [id]: newPreview,
+          },
+        }))
 
         return id
       },
 
       acceptPreview: (previewId) => {
-        console.log('acceptPreview called with:', previewId)
         set((state) => {
           const existingPreview = state.previews[previewId]
           if (!existingPreview) {
-            console.warn('Preview not found:', previewId)
             return state
           }
           
-          console.log('Updating preview status from', existingPreview.status, 'to accepted')
-          const newState = {
+          return {
             previews: {
               ...state.previews,
               [previewId]: {
@@ -84,21 +75,16 @@ export const usePreviewStore = create<PreviewStore>()(
               },
             },
           }
-          console.log('New preview state:', newState.previews[previewId])
-          return newState
         })
       },
 
       rejectPreview: (previewId) => {
-        console.log('rejectPreview called with:', previewId)
         set((state) => {
           const existingPreview = state.previews[previewId]
           if (!existingPreview) {
-            console.warn('Preview not found:', previewId)
             return state
           }
           
-          console.log('Updating preview status from', existingPreview.status, 'to rejected')
           return {
             previews: {
               ...state.previews,
@@ -116,25 +102,8 @@ export const usePreviewStore = create<PreviewStore>()(
         const maxAge = 30 * 60 * 1000 // 30 minutes
         const allPreviews = Object.values(get().previews)
 
-        console.log('getLatestPendingPreview called with:', { workflowId, chatId })
-        console.log('All previews in store:', allPreviews.map(p => ({
-          id: p.id,
-          workflowId: p.workflowId,
-          chatId: p.chatId,
-          status: p.status,
-          timestamp: p.timestamp,
-          age: now - p.timestamp,
-        })))
-
         const previews = allPreviews
           .filter((p) => {
-            console.log(`Filtering preview ${p.id}:`, {
-              workflowMatch: p.workflowId === workflowId,
-              statusPending: p.status === 'pending',
-              chatMatch: !chatId || !p.chatId || p.chatId === chatId,
-              ageOk: now - p.timestamp <= maxAge,
-            })
-
             // Must be for the current workflow and pending
             if (p.workflowId !== workflowId || p.status !== 'pending') {
               return false
@@ -155,10 +124,7 @@ export const usePreviewStore = create<PreviewStore>()(
           })
           .sort((a, b) => b.timestamp - a.timestamp)
 
-        console.log('Filtered previews:', previews.map(p => ({ id: p.id, status: p.status })))
-        const result = previews[0] || null
-        console.log('Returning preview:', result?.id || 'null')
-        return result
+        return previews[0] || null
       },
 
       getPreviewById: (previewId) => {
@@ -242,8 +208,6 @@ export const usePreviewStore = create<PreviewStore>()(
         set((state) => ({
           seenToolCallIds: new Set([...state.seenToolCallIds, ...toolCallIds])
         }))
-        
-        console.log('Scanned and marked existing preview tool calls:', Array.from(toolCallIds))
       },
     }),
     {

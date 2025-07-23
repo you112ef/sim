@@ -11,19 +11,10 @@ import { createLogger } from '@/lib/logs/console-logger'
 
 const logger = createLogger('ReviewButton')
 
-// Dummy functions for backward compatibility
-export function setLatestPreview() {
-  // This is now handled automatically by the copilot store
-}
-
-export function clearLatestPreview() {
-  // This is now handled by clearing preview YAML in the chat
-}
-
-export function getLatestUnseenPreview() {
-  // Deprecated - now using currentChat.previewYaml
-  return null
-}
+// Backward compatibility exports (deprecated)
+export function setLatestPreview() {}
+export function clearLatestPreview() {}
+export function getLatestUnseenPreview() { return null }
 
 export function ReviewButton() {
   const params = useParams()
@@ -36,13 +27,6 @@ export function ReviewButton() {
 
   // Check if current chat has preview YAML
   const hasPreview = currentChat?.previewYaml !== null && currentChat?.previewYaml !== undefined
-
-  // Debug logging
-  console.log('ReviewButton render:', {
-    hasPreview,
-    activeWorkflowId,
-    previewYamlLength: currentChat?.previewYaml?.length
-  })
 
   // Only show if there's a preview YAML in the current chat
   if (!hasPreview) {

@@ -21,7 +21,6 @@ import { CopilotWelcome } from './components/welcome/welcome'
 import { CopilotSandboxModal } from '../../../copilot-sandbox-modal/copilot-sandbox-modal'
 import { useCopilotSandbox } from '../../../../hooks/use-copilot-sandbox'
 import { usePreviewStore } from '@/stores/copilot/preview-store'
-import { clearLatestPreview, getLatestUnseenPreview } from '../../../review-button'
 
 const logger = createLogger('Copilot')
 
@@ -93,8 +92,7 @@ export const Copilot = forwardRef<CopilotRef, CopilotProps>(
 
     // Clear any existing preview when component mounts or workflow changes
     useEffect(() => {
-      console.log('Copilot mounted or workflow changed - clearing preview')
-      clearLatestPreview()
+      // Preview clearing is now handled automatically by the copilot store
     }, [activeWorkflowId])
 
     // Safety check: Clear any chat that doesn't belong to current workflow
@@ -152,9 +150,7 @@ export const Copilot = forwardRef<CopilotRef, CopilotProps>(
 
     // Handle new chat creation
     const handleStartNewChat = useCallback(() => {
-      // Clear any pending preview when starting new chat
-      clearLatestPreview()
-      
+      // Preview clearing is now handled automatically by the copilot store
       clearMessages()
       logger.info('Started new chat')
     }, [clearMessages])
