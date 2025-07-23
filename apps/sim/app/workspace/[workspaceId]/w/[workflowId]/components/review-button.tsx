@@ -16,7 +16,9 @@ const logger = createLogger('ReviewButton')
 function getLatestUnseenPreview(messages: any[], isToolCallSeen: (id: string) => boolean) {
   if (!messages.length) return null
 
-  // Go through messages in reverse order (newest first)
+  const foundPreviews: { toolCallId: string; messageIndex: number; workflowState: any; yamlContent: string; description?: string }[] = []
+
+  // Go through messages in reverse order (newest first) to find all unseen previews
   for (let i = messages.length - 1; i >= 0; i--) {
     const message = messages[i]
     if (message.role !== 'assistant' || !message.content) continue
@@ -50,12 +52,13 @@ function getLatestUnseenPreview(messages: any[], isToolCallSeen: (id: string) =>
           }
 
           if (workflowState && yamlContent) {
-            return {
+            foundPreviews.push({
               toolCallId: toolCallEvent.toolCall.id,
+              messageIndex: i,
               workflowState,
               yamlContent,
               description,
-            }
+            })
           }
         }
       } catch (error) {
@@ -64,7 +67,23 @@ function getLatestUnseenPreview(messages: any[], isToolCallSeen: (id: string) =>
     }
   }
 
-  return null
+  if (foundPreviews.length === 0) {
+    return null
+  }
+
+  // Sort by message index (newest first)
+  foundPreviews.sort((a, b) => b.messageIndex - a.messageIndex)
+
+  // Return both the latest preview and all older preview IDs to invalidate
+  return {
+    latestPreview: {
+      toolCallId: foundPreviews[0].toolCallId,
+      workflowState: foundPreviews[0].workflowState,
+      yamlContent: foundPreviews[0].yamlContent,
+      description: foundPreviews[0].description,
+    },
+    olderPreviewIds: foundPreviews.slice(1).map(p => p.toolCallId)
+  }
 }
 
 // Dummy functions for backward compatibility
@@ -95,19 +114,29 @@ export function ReviewButton() {
   const latestPreview = useMemo(() => {
     console.log('useMemo: Checking for latest unseen preview, seenToolCallIds size:', seenToolCallIds.size)
     const preview = getLatestUnseenPreview(messages, isToolCallSeen)
-    console.log('useMemo: Found preview:', !!preview, preview?.toolCallId)
+    console.log('useMemo: Found preview:', !!preview, preview?.latestPreview?.toolCallId)
     return preview
   }, [messages, isToolCallSeen, seenToolCallIds])
 
+  // Invalidate older previews when a new one is detected
+  useEffect(() => {
+    if (latestPreview && latestPreview.olderPreviewIds && latestPreview.olderPreviewIds.length > 0) {
+      console.log('Invalidating older previews:', latestPreview.olderPreviewIds)
+      latestPreview.olderPreviewIds.forEach(id => {
+        markToolCallAsSeen(id)
+      })
+    }
+  }, [latestPreview?.latestPreview?.toolCallId, latestPreview?.olderPreviewIds, markToolCallAsSeen])
+
   // Debug logging
   console.log('ReviewButton render:', {
-    hasLatestPreview: !!latestPreview,
+    hasLatestPreview: !!latestPreview?.latestPreview,
     activeWorkflowId,
     messageCount: messages.length
   })
 
   // Only show if there's a real preview from copilot
-  if (!latestPreview) {
+  if (!latestPreview?.latestPreview) {
     return null
   }
 
@@ -116,7 +145,7 @@ export function ReviewButton() {
   }
 
   const handleApply = async () => {
-    if (!activeWorkflowId || !latestPreview.yamlContent) {
+    if (!activeWorkflowId || !latestPreview.latestPreview.yamlContent) {
       logger.error('No active workflow or YAML content')
       return
     }
@@ -126,7 +155,7 @@ export function ReviewButton() {
 
       logger.info('Applying preview to current workflow', {
         workflowId: activeWorkflowId,
-        yamlLength: latestPreview.yamlContent.length,
+        yamlLength: latestPreview.latestPreview.yamlContent.length,
       })
 
       // Use the existing YAML endpoint to apply the changes
@@ -136,8 +165,8 @@ export function ReviewButton() {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          yamlContent: latestPreview.yamlContent,
-          description: latestPreview.description || 'Applied copilot proposal',
+          yamlContent: latestPreview.latestPreview.yamlContent,
+          description: latestPreview.latestPreview.description || 'Applied copilot proposal',
           source: 'copilot',
           applyAutoLayout: true,
           createCheckpoint: true,
@@ -156,8 +185,8 @@ export function ReviewButton() {
       }
 
       logger.info('Successfully applied preview to workflow')
-      console.log('Marking tool call as seen:', latestPreview.toolCallId)
-      markToolCallAsSeen(latestPreview.toolCallId)
+      console.log('Marking tool call as seen:', latestPreview.latestPreview.toolCallId)
+      markToolCallAsSeen(latestPreview.latestPreview.toolCallId)
       console.log('Tool call marked as seen, closing modal')
       setShowModal(false)
       
@@ -171,7 +200,7 @@ export function ReviewButton() {
   }
 
   const handleSaveAsNew = async (name: string) => {
-    if (!latestPreview.yamlContent) {
+    if (!latestPreview.latestPreview.yamlContent) {
       logger.error('No YAML content to save')
       return
     }
@@ -181,13 +210,13 @@ export function ReviewButton() {
 
       logger.info('Creating new workflow from preview', {
         name,
-        yamlLength: latestPreview.yamlContent.length,
+        yamlLength: latestPreview.latestPreview.yamlContent.length,
       })
 
       // First create a new workflow
       const newWorkflowId = await createWorkflow({
         name,
-        description: latestPreview.description,
+        description: latestPreview.latestPreview.description,
         workspaceId,
       })
 
@@ -202,8 +231,8 @@ export function ReviewButton() {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          yamlContent: latestPreview.yamlContent,
-          description: latestPreview.description || 'Created from copilot proposal',
+          yamlContent: latestPreview.latestPreview.yamlContent,
+          description: latestPreview.latestPreview.description || 'Created from copilot proposal',
           source: 'copilot',
           applyAutoLayout: true,
           createCheckpoint: false,
@@ -222,7 +251,7 @@ export function ReviewButton() {
       }
 
       logger.info('Successfully created new workflow from preview')
-      markToolCallAsSeen(latestPreview.toolCallId)
+      markToolCallAsSeen(latestPreview.latestPreview.toolCallId)
       setShowModal(false)
       
       // Continue the copilot conversation with save as new message
@@ -235,11 +264,11 @@ export function ReviewButton() {
   }
 
   const handleReject = async () => {
-    if (!latestPreview) return
+    if (!latestPreview?.latestPreview) return
     
     try {
       setIsProcessing(true)
-      markToolCallAsSeen(latestPreview.toolCallId)
+      markToolCallAsSeen(latestPreview.latestPreview.toolCallId)
       setShowModal(false)
       
       // Continue the copilot conversation with rejection message
@@ -281,13 +310,13 @@ export function ReviewButton() {
       </div>
 
       {/* Sandbox Modal */}
-      {showModal && latestPreview && (
+      {showModal && latestPreview?.latestPreview && (
         <CopilotSandboxModal
           isOpen={showModal}
           onClose={handleClose}
-          proposedWorkflowState={latestPreview.workflowState}
-          yamlContent={latestPreview.yamlContent}
-          description={latestPreview.description}
+          proposedWorkflowState={latestPreview.latestPreview.workflowState}
+          yamlContent={latestPreview.latestPreview.yamlContent}
+          description={latestPreview.latestPreview.description}
           onApplyToCurrentWorkflow={handleApply}
           onSaveAsNewWorkflow={handleSaveAsNew}
           onReject={handleReject}
