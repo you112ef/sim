@@ -117,162 +117,25 @@ export const Copilot = forwardRef<CopilotRef, CopilotProps>(
       }
     }, [messages])
 
-    // Scan existing messages and mark preview tool calls as seen ONLY once per chat session
-    // But preserve any currently visible preview to prevent race conditions
-    useEffect(() => {
-      const chatId = currentChat?.id || 'no-chat'
-      
-      if (messages.length > 0 && scannedChatRef.current !== chatId) {
-        console.log('Scanning existing messages for chat:', chatId, 'message count:', messages.length)
-        
-        // Before scanning, check if there's currently a visible preview
-        // We'll exclude this from being marked as seen during scanning
-        const currentlyVisiblePreview = getLatestUnseenPreview(messages, isToolCallSeen)
-        const protectedToolCallId = currentlyVisiblePreview?.latestPreview?.toolCallId
-        
-        console.log('Protecting currently visible preview during scan:', protectedToolCallId)
-        
-        // Create a modified version of scanAndMarkExistingPreviews that excludes the protected ID
-        const toolCallIds = new Set<string>()
-        
-        messages.forEach((message) => {
-          if (message.role === 'assistant' && message.content) {
-            const previewToolCallPattern = /__TOOL_CALL_EVENT__(.*?)__TOOL_CALL_EVENT__/g
-            let match
-            
-            while ((match = previewToolCallPattern.exec(message.content)) !== null) {
-              try {
-                const toolCallEvent = JSON.parse(match[1])
-                if (
-                  toolCallEvent.type === 'tool_call_complete' &&
-                  toolCallEvent.toolCall?.name === 'preview_workflow' &&
-                  toolCallEvent.toolCall?.id &&
-                  toolCallEvent.toolCall?.id !== protectedToolCallId // Don't mark the currently visible one as seen
-                ) {
-                  toolCallIds.add(toolCallEvent.toolCall.id)
-                }
-              } catch (error) {
-                console.warn('Failed to parse tool call event while scanning:', error)
-              }
-            }
-          }
-        })
-
-        // Mark the non-protected tool calls as seen
-        if (toolCallIds.size > 0) {
-          console.log('Marking existing preview tool calls as seen (excluding protected):', Array.from(toolCallIds))
-          toolCallIds.forEach(id => {
-            markToolCallAsSeen(id)
-          })
-        }
-        
-        scannedChatRef.current = chatId
-      }
-    }, [messages, currentChat?.id, isToolCallSeen]) // Added isToolCallSeen to dependencies
-
-    // Watch for completed preview_workflow tool calls and show sandbox modal
+    // Watch for completed preview_workflow tool calls in the new format
     useEffect(() => {
       if (!messages.length) return
 
       const lastMessage = messages[messages.length - 1]
-      if (lastMessage.role !== 'assistant') return
+      if (lastMessage.role !== 'assistant' || !lastMessage.toolCalls) return
 
-      logger.info('Checking last message for preview_workflow tool calls:', {
-        messageLength: lastMessage.content.length,
-        messagePreview: lastMessage.content.substring(0, 200) + '...',
-      })
+      // Check for completed preview_workflow tool calls
+      const previewToolCall = lastMessage.toolCalls.find(
+        tc => tc.name === 'preview_workflow' && tc.state === 'completed' && !isToolCallSeen(tc.id)
+      )
 
-      // Look for completed preview_workflow tool calls in the message content
-      const previewToolCallPattern = /__TOOL_CALL_EVENT__(.*?)__TOOL_CALL_EVENT__/g
-      const matches = Array.from(lastMessage.content.matchAll(previewToolCallPattern))
-
-      logger.info('Found tool call events:', { matchCount: matches.length })
-
-      for (const match of matches) {
-        try {
-          const toolCallEvent = JSON.parse(match[1])
-          
-          logger.info('Processing tool call event:', {
-            type: toolCallEvent.type,
-            toolName: toolCallEvent.toolCall?.name,
-            state: toolCallEvent.toolCall?.state,
-            hasResult: !!toolCallEvent.toolCall?.result,
-          })
-
-          // Special logging for preview_workflow
-          if (toolCallEvent.toolCall?.name === 'preview_workflow') {
-            logger.info('Preview workflow tool call detected:', {
-              type: toolCallEvent.type,
-              state: toolCallEvent.toolCall?.state,
-              result: toolCallEvent.toolCall?.result,
-              parameters: toolCallEvent.toolCall?.parameters,
-            })
-          }
-          
-          if (
-            toolCallEvent.type === 'tool_call_complete' &&
-            toolCallEvent.toolCall?.name === 'preview_workflow' &&
-            toolCallEvent.toolCall?.state === 'completed' &&
-            toolCallEvent.toolCall?.result &&
-            toolCallEvent.toolCall?.id &&
-            !isToolCallSeen(toolCallEvent.toolCall.id)
-          ) {
-            const result = toolCallEvent.toolCall.result
-            
-            logger.info('Preview workflow tool result:', {
-              hasWorkflowState: !!result.workflowState,
-              hasParameters: !!toolCallEvent.toolCall?.parameters,
-              hasYamlContent: !!toolCallEvent.toolCall?.parameters?.yamlContent,
-              resultKeys: Object.keys(result),
-              parametersKeys: toolCallEvent.toolCall?.parameters ? Object.keys(toolCallEvent.toolCall.parameters) : [],
-            })
-            
-            // Extract the workflow state and YAML content from the actual structure
-            let workflowState = null
-            let yamlContent = null
-            let description = null
-
-            // The workflow state is directly in result.workflowState
-            if (result.workflowState) {
-              workflowState = result.workflowState
-            }
-
-            // The YAML content and description are in the tool call parameters
-            if (toolCallEvent.toolCall?.parameters) {
-              yamlContent = toolCallEvent.toolCall.parameters.yamlContent
-              description = toolCallEvent.toolCall.parameters.description
-            }
-
-            if (workflowState && yamlContent) {
-              logger.info('Preview workflow completed - storing for review button', {
-                blocksCount: Object.keys(workflowState.blocks || {}).length,
-                edgesCount: (workflowState.edges || []).length,
-                yamlLength: yamlContent.length,
-                description,
-              })
-              
-              // Preview will be detected by the review button scanning messages
-              console.log('Preview workflow completed - will be detected by review button:', {
-                hasWorkflowState: !!workflowState,
-                yamlLength: yamlContent?.length,
-                description,
-                toolCallId: toolCallEvent.toolCall.id
-              })
-              break // Only handle the first preview tool call
-            } else {
-              logger.warn('Missing required data for sandbox modal:', {
-                hasWorkflowState: !!workflowState,
-                hasYamlContent: !!yamlContent,
-                workflowStateType: typeof workflowState,
-                yamlContentType: typeof yamlContent,
-              })
-            }
-          }
-        } catch (error) {
-          logger.error('Error parsing tool call event:', error)
-        }
+      if (previewToolCall && previewToolCall.result) {
+        logger.info('Preview workflow completed via native SSE - handling result')
+        // Mark as seen to prevent duplicate processing
+        markToolCallAsSeen(previewToolCall.id)
+        // Tool call handling logic would go here if needed
       }
-    }, [messages, isToolCallSeen])
+    }, [messages, isToolCallSeen, markToolCallAsSeen])
 
     // Handle chat deletion
     const handleDeleteChat = useCallback(

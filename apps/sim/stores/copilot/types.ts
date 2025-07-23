@@ -9,7 +9,23 @@ export interface Citation {
 }
 
 /**
- * Copilot message structure
+ * Tool call interface for copilot
+ */
+export interface CopilotToolCall {
+  id: string
+  name: string
+  displayName: string
+  input: Record<string, any>
+  state: 'executing' | 'completed' | 'error'
+  startTime?: number
+  endTime?: number
+  duration?: number
+  result?: any
+  error?: string
+}
+
+/**
+ * Copilot message interface
  */
 export interface CopilotMessage {
   id: string
@@ -17,6 +33,7 @@ export interface CopilotMessage {
   content: string
   timestamp: string
   citations?: Citation[]
+  toolCalls?: CopilotToolCall[]
 }
 
 /**

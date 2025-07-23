@@ -154,10 +154,38 @@ export async function POST(req: NextRequest) {
     }
 
     if (streamToRead) {
-      logger.info(`[${requestId}] Returning native SSE streaming response`)
+      logger.info(`[${requestId}] Returning native SSE streaming response with chatId: ${result.chatId}`)
+
+      // Create a new stream that first sends the chatId, then forwards the actual response
+      const transformedStream = new ReadableStream({
+        async start(controller) {
+          const encoder = new TextEncoder()
+          
+          // First, send the chatId as an SSE event
+          if (result.chatId) {
+            const chatIdEvent = `data: ${JSON.stringify({ type: 'chat_id', chatId: result.chatId })}\n\n`
+            controller.enqueue(encoder.encode(chatIdEvent))
+          }
+
+          // Then forward the actual stream
+          const reader = streamToRead.getReader()
+          try {
+            while (true) {
+              const { done, value } = await reader.read()
+              if (done) break
+              controller.enqueue(value)
+            }
+          } catch (error) {
+            logger.error(`[${requestId}] Error forwarding stream:`, error)
+            controller.error(error)
+          } finally {
+            controller.close()
+          }
+        }
+      })
 
       // Pass through native Anthropic SSE events directly to the frontend
-      return new Response(streamToRead, {
+      return new Response(transformedStream, {
         headers: {
           'Content-Type': 'text/event-stream',
           'Cache-Control': 'no-cache',
@@ -321,7 +349,7 @@ export async function PATCH(req: NextRequest) {
     const chat = await updateChat(chatId, session.user.id, {
       messages,
       title: titleToUse,
-      filterToolCalls: true, // Apply filtering when updating chat via API
+
     })
 
     if (!chat) {

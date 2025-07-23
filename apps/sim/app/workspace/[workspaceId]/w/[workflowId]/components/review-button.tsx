@@ -9,11 +9,12 @@ import { useWorkflowRegistry } from '@/stores/workflows/registry/store'
 import { useCopilotStore } from '@/stores/copilot/store'
 import { usePreviewStore } from '@/stores/copilot/preview-store'
 import { createLogger } from '@/lib/logs/console-logger'
+import type { CopilotToolCall, CopilotMessage } from '@/stores/copilot/types'
 
 const logger = createLogger('ReviewButton')
 
 // Helper function to extract preview data from messages
-export function getLatestUnseenPreview(messages: any[], isToolCallSeen: (id: string) => boolean) {
+export function getLatestUnseenPreview(messages: CopilotMessage[], isToolCallSeen: (id: string) => boolean) {
   if (!messages.length) return null
 
   const foundPreviews: { toolCallId: string; messageIndex: number; workflowState: any; yamlContent: string; description?: string }[] = []
@@ -21,50 +22,41 @@ export function getLatestUnseenPreview(messages: any[], isToolCallSeen: (id: str
   // Go through messages in reverse order (newest first) to find all unseen previews
   for (let i = messages.length - 1; i >= 0; i--) {
     const message = messages[i]
-    if (message.role !== 'assistant' || !message.content) continue
+    if (message.role !== 'assistant' || !message.toolCalls) continue
 
-    const previewToolCallPattern = /__TOOL_CALL_EVENT__(.*?)__TOOL_CALL_EVENT__/g
-    let match
+         message.toolCalls.forEach((toolCall: CopilotToolCall) => {
+      if (
+        toolCall.name === 'preview_workflow' &&
+        toolCall.state === 'completed' &&
+        toolCall.result &&
+        toolCall.id &&
+        !isToolCallSeen(toolCall.id)
+      ) {
+        const result = toolCall.result
+        let workflowState = null
+        let yamlContent = null
+        let description = null
 
-    while ((match = previewToolCallPattern.exec(message.content)) !== null) {
-      try {
-        const toolCallEvent = JSON.parse(match[1])
-        if (
-          toolCallEvent.type === 'tool_call_complete' &&
-          toolCallEvent.toolCall?.name === 'preview_workflow' &&
-          toolCallEvent.toolCall?.state === 'completed' &&
-          toolCallEvent.toolCall?.result &&
-          toolCallEvent.toolCall?.id &&
-          !isToolCallSeen(toolCallEvent.toolCall.id)
-        ) {
-          const result = toolCallEvent.toolCall.result
-          let workflowState = null
-          let yamlContent = null
-          let description = null
-
-          if (result.workflowState) {
-            workflowState = result.workflowState
-          }
-
-          if (toolCallEvent.toolCall?.parameters) {
-            yamlContent = toolCallEvent.toolCall.parameters.yamlContent
-            description = toolCallEvent.toolCall.parameters.description
-          }
-
-          if (workflowState && yamlContent) {
-            foundPreviews.push({
-              toolCallId: toolCallEvent.toolCall.id,
-              messageIndex: i,
-              workflowState,
-              yamlContent,
-              description,
-            })
-          }
+        if (result.workflowState) {
+          workflowState = result.workflowState
         }
-      } catch (error) {
-        console.warn('Failed to parse tool call event:', error)
+
+        if (toolCall.input) {
+          yamlContent = toolCall.input.yamlContent
+          description = toolCall.input.description
+        }
+
+        if (workflowState && yamlContent) {
+          foundPreviews.push({
+            toolCallId: toolCall.id,
+            messageIndex: i,
+            workflowState,
+            yamlContent,
+            description,
+          })
+        }
       }
-    }
+    })
   }
 
   if (foundPreviews.length === 0) {

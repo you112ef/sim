@@ -1,6 +1,6 @@
 'use client'
 
-import { type FC, memo, useMemo, useEffect, useState } from 'react'
+import { type FC, memo, useMemo, useState } from 'react'
 import { Bot, Copy, User, ChevronDown, ChevronRight, CheckCircle, Settings, XCircle, Loader2 } from 'lucide-react'
 import { useTheme } from 'next-themes'
 import ReactMarkdown from 'react-markdown'
@@ -10,7 +10,6 @@ import remarkGfm from 'remark-gfm'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible'
-import { parseMessageContent, stripToolCallIndicators, groupDesignApproachTools, isDesignApproachTool } from '@/lib/tool-call-parser'
 import { cn } from '@/lib/utils'
 import type { CopilotMessage } from '@/stores/copilot/types'
 import type { ToolCallState } from '@/types/tool-call'
@@ -21,113 +20,8 @@ interface ProfessionalMessageProps {
   isStreaming?: boolean
 }
 
-// Design Approach Group Component
-function DesignApproachGroup({ tools, isCompleted }: { tools: ToolCallState[], isCompleted: boolean }) {
-  const [isExpanded, setIsExpanded] = useState(true)
-  
-  const activeToolIndex = tools.findIndex(tool => tool.state === 'executing')
-  const completedCount = tools.filter(tool => tool.state === 'completed').length
-  const hasError = tools.some(tool => tool.state === 'error')
-  
-  const getGroupStatus = () => {
-    if (hasError) return 'error'
-    if (completedCount === tools.length) return 'completed' // All tools completed
-    if (activeToolIndex >= 0) return 'executing'
-    return 'pending'
-  }
-  
-  const status = getGroupStatus()
-  
-  // Stable group title - always show as designed when all tools are done
-  const getGroupTitle = () => {
-    if (status === 'completed') return 'Designed an Approach'
-    if (status === 'executing') return 'Designing an Approach'
-    if (status === 'error') return 'Approach Design Failed'
-    return 'Designing an Approach'
-  }
-  
-  const getGroupSubtitle = () => {
-    if (status === 'executing' && activeToolIndex >= 0) {
-      return `Step ${activeToolIndex + 1} of ${tools.length} • ${tools[activeToolIndex].displayName || tools[activeToolIndex].name}`
-    }
-    if (status === 'completed') {
-      return 'Approach designed successfully'
-    }
-    if (status === 'error') {
-      return 'Error in approach design'
-    }
-    return `${completedCount}/${tools.length} steps completed`
-  }
-  
-  return (
-    <div className={cn(
-      'my-3 rounded-xl border-2 transition-all duration-300',
-      status === 'executing' && 'border-blue-200 bg-gradient-to-r from-blue-50 to-indigo-50 dark:border-blue-800 dark:from-blue-950/50 dark:to-indigo-950/50',
-      status === 'completed' && 'border-green-200 bg-gradient-to-r from-green-50 to-emerald-50 dark:border-green-800 dark:from-green-950/50 dark:to-emerald-950/50',
-      status === 'error' && 'border-red-200 bg-gradient-to-r from-red-50 to-pink-50 dark:border-red-800 dark:from-red-950/50 dark:to-pink-950/50',
-      status === 'pending' && 'border-gray-200 bg-gradient-to-r from-gray-50 to-slate-50 dark:border-gray-700 dark:from-gray-900/50 dark:to-slate-900/50'
-    )}>
-      <Collapsible open={isExpanded} onOpenChange={setIsExpanded}>
-        <CollapsibleTrigger asChild>
-          <Button
-            variant="ghost"
-            className="w-full justify-between p-4 text-left hover:bg-transparent"
-          >
-            <div className="flex items-center gap-3">
-              <div className={cn(
-                'flex h-8 w-8 items-center justify-center rounded-full',
-                status === 'executing' && 'bg-blue-100 dark:bg-blue-900',
-                status === 'completed' && 'bg-green-100 dark:bg-green-900',
-                status === 'error' && 'bg-red-100 dark:bg-red-900',
-                status === 'pending' && 'bg-gray-100 dark:bg-gray-800'
-              )}>
-                {status === 'executing' && <Loader2 className="h-4 w-4 animate-spin text-blue-600 dark:text-blue-400" />}
-                {status === 'completed' && <CheckCircle className="h-4 w-4 text-green-600 dark:text-green-400" />}
-                {status === 'error' && <XCircle className="h-4 w-4 text-red-600 dark:text-red-400" />}
-                {status === 'pending' && <Settings className="h-4 w-4 text-gray-600 dark:text-gray-400" />}
-              </div>
-              <div>
-                <div className={cn(
-                  'font-semibold text-sm',
-                  status === 'executing' && 'text-blue-900 dark:text-blue-100',
-                  status === 'completed' && 'text-green-900 dark:text-green-100',
-                  status === 'error' && 'text-red-900 dark:text-red-100',
-                  status === 'pending' && 'text-gray-900 dark:text-gray-100'
-                )}>
-                  {getGroupTitle()}
-                </div>
-                <div className={cn(
-                  'text-xs',
-                  status === 'executing' && 'text-blue-700 dark:text-blue-300',
-                  status === 'completed' && 'text-green-700 dark:text-green-300',
-                  status === 'error' && 'text-red-700 dark:text-red-300',
-                  status === 'pending' && 'text-gray-700 dark:text-gray-300'
-                )}>
-                  {getGroupSubtitle()}
-                </div>
-              </div>
-            </div>
-            {isExpanded ? (
-              <ChevronDown className="h-4 w-4 text-muted-foreground" />
-            ) : (
-              <ChevronRight className="h-4 w-4 text-muted-foreground" />
-            )}
-          </Button>
-        </CollapsibleTrigger>
-        <CollapsibleContent className="px-4 pb-4">
-          <div className="space-y-2">
-            {tools.map((tool, index) => (
-              <InlineToolCall key={tool.id} tool={tool} stepNumber={index + 1} />
-            ))}
-          </div>
-        </CollapsibleContent>
-      </Collapsible>
-    </div>
-  )
-}
-
 // Inline Tool Call Component
-function InlineToolCall({ tool, stepNumber }: { tool: ToolCallState, stepNumber?: number }) {
+function InlineToolCall({ tool, stepNumber }: { tool: ToolCallState | any, stepNumber?: number }) {
   const getStateIcon = () => {
     switch (tool.state) {
       case 'executing':
@@ -250,54 +144,18 @@ const ProfessionalMessage: FC<ProfessionalMessageProps> = memo(({ message, isStr
   const isAssistant = message.role === 'assistant'
 
   const handleCopyContent = () => {
-    // Copy clean text content without tool call indicators
-    const contentToCopy = isAssistant ? stripToolCallIndicators(message.content) : message.content
-    navigator.clipboard.writeText(contentToCopy)
+    // Copy clean text content
+    navigator.clipboard.writeText(message.content)
   }
 
   const formatTimestamp = (timestamp: string) => {
     return new Date(timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
   }
 
-  // Parse message content to separate text and tool calls
-  const parsedContent = useMemo(() => {
-    if (isAssistant && message.content) {
-      const result = parseMessageContent(message.content)
-      return result
-    }
-    return null
-  }, [isAssistant, message.content, message.id])
-
-  // Get clean text content without tool call indicators
+  // Get clean text content (no processing needed with native SSE)
   const cleanTextContent = useMemo(() => {
-    if (isAssistant && message.content) {
-      return stripToolCallIndicators(message.content)
-    }
     return message.content
-  }, [isAssistant, message.content])
-
-  // Group design approach tools if they exist
-  const designApproachGroup = useMemo(() => {
-    if (parsedContent?.inlineContent) {
-      const group = groupDesignApproachTools(parsedContent.inlineContent)
-      
-      // Only warn if we have design tools but no group (indicates a problem)
-      const designTools = parsedContent.inlineContent.filter(item => 
-        item.type === 'tool_call' && item.toolCall && isDesignApproachTool(item.toolCall.name)
-      )
-      
-      if (designTools.length >= 2 && !group) {
-        console.warn('Design approach group should exist but was not detected:', {
-          messageId: message.id,
-          designToolCount: designTools.length,
-          designToolNames: designTools.map(item => item.toolCall?.name)
-        })
-      }
-      
-      return group
-    }
-    return null
-  }, [parsedContent?.inlineContent, message.id, message.content.length])
+  }, [message.content])
 
   // Custom components for react-markdown with improved styling
   const markdownComponents = {
@@ -455,61 +313,31 @@ const ProfessionalMessage: FC<ProfessionalMessageProps> = memo(({ message, isStr
 
             {/* Message content */}
             <div className='min-w-0 flex-1'>
-              {/* Render inline content */}
-              {parsedContent?.inlineContent && parsedContent.inlineContent.length > 0 ? (
-                <div className='space-y-3'>
-                  {parsedContent.inlineContent.map((item, index) => {
-                    // If this index is within the design approach group range, skip individual rendering
-                    if (designApproachGroup && 
-                        index >= designApproachGroup.groupStart && 
-                        index <= designApproachGroup.groupEnd) {
-                      // Only render the group once at the start position
-                      if (index === designApproachGroup.groupStart) {
-                        return (
-                          <DesignApproachGroup 
-                            key={`design-group-${designApproachGroup.groupStart}`}
-                            tools={designApproachGroup.groupedTools}
-                            isCompleted={designApproachGroup.groupedTools.every(t => t.state === 'completed' || t.state === 'error')}
-                          />
-                        )
-                      }
-                      return null
-                    }
-
-                    if (item.type === 'tool_call' && item.toolCall) {
-                      return <InlineToolCall key={`${item.toolCall.id}-${index}`} tool={item.toolCall} />
-                    }
-                    
-                    if (item.type === 'text' && item.content.trim()) {
-                      return (
-                        <div
-                          key={`text-${index}`}
-                          className='overflow-hidden rounded-2xl rounded-tl-lg border bg-muted/30 px-4 py-3 shadow-sm'
-                        >
-                          <div className='prose prose-sm dark:prose-invert max-w-none'>
-                            <ReactMarkdown
-                              remarkPlugins={[remarkGfm]}
-                              components={markdownComponents}
-                            >
-                              {item.content}
-                            </ReactMarkdown>
-                          </div>
-                        </div>
-                      )
-                    }
-                    return null
-                  })}
-                </div>
-              ) : (
-                /* Fallback for empty content or streaming */
-                <div className='overflow-hidden rounded-2xl rounded-tl-lg border bg-muted/30 px-4 py-3 shadow-sm'>
-                  {cleanTextContent ? (
+              {/* Tool calls and content */}
+              <div className='space-y-3'>
+                {/* Tool calls if available */}
+                {message.toolCalls && message.toolCalls.length > 0 && (
+                  <div className='space-y-2'>
+                    {message.toolCalls.map((toolCall) => (
+                      <InlineToolCall key={toolCall.id} tool={toolCall} />
+                    ))}
+                  </div>
+                )}
+                
+                {/* Regular text content */}
+                {cleanTextContent && (
+                  <div className='overflow-hidden rounded-2xl rounded-tl-lg border bg-muted/30 px-4 py-3 shadow-sm'>
                     <div className='prose prose-sm dark:prose-invert max-w-none'>
                       <ReactMarkdown remarkPlugins={[remarkGfm]} components={markdownComponents}>
                         {cleanTextContent}
                       </ReactMarkdown>
                     </div>
-                  ) : isStreaming ? (
+                  </div>
+                )}
+                
+                {/* Streaming indicator when no content yet */}
+                {!cleanTextContent && isStreaming && (
+                  <div className='overflow-hidden rounded-2xl rounded-tl-lg border bg-muted/30 px-4 py-3 shadow-sm'>
                     <div className='flex items-center gap-2 py-2 text-muted-foreground'>
                       <div className='flex space-x-1'>
                         <div
@@ -527,9 +355,9 @@ const ProfessionalMessage: FC<ProfessionalMessageProps> = memo(({ message, isStr
                       </div>
                       <span className='text-sm'>Thinking...</span>
                     </div>
-                  ) : null}
-                </div>
-              )}
+                  </div>
+                )}
+              </div>
             </div>
           </div>
 

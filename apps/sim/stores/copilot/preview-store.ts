@@ -1,5 +1,6 @@
 import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
+import type { CopilotToolCall, CopilotMessage } from './types'
 
 export interface PreviewData {
   id: string
@@ -30,7 +31,7 @@ interface PreviewStore {
   expireOldPreviews: (maxAgeHours?: number) => void
   markToolCallAsSeen: (toolCallId: string) => void
   isToolCallSeen: (toolCallId: string) => boolean
-  scanAndMarkExistingPreviews: (messages: any[]) => void
+  scanAndMarkExistingPreviews: (messages: CopilotMessage[]) => void
 }
 
 export const usePreviewStore = create<PreviewStore>()(
@@ -225,28 +226,16 @@ export const usePreviewStore = create<PreviewStore>()(
         return get().seenToolCallIds.has(toolCallId)
       },
 
-      scanAndMarkExistingPreviews: (messages) => {
+      scanAndMarkExistingPreviews: (messages: CopilotMessage[]) => {
         const toolCallIds = new Set<string>()
         
         messages.forEach((message) => {
-          if (message.role === 'assistant' && message.content) {
-            const previewToolCallPattern = /__TOOL_CALL_EVENT__(.*?)__TOOL_CALL_EVENT__/g
-            let match
-            
-            while ((match = previewToolCallPattern.exec(message.content)) !== null) {
-              try {
-                const toolCallEvent = JSON.parse(match[1])
-                if (
-                  toolCallEvent.type === 'tool_call_complete' &&
-                  toolCallEvent.toolCall?.name === 'preview_workflow' &&
-                  toolCallEvent.toolCall?.id
-                ) {
-                  toolCallIds.add(toolCallEvent.toolCall.id)
-                }
-              } catch (error) {
-                console.warn('Failed to parse tool call event while scanning:', error)
+          if (message.role === 'assistant' && message.toolCalls) {
+            message.toolCalls.forEach((toolCall: CopilotToolCall) => {
+              if (toolCall.name === 'preview_workflow' && toolCall.state === 'completed' && toolCall.id) {
+                toolCallIds.add(toolCall.id)
               }
-            }
+            })
           }
         })
 

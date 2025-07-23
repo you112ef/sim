@@ -27,61 +27,7 @@ if (!promptValidation.agentMode.valid) {
   logger.error('Agent mode system prompt validation failed:', promptValidation.agentMode.issues)
 }
 
-/**
- * Tool names to filter out from chat history
- */
-const FILTERED_TOOL_NAMES = ['get_blocks_metadata', 'get_user_workflow', 'get_yaml_structure']
 
-/**
- * Filter out specific tool call events from message content
- */
-function filterToolCallEvents(content: string): string {
-  // Regex to match tool call events - more robust pattern that handles nested JSON
-  const toolCallEventRegex = /__TOOL_CALL_EVENT__\{.*?\}__TOOL_CALL_EVENT__/g
-  
-  return content.replace(toolCallEventRegex, (match) => {
-    // Extract the JSON content between the markers
-    const jsonContent = match.replace(/__TOOL_CALL_EVENT__/g, '')
-    
-    try {
-      const parsed = JSON.parse(jsonContent)
-      
-      // Check for tool name in various possible locations
-      const toolName = 
-        parsed.name || 
-        parsed.toolCall?.name || 
-        (parsed.toolCalls && parsed.toolCalls[0]?.name) ||
-        null
-      
-      // If this tool should be filtered out, return empty string
-      if (toolName && FILTERED_TOOL_NAMES.includes(toolName)) {
-        logger.debug(`Filtering out tool call event: ${toolName}`)
-        return ''
-      }
-    } catch (error) {
-      // If JSON parsing fails, fall back to string matching
-      for (const filteredName of FILTERED_TOOL_NAMES) {
-        if (match.includes(`"name":"${filteredName}"`)) {
-          logger.debug(`Filtering out tool call event (fallback): ${filteredName}`)
-          return ''
-        }
-      }
-    }
-    
-    // Otherwise, keep the original match
-    return match
-  })
-}
-
-/**
- * Filter messages to remove specific tool call events
- */
-function filterMessages(messages: CopilotMessage[]): CopilotMessage[] {
-  return messages.map(message => ({
-    ...message,
-    content: filterToolCallEvents(message.content)
-  }))
-}
 
 /**
  * Citation information for documentation references
@@ -178,7 +124,6 @@ export interface CreateChatOptions {
 export interface UpdateChatOptions {
   title?: string
   messages?: CopilotMessage[]
-  filterToolCalls?: boolean
 }
 
 /**
@@ -528,8 +473,7 @@ export async function generateChatResponse(
       stream,
       streamToolCalls: true, // Enable tool call streaming for copilot
       workflowId: options.workflowId,
-      chatId: options.chatId,
-      copilotContext: true, // Flag to enable native SSE streaming for copilot
+      chatId: options.chatId
     })
 
     // Handle StreamingExecution (from providers with tool calls)
@@ -716,9 +660,7 @@ export async function updateChat(
     }
 
     if (updates.title !== undefined) updateData.title = updates.title
-    if (updates.messages !== undefined) {
-      updateData.messages = updates.filterToolCalls ? filterMessages(updates.messages) : updates.messages
-    }
+    if (updates.messages !== undefined) updateData.messages = updates.messages
 
     // Update the chat
     const [updatedChat] = await db
@@ -824,7 +766,6 @@ export async function sendMessage(request: SendMessageRequest): Promise<{
       await updateChat(currentChat.id, userId, {
         title: updatedTitle || undefined,
         messages: updatedMessages,
-        filterToolCalls: true, // Filter tool calls since response is complete
       })
     }
 
@@ -858,25 +799,4 @@ export async function updateChatMessages(
   }
 }
 
-// Update chat messages with filtering (for when copilot is completely done)
-export async function updateChatMessagesFiltered(
-  chatId: string,
-  messages: CopilotMessage[]
-): Promise<void> {
-  try {
-    // Filter out specific tool call events before saving
-    const filteredMessages = filterMessages(messages)
-    
-    await db
-      .update(copilotChats)
-      .set({
-        messages: filteredMessages,
-        updatedAt: new Date(),
-      })
-      .where(eq(copilotChats.id, chatId))
-      .execute()
-  } catch (error) {
-    logger.error('Failed to update chat messages with filtering:', error)
-    throw error
-  }
-}
+

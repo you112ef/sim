@@ -85,30 +85,27 @@ function handleStoreError(error: unknown, fallbackMessage: string): string {
 }
 
 /**
- * Helper function to check if a preview_workflow tool call has completed in the content
+ * Helper function to get a display name for a tool
  */
-function checkForPreviewToolCompletion(content: string): boolean {
-  // Look for tool call completion events in the content
-  const previewToolCallPattern = /__TOOL_CALL_EVENT__(.*?)__TOOL_CALL_EVENT__/g
-  let match
-
-  while ((match = previewToolCallPattern.exec(content)) !== null) {
-    try {
-      const toolCallEvent = JSON.parse(match[1])
-      if (
-        toolCallEvent.type === 'tool_call_complete' &&
-        toolCallEvent.toolCall?.name === 'preview_workflow' &&
-        toolCallEvent.toolCall?.state === 'completed'
-      ) {
-        return true // Found a completed preview tool call
-      }
-    } catch (error) {
-      // Ignore parsing errors for malformed events
-      continue
-    }
+function getToolDisplayName(toolName: string): string {
+  switch (toolName) {
+    case 'docs_search_internal':
+      return 'Searching documentation'
+    case 'get_user_workflow':
+      return 'Analyzing your workflow'
+    case 'preview_workflow':
+      return 'Preview workflow changes'
+    case 'get_blocks_and_tools':
+      return 'Getting block information'
+    case 'get_blocks_metadata':
+      return 'Getting block metadata'
+    case 'get_yaml_structure':
+      return 'Analyzing workflow structure'
+    case 'edit_workflow':
+      return 'Editing your workflow'
+    default:
+      return toolName.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())
   }
-
-  return false
 }
 
 /**
@@ -540,8 +537,19 @@ export const useCopilotStore = create<CopilotStore>()(
                 try {
                   const data = JSON.parse(line.slice(6))
 
+                  // Handle chat ID event (our custom event)
+                  if (data.type === 'chat_id') {
+                    newChatId = data.chatId
+                    logger.info('Received chatId from stream:', newChatId)
+                    
+                    // Update current chat if we don't have one
+                    const { currentChat } = get()
+                    if (!currentChat && newChatId) {
+                      await get().handleNewChatCreation(newChatId)
+                    }
+                  }
                   // Handle native Anthropic SSE events
-                  if (data.type === 'message_start') {
+                  else if (data.type === 'message_start') {
                     logger.info('Message started')
                   } else if (data.type === 'content_block_start') {
                     currentBlockType = data.content_block?.type
@@ -551,12 +559,21 @@ export const useCopilotStore = create<CopilotStore>()(
                       toolCallBuffer = {
                         id: data.content_block.id,
                         name: data.content_block.name,
+                        displayName: getToolDisplayName(data.content_block.name),
                         input: {},
                         partialInput: '',
+                        state: 'executing',
+                        startTime: Date.now(),
                       }
+                      toolCalls.push(toolCallBuffer)
                       logger.info(`Starting tool call: ${data.content_block.name}`)
                       
-                      // Don't show any messages - backend handles tool execution automatically
+                      // Update message with tool calls array
+                      set((state) => ({
+                        messages: state.messages.map((msg) =>
+                          msg.id === messageId ? { ...msg, content: accumulatedContent, toolCalls: [...toolCalls] } : msg
+                        ),
+                      }))
                     }
                   } else if (data.type === 'content_block_delta') {
                     if (currentBlockType === 'text' && data.delta?.text) {
@@ -570,7 +587,7 @@ export const useCopilotStore = create<CopilotStore>()(
                       // Update message in real-time
                       set((state) => ({
                         messages: state.messages.map((msg) =>
-                          msg.id === messageId ? { ...msg, content: accumulatedContent } : msg
+                          msg.id === messageId ? { ...msg, content: accumulatedContent, toolCalls: [...toolCalls] } : msg
                         ),
                       }))
                     } else if (currentBlockType === 'tool_use' && data.delta?.partial_json && toolCallBuffer) {
@@ -582,12 +599,22 @@ export const useCopilotStore = create<CopilotStore>()(
                       try {
                         // Parse complete tool call input
                         toolCallBuffer.input = JSON.parse(toolCallBuffer.partialInput || '{}')
-                        toolCalls.push(toolCallBuffer)
+                        toolCallBuffer.state = 'completed'
+                        toolCallBuffer.endTime = Date.now()
+                        toolCallBuffer.duration = toolCallBuffer.endTime - toolCallBuffer.startTime
                         logger.info(`Tool call completed: ${toolCallBuffer.name}`, toolCallBuffer.input)
                         
-                        // Don't show any messages - backend handles execution
+                        // Update message with completed tool call
+                        set((state) => ({
+                          messages: state.messages.map((msg) =>
+                            msg.id === messageId ? { ...msg, content: accumulatedContent, toolCalls: [...toolCalls] } : msg
+                          ),
+                        }))
                       } catch (error) {
                         logger.error('Error parsing tool call input:', error)
+                        toolCallBuffer.state = 'error'
+                        toolCallBuffer.endTime = Date.now()
+                        toolCallBuffer.duration = toolCallBuffer.endTime - toolCallBuffer.startTime
                       }
                       toolCallBuffer = null
                     }
@@ -596,15 +623,10 @@ export const useCopilotStore = create<CopilotStore>()(
                     // Handle token usage updates silently
                     if (data.delta?.stop_reason === 'tool_use') {
                       logger.info('Message stopped for tool use - backend will handle execution')
-                      // Don't complete the stream - backend will continue with tool results
                     }
                   } else if (data.type === 'message_stop') {
-                    // Only complete if this is the final stop (not a tool use stop)
-                    // The backend will send another message_stop after tool execution
-                    logger.info('Message stop received - checking if final')
-                    
                     // Don't complete yet - let the backend continue if there are tools
-                    // The stream will naturally complete when the backend closes it
+                    logger.info('Message stop received - checking if final')
                   } else if (data.type === 'error') {
                     // Handle error events from backend
                     logger.error('Backend error:', data.error)
@@ -624,10 +646,25 @@ export const useCopilotStore = create<CopilotStore>()(
           // Final update when stream actually ends
           set((state) => ({
             messages: state.messages.map((msg) =>
-              msg.id === messageId ? { ...msg, content: accumulatedContent } : msg
+              msg.id === messageId ? { ...msg, content: accumulatedContent, toolCalls: [...toolCalls] } : msg
             ),
             isSendingMessage: false,
           }))
+
+          // Auto-save messages after streaming completes
+          const { currentChat } = get()
+          const chatIdToSave = currentChat?.id || newChatId
+          
+          if (chatIdToSave) {
+            try {
+              logger.info('Auto-saving chat messages after streaming completion to chat:', chatIdToSave)
+              await get().saveChatMessages(chatIdToSave)
+            } catch (error) {
+              logger.error('Failed to auto-save chat messages:', error)
+            }
+          } else {
+            logger.warn('No chat ID available for auto-saving messages')
+          }
         } catch (error) {
           logger.error('Error handling streaming response:', error)
           throw error
@@ -664,34 +701,36 @@ export const useCopilotStore = create<CopilotStore>()(
 
       // Save chat messages to database
       saveChatMessages: async (chatId: string) => {
-        const { messages } = get()
+        const { messages, chats } = get()
         set({ isSaving: true, saveError: null })
 
         try {
           const result = await updateChatMessages(chatId, messages)
 
           if (result.success && result.chat) {
+            const updatedChat = result.chat
+
             // Update local state with the saved chat
             set({
-              currentChat: result.chat,
-              messages: result.chat.messages,
+              currentChat: updatedChat,
+              messages: updatedChat.messages,
               isSaving: false,
               saveError: null,
             })
 
             // Update the chat in the chats list (atomic check, update, or add)
             set((state) => {
-              const chatExists = state.chats.some((chat) => chat.id === result.chat!.id)
+              const chatExists = state.chats.some((chat) => chat.id === updatedChat!.id)
 
               if (!chatExists) {
                 // Chat doesn't exist, add it to the beginning
                 return {
-                  chats: [result.chat!, ...state.chats],
+                  chats: [updatedChat!, ...state.chats],
                 }
               }
               // Chat exists, update it
               const updatedChats = state.chats.map((chat) =>
-                chat.id === result.chat!.id ? result.chat! : chat
+                chat.id === updatedChat!.id ? updatedChat! : chat
               )
               return { chats: updatedChats }
             })
