@@ -14,16 +14,62 @@ const YamlDiffRequestSchema = z.object({
 
 type YamlDiffRequest = z.infer<typeof YamlDiffRequestSchema>
 
-interface BlockHash {
-  blockId: string
-  name: string
-  hash: string
-}
-
 interface DiffResult {
   deleted_blocks: string[]
   edited_blocks: string[]
   new_blocks: string[]
+  field_diffs?: Record<string, { changed_fields: string[], unchanged_fields: string[] }>
+}
+
+interface BlockHash {
+  blockId: string
+  name: string
+  hash: string
+  inputs?: Record<string, any>
+}
+
+/**
+ * Compare two block inputs to find which fields changed
+ */
+function compareBlockInputs(
+  originalInputs: Record<string, any>,
+  agentInputs: Record<string, any>
+): { changed_fields: string[], unchanged_fields: string[] } {
+  const changed_fields: string[] = []
+  const unchanged_fields: string[] = []
+  
+  // Get all unique field names from both blocks
+  const allFields = new Set([
+    ...Object.keys(originalInputs || {}),
+    ...Object.keys(agentInputs || {})
+  ])
+  
+  for (const field of allFields) {
+    const originalValue = originalInputs?.[field]
+    const agentValue = agentInputs?.[field]
+    
+    // Normalize values for comparison (handle null/undefined/empty string equivalence)
+    const normalizeValue = (value: any) => {
+      if (value === null || value === undefined || value === '') {
+        return null
+      }
+      if (typeof value === 'object') {
+        return JSON.stringify(value)
+      }
+      return String(value).trim()
+    }
+    
+    const normalizedOriginal = normalizeValue(originalValue)
+    const normalizedAgent = normalizeValue(agentValue)
+    
+    if (normalizedOriginal !== normalizedAgent) {
+      changed_fields.push(field)
+    } else {
+      unchanged_fields.push(field)
+    }
+  }
+  
+  return { changed_fields, unchanged_fields }
 }
 
 /**
@@ -88,12 +134,12 @@ function hashBlockContents(block: any): string {
   }
   
   const sortedContent = sortObjectKeys(cleanedContent)
-  const contentString = JSON.stringify(sortedContent)
-  console.log(`Final hash string for ${block.name}:`, contentString)
   
-  // Generate SHA-256 hash
-  const hash = crypto.createHash('sha256').update(contentString).digest('hex')
-  console.log(`Generated hash for ${block.name}:`, hash.substring(0, 8))
+  // Hash the content
+  const hash = crypto.createHash('sha256').update(JSON.stringify(sortedContent)).digest('hex')
+  
+  console.log(`Generated hash for ${block.name}: ${hash.substring(0, 8)}...`)
+  
   return hash
 }
 
@@ -117,6 +163,7 @@ function extractBlockHashes(yamlWorkflow: any): BlockHash[] {
       blockId,
       name: block.name || '',
       hash,
+      inputs: block.inputs || {}
     })
   })
   
@@ -188,12 +235,17 @@ export async function POST(request: NextRequest) {
     // Create name-to-blockId mappings
     const originalNameToId = new Map(originalHashes.map(b => [b.name, b.blockId]))
     const agentNameToId = new Map(agentHashes.map(b => [b.name, b.blockId]))
+    
+    // Create name-to-block mappings for field comparison
+    const originalNameToBlock = new Map(originalHashes.map(b => [b.name, b]))
+    const agentNameToBlock = new Map(agentHashes.map(b => [b.name, b]))
 
     // Analyze differences
     const result: DiffResult = {
       deleted_blocks: [],
       edited_blocks: [],
       new_blocks: [],
+      field_diffs: {}
     }
 
     // Find deleted blocks: blocks in original that don't exist in agent (by name AND hash)
@@ -225,6 +277,18 @@ export async function POST(request: NextRequest) {
           // Same name but different hash = edited block
           logger.info(`[${requestId}] Found edited block: ${agentBlock.name}`)
           result.edited_blocks.push(agentBlock.blockId)
+          
+          // Calculate field-level differences for this edited block
+          const originalBlock = originalNameToBlock.get(agentBlock.name)
+          if (originalBlock) {
+            const fieldDiff = compareBlockInputs(originalBlock.inputs || {}, agentBlock.inputs || {})
+            result.field_diffs![agentBlock.blockId] = fieldDiff
+            
+            logger.info(`[${requestId}] Field diff for ${agentBlock.name}:`, {
+              changed_fields: fieldDiff.changed_fields,
+              unchanged_fields: fieldDiff.unchanged_fields.length
+            })
+          }
         }
         // If same name and same hash, it's unchanged (no action needed)
       } else if (!hashExistsInOriginal) {
@@ -241,8 +305,10 @@ export async function POST(request: NextRequest) {
       deletedCount: result.deleted_blocks.length,
       editedCount: result.edited_blocks.length,
       newCount: result.new_blocks.length,
+      fieldDiffsCount: Object.keys(result.field_diffs || {}).length,
       originalBlocks: originalHashes.map(h => `${h.name}:${h.hash.substring(0, 8)}`),
       agentBlocks: agentHashes.map(h => `${h.name}:${h.hash.substring(0, 8)}`),
+      fieldDiffs: result.field_diffs
     })
 
     return NextResponse.json({

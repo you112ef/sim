@@ -76,12 +76,19 @@ export function WorkflowBlock({ id, data }: NodeProps<WorkflowBlockProps>) {
   const diffStatus = currentWorkflow.isDiffMode && currentBlock ? 
     (currentBlock as any).is_diff : undefined
   
-  // Debug: Log when in diff mode
+  // Get field-level diff information
+  const fieldDiff = currentWorkflow.isDiffMode && currentBlock ? 
+    (currentBlock as any).field_diff : undefined
+  
+    // Debug: Log when in diff mode
   useEffect(() => {
     if (currentWorkflow.isDiffMode) {
       console.log(`[WorkflowBlock ${id}] Diff mode active, block exists: ${!!currentBlock}, diff status: ${diffStatus}`)
+      if (fieldDiff) {
+        console.log(`[WorkflowBlock ${id}] Field diff:`, fieldDiff)
+      }
     }
-  }, [currentWorkflow.isDiffMode, currentBlock, diffStatus, id])
+  }, [currentWorkflow.isDiffMode, currentBlock, diffStatus, fieldDiff || null, id])
   const horizontalHandles = data.isPreview 
     ? (data.blockState?.horizontalHandles ?? true)  // In preview mode, use blockState and default to horizontal
     : useWorkflowStore((state) => state.blocks[id]?.horizontalHandles ?? true)  // Changed default to true for consistency
@@ -818,6 +825,13 @@ export function WorkflowBlock({ id, data }: NodeProps<WorkflowBlockProps>) {
                         isPreview={data.isPreview}
                         subBlockValues={data.subBlockValues}
                         disabled={!userPermissions.canEdit}
+                        fieldDiffStatus={
+                          fieldDiff && fieldDiff.changed_fields?.includes(subBlock.id) 
+                            ? 'changed' 
+                            : fieldDiff && fieldDiff.unchanged_fields?.includes(subBlock.id)
+                            ? 'unchanged'
+                            : undefined
+                        }
                       />
                     </div>
                   ))}

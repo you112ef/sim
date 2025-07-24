@@ -13,6 +13,7 @@ export interface DiffAnalysis {
   new_blocks: string[]
   edited_blocks: string[]
   deleted_blocks: string[]
+  field_diffs?: Record<string, { changed_fields: string[], unchanged_fields: string[] }>
 }
 
 export interface WorkflowDiff {
@@ -149,6 +150,11 @@ export class WorkflowDiffEngine {
                 (block as any).is_diff = 'new'
               } else if (mappedDiffAnalysis.edited_blocks.includes(blockId)) {
                 (block as any).is_diff = 'edited'
+                
+                // Re-apply field-level diff information if available
+                if (mappedDiffAnalysis.field_diffs && mappedDiffAnalysis.field_diffs[blockId]) {
+                  (block as any).field_diff = mappedDiffAnalysis.field_diffs[blockId]
+                }
               } else {
                 (block as any).is_diff = 'unchanged'
               }
@@ -199,11 +205,22 @@ export class WorkflowDiffEngine {
     analysis: DiffAnalysis,
     idMapping: Map<string, string>
   ): DiffAnalysis {
-    return {
+    const mapped: DiffAnalysis = {
       new_blocks: analysis.new_blocks.map(oldId => idMapping.get(oldId) || oldId),
       edited_blocks: analysis.edited_blocks.map(oldId => idMapping.get(oldId) || oldId),
       deleted_blocks: analysis.deleted_blocks // Deleted blocks won't have new IDs
     }
+    
+    // Map field diffs with new IDs
+    if (analysis.field_diffs) {
+      mapped.field_diffs = {}
+      Object.entries(analysis.field_diffs).forEach(([oldId, fieldDiff]) => {
+        const newId = idMapping.get(oldId) || oldId
+        mapped.field_diffs![newId] = fieldDiff
+      })
+    }
+    
+    return mapped
   }
 
   /**
@@ -308,7 +325,17 @@ export class WorkflowDiffEngine {
           logger.info(`Block ${blockId} (original: ${originalId}) marked as new`)
         } else if (analysis.edited_blocks.includes(originalId)) {
           (block as any).is_diff = 'edited'
-          logger.info(`Block ${blockId} (original: ${originalId}) marked as edited`)
+          
+          // Add field-level diff information if available
+          if (analysis.field_diffs && analysis.field_diffs[originalId]) {
+            (block as any).field_diff = analysis.field_diffs[originalId]
+            logger.info(`Block ${blockId} (original: ${originalId}) marked as edited with field diff:`, {
+              changed_fields: analysis.field_diffs[originalId].changed_fields,
+              unchanged_fields: analysis.field_diffs[originalId].unchanged_fields.length
+            })
+          } else {
+            logger.info(`Block ${blockId} (original: ${originalId}) marked as edited`)
+          }
         } else {
           (block as any).is_diff = 'unchanged'
         }

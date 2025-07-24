@@ -1,7 +1,8 @@
-import { useState } from 'react'
+import React, { useState, useEffect } from 'react'
 import { AlertTriangle, Info } from 'lucide-react'
 import { Label } from '@/components/ui/label'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
+import { cn } from '@/lib/utils'
 import { getBlock } from '@/blocks/index'
 import type { SubBlockConfig } from '@/blocks/types'
 import { useWorkflowStore } from '@/stores/workflows/workflow/store'
@@ -39,6 +40,7 @@ interface SubBlockProps {
   isPreview?: boolean
   subBlockValues?: Record<string, any>
   disabled?: boolean
+  fieldDiffStatus?: 'changed' | 'unchanged'
 }
 
 export function SubBlock({
@@ -48,8 +50,16 @@ export function SubBlock({
   isPreview = false,
   subBlockValues,
   disabled = false,
+  fieldDiffStatus,
 }: SubBlockProps) {
   const [isValidJson, setIsValidJson] = useState(true)
+  
+  // Debug field diff status
+  useEffect(() => {
+    if (fieldDiffStatus) {
+      console.log(`[SubBlock ${config.id}] fieldDiffStatus:`, fieldDiffStatus)
+    }
+  }, [fieldDiffStatus, config.id])
 
   const handleMouseDown = (e: React.MouseEvent) => {
     e.stopPropagation()
@@ -405,7 +415,14 @@ export function SubBlock({
   const required = isFieldRequired()
 
   return (
-    <div className='space-y-[6px] pt-[2px]' onMouseDown={handleMouseDown}>
+    <div 
+      className={cn(
+        'space-y-[6px] pt-[2px]',
+        // Field-level diff highlighting - make it more prominent for testing
+        fieldDiffStatus === 'changed' && 'ring-2 ring-orange-500 bg-orange-100 dark:bg-orange-900/40 rounded-lg p-3 -m-1 border border-orange-200 dark:border-orange-800'
+      )} 
+      onMouseDown={handleMouseDown}
+    >
       {config.type !== 'switch' && (
         <Label className='flex items-center gap-1'>
           {config.title}
