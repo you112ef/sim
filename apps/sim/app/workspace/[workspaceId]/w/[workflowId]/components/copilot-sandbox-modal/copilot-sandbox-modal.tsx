@@ -1,7 +1,7 @@
 'use client'
 
 import { useState } from 'react'
-import { Eye, Maximize2, Minimize2, Save, CheckCircle, X, AlertCircle, XCircle, ChevronDown } from 'lucide-react'
+import { Eye, Maximize2, Minimize2, Save, CheckCircle, X, AlertCircle, XCircle, ChevronDown, Plus, Edit, Trash2 } from 'lucide-react'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
@@ -14,12 +14,20 @@ import type { WorkflowState } from '@/stores/workflows/workflow/types'
 
 const logger = createLogger('CopilotSandboxModal')
 
+interface DiffInfo {
+  deleted_blocks: string[]
+  edited_blocks: string[]
+  new_blocks: string[]
+}
+
 interface CopilotSandboxModalProps {
   isOpen: boolean
   onClose: () => void
   proposedWorkflowState: WorkflowState | null
   yamlContent: string
   description?: string
+  diffInfo?: DiffInfo | null
+  isDiffLoading?: boolean
   onApplyToCurrentWorkflow: () => Promise<void>
   onSaveAsNewWorkflow: (name: string) => Promise<void>
   onReject?: () => Promise<void>
@@ -32,6 +40,8 @@ export function CopilotSandboxModal({
   proposedWorkflowState,
   yamlContent,
   description,
+  diffInfo,
+  isDiffLoading = false,
   onApplyToCurrentWorkflow,
   onSaveAsNewWorkflow,
   onReject,
@@ -107,6 +117,20 @@ export function CopilotSandboxModal({
   const blockCount = Object.keys(proposedWorkflowState.blocks || {}).length
   const edgeCount = proposedWorkflowState.edges?.length || 0
 
+  // Debug logging
+  console.log('CopilotSandboxModal rendering with props:', { 
+    diffInfo: diffInfo ? 'present' : 'null', 
+    isDiffLoading, 
+    isOpen,
+    proposedWorkflowState: proposedWorkflowState ? 'present' : 'null' 
+  })
+
+  // Helper function to get block name from ID
+  const getBlockName = (blockId: string): string => {
+    const block = proposedWorkflowState.blocks?.[blockId]
+    return block?.name || blockId
+  }
+
   return (
     <Dialog open={isOpen} onOpenChange={handleClose}>
       <DialogContent
@@ -151,6 +175,113 @@ export function CopilotSandboxModal({
             </Button>
           </div>
         </DialogHeader>
+
+        {/* Diff Information Section - Always Rendered */}
+        <div className='border-b bg-background px-6 py-4' style={{ backgroundColor: '#f8f9fa' }}>
+          <div className='space-y-3'>
+            <h3 className='font-medium text-sm text-foreground'>
+              Workflow Changes 
+              <span className='text-xs text-muted-foreground ml-2'>
+                (Debug: diffInfo={diffInfo ? 'present' : 'null'}, loading={isDiffLoading ? 'true' : 'false'})
+              </span>
+            </h3>
+            
+            {isDiffLoading ? (
+              <div className='flex items-center gap-2 text-muted-foreground text-sm'>
+                <div className='h-3 w-3 animate-spin rounded-full border-2 border-gray-300 border-t-gray-600'></div>
+                Analyzing workflow changes...
+              </div>
+            ) : diffInfo ? (
+              <>
+                <div className='grid grid-cols-1 md:grid-cols-3 gap-4'>
+                  {/* New Blocks */}
+                  {diffInfo.new_blocks.length > 0 && (
+                    <div className='space-y-2'>
+                      <div className='flex items-center gap-2'>
+                        <Plus className='h-4 w-4 text-green-600 dark:text-green-400' />
+                        <span className='font-medium text-green-700 dark:text-green-300 text-sm'>
+                          New Blocks ({diffInfo.new_blocks.length})
+                        </span>
+                      </div>
+                      <div className='space-y-1'>
+                        {diffInfo.new_blocks.map(blockId => (
+                          <Badge key={blockId} variant='outline' className='text-xs bg-green-50 border-green-200 text-green-700 dark:bg-green-950 dark:border-green-800 dark:text-green-300'>
+                            {getBlockName(blockId)}
+                          </Badge>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Edited Blocks */}
+                  {diffInfo.edited_blocks.length > 0 && (
+                    <div className='space-y-2'>
+                      <div className='flex items-center gap-2'>
+                        <Edit className='h-4 w-4 text-orange-600 dark:text-orange-400' />
+                        <span className='font-medium text-orange-700 dark:text-orange-300 text-sm'>
+                          Modified Blocks ({diffInfo.edited_blocks.length})
+                        </span>
+                      </div>
+                      <div className='space-y-1'>
+                        {diffInfo.edited_blocks.map(blockId => (
+                          <Badge key={blockId} variant='outline' className='text-xs bg-orange-50 border-orange-200 text-orange-700 dark:bg-orange-950 dark:border-orange-800 dark:text-orange-300'>
+                            {getBlockName(blockId)}
+                          </Badge>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Deleted Blocks */}
+                  {diffInfo.deleted_blocks.length > 0 && (
+                    <div className='space-y-2'>
+                      <div className='flex items-center gap-2'>
+                        <Trash2 className='h-4 w-4 text-red-600 dark:text-red-400' />
+                        <span className='font-medium text-red-700 dark:text-red-300 text-sm'>
+                          Deleted Blocks ({diffInfo.deleted_blocks.length})
+                        </span>
+                      </div>
+                      <div className='space-y-1'>
+                        {diffInfo.deleted_blocks.map(blockId => (
+                          <Badge key={blockId} variant='outline' className='text-xs bg-red-50 border-red-200 text-red-700 dark:bg-red-950 dark:border-red-800 dark:text-red-300'>
+                            {blockId}
+                          </Badge>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
+
+                {/* Summary */}
+                {(diffInfo.new_blocks.length > 0 || diffInfo.edited_blocks.length > 0 || diffInfo.deleted_blocks.length > 0) ? (
+                  <div className='text-muted-foreground text-xs'>
+                    {diffInfo.new_blocks.length + diffInfo.edited_blocks.length + diffInfo.deleted_blocks.length} total changes detected
+                  </div>
+                ) : (
+                  <div className='flex items-center gap-2 text-muted-foreground text-xs'>
+                    <CheckCircle className='h-3 w-3 text-green-600' />
+                    No changes detected - workflow appears to be identical
+                  </div>
+                )}
+              </>
+            ) : (
+              <div className='space-y-2'>
+                <div className='text-muted-foreground text-sm'>
+                  Unable to analyze workflow changes - comparing against current workflow structure
+                </div>
+                <div className='text-xs text-gray-500 bg-gray-50 p-2 rounded border'>
+                  Debug: No diff data available. This could be due to:
+                  <ul className='list-disc list-inside mt-1'>
+                    <li>Current workflow has no existing blocks</li>
+                    <li>API call to get current workflow failed</li>
+                    <li>Diff API call failed</li>
+                    <li>YAML parsing issues</li>
+                  </ul>
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
 
         {/* Preview Container */}
         <div className='min-h-0 flex-1 bg-gray-50 dark:bg-gray-900'>

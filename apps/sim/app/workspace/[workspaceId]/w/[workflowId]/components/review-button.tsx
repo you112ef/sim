@@ -24,6 +24,8 @@ export function ReviewButton() {
   const [showModal, setShowModal] = useState(false)
   const [isProcessing, setIsProcessing] = useState(false)
   const [previewWorkflowState, setPreviewWorkflowState] = useState<any>(null)
+  const [diffInfo, setDiffInfo] = useState<any>(null)
+  const [isDiffLoading, setIsDiffLoading] = useState(false)
 
   // Check if current chat has preview YAML
   const hasPreview = currentChat?.previewYaml !== null && currentChat?.previewYaml !== undefined
@@ -34,7 +36,7 @@ export function ReviewButton() {
   }
 
   const handleShowPreview = async () => {
-    if (!currentChat?.previewYaml) return
+    if (!currentChat?.previewYaml || !activeWorkflowId) return
     
     try {
       // Validate YAML content before sending
@@ -46,7 +48,8 @@ export function ReviewButton() {
       logger.info('Generating preview with YAML content (first 200 chars):', yamlContent.substring(0, 200))
       
       // Generate workflow state from YAML for the modal
-      const response = await fetch('/api/workflows/preview', {
+      logger.info('Step 1: Calling preview API...')
+      const previewResponse = await fetch('/api/workflows/preview', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -54,29 +57,108 @@ export function ReviewButton() {
           applyAutoLayout: true,
         }),
       })
+      logger.info('Step 1 complete: Preview API response received', { status: previewResponse.status })
 
-      if (!response.ok) {
-        const errorText = await response.text()
-        logger.error('Preview API response not ok:', { status: response.status, statusText: response.statusText, errorText })
-        throw new Error(`Failed to generate preview: ${response.status} ${response.statusText}`)
+      if (!previewResponse.ok) {
+        const errorText = await previewResponse.text()
+        logger.error('Preview API response not ok:', { status: previewResponse.status, statusText: previewResponse.statusText, errorText })
+        throw new Error(`Failed to generate preview: ${previewResponse.status} ${previewResponse.statusText}`)
       }
 
-      const result = await response.json()
+      const previewResult = await previewResponse.json()
+      logger.info('Step 1 result: Preview API parsed successfully', { success: previewResult.success })
       
-      if (!result.success) {
-        logger.error('Preview API returned error:', result)
-        throw new Error(result.message || 'Failed to generate preview')
+      if (!previewResult.success) {
+        logger.error('Preview API returned error:', previewResult)
+        throw new Error(previewResult.message || 'Failed to generate preview')
       }
 
-      // Set the generated workflow state and open modal
-      setPreviewWorkflowState(result.workflowState)
+      // Get current workflow YAML for diff comparison
+      logger.info('Step 2: Getting current workflow YAML for diff comparison...')
+      let originalYaml = ''
+      try {
+        const currentWorkflowResponse = await fetch(`/api/tools/get-user-workflow`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            workflowId: activeWorkflowId,
+            includeMetadata: false,
+          }),
+        })
+        logger.info('Step 2: Current workflow API response received', { status: currentWorkflowResponse.status })
+
+        if (currentWorkflowResponse.ok) {
+          const currentWorkflowResult = await currentWorkflowResponse.json()
+          logger.info('Step 2: Current workflow API parsed', { success: currentWorkflowResult.success, hasYaml: !!currentWorkflowResult.output?.yaml })
+          if (currentWorkflowResult.success && currentWorkflowResult.output?.yaml) {
+            originalYaml = currentWorkflowResult.output.yaml
+            logger.info('Step 2: Original YAML obtained', { length: originalYaml.length })
+          }
+        } else {
+          logger.warn('Step 2: Current workflow API failed', { status: currentWorkflowResponse.status })
+        }
+      } catch (yamlError) {
+        logger.error('Step 2: Failed to get current workflow YAML for diff:', yamlError)
+      }
+
+      // Generate diff information if we have original YAML
+      logger.info('Step 3: Generating diff information...')
+      let diffResult = null
+      if (originalYaml) {
+        try {
+          setIsDiffLoading(true)
+          logger.info('Step 3: Starting diff with original YAML length:', originalYaml.length, 'agent YAML length:', yamlContent.length)
+          
+          const diffResponse = await fetch('/api/workflows/diff', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              original_yaml: originalYaml,
+              agent_yaml: yamlContent,
+            }),
+          })
+          logger.info('Step 3: Diff API response received', { status: diffResponse.status })
+
+          if (diffResponse.ok) {
+            const diffData = await diffResponse.json()
+            logger.info('Step 3: Diff API response parsed:', diffData)
+            if (diffData.success) {
+              diffResult = diffData.data
+              logger.info('Step 3: Generated diff information successfully:', diffResult)
+            } else {
+              logger.error('Step 3: Diff API returned unsuccessful response:', diffData)
+            }
+          } else {
+            logger.error('Step 3: Diff API request failed:', diffResponse.status, diffResponse.statusText)
+            const errorText = await diffResponse.text()
+            logger.error('Step 3: Diff API error response:', errorText)
+          }
+        } catch (diffError) {
+          logger.error('Step 3: Failed to generate diff information:', diffError)
+        } finally {
+          setIsDiffLoading(false)
+        }
+      } else {
+        logger.warn('Step 3: No original YAML available for diff comparison')
+        setIsDiffLoading(false)
+      }
+
+      // Set the generated workflow state, diff info, and open modal
+      logger.info('Step 4: Setting modal state and opening...')
+      setPreviewWorkflowState(previewResult.workflowState)
+      setDiffInfo(diffResult)
+      logger.info('Step 4: Opening modal with diff info:', diffResult)
       setShowModal(true)
+      logger.info('Step 4: Modal state should now be open')
     } catch (error) {
       logger.error('Failed to generate preview for modal:', {
         error: error instanceof Error ? error.message : String(error),
+        stack: error instanceof Error ? error.stack : undefined,
         yamlLength: currentChat?.previewYaml?.length,
         yamlPreview: currentChat?.previewYaml?.substring(0, 100)
       })
+      // Reset loading states on error
+      setIsDiffLoading(false)
       // TODO: Show user-friendly error message
     }
   }
@@ -285,6 +367,8 @@ export function ReviewButton() {
       await clearPreviewYaml()
       setShowModal(false)
       setPreviewWorkflowState(null)
+      setDiffInfo(null)
+      setIsDiffLoading(false)
     } catch (error) {
       logger.error('Failed to apply preview:', error)
     } finally {
@@ -348,6 +432,8 @@ export function ReviewButton() {
       await clearPreviewYaml()
       setShowModal(false)
       setPreviewWorkflowState(null)
+      setDiffInfo(null)
+      setIsDiffLoading(false)
     } catch (error) {
       logger.error('Failed to save preview as new workflow:', error)
     } finally {
@@ -364,6 +450,8 @@ export function ReviewButton() {
       await clearPreviewYaml()
       setShowModal(false)
       setPreviewWorkflowState(null)
+      setDiffInfo(null)
+      setIsDiffLoading(false)
     } catch (error) {
       logger.error('Failed to reject preview:', error)
     } finally {
@@ -374,6 +462,8 @@ export function ReviewButton() {
   const handleClose = () => {
     setShowModal(false)
     setPreviewWorkflowState(null)
+    setDiffInfo(null)
+    setIsDiffLoading(false)
   }
 
   // Create preview data for the sandbox modal
@@ -382,6 +472,15 @@ export function ReviewButton() {
     yamlContent: currentChat.previewYaml,
     description: 'Copilot generated workflow preview'
   } : null
+
+  // Debug logging
+  console.log('ReviewButton render state:', { 
+    showModal, 
+    previewData: previewData ? 'present' : 'null', 
+    diffInfo: diffInfo ? `present (${Object.keys(diffInfo).join(',')})` : 'null', 
+    isDiffLoading,
+    hasPreviewYaml: !!currentChat?.previewYaml
+  })
 
   return (
     <>
@@ -416,6 +515,8 @@ export function ReviewButton() {
           proposedWorkflowState={previewData.workflowState}
           yamlContent={previewData.yamlContent}
           description={previewData.description}
+          diffInfo={diffInfo}
+          isDiffLoading={isDiffLoading}
           onApplyToCurrentWorkflow={handleApply}
           onSaveAsNewWorkflow={handleSaveAsNew}
           onReject={handleReject}

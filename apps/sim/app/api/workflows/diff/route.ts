@@ -1,0 +1,268 @@
+import { type NextRequest, NextResponse } from 'next/server'
+import { z } from 'zod'
+import crypto from 'crypto'
+import { createLogger } from '@/lib/logs/console-logger'
+import { parseWorkflowYaml } from '@/stores/workflows/yaml/importer'
+
+const logger = createLogger('WorkflowYamlDiffAPI')
+
+// Request schema for YAML diff operations
+const YamlDiffRequestSchema = z.object({
+  original_yaml: z.string().min(1, 'Original YAML content is required'),
+  agent_yaml: z.string().min(1, 'Agent YAML content is required'),
+})
+
+type YamlDiffRequest = z.infer<typeof YamlDiffRequestSchema>
+
+interface BlockHash {
+  blockId: string
+  name: string
+  hash: string
+}
+
+interface DiffResult {
+  deleted_blocks: string[]
+  edited_blocks: string[]
+  new_blocks: string[]
+}
+
+/**
+ * Create a hash of block contents excluding IDs, name, and connections
+ */
+function hashBlockContents(block: any): string {
+  // Create a copy of the block to avoid mutating the original
+  const blockCopy = JSON.parse(JSON.stringify(block))
+  
+  // Extract the properties we want to hash
+  const hashableContent = {
+    type: blockCopy.type,
+    inputs: blockCopy.inputs || {},
+    parentId: blockCopy.parentId || null,
+  }
+  
+  // Debug: Log what content will be hashed
+  console.log(`Hashing block content for ${block.name}:`, JSON.stringify(hashableContent, null, 2))
+  
+  // Remove any ID fields from inputs recursively
+  function removeIds(obj: any): any {
+    if (obj === null || obj === undefined) {
+      return obj
+    }
+    
+    if (Array.isArray(obj)) {
+      return obj.map(removeIds)
+    }
+    
+    if (typeof obj === 'object') {
+      const cleaned: any = {}
+      for (const [key, value] of Object.entries(obj)) {
+        // Skip only actual ID fields (not fields like "apiKey" that contain "id")
+        if (key === 'id' || key === 'blockId' || key === 'targetId' || key === 'sourceId' || 
+            key.endsWith('Id') || key.endsWith('_id')) {
+          continue
+        }
+        cleaned[key] = removeIds(value)
+      }
+      return cleaned
+    }
+    
+    return obj
+  }
+  
+  const cleanedContent = removeIds(hashableContent)
+  
+  // Debug: Log what content will actually be hashed after ID removal
+  console.log(`Cleaned content for ${block.name}:`, JSON.stringify(cleanedContent, null, 2))
+  
+  // Create deterministic JSON string (sorted keys recursively)
+  const sortObjectKeys = (obj: any): any => {
+    if (obj === null || obj === undefined || typeof obj !== 'object' || Array.isArray(obj)) {
+      return obj
+    }
+    
+    const sorted: any = {}
+    Object.keys(obj).sort().forEach(key => {
+      sorted[key] = sortObjectKeys(obj[key])
+    })
+    return sorted
+  }
+  
+  const sortedContent = sortObjectKeys(cleanedContent)
+  const contentString = JSON.stringify(sortedContent)
+  console.log(`Final hash string for ${block.name}:`, contentString)
+  
+  // Generate SHA-256 hash
+  const hash = crypto.createHash('sha256').update(contentString).digest('hex')
+  console.log(`Generated hash for ${block.name}:`, hash.substring(0, 8))
+  return hash
+}
+
+/**
+ * Extract block hashes from a parsed YAML workflow
+ */
+function extractBlockHashes(yamlWorkflow: any): BlockHash[] {
+  const blockHashes: BlockHash[] = []
+  
+  if (!yamlWorkflow.blocks || typeof yamlWorkflow.blocks !== 'object') {
+    return blockHashes
+  }
+  
+  Object.entries(yamlWorkflow.blocks).forEach(([blockId, block]: [string, any]) => {
+    if (!block || typeof block !== 'object') {
+      return
+    }
+    
+    const hash = hashBlockContents(block)
+    blockHashes.push({
+      blockId,
+      name: block.name || '',
+      hash,
+    })
+  })
+  
+  return blockHashes
+}
+
+/**
+ * POST /api/workflows/diff
+ * Compare two YAML workflow configurations and return diff analysis
+ */
+export async function POST(request: NextRequest) {
+  const requestId = crypto.randomUUID().slice(0, 8)
+  const startTime = Date.now()
+
+  try {
+    // Parse and validate request
+    const body = await request.json()
+    const { original_yaml, agent_yaml } = YamlDiffRequestSchema.parse(body)
+
+    logger.info(`[${requestId}] Processing YAML diff request`, {
+      originalYamlLength: original_yaml.length,
+      agentYamlLength: agent_yaml.length,
+    })
+
+    // Debug: Log the actual YAML content being compared
+    logger.info(`[${requestId}] Original YAML content (first 500 chars):`, original_yaml.substring(0, 500))
+    logger.info(`[${requestId}] Agent YAML content (first 500 chars):`, agent_yaml.substring(0, 500))
+
+    // Parse both YAML documents
+    const { data: originalWorkflow, errors: originalErrors } = parseWorkflowYaml(original_yaml)
+    const { data: agentWorkflow, errors: agentErrors } = parseWorkflowYaml(agent_yaml)
+
+    // Check for parsing errors
+    if (!originalWorkflow || originalErrors.length > 0) {
+      logger.error(`[${requestId}] Original YAML parsing failed`, { originalErrors })
+      return NextResponse.json({
+        success: false,
+        message: 'Failed to parse original YAML workflow',
+        errors: originalErrors,
+      }, { status: 400 })
+    }
+
+    if (!agentWorkflow || agentErrors.length > 0) {
+      logger.error(`[${requestId}] Agent YAML parsing failed`, { agentErrors })
+      return NextResponse.json({
+        success: false,
+        message: 'Failed to parse agent YAML workflow',
+        errors: agentErrors,
+      }, { status: 400 })
+    }
+
+    // Extract block hashes from both workflows
+    const originalHashes = extractBlockHashes(originalWorkflow)
+    const agentHashes = extractBlockHashes(agentWorkflow)
+
+    logger.info(`[${requestId}] Extracted block hashes`, {
+      originalBlockCount: originalHashes.length,
+      agentBlockCount: agentHashes.length,
+    })
+
+    // Create hash sets for efficient lookup
+    const originalHashSet = new Set(originalHashes.map(b => b.hash))
+    const agentHashSet = new Set(agentHashes.map(b => b.hash))
+    
+    // Create name-to-hash mappings for edited block detection
+    const originalNameToHash = new Map(originalHashes.map(b => [b.name, b.hash]))
+    const agentNameToHash = new Map(agentHashes.map(b => [b.name, b.hash]))
+    
+    // Create name-to-blockId mappings
+    const originalNameToId = new Map(originalHashes.map(b => [b.name, b.blockId]))
+    const agentNameToId = new Map(agentHashes.map(b => [b.name, b.blockId]))
+
+    // Analyze differences
+    const result: DiffResult = {
+      deleted_blocks: [],
+      edited_blocks: [],
+      new_blocks: [],
+    }
+
+    // Find deleted blocks: blocks in original that don't exist in agent (by name AND hash)
+    for (const originalBlock of originalHashes) {
+      const nameExistsInAgent = agentNameToHash.has(originalBlock.name)
+      const hashExistsInAgent = agentHashSet.has(originalBlock.hash)
+      
+      if (!nameExistsInAgent && !hashExistsInAgent) {
+        result.deleted_blocks.push(originalBlock.blockId)
+      }
+    }
+
+    // Find edited and new blocks in agent workflow
+    for (const agentBlock of agentHashes) {
+      const nameExistsInOriginal = originalNameToHash.has(agentBlock.name)
+      const hashExistsInOriginal = originalHashSet.has(agentBlock.hash)
+      
+      logger.info(`[${requestId}] Checking agent block: ${agentBlock.name}`, {
+        nameExistsInOriginal,
+        hashExistsInOriginal,
+        agentHash: agentBlock.hash.substring(0, 8),
+        originalHash: originalNameToHash.get(agentBlock.name)?.substring(0, 8) || 'none'
+      })
+      
+      if (nameExistsInOriginal) {
+        // Block name exists in original
+        const originalHash = originalNameToHash.get(agentBlock.name)
+        if (originalHash !== agentBlock.hash) {
+          // Same name but different hash = edited block
+          logger.info(`[${requestId}] Found edited block: ${agentBlock.name}`)
+          result.edited_blocks.push(agentBlock.blockId)
+        }
+        // If same name and same hash, it's unchanged (no action needed)
+      } else if (!hashExistsInOriginal) {
+        // Block name doesn't exist in original AND hash doesn't exist = new block
+        logger.info(`[${requestId}] Found new block: ${agentBlock.name}`)
+        result.new_blocks.push(agentBlock.blockId)
+      }
+      // If name doesn't exist but hash exists, it's a renamed block (treat as unchanged)
+    }
+
+    const elapsed = Date.now() - startTime
+    
+    logger.info(`[${requestId}] YAML diff completed in ${elapsed}ms`, {
+      deletedCount: result.deleted_blocks.length,
+      editedCount: result.edited_blocks.length,
+      newCount: result.new_blocks.length,
+      originalBlocks: originalHashes.map(h => `${h.name}:${h.hash.substring(0, 8)}`),
+      agentBlocks: agentHashes.map(h => `${h.name}:${h.hash.substring(0, 8)}`),
+    })
+
+    return NextResponse.json({
+      success: true,
+      data: result,
+      metadata: {
+        original_block_count: originalHashes.length,
+        agent_block_count: agentHashes.length,
+        processing_time_ms: elapsed,
+      },
+    })
+
+  } catch (error) {
+    const elapsed = Date.now() - startTime
+    logger.error(`[${requestId}] YAML diff failed in ${elapsed}ms`, error)
+    
+    return NextResponse.json({
+      success: false,
+      message: `Failed to process YAML diff: ${error instanceof Error ? error.message : 'Unknown error'}`,
+      error: error instanceof Error ? error.message : 'Unknown error',
+    }, { status: 500 })
+  }
+} 
