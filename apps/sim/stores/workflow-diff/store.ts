@@ -61,8 +61,8 @@ export const useWorkflowDiffStore = create<WorkflowDiffStore>()(
           source,
           timestamp: Date.now(),
         },
-        // Don't automatically show diff - let user toggle
-        isShowingDiff: false,
+        // Automatically show diff for copilot changes, let user toggle for manual changes
+        isShowingDiff: source === 'copilot',
       })
     },
 
