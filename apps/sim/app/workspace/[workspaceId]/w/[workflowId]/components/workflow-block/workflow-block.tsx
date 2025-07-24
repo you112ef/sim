@@ -16,7 +16,7 @@ import { useWorkflowRegistry } from '@/stores/workflows/registry/store'
 import { useSubBlockStore } from '@/stores/workflows/subblock/store'
 import { mergeSubblockState } from '@/stores/workflows/utils'
 import { useWorkflowStore } from '@/stores/workflows/workflow/store'
-import { useWorkflowDiffStore } from '@/stores/workflow-diff/store'
+
 import { ActionBar } from './components/action-bar/action-bar'
 import { ConnectionBlocks } from './components/connection-blocks/connection-blocks'
 import { SubBlock } from './components/sub-block/sub-block'
@@ -67,11 +67,11 @@ export function WorkflowBlock({ id, data }: NodeProps<WorkflowBlockProps>) {
   const lastUpdate = useWorkflowStore((state) => state.lastUpdate)
   
   // Use the clean abstraction for current workflow state
+  // Use the clean abstraction for current workflow state
   const currentWorkflow = useCurrentWorkflow()
   const currentBlock = currentWorkflow.getBlockById(id)
   
   const isEnabled = currentBlock?.enabled ?? true
-  const diffStatus = currentBlock?.is_diff
   const horizontalHandles = data.isPreview 
     ? (data.blockState?.horizontalHandles ?? true)  // In preview mode, use blockState and default to horizontal
     : useWorkflowStore((state) => state.blocks[id]?.horizontalHandles ?? true)  // Changed default to true for consistency
@@ -467,9 +467,6 @@ export function WorkflowBlock({ id, data }: NodeProps<WorkflowBlockProps>) {
           !isEnabled && 'shadow-sm',
           isActive && 'animate-pulse-ring ring-2 ring-blue-500',
           isPending && 'ring-2 ring-amber-500',
-          // Diff highlighting
-          diffStatus === 'new' && 'ring-2 ring-green-500 bg-green-50/50 dark:bg-green-900/10',
-          diffStatus === 'edited' && 'ring-2 ring-orange-500 bg-orange-50/50 dark:bg-orange-900/10',
           'z-[20]'
         )}
       >

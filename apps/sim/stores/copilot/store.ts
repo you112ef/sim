@@ -618,6 +618,16 @@ export const useCopilotStore = create<CopilotStore>()(
                         if (success) {
                           existingToolCall.result = result
                           logger.info('Updated tool call result:', toolCallId, existingToolCall.name)
+                          
+                          // Handle successful preview_workflow tool result
+                          if (existingToolCall.name === 'preview_workflow' && result?.yamlContent) {
+                            logger.info('Setting preview YAML from tool_result event', {
+                              yamlLength: result.yamlContent.length,
+                              yamlPreview: result.yamlContent.substring(0, 100)
+                            })
+                            get().setPreviewYaml(result.yamlContent)
+                            get().updateDiffStore(result.yamlContent)
+                          }
                         } else {
                           // Tool execution failed
                           existingToolCall.state = 'error'
@@ -779,12 +789,21 @@ export const useCopilotStore = create<CopilotStore>()(
                         }))
                         
                         // If this is a preview_workflow tool call, set the preview YAML and diff store
-                        if (toolCallBuffer.name === 'preview_workflow' && toolCallBuffer.input?.yamlContent) {
-                          logger.info('Setting preview YAML from completed preview_workflow tool call')
-                          get().setPreviewYaml(toolCallBuffer.input.yamlContent)
+                        if (toolCallBuffer.name === 'preview_workflow') {
+                          logger.info('Preview workflow tool completed with input:', toolCallBuffer.input)
                           
-                          // Also update the diff store with the proposed workflow state
-                          get().updateDiffStore(toolCallBuffer.input.yamlContent)
+                          if (toolCallBuffer.input?.yamlContent) {
+                            logger.info('Setting preview YAML from completed preview_workflow tool call', {
+                              yamlLength: toolCallBuffer.input.yamlContent.length,
+                              yamlPreview: toolCallBuffer.input.yamlContent.substring(0, 100)
+                            })
+                            get().setPreviewYaml(toolCallBuffer.input.yamlContent)
+                            
+                            // Also update the diff store with the proposed workflow state
+                            get().updateDiffStore(toolCallBuffer.input.yamlContent)
+                          } else {
+                            logger.warn('Preview workflow tool completed but no yamlContent found in input')
+                          }
                         }
                       } catch (error) {
                         logger.error('Error parsing tool call input:', error)
@@ -1126,145 +1145,9 @@ export const useCopilotStore = create<CopilotStore>()(
           // Import diff store dynamically to avoid circular dependencies
           const { useWorkflowDiffStore } = await import('@/stores/workflow-diff')
           
-          // Import YAML parsing utilities
-          const { parseWorkflowYaml, convertYamlToWorkflow } = await import('@/stores/workflows/yaml/importer')
-          const { getBlock } = await import('@/blocks')
-          const { resolveOutputType } = await import('@/blocks/utils')
-          const { generateLoopBlocks, generateParallelBlocks } = await import('@/stores/workflows/workflow/utils')
+          logger.info('Updating diff store with copilot YAML')
 
-          logger.info('Converting copilot YAML to workflow state for diff store')
-          
-          // Parse YAML content
-          const { data: yamlWorkflow, errors: parseErrors } = parseWorkflowYaml(yamlContent)
-
-          if (!yamlWorkflow || parseErrors.length > 0) {
-            logger.error('Failed to parse YAML for diff store:', parseErrors)
-            return
-          }
-
-          // Convert YAML to workflow format  
-          const { blocks, edges, errors: convertErrors } = convertYamlToWorkflow(yamlWorkflow)
-
-          if (convertErrors.length > 0) {
-            logger.error('Failed to convert YAML for diff store:', convertErrors)
-            return
-          }
-
-          // Convert ImportedBlocks to workflow store format
-          const workflowBlocks: Record<string, any> = {}
-          const workflowEdges: any[] = []
-
-          // Process blocks
-          for (const block of blocks) {
-            // Handle loop and parallel blocks specially (they don't have regular block configs)
-            if (block.type === 'loop' || block.type === 'parallel') {
-              // Get block config and populate subBlocks with YAML input values
-              const subBlocks: Record<string, any> = {}
-              
-              // For loop/parallel blocks, map inputs to subBlocks for compatibility
-              Object.keys(block.inputs).forEach((inputKey) => {
-                subBlocks[inputKey] = {
-                  id: inputKey,
-                  type: 'short-input',
-                  value: block.inputs[inputKey],
-                }
-              })
-
-              workflowBlocks[block.id] = {
-                id: block.id,
-                type: block.type,
-                name: block.name,
-                position: block.position,
-                subBlocks,
-                outputs: {},
-                enabled: true,
-                horizontalHandles: true,
-                isWide: false,
-                height: 0,
-                data: block.data || {},
-              }
-              continue
-            }
-
-            // Get block config and populate subBlocks with YAML input values
-            const blockConfig = getBlock(block.type)
-            if (!blockConfig) {
-              logger.warn(`Unknown block type: ${block.type}`)
-              continue
-            }
-
-            // Initialize all subBlocks from block config
-            const subBlocks: Record<string, any> = {}
-            blockConfig.subBlocks.forEach((subBlock) => {
-              const subBlockId = subBlock.id
-              // Check if this subBlock has a value from YAML
-              const yamlValue = block.inputs[subBlockId]
-              subBlocks[subBlockId] = {
-                id: subBlockId,
-                type: subBlock.type,
-                value: yamlValue !== undefined ? yamlValue : null,
-              }
-            })
-
-            // Also ensure we have subBlocks for any YAML inputs not in block config
-            Object.keys(block.inputs).forEach((inputKey) => {
-              if (!subBlocks[inputKey]) {
-                subBlocks[inputKey] = {
-                  id: inputKey,
-                  type: 'short-input',
-                  value: block.inputs[inputKey],
-                }
-              }
-            })
-
-            const outputs = resolveOutputType(blockConfig.outputs)
-
-            workflowBlocks[block.id] = {
-              id: block.id,
-              type: block.type,
-              name: block.name,
-              position: block.position,
-              subBlocks,
-              outputs,
-              enabled: true,
-              horizontalHandles: true,
-              isWide: false,
-              height: 0,
-              data: block.data || {},
-              parentId: block.parentId,
-              extent: block.extent,
-            }
-          }
-          
-          // Process edges
-          for (const edge of edges) {
-            workflowEdges.push({
-              id: edge.id,
-              source: edge.source,
-              target: edge.target,
-              sourceHandle: edge.sourceHandle,
-              targetHandle: edge.targetHandle,
-              type: edge.type || 'default',
-            })
-          }
-
-          // Generate loops and parallels
-          const loops = generateLoopBlocks(workflowBlocks)
-          const parallels = generateParallelBlocks(workflowBlocks)
-
-          // Apply auto layout to the proposed workflow
-          const { applyAutoLayoutToBlocks } = await import('@/app/workspace/[workspaceId]/w/[workflowId]/utils/auto-layout')
-          const layoutResult = await applyAutoLayoutToBlocks(workflowBlocks, workflowEdges)
-          
-          const layoutedBlocks = layoutResult.success ? layoutResult.layoutedBlocks! : workflowBlocks
-          
-          if (layoutResult.success) {
-            logger.info('Successfully applied auto layout to proposed blocks')
-          } else {
-            logger.warn('Auto layout failed for proposed blocks, using original positions:', layoutResult.error)
-          }
-
-          // Generate diff analysis by comparing current workflow with proposed workflow
+          // Generate diff analysis by comparing current vs proposed YAML
           let diffAnalysis = null
           try {
             // Get current workflow as YAML for comparison
@@ -1299,23 +1182,23 @@ export const useCopilotStore = create<CopilotStore>()(
             // Continue without diff analysis - blocks will be marked as unchanged
           }
 
-          // Create the proposed workflow state
-          const proposedWorkflowState = {
-            blocks: layoutedBlocks,
-            edges: workflowEdges,
-            loops,
-            parallels,
-            lastSaved: Date.now(),
-          }
-
-          // Set the proposed changes in the diff store with diff analysis
+          // Set the proposed changes in the diff store
+          // The diff store now handles all YAML parsing and conversion internally
           const diffStore = useWorkflowDiffStore.getState()
-          await diffStore.setProposedChanges(proposedWorkflowState, diffAnalysis)
+          await diffStore.setProposedChanges(yamlContent, diffAnalysis)
 
-          logger.info('Successfully updated diff store with proposed workflow changes and diff analysis')
+          logger.info('Successfully updated diff store with proposed workflow changes')
           
         } catch (error) {
           logger.error('Failed to update diff store:', error)
+          // Show error to user
+          console.error('[Copilot] Error updating diff store:', error)
+          
+          // Try to show at least the preview YAML even if diff fails
+          const { currentChat } = get()
+          if (currentChat?.previewYaml) {
+            logger.info('Preview YAML is set, user can still view it despite diff error')
+          }
         }
       },
     }),

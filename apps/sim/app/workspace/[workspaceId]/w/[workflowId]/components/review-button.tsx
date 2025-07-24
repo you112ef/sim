@@ -177,90 +177,20 @@ export function ReviewButton() {
       // STEP 1: Parse YAML and update local store immediately
       try {
         // Import the necessary modules
-        const { parseWorkflowYaml, convertYamlToWorkflow } = await import('@/stores/workflows/yaml/importer')
+        const { convertYamlToWorkflowState } = await import('@/lib/workflows/yaml-converter')
         const { useWorkflowStore } = await import('@/stores/workflows/workflow/store')
         const { useSubBlockStore } = await import('@/stores/workflows/subblock/store')
-        const { getBlock } = await import('@/blocks')
-        const { generateLoopBlocks, generateParallelBlocks } = await import('@/stores/workflows/workflow/utils')
 
-        // Parse YAML content
-        const { data: yamlWorkflow, errors: parseErrors } = parseWorkflowYaml(currentChat.previewYaml)
+        // Convert YAML to workflow state using our unified converter
+        const conversionResult = await convertYamlToWorkflowState(currentChat.previewYaml, {
+          generateNewIds: false // Keep existing IDs for preview
+        })
 
-        if (!yamlWorkflow || parseErrors.length > 0) {
-          throw new Error(`Failed to parse YAML: ${parseErrors.join(', ')}`)
+        if (!conversionResult.success || !conversionResult.workflowState) {
+          throw new Error(`Failed to convert YAML: ${conversionResult.errors.join(', ')}`)
         }
 
-        // Convert YAML to workflow format  
-        const { blocks, edges, errors: convertErrors } = convertYamlToWorkflow(yamlWorkflow)
-
-        if (convertErrors.length > 0) {
-          throw new Error(`Failed to convert YAML: ${convertErrors.join(', ')}`)
-        }
-
-        // Convert ImportedBlocks to workflow store format
-        const workflowBlocks: Record<string, any> = {}
-        const workflowEdges: any[] = []
-
-        // Process blocks
-        for (const block of blocks) {
-          const blockConfig = getBlock(block.type)
-          if (blockConfig) {
-            const subBlocks: Record<string, any> = {}
-
-            // Set up subBlocks from block configuration
-            blockConfig.subBlocks.forEach((subBlock) => {
-              const yamlValue = block.inputs[subBlock.id]
-              subBlocks[subBlock.id] = {
-                id: subBlock.id,
-                type: subBlock.type,
-                value: yamlValue !== undefined ? yamlValue : null,
-              }
-            })
-
-            // Also ensure we have subBlocks for any YAML inputs not in block config
-            Object.keys(block.inputs).forEach((inputKey) => {
-              if (!subBlocks[inputKey]) {
-                subBlocks[inputKey] = {
-                  id: inputKey,
-                  type: 'short-input',
-                  value: block.inputs[inputKey],
-                }
-              }
-            })
-
-            const outputs = blockConfig.outputs || {}
-
-            workflowBlocks[block.id] = {
-              id: block.id,
-              type: block.type,
-              name: block.name,
-              position: block.position || { x: 0, y: 0 },
-              subBlocks,
-              outputs,
-              enabled: true,
-              horizontalHandles: true,
-              isWide: false,
-              height: 0,
-              data: block.data || {},
-            }
-          }
-        }
-        
-        // Process edges
-        for (const edge of edges) {
-          workflowEdges.push({
-            id: edge.id,
-            source: edge.source,
-            target: edge.target,
-            sourceHandle: edge.sourceHandle,
-            targetHandle: edge.targetHandle,
-            type: edge.type || 'default',
-          })
-        }
-
-        // Generate loops and parallels
-        const loops = generateLoopBlocks(workflowBlocks)
-        const parallels = generateParallelBlocks(workflowBlocks)
+        const { blocks: workflowBlocks, edges: workflowEdges, loops, parallels } = conversionResult.workflowState
 
         // Apply auto layout using the shared utility
         const { applyAutoLayoutToBlocks } = await import('../utils/auto-layout')
