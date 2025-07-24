@@ -407,10 +407,26 @@ export class WorkflowDiffEngine {
 
     const cleanState = { ...this.currentDiff.proposedState }
     
-    // Remove diff markers
-    Object.values(cleanState.blocks).forEach(block => {
-      delete (block as any).is_diff
+    // Filter out blocks without type or name and remove diff markers
+    const filteredBlocks: Record<string, BlockState> = {}
+    Object.entries(cleanState.blocks).forEach(([blockId, block]) => {
+      if (block.type && block.name) {
+        // Remove diff markers
+        delete (block as any).is_diff
+        delete (block as any).field_diff
+        filteredBlocks[blockId] = block
+      } else {
+        logger.info(`Filtering out block ${blockId} - missing type or name`)
+      }
     })
+    
+    cleanState.blocks = filteredBlocks
+    
+    // Filter out edges that connect to removed blocks
+    const validBlockIds = new Set(Object.keys(filteredBlocks))
+    cleanState.edges = cleanState.edges.filter(edge => 
+      validBlockIds.has(edge.source) && validBlockIds.has(edge.target)
+    )
 
     logger.info('Diff accepted', {
       blocksCount: Object.keys(cleanState.blocks).length,

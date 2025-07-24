@@ -420,12 +420,21 @@ export function useWorkflowExecution() {
     // Use currentWorkflow but check if we're in diff mode
     const { blocks: workflowBlocks, edges: workflowEdges, loops: workflowLoops, parallels: workflowParallels } = currentWorkflow
     
+    // Filter out blocks without type (these are layout-only blocks)
+    const validBlocks = Object.entries(workflowBlocks).reduce((acc, [blockId, block]) => {
+      if (block && block.type) {
+        acc[blockId] = block
+      }
+      return acc
+    }, {} as typeof workflowBlocks)
+    
     const isExecutingFromChat = workflowInput && typeof workflowInput === 'object' && 'input' in workflowInput
 
     logger.info('Executing workflow', { 
       isDiffMode: currentWorkflow.isDiffMode,
       isExecutingFromChat,
-      blocksCount: Object.keys(workflowBlocks).length,
+      totalBlocksCount: Object.keys(workflowBlocks).length,
+      validBlocksCount: Object.keys(validBlocks).length,
       edgesCount: workflowEdges.length
     })
 
@@ -437,7 +446,7 @@ export function useWorkflowExecution() {
     })
 
     // Merge subblock states from the appropriate store
-    const mergedStates = mergeSubblockState(workflowBlocks)
+    const mergedStates = mergeSubblockState(validBlocks)
 
     // Debug: Check for blocks with undefined types after merging
     Object.entries(mergedStates).forEach(([blockId, block]) => {
