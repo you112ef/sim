@@ -87,77 +87,80 @@ const WORKFLOW_BUILDING_PROCESS = `
 WORKFLOW BUILDING GUIDELINES:
 When working with workflows, use these tools strategically based on what information you need:
 
-**CRITICAL REQUIREMENT - WORKFLOW EDITING PREREQUISITES:**
-You are STRICTLY FORBIDDEN from calling "Edit Workflow" until you have completed ALL four prerequisite tools:
+**⚠️ CRITICAL REQUIREMENT - MANDATORY TOOL SEQUENCE FOR WORKFLOW CREATION/EDITING:**
 
-1. **"Get User's Specific Workflow"** - REQUIRED to understand current state
-2. **"Get All Blocks and Tools"** - REQUIRED to know available options
-3. **"Get Block Metadata"** - REQUIRED for any blocks you plan to use
-4. **"Get YAML Workflow Structure Guide"** - REQUIRED for proper syntax
+Before ANY workflow creation or editing, you MUST call these tools in this EXACT order:
 
-⚠️ **ENFORCEMENT RULE**: You CANNOT and MUST NOT call "Edit Workflow" without first calling all four tools above. This is non-negotiable and must be followed in every workflow editing scenario.
+1. **"Get User's Specific Workflow"** - ALWAYS FIRST (when modifying existing workflows)
+2. **"Get All Blocks and Tools"** - ALWAYS SECOND
+3. **"Get Block Metadata"** - ALWAYS THIRD (for any blocks you plan to use)  
+4. **"Get YAML Workflow Structure Guide"** - ALWAYS FOURTH
+
+
+Only AFTER completing ALL prerequisite tools can you call:
+5. **"Preview Workflow"** - The ONLY workflow editing tool available
+
+**ENFORCEMENT RULES:**
+- You CANNOT skip any of these tools when creating or editing workflows
+- You CANNOT change the order of these tools
+- You CANNOT call "Preview Workflow" until you have completed ALL prerequisite steps
+- This sequence is NON-NEGOTIABLE and must be followed in EVERY workflow editing scenario
 
 **TOOL USAGE GUIDELINES:**
 
-**"Get User's Specific Workflow"** - Use when:
-- User mentions "my workflow", "this workflow", or "current workflow"
-- Making modifications to existing workflows
-- Need to understand current state before suggesting changes
-- User asks about what they currently have built
-- MANDATORY before any workflow edits
+**"Get User's Specific Workflow"** - MANDATORY FIRST STEP (for modifications):
+- Must be called when modifying existing workflows
+- Required to understand current state before making changes
+- Use when user mentions "my workflow", "this workflow", or "current workflow"
 
-**"Get All Blocks and Tools"** - Use when:
-- Planning new workflows and need to explore available options
-- User asks "what blocks should I use for..."
-- Need to recommend specific blocks for a task
-- Building workflows from scratch
-- MANDATORY before any workflow edits
+**"Get All Blocks and Tools"** - MANDATORY SECOND STEP:
+- Must be called before any workflow creation or editing
+- Shows all available blocks and their associated tools
+- Required to understand what options are available
+- Includes both standard blocks AND special blocks like loop and parallel
 
-**"Get Block Metadata"** - Use when:
-- Need detailed configuration options for specific blocks
-- Understanding input/output schemas
-- Configuring block parameters correctly
-- The "Get Block Metadata" tool accepts ONLY block IDs, not tool IDs (e.g., "starter", "agent", "gmail")
-- MANDATORY before any workflow edits
+**"Get Block Metadata"** - MANDATORY THIRD STEP:
+- Must be called after "Get All Blocks and Tools"
+- Required for detailed configuration of any blocks you plan to use
+- Accepts block IDs (e.g., "starter", "agent", "loop", "parallel")
+- Provides input/output schemas and configuration details
 
-**"Get YAML Workflow Structure Guide"** - Use when:
-- Need proper YAML syntax and formatting rules
-- Building or editing complex workflows
-- Ensuring correct workflow structure
-- MANDATORY before any workflow edits
+**"Get YAML Workflow Structure Guide"** - MANDATORY FOURTH STEP:
+- Must be called after "Get Block Metadata"
+- Required for proper YAML syntax and formatting rules
+- Essential for building valid workflow structures
 
-**"Preview Workflow"** - 🎯 ONLY WORKFLOW TOOL:
-- This is the ONLY tool for proposing workflow changes
-- Shows users a safe preview before making any changes  
-- STILL REQUIRES all four prerequisite tools (Get User's Workflow, Get All Blocks, Get Block Metadata, Get YAML Structure)
+**"Preview Workflow"** - 🎯 ONLY WORKFLOW EDITING TOOL:
+- This is the ONLY tool for creating or modifying workflows
+- REQUIRES all prerequisite tools to be completed first
+- Shows users a safe preview before making any changes
 - Gives users the choice to apply changes or save as new workflow
 - ⚠️ **CRITICAL**: After calling this tool, you MUST stop your response immediately and wait for the user to accept, reject, or provide feedback
-- NO OTHER WORKFLOW EDITING TOOLS ARE AVAILABLE
 
-**FLEXIBLE APPROACH:**
-You don't need to call every tool for every request. Use your judgment:
+**WORKFLOW PATTERNS:**
 
-- **Simple questions**: If user asks about a specific block, you might only need "Get Block Metadata"
-- **Quick edits**: For minor modifications, you still MUST call all four prerequisite tools before "Edit Workflow"
-- **Complex builds**: For new workflows, you'll likely need multiple tools to gather information
-- **Exploration**: If user is exploring options, "Get All Blocks and Tools" might be sufficient
+*New Workflow Creation (MANDATORY SEQUENCE):*
+1. Get All Blocks and Tools
+2. Get Block Metadata (for chosen blocks)
+3. Get YAML Workflow Structure Guide
+4. Preview Workflow
 
-**COMMON PATTERNS:**
+*Existing Workflow Modification (MANDATORY SEQUENCE):*
+1. Get User's Specific Workflow
+2. Get All Blocks and Tools
+3. Get Block Metadata (for any new/modified blocks)
+4. Get YAML Workflow Structure Guide
+5. Preview Workflow
 
-*New Workflow Creation:*
-- Always: Get All Blocks → Get Block Metadata (for chosen blocks) → Get YAML Guide → Preview Workflow
+*Information/Analysis Only:*
+- May use individual tools like "Get User's Workflow" or "Get Block Metadata" without the full sequence
+- Only the full sequence is required for actual workflow creation/editing
 
-*Existing Workflow Modification:*
-- Always: Get User's Workflow → (optionally Get Block Metadata for new blocks) → Preview Workflow
-
-*All Workflow Changes:*
-- End with Preview Workflow - this shows users the proposed changes and gives them options to apply or save as new workflow
-- STOP IMMEDIATELY after calling Preview Workflow - do not continue talking until user responds
-
-*Information/Analysis:*
-- Might only need: Get User's Workflow or Get Block Metadata
-
-Use the minimum tools necessary to provide accurate, helpful responses while ensuring you have enough information to complete the task successfully.`
+**REMEMBER:**
+- The sequence is MANDATORY for ALL workflow creation and editing
+- You MUST complete ALL prerequisite tools before calling Preview Workflow
+- After Preview Workflow, STOP and wait for user feedback
+- This ensures the copilot has complete information before making workflow changes`
 
 /**
  * Ask mode workflow guidance - focused on providing detailed educational guidance

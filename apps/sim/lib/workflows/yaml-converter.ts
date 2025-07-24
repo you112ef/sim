@@ -105,6 +105,20 @@ export async function convertYamlToWorkflowState(
   // Step 4: Build WorkflowState with proper block configuration
   const workflowBlocks: Record<string, BlockState> = {}
   
+  // First pass: Update all parentIds in imported blocks before creating BlockStates
+  blocks.forEach(importedBlock => {
+    if (importedBlock.parentId) {
+      const mappedParentId = idMapping.get(importedBlock.parentId)
+      if (mappedParentId) {
+        logger.info(`Updating parentId for block ${importedBlock.id}: ${importedBlock.parentId} -> ${mappedParentId}`)
+        importedBlock.parentId = mappedParentId
+      } else {
+        logger.warn(`Parent ID ${importedBlock.parentId} not found in ID mapping for block ${importedBlock.id}`)
+      }
+    }
+  })
+  
+  // Second pass: Create the blocks
   for (const importedBlock of blocks) {
     const blockId = idMapping.get(importedBlock.id)!
     
@@ -141,6 +155,20 @@ export async function convertYamlToWorkflowState(
   // Step 7: Generate loops and parallels
   const loops = generateLoopBlocks(workflowBlocks)
   const parallels = generateParallelBlocks(workflowBlocks)
+
+  // Debug: Log parent-child relationships
+  logger.info('=== Parent-Child Relationships ===')
+  Object.values(workflowBlocks).forEach(block => {
+    const parentNode = (block as any).parentNode
+    const parentId = block.data?.parentId
+    if (parentNode || parentId) {
+      logger.info(`Block ${block.id} (${block.name}):`, {
+        parentNode,
+        parentId,
+        parentExists: parentNode ? !!workflowBlocks[parentNode] : 'N/A'
+      })
+    }
+  })
 
   // Step 8: Create final WorkflowState
   const workflowState: WorkflowState = {
@@ -245,7 +273,7 @@ function createRegularBlock(
 
   const outputs = resolveOutputType(blockConfig.outputs)
 
-  return {
+  const block: BlockState = {
     id: blockId,
     type: importedBlock.type,
     name: importedBlock.name,
@@ -264,6 +292,13 @@ function createRegularBlock(
       })
     }
   }
+
+  // Add parentNode for ReactFlow if this block is inside a loop/parallel
+  if (importedBlock.parentId) {
+    (block as any).parentNode = importedBlock.parentId
+  }
+
+  return block
 }
 
 /**

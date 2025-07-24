@@ -81,6 +81,21 @@ export class WorkflowDiffEngine {
         mappedDiffAnalysis = this.createMappedDiffAnalysis(diffAnalysis, conversionResult.idMapping!)
       }
 
+      // Debug: Log blocks with parent relationships
+      const blocksWithParents = Object.values(proposedState.blocks).filter((block: any) => block.parentNode)
+      logger.info(`Found ${blocksWithParents.length} blocks with parent relationships`)
+      blocksWithParents.forEach((block: any) => {
+        logger.info(`Block ${block.id} has parentNode: ${block.parentNode}`)
+      })
+
+      // Debug: Log loop and parallel blocks
+      const containerBlocks = Object.values(proposedState.blocks).filter(
+        block => block.type === 'loop' || block.type === 'parallel'
+      )
+      logger.info(`Found ${containerBlocks.length} container blocks (loops/parallels):`, 
+        containerBlocks.map(b => ({ id: b.id, type: b.type, name: b.name }))
+      )
+
       // Create the diff object
       this.currentDiff = {
         proposedState,
