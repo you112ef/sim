@@ -191,20 +191,29 @@ export const useWorkflowStore = create<WorkflowStoreWithHistory>()(
       },
 
       updateNodeDimensions: (id: string, dimensions: { width: number; height: number }) => {
-        set((state) => ({
-          blocks: {
-            ...state.blocks,
-            [id]: {
-              ...state.blocks[id],
-              data: {
-                ...state.blocks[id].data,
-                width: dimensions.width,
-                height: dimensions.height,
+        set((state) => {
+          // Check if the block exists before trying to update it
+          const block = state.blocks[id]
+          if (!block) {
+            logger.warn(`Cannot update dimensions: Block ${id} not found in workflow store`)
+            return state // Return unchanged state
+          }
+          
+          return {
+            blocks: {
+              ...state.blocks,
+              [id]: {
+                ...block,
+                data: {
+                  ...block.data,
+                  width: dimensions.width,
+                  height: dimensions.height,
+                },
               },
             },
-          },
-          edges: [...state.edges],
-        }))
+            edges: [...state.edges],
+          }
+        })
         get().updateLastSaved()
         // Note: Socket.IO handles real-time sync automatically
       },

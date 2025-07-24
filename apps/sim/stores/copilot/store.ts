@@ -1156,32 +1156,19 @@ export const useCopilotStore = create<CopilotStore>()(
 
           // Process blocks
           for (const block of blocks) {
-            const blockConfig = getBlock(block.type)
-            if (blockConfig) {
+            // Handle loop and parallel blocks specially (they don't have regular block configs)
+            if (block.type === 'loop' || block.type === 'parallel') {
+              // Get block config and populate subBlocks with YAML input values
               const subBlocks: Record<string, any> = {}
-
-              // Set up subBlocks from block configuration
-              blockConfig.subBlocks.forEach((subBlock) => {
-                const yamlValue = block.inputs[subBlock.id]
-                subBlocks[subBlock.id] = {
-                  id: subBlock.id,
-                  type: subBlock.type,
-                  value: yamlValue !== undefined ? yamlValue : null,
-                }
-              })
-
-              // Also ensure we have subBlocks for any YAML inputs not in block config
+              
+              // For loop/parallel blocks, map inputs to subBlocks for compatibility
               Object.keys(block.inputs).forEach((inputKey) => {
-                if (!subBlocks[inputKey]) {
-                  subBlocks[inputKey] = {
-                    id: inputKey,
-                    type: 'short-input',
-                    value: block.inputs[inputKey],
-                  }
+                subBlocks[inputKey] = {
+                  id: inputKey,
+                  type: 'short-input',
+                  value: block.inputs[inputKey],
                 }
               })
-
-              const outputs = resolveOutputType(blockConfig.outputs)
 
               workflowBlocks[block.id] = {
                 id: block.id,
@@ -1189,12 +1176,61 @@ export const useCopilotStore = create<CopilotStore>()(
                 name: block.name,
                 position: block.position || { x: 0, y: 0 },
                 subBlocks,
-                outputs,
+                outputs: {},
                 enabled: true,
                 horizontalHandles: true,
                 isWide: false,
                 height: 0,
                 data: block.data || {},
+              }
+              
+              logger.debug(`Processed ${block.type} block: ${block.id}`)
+            } else {
+              // Handle regular blocks
+              const blockConfig = getBlock(block.type)
+              if (blockConfig) {
+                const subBlocks: Record<string, any> = {}
+
+                // Set up subBlocks from block configuration
+                blockConfig.subBlocks.forEach((subBlock) => {
+                  const yamlValue = block.inputs[subBlock.id]
+                  subBlocks[subBlock.id] = {
+                    id: subBlock.id,
+                    type: subBlock.type,
+                    value: yamlValue !== undefined ? yamlValue : null,
+                  }
+                })
+
+                // Also ensure we have subBlocks for any YAML inputs not in block config
+                Object.keys(block.inputs).forEach((inputKey) => {
+                  if (!subBlocks[inputKey]) {
+                    subBlocks[inputKey] = {
+                      id: inputKey,
+                      type: 'short-input',
+                      value: block.inputs[inputKey],
+                    }
+                  }
+                })
+
+                const outputs = resolveOutputType(blockConfig.outputs)
+
+                workflowBlocks[block.id] = {
+                  id: block.id,
+                  type: block.type,
+                  name: block.name,
+                  position: block.position || { x: 0, y: 0 },
+                  subBlocks,
+                  outputs,
+                  enabled: true,
+                  horizontalHandles: true,
+                  isWide: false,
+                  height: 0,
+                  data: block.data || {},
+                }
+                
+                logger.debug(`Processed regular block: ${block.id}`)
+              } else {
+                logger.warn(`Unknown block type: ${block.type}`)
               }
             }
           }
@@ -1238,7 +1274,7 @@ export const useCopilotStore = create<CopilotStore>()(
 
           // Set the proposed changes in the diff store
           const diffStore = useWorkflowDiffStore.getState()
-          await diffStore.setProposedChanges(proposedWorkflowState, 'copilot')
+          diffStore.setProposedChanges(proposedWorkflowState)
 
           logger.info('Successfully updated diff store with proposed workflow changes')
           

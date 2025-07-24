@@ -20,6 +20,7 @@ import { useWorkflowDiffStore } from '@/stores/workflow-diff/store'
 import { ActionBar } from './components/action-bar/action-bar'
 import { ConnectionBlocks } from './components/connection-blocks/connection-blocks'
 import { SubBlock } from './components/sub-block/sub-block'
+import { useCurrentWorkflow } from '../../hooks'
 
 interface WorkflowBlockProps {
   type: string
@@ -64,14 +65,10 @@ export function WorkflowBlock({ id, data }: NodeProps<WorkflowBlockProps>) {
 
   // Workflow store selectors
   const lastUpdate = useWorkflowStore((state) => state.lastUpdate)
-  const mainBlock = useWorkflowStore((state) => state.blocks[id])
   
-  // Diff-aware block selector
-  const { isShowingDiff, diffWorkflow } = useWorkflowDiffStore()
-  const diffBlock = diffWorkflow?.blocks[id]
-  
-  // Use diff block if in diff mode, otherwise use main block
-  const currentBlock = isShowingDiff && diffBlock ? diffBlock : mainBlock
+  // Use the clean abstraction for current workflow state
+  const currentWorkflow = useCurrentWorkflow()
+  const currentBlock = currentWorkflow.getBlockById(id)
   
   const isEnabled = currentBlock?.enabled ?? true
   const diffStatus = currentBlock?.is_diff

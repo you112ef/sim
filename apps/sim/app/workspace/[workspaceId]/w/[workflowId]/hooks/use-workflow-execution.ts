@@ -18,6 +18,7 @@ import { useWorkflowRegistry } from '@/stores/workflows/registry/store'
 import { mergeSubblockState } from '@/stores/workflows/utils'
 import { useWorkflowStore } from '@/stores/workflows/workflow/store'
 import { useWorkflowDiffStore } from '@/stores/workflow-diff/store'
+import { useCurrentWorkflow } from './use-current-workflow'
 
 const logger = createLogger('useWorkflowExecution')
 
@@ -44,9 +45,8 @@ interface DebugValidationResult {
 }
 
 export function useWorkflowExecution() {
-  const { blocks, edges, loops, parallels } = useWorkflowStore()
+  const currentWorkflow = useCurrentWorkflow()
   const { activeWorkflowId } = useWorkflowRegistry()
-  const { isShowingDiff, diffWorkflow } = useWorkflowDiffStore()
   const { toggleConsole } = useConsoleStore()
   const { getAllVariables } = useEnvironmentStore()
   const { isDebugModeEnabled } = useGeneralStore()
@@ -398,10 +398,7 @@ export function useWorkflowExecution() {
     },
     [
       activeWorkflowId,
-      blocks,
-      edges,
-      loops,
-      parallels,
+      currentWorkflow,
       toggleConsole,
       getAllVariables,
       getVariablesByWorkflowId,
@@ -412,8 +409,6 @@ export function useWorkflowExecution() {
       setExecutor,
       setPendingBlocks,
       setActiveBlocks,
-      isShowingDiff,
-      diffWorkflow,
     ]
   )
 
@@ -422,21 +417,14 @@ export function useWorkflowExecution() {
     onStream?: (se: StreamingExecution) => Promise<void>,
     executionId?: string
   ): Promise<ExecutionResult | StreamingExecution> => {
-    // Use diff workflow when in diff mode, normal workflow when in normal mode
-    // This ensures chat tests the proposed changes when in diff mode
+    // Use the current workflow abstraction (handles diff vs normal automatically)
     const isExecutingFromChat = workflowInput && typeof workflowInput === 'object' && 'input' in workflowInput
-    const shouldUseDiffForExecution = isShowingDiff && diffWorkflow
-    
-    // Determine which workflow state to use based on current mode
-    const workflowBlocks = shouldUseDiffForExecution ? diffWorkflow.blocks : blocks
-    const workflowEdges = shouldUseDiffForExecution ? diffWorkflow.edges : edges
-    const workflowLoops = shouldUseDiffForExecution ? diffWorkflow.loops || {} : loops
-    const workflowParallels = shouldUseDiffForExecution ? diffWorkflow.parallels || {} : parallels
+    const { blocks: workflowBlocks, edges: workflowEdges, loops: workflowLoops, parallels: workflowParallels, isDiffMode } = currentWorkflow
 
     logger.info('Executing workflow', { 
-      mode: shouldUseDiffForExecution ? 'diff' : 'main', 
+      mode: isDiffMode ? 'diff' : 'main', 
       isExecutingFromChat,
-      isShowingDiff,
+      isDiffMode,
       blocksCount: Object.keys(workflowBlocks).length,
       edgesCount: workflowEdges.length
     })
@@ -444,7 +432,7 @@ export function useWorkflowExecution() {
     // Use the mergeSubblockState utility to get all block states
     // In diff mode, subblock values are already in the workflow blocks
     // In normal mode, we need to merge from the subblock store
-    const mergedStates = isShowingDiff && diffWorkflow 
+    const mergedStates = isDiffMode 
       ? workflowBlocks // Diff blocks already have embedded subblock values
       : mergeSubblockState(workflowBlocks)
 

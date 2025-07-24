@@ -42,6 +42,7 @@ import {
   resizeLoopNodes,
   updateNodeParent as updateNodeParentUtil,
 } from './utils'
+import { useCurrentWorkflow } from './hooks'
 
 const logger = createLogger('Workflow')
 
@@ -89,27 +90,23 @@ const WorkflowContent = React.memo(() => {
   const { workflows, activeWorkflowId, isLoading, setActiveWorkflow, createWorkflow } =
     useWorkflowRegistry()
 
-  // Get workflow state from diff store if available, otherwise main store
-  const { getCurrentWorkflowForCanvas, isShowingDiff, diffWorkflow } = useWorkflowDiffStore()
-  const currentWorkflowState = getCurrentWorkflowForCanvas()
+  // Use the clean abstraction for current workflow state
+  const currentWorkflow = useCurrentWorkflow()
   
   const {
     updateNodeDimensions,
     updateBlockPosition: storeUpdateBlockPosition,
   } = useWorkflowStore()
 
-  // Use current workflow state (could be actual or proposed)
-  const blocks = currentWorkflowState.blocks
-  const edges = currentWorkflowState.edges
-  const loops = currentWorkflowState.loops || {}
-  const parallels = currentWorkflowState.parallels || {}
+  // Extract workflow data from the abstraction
+  const { blocks, edges, loops, parallels, isDiffMode } = currentWorkflow
 
   // User permissions - get current user's specific permissions from context
   const userPermissions = useUserPermissionsContext()
 
   // Create diff-aware permissions that disable editing when in diff mode
   const effectivePermissions = useMemo(() => {
-    if (isShowingDiff) {
+    if (isDiffMode) {
       // In diff mode, disable all editing regardless of user permissions
       return {
         ...userPermissions,
@@ -120,7 +117,7 @@ const WorkflowContent = React.memo(() => {
       }
     }
     return userPermissions
-  }, [userPermissions, isShowingDiff])
+  }, [userPermissions, isDiffMode])
 
   // Workspace permissions - get all users and their permissions for this workspace
   const { permissions: workspacePermissions, error: permissionsError } = useWorkspacePermissions(
@@ -1535,12 +1532,10 @@ const WorkflowContent = React.memo(() => {
           />
         </ReactFlow>
 
-        {/* Show DiffControls if diff is available, otherwise show ReviewButton if there's a pending preview */}
-        {diffWorkflow && (
-          <DiffControls />
-        )}
+        {/* Show DiffControls if diff is available (regardless of current view mode) */}
+        <DiffControls />
         {/* 
-        {diffWorkflow ? (
+        {isDiffMode ? (
           <DiffControls />
         ) : (
           <ReviewButton />
