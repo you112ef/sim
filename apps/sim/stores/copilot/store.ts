@@ -1238,7 +1238,7 @@ export const useCopilotStore = create<CopilotStore>()(
 
           // Set the proposed changes in the diff store
           const diffStore = useWorkflowDiffStore.getState()
-          diffStore.setProposedChanges(proposedWorkflowState, 'copilot')
+          await diffStore.setProposedChanges(proposedWorkflowState, 'copilot')
 
           logger.info('Successfully updated diff store with proposed workflow changes')
           

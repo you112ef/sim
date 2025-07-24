@@ -75,6 +75,7 @@ export interface BlockState {
   height?: number
   advancedMode?: boolean
   data?: BlockData
+  is_diff?: 'new' | 'edited' | 'unchanged'
 }
 
 export interface SubBlockState {

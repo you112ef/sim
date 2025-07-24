@@ -18,12 +18,17 @@ interface WorkflowDiffState {
   diffMetadata?: {
     source: 'copilot' | 'manual'
     timestamp: number
+    diffAnalysis?: {
+      deleted_blocks: string[]
+      edited_blocks: string[]
+      new_blocks: string[]
+    }
   }
 }
 
 interface WorkflowDiffActions {
   // Set the proposed changes from copilot
-  setProposedChanges: (proposedWorkflow: WorkflowState, source?: 'copilot' | 'manual') => void
+  setProposedChanges: (proposedWorkflow: WorkflowState, source?: 'copilot' | 'manual') => Promise<void>
   
   // Toggle between showing actual vs proposed workflow
   toggleDiffView: () => void
@@ -52,14 +57,76 @@ export const useWorkflowDiffStore = create<WorkflowDiffStore>()(
   devtools((set, get) => ({
     ...initialState,
 
-    setProposedChanges: (proposedWorkflow: WorkflowState, source = 'copilot') => {
+    setProposedChanges: async (proposedWorkflow: WorkflowState, source = 'copilot') => {
       logger.info('Setting proposed changes', { source, blockCount: Object.keys(proposedWorkflow.blocks).length })
       
+      // Get current workflow YAML and analyze diff if possible
+      let diffAnalysis: any = null
+      try {
+        // Get current workflow YAML
+        const { activeWorkflowId } = useWorkflowRegistry.getState()
+        if (activeWorkflowId) {
+          const currentWorkflowResponse = await fetch('/api/tools/get-user-workflow', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              workflowId: activeWorkflowId,
+              includeMetadata: false,
+            }),
+          })
+          
+          if (currentWorkflowResponse.ok) {
+            const currentWorkflowResult = await currentWorkflowResponse.json()
+            if (currentWorkflowResult.success && currentWorkflowResult.output?.yaml) {
+              // Convert proposed workflow to YAML for comparison
+              const { generateWorkflowYaml } = await import('@/lib/workflows/yaml-generator')
+              const proposedYaml = generateWorkflowYaml(proposedWorkflow)
+              
+              // Call diff API
+              const diffResponse = await fetch('/api/workflows/diff', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                  original_yaml: currentWorkflowResult.output.yaml,
+                  agent_yaml: proposedYaml,
+                }),
+              })
+              
+              if (diffResponse.ok) {
+                const diffData = await diffResponse.json()
+                if (diffData.success) {
+                  diffAnalysis = diffData.data
+                  logger.info('Generated diff analysis', diffAnalysis)
+                }
+              }
+            }
+          }
+        }
+      } catch (error) {
+        logger.error('Failed to generate diff analysis:', error)
+      }
+      
+      // Add is_diff field to blocks based on diff analysis
+      const enhancedWorkflow = { ...proposedWorkflow }
+      if (diffAnalysis) {
+        Object.keys(enhancedWorkflow.blocks).forEach(blockId => {
+          const block = enhancedWorkflow.blocks[blockId]
+          if (diffAnalysis.new_blocks.includes(blockId)) {
+            block.is_diff = 'new'
+          } else if (diffAnalysis.edited_blocks.includes(blockId)) {
+            block.is_diff = 'edited'
+          } else {
+            block.is_diff = 'unchanged'
+          }
+        })
+      }
+      
       set({
-        diffWorkflow: proposedWorkflow,
+        diffWorkflow: enhancedWorkflow,
         diffMetadata: {
           source,
           timestamp: Date.now(),
+          diffAnalysis,
         },
         // Automatically show diff for copilot changes, let user toggle for manual changes
         isShowingDiff: source === 'copilot',
