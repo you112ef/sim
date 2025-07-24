@@ -21,7 +21,7 @@ interface WorkflowDiffState {
 }
 
 interface WorkflowDiffActions {
-  setProposedChanges: (proposedWorkflow: WorkflowState, diffAnalysis?: any) => void
+  setProposedChanges: (proposedWorkflow: WorkflowState, diffAnalysis?: any) => Promise<void>
   clearDiff: () => void
   getCurrentWorkflowForCanvas: () => WorkflowState
   toggleDiffView: () => void
@@ -146,7 +146,7 @@ export const useWorkflowDiffStore = create<WorkflowDiffState & WorkflowDiffActio
       diffAnalysis: null,
       diffMetadata: null,
 
-      setProposedChanges: (proposedWorkflow: WorkflowState, diffAnalysis?: any) => {
+      setProposedChanges: async (proposedWorkflow: WorkflowState, diffAnalysis?: any) => {
         logger.info('Setting proposed changes for diff mode with ID mapping')
         
         // Log the incoming workflow structure for debugging
@@ -293,6 +293,45 @@ export const useWorkflowDiffStore = create<WorkflowDiffState & WorkflowDiffActio
         }
         if (warnings.length > 0) {
           logger.warn('Validation warnings in proposed workflow changes:', warnings)
+        }
+        
+        // Apply autolayout to ensure blocks are well-positioned for diff review
+        try {
+          logger.info('Applying autolayout to diff workflow for better visualization')
+          
+          // Import autolayout service
+          const { autoLayoutWorkflow } = await import('@/lib/autolayout/service')
+          
+          // Apply autolayout with the same settings used in other parts of the codebase
+          const layoutedBlocks = await autoLayoutWorkflow(
+            enhancedWorkflow.blocks,
+            enhancedWorkflow.edges,
+            {
+              strategy: 'smart',
+              direction: 'auto',
+              spacing: {
+                horizontal: 500,
+                vertical: 400,
+                layer: 700,
+              },
+              alignment: 'center',
+              padding: {
+                x: 250,
+                y: 250,
+              },
+            }
+          )
+          
+          // Update the workflow with the layouted blocks
+          enhancedWorkflow.blocks = layoutedBlocks
+          
+          logger.info('Successfully applied autolayout to diff workflow', {
+            blocksCount: Object.keys(layoutedBlocks).length,
+          })
+          
+        } catch (layoutError) {
+          // Log the error but don't fail the diff - use original positions
+          logger.warn('Autolayout failed for diff workflow, using original positions:', layoutError)
         }
         
         logger.info('Generated loops and parallels for diff workflow with ID mapping', {
