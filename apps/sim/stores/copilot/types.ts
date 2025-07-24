@@ -180,6 +180,7 @@ export interface CopilotActions {
   // Internal helpers (not exposed publicly)
   handleStreamingResponse: (stream: ReadableStream, messageId: string, isContinuation?: boolean) => Promise<void>
   handleNewChatCreation: (newChatId: string) => Promise<void>
+  updateDiffStore: (yamlContent: string) => Promise<void>
 }
 
 /**

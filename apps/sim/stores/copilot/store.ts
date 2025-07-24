@@ -778,10 +778,13 @@ export const useCopilotStore = create<CopilotStore>()(
                           ),
                         }))
                         
-                        // If this is a preview_workflow tool call, set the preview YAML
+                        // If this is a preview_workflow tool call, set the preview YAML and diff store
                         if (toolCallBuffer.name === 'preview_workflow' && toolCallBuffer.input?.yamlContent) {
                           logger.info('Setting preview YAML from completed preview_workflow tool call')
                           get().setPreviewYaml(toolCallBuffer.input.yamlContent)
+                          
+                          // Also update the diff store with the proposed workflow state
+                          get().updateDiffStore(toolCallBuffer.input.yamlContent)
                         }
                       } catch (error) {
                         logger.error('Error parsing tool call input:', error)
@@ -1115,6 +1118,132 @@ export const useCopilotStore = create<CopilotStore>()(
       // Reset entire store
       reset: () => {
         set(initialState)
+      },
+
+      // Update the diff store with proposed workflow changes
+      updateDiffStore: async (yamlContent: string) => {
+        try {
+          // Import diff store dynamically to avoid circular dependencies
+          const { useWorkflowDiffStore } = await import('@/stores/workflow-diff')
+          
+          // Import YAML parsing utilities
+          const { parseWorkflowYaml, convertYamlToWorkflow } = await import('@/stores/workflows/yaml/importer')
+          const { getBlock } = await import('@/blocks')
+          const { generateLoopBlocks, generateParallelBlocks } = await import('@/stores/workflows/workflow/utils')
+
+          logger.info('Converting copilot YAML to workflow state for diff store')
+          
+          // Parse YAML content
+          const { data: yamlWorkflow, errors: parseErrors } = parseWorkflowYaml(yamlContent)
+
+          if (!yamlWorkflow || parseErrors.length > 0) {
+            logger.error('Failed to parse YAML for diff store:', parseErrors)
+            return
+          }
+
+          // Convert YAML to workflow format  
+          const { blocks, edges, errors: convertErrors } = convertYamlToWorkflow(yamlWorkflow)
+
+          if (convertErrors.length > 0) {
+            logger.error('Failed to convert YAML for diff store:', convertErrors)
+            return
+          }
+
+          // Convert ImportedBlocks to workflow store format
+          const workflowBlocks: Record<string, any> = {}
+          const workflowEdges: any[] = []
+
+          // Process blocks
+          for (const block of blocks) {
+            const blockConfig = getBlock(block.type)
+            if (blockConfig) {
+              const subBlocks: Record<string, any> = {}
+
+              // Set up subBlocks from block configuration
+              blockConfig.subBlocks.forEach((subBlock) => {
+                const yamlValue = block.inputs[subBlock.id]
+                subBlocks[subBlock.id] = {
+                  id: subBlock.id,
+                  type: subBlock.type,
+                  value: yamlValue !== undefined ? yamlValue : null,
+                }
+              })
+
+              // Also ensure we have subBlocks for any YAML inputs not in block config
+              Object.keys(block.inputs).forEach((inputKey) => {
+                if (!subBlocks[inputKey]) {
+                  subBlocks[inputKey] = {
+                    id: inputKey,
+                    type: 'short-input',
+                    value: block.inputs[inputKey],
+                  }
+                }
+              })
+
+              const outputs = blockConfig.outputs || {}
+
+              workflowBlocks[block.id] = {
+                id: block.id,
+                type: block.type,
+                name: block.name,
+                position: block.position || { x: 0, y: 0 },
+                subBlocks,
+                outputs,
+                enabled: true,
+                horizontalHandles: true,
+                isWide: false,
+                height: 0,
+                data: block.data || {},
+              }
+            }
+          }
+          
+          // Process edges
+          for (const edge of edges) {
+            workflowEdges.push({
+              id: edge.id,
+              source: edge.source,
+              target: edge.target,
+              sourceHandle: edge.sourceHandle,
+              targetHandle: edge.targetHandle,
+              type: edge.type || 'default',
+            })
+          }
+
+          // Generate loops and parallels
+          const loops = generateLoopBlocks(workflowBlocks)
+          const parallels = generateParallelBlocks(workflowBlocks)
+
+          // Apply auto layout to the proposed workflow
+          const { applyAutoLayoutToBlocks } = await import('@/app/workspace/[workspaceId]/w/[workflowId]/utils/auto-layout')
+          const layoutResult = await applyAutoLayoutToBlocks(workflowBlocks, workflowEdges)
+          
+          const layoutedBlocks = layoutResult.success ? layoutResult.layoutedBlocks! : workflowBlocks
+          
+          if (layoutResult.success) {
+            logger.info('Successfully applied auto layout to proposed blocks')
+          } else {
+            logger.warn('Auto layout failed for proposed blocks, using original positions:', layoutResult.error)
+          }
+
+          // Create the proposed workflow state
+          const proposedWorkflowState = {
+            blocks: layoutedBlocks,
+            edges: workflowEdges,
+            loops,
+            parallels,
+            lastSaved: Date.now(),
+          }
+
+          // Set the proposed changes in the diff store
+          const diffStore = useWorkflowDiffStore.getState()
+          diffStore.setProposedChanges(proposedWorkflowState, 'copilot')
+
+          logger.info('Successfully updated diff store with proposed workflow changes')
+          
+        } catch (error) {
+          logger.error('Failed to update diff store:', error)
+        }
       },
     }),
     { name: 'copilot-store' }

@@ -13,6 +13,7 @@ import ReactFlow, {
 import 'reactflow/dist/style.css'
 import { createLogger } from '@/lib/logs/console-logger'
 import { ControlBar } from '@/app/workspace/[workspaceId]/w/[workflowId]/components/control-bar/control-bar'
+import { DiffControls } from '@/app/workspace/[workspaceId]/w/[workflowId]/components/diff-controls'
 import { ErrorBoundary } from '@/app/workspace/[workspaceId]/w/[workflowId]/components/error/index'
 import { LoopNodeComponent } from '@/app/workspace/[workspaceId]/w/[workflowId]/components/loop-node/loop-node'
 import { Panel } from '@/app/workspace/[workspaceId]/w/[workflowId]/components/panel/panel'
@@ -27,6 +28,7 @@ import { useVariablesStore } from '@/stores/panel/variables/store'
 import { useGeneralStore } from '@/stores/settings/general/store'
 import { useWorkflowRegistry } from '@/stores/workflows/registry/store'
 import { useWorkflowStore } from '@/stores/workflows/workflow/store'
+import { useWorkflowDiffStore } from '@/stores/workflow-diff'
 import { WorkflowBlock } from './components/workflow-block/workflow-block'
 import { WorkflowEdge } from './components/workflow-edge/workflow-edge'
 import {
@@ -87,12 +89,20 @@ const WorkflowContent = React.memo(() => {
   const { workflows, activeWorkflowId, isLoading, setActiveWorkflow, createWorkflow } =
     useWorkflowRegistry()
 
+  // Get workflow state from diff store if available, otherwise main store
+  const { getCurrentWorkflowForCanvas, isShowingDiff, diffWorkflow } = useWorkflowDiffStore()
+  const currentWorkflowState = getCurrentWorkflowForCanvas()
+  
   const {
-    blocks,
-    edges,
     updateNodeDimensions,
     updateBlockPosition: storeUpdateBlockPosition,
   } = useWorkflowStore()
+
+  // Use current workflow state (could be actual or proposed)
+  const blocks = currentWorkflowState.blocks
+  const edges = currentWorkflowState.edges
+  const loops = currentWorkflowState.loops || {}
+  const parallels = currentWorkflowState.parallels || {}
 
   // User permissions - get current user's specific permissions from context
   const userPermissions = useUserPermissionsContext()
@@ -1510,8 +1520,12 @@ const WorkflowContent = React.memo(() => {
           />
         </ReactFlow>
 
-        {/* Review Button - appears when there's a pending preview */}
-        <ReviewButton />
+        {/* Show DiffControls if diff is available, otherwise show ReviewButton if there's a pending preview */}
+        {diffWorkflow ? (
+          <DiffControls />
+        ) : (
+          <ReviewButton />
+        )}
       </div>
     </div>
   )
