@@ -69,14 +69,22 @@ export class WorkflowDiffEngine {
       }
 
       // Add diff markers to blocks if analysis is provided
+      let mappedDiffAnalysis = diffAnalysis
       if (diffAnalysis) {
+        logger.info('Applying diff markers with analysis:', {
+          new_blocks: diffAnalysis.new_blocks,
+          edited_blocks: diffAnalysis.edited_blocks,
+          deleted_blocks: diffAnalysis.deleted_blocks
+        })
         this.applyDiffMarkers(proposedState, diffAnalysis, conversionResult.idMapping!)
+        // Create a mapped version of the diff analysis with new IDs
+        mappedDiffAnalysis = this.createMappedDiffAnalysis(diffAnalysis, conversionResult.idMapping!)
       }
 
       // Create the diff object
       this.currentDiff = {
         proposedState,
-        diffAnalysis,
+        diffAnalysis: mappedDiffAnalysis,
         metadata: {
           source: 'copilot',
           timestamp: Date.now()
@@ -102,6 +110,20 @@ export class WorkflowDiffEngine {
   }
 
   /**
+   * Create a mapped version of diff analysis with new IDs
+   */
+  private createMappedDiffAnalysis(
+    analysis: DiffAnalysis,
+    idMapping: Map<string, string>
+  ): DiffAnalysis {
+    return {
+      new_blocks: analysis.new_blocks.map(oldId => idMapping.get(oldId) || oldId),
+      edited_blocks: analysis.edited_blocks.map(oldId => idMapping.get(oldId) || oldId),
+      deleted_blocks: analysis.deleted_blocks // Deleted blocks won't have new IDs
+    }
+  }
+
+  /**
    * Apply diff markers to blocks based on analysis
    */
   private applyDiffMarkers(
@@ -122,13 +144,16 @@ export class WorkflowDiffEngine {
       if (originalId) {
         if (analysis.new_blocks.includes(originalId)) {
           (block as any).is_diff = 'new'
+          logger.info(`Block ${blockId} (original: ${originalId}) marked as new`)
         } else if (analysis.edited_blocks.includes(originalId)) {
           (block as any).is_diff = 'edited'
+          logger.info(`Block ${blockId} (original: ${originalId}) marked as edited`)
         } else {
           (block as any).is_diff = 'unchanged'
         }
       } else {
         (block as any).is_diff = 'unchanged'
+        logger.warn(`Block ${blockId} has no original ID mapping`)
       }
     })
   }
