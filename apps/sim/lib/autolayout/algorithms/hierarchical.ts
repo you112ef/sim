@@ -319,7 +319,7 @@ function calculatePositions(
       // Improved vertical spacing calculation to prevent overlaps
       // Use a minimum spacing that accounts for block heights plus extra buffer
       const minVerticalSpacing = Math.max(spacing.vertical, 100)
-      const adaptiveSpacing = layer.length > 1 ? Math.max(minVerticalSpacing, spacing.vertical * 1.5) : minVerticalSpacing
+      const adaptiveSpacing = layer.length > 1 ? Math.max(minVerticalSpacing, spacing.vertical * 1.2) : minVerticalSpacing
       
       // Calculate total layer height with improved spacing
       const totalHeight =
@@ -350,7 +350,7 @@ function calculatePositions(
         // Use adaptive spacing that considers the current node's height
         if (nodeIndex < layer.length - 1) {
           const nextNode = layer[nodeIndex + 1]
-          const dynamicSpacing = Math.max(adaptiveSpacing, (node.height + nextNode.height) / 2 + 50)
+          const dynamicSpacing = Math.max(adaptiveSpacing, (node.height + nextNode.height) / 2 + 30)
           currentY += node.height + dynamicSpacing
         }
       })
@@ -398,7 +398,7 @@ function calculatePositions(
         // Use adaptive spacing that considers the current node's width
         if (nodeIndex < layer.length - 1) {
           const nextNode = layer[nodeIndex + 1]
-          const dynamicSpacing = Math.max(adaptiveSpacing, (node.width + nextNode.width) / 2 + 40)
+          const dynamicSpacing = Math.max(adaptiveSpacing, (node.width + nextNode.width) / 2 + 25)
           currentX += node.width + dynamicSpacing
         }
       })

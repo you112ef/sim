@@ -400,7 +400,7 @@ function calculateLayeredLayout(
     ...options,
     spacing: {
       horizontal: hasSignificantBranching ? options.spacing.horizontal * 1.2 : options.spacing.horizontal,
-      vertical: hasSignificantBranching ? Math.max(options.spacing.vertical * 2.5, 500) : options.spacing.vertical * 1.5,
+      vertical: hasSignificantBranching ? Math.max(options.spacing.vertical * 1.8, 350) : options.spacing.vertical * 1.2,
       layer: options.spacing.layer * 1.1,
     },
   }

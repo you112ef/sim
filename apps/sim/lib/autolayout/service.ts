@@ -35,7 +35,7 @@ export class AutoLayoutService {
         direction: 'auto',
         spacing: {
           horizontal: 500, // Increased from 400 for better separation
-          vertical: 400, // Significantly increased from 200 to prevent overlaps
+          vertical: 180, // Reduced from 400 to prevent excessive vertical spacing
           layer: 700, // Increased from 600 for better layer separation
         },
         alignment: 'center',
@@ -256,7 +256,7 @@ export class AutoLayoutService {
             direction: 'auto',
             spacing: {
               horizontal: 400, // Increased from 300 for better child separation
-              vertical: 250, // Significantly increased from 150 to prevent child overlaps
+              vertical: 120, // Reduced from 250 to prevent excessive vertical spacing in containers
               layer: 500, // Increased from 400 for better child layer separation
             },
             alignment: 'center',
