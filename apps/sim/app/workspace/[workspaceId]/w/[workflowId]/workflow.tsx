@@ -9,6 +9,7 @@ import ReactFlow, {
   type NodeTypes,
   ReactFlowProvider,
   useReactFlow,
+  type Edge,
 } from 'reactflow'
 import 'reactflow/dist/style.css'
 import { createLogger } from '@/lib/logs/console-logger'
@@ -28,7 +29,7 @@ import { useVariablesStore } from '@/stores/panel/variables/store'
 import { useGeneralStore } from '@/stores/settings/general/store'
 import { useWorkflowRegistry } from '@/stores/workflows/registry/store'
 import { useWorkflowStore } from '@/stores/workflows/workflow/store'
-import { useWorkflowDiffStore } from '@/stores/workflow-diff'
+import { useWorkflowDiffStore } from '@/stores/workflow-diff/store'
 import { WorkflowBlock } from './components/workflow-block/workflow-block'
 import { WorkflowEdge } from './components/workflow-edge/workflow-edge'
 import {
@@ -100,6 +101,58 @@ const WorkflowContent = React.memo(() => {
 
   // Extract workflow data from the abstraction
   const { blocks, edges, loops, parallels, isDiffMode } = currentWorkflow
+
+  // Get diff analysis for edge reconstruction
+  const { diffAnalysis, isShowingDiff } = useWorkflowDiffStore()
+
+  // Reconstruct deleted edges when viewing original workflow
+  const edgesForDisplay = useMemo(() => {
+    // If we're not in diff mode and we have diff analysis with deleted edges,
+    // we need to reconstruct those deleted edges and add them to the display
+    if (!isShowingDiff && diffAnalysis?.edge_diff?.deleted_edges) {
+      const reconstructedEdges: Edge[] = []
+      
+      // Parse deleted edge identifiers to reconstruct edges
+      diffAnalysis.edge_diff.deleted_edges.forEach(edgeIdentifier => {
+        // Edge identifier format: "sourceName:sourceHandle->targetName:targetHandle"
+        // Parse this to extract the components
+        const match = edgeIdentifier.match(/^([^:]+):([^-]+)->([^:]+)(?::(.+))?$/)
+        if (match) {
+          const [, sourceName, sourceHandle, targetName, targetHandle] = match
+          
+          // Find block IDs by name
+          let sourceId: string | null = null
+          let targetId: string | null = null
+          
+          Object.entries(blocks).forEach(([blockId, block]) => {
+            if (block.name === sourceName) sourceId = blockId
+            if (block.name === targetName) targetId = blockId
+          })
+          
+          // Only reconstruct if both blocks exist
+          if (sourceId && targetId) {
+            // Generate a unique edge ID
+            const edgeId = `deleted-edge-${sourceId}-${sourceHandle}-${targetId}-${targetHandle || 'default'}`
+            
+            reconstructedEdges.push({
+              id: edgeId,
+              source: sourceId,
+              target: targetId,
+              sourceHandle: sourceHandle === 'success' ? null : sourceHandle, // Convert 'success' back to null
+              targetHandle: targetHandle || null,
+              type: 'workflowEdge',
+            })
+          }
+        }
+      })
+      
+      // Combine existing edges with reconstructed deleted edges
+      return [...edges, ...reconstructedEdges]
+    }
+    
+    // Otherwise, just use the edges as-is
+    return edges
+  }, [edges, isShowingDiff, diffAnalysis, blocks])
 
   // User permissions - get current user's specific permissions from context
   const userPermissions = useUserPermissionsContext()
@@ -1373,7 +1426,7 @@ const WorkflowContent = React.memo(() => {
   )
 
   // Transform edges to include improved selection state
-  const edgesWithSelection = edges.map((edge) => {
+  const edgesWithSelection = edgesForDisplay.map((edge) => {
     // Check if this edge connects nodes inside a loop
     const sourceNode = getNodes().find((n) => n.id === edge.source)
     const targetNode = getNodes().find((n) => n.id === edge.target)
