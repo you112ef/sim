@@ -90,10 +90,10 @@ export const useWorkflowDiffStore = create<WorkflowDiffStore>()(
       
       // Get the main workflow store and apply the changes
       const workflowStore = useWorkflowStore.getState()
-      
-      // Update the main workflow store with the proposed changes
-      // Set the entire new state instead of clearing and re-adding to preserve all properties
-      useWorkflowStore.setState({
+      const activeWorkflowId = useWorkflowRegistry.getState().activeWorkflowId
+
+      // Apply the diff workflow state directly (same as modal's approach)
+      const newWorkflowState = {
         blocks: diffWorkflow.blocks,
         edges: diffWorkflow.edges,
         loops: diffWorkflow.loops || {},
@@ -105,29 +105,36 @@ export const useWorkflowDiffStore = create<WorkflowDiffStore>()(
         deploymentStatuses: workflowStore.deploymentStatuses,
         needsRedeployment: workflowStore.needsRedeployment,
         hasActiveWebhook: workflowStore.hasActiveWebhook,
-      })
-      
-      // Extract and update subblock values from the diff workflow
-      const activeWorkflowId = useWorkflowRegistry.getState().activeWorkflowId
-      
+      }
+
+      useWorkflowStore.setState(newWorkflowState)
+
+      // Extract and update subblock values (exactly like modal's logic)
       if (activeWorkflowId) {
         const subblockValues: Record<string, Record<string, any>> = {}
-        Object.entries(diffWorkflow.blocks).forEach(([blockId, block]) => {
-          subblockValues[blockId] = {}
-          Object.entries(block.subBlocks || {}).forEach(([subBlockId, subBlock]) => {
-            if (subBlock.value !== undefined && subBlock.value !== null) {
-              subblockValues[blockId][subBlockId] = subBlock.value
+        Object.values(diffWorkflow.blocks).forEach((block: any) => {
+          if (block.subBlocks) {
+            const blockValues: Record<string, any> = {}
+            Object.entries(block.subBlocks).forEach(([subBlockId, subBlock]: [string, any]) => {
+              if (subBlock.value !== undefined && subBlock.value !== null) {
+                blockValues[subBlockId] = subBlock.value
+              }
+            })
+            if (Object.keys(blockValues).length > 0) {
+              subblockValues[block.id] = blockValues
             }
-          })
+          }
         })
 
-        // Update subblock store with the new values
-        useSubBlockStore.setState((state) => ({
-          workflowValues: {
-            ...state.workflowValues,
-            [activeWorkflowId]: subblockValues,
-          },
-        }))
+        // Update subblock store (exactly like modal's logic)
+        if (Object.keys(subblockValues).length > 0) {
+          useSubBlockStore.setState((state: any) => ({
+            workflowValues: {
+              ...state.workflowValues,
+              [activeWorkflowId]: subblockValues,
+            },
+          }))
+        }
       }
       
       // Clear the diff after accepting
