@@ -16,6 +16,7 @@ import { useWorkflowRegistry } from '@/stores/workflows/registry/store'
 import { useSubBlockStore } from '@/stores/workflows/subblock/store'
 import { mergeSubblockState } from '@/stores/workflows/utils'
 import { useWorkflowStore } from '@/stores/workflows/workflow/store'
+import { useWorkflowDiffStore } from '@/stores/workflow-diff'
 
 import { ActionBar } from './components/action-bar/action-bar'
 import { ConnectionBlocks } from './components/connection-blocks/connection-blocks'
@@ -80,7 +81,12 @@ export function WorkflowBlock({ id, data }: NodeProps<WorkflowBlockProps>) {
   const fieldDiff = currentWorkflow.isDiffMode && currentBlock ? 
     (currentBlock as any).field_diff : undefined
   
-    // Debug: Log when in diff mode
+  // Check if this block is marked for deletion (in original workflow, not diff)
+  const diffAnalysis = useWorkflowDiffStore((state) => state.diffAnalysis)
+  const isShowingDiff = useWorkflowDiffStore((state) => state.isShowingDiff)
+  const isDeletedBlock = !isShowingDiff && diffAnalysis?.deleted_blocks?.includes(id)
+  
+    // Debug: Log when in diff mode or when blocks are marked for deletion
   useEffect(() => {
     if (currentWorkflow.isDiffMode) {
       console.log(`[WorkflowBlock ${id}] Diff mode active, block exists: ${!!currentBlock}, diff status: ${diffStatus}`)
@@ -88,7 +94,17 @@ export function WorkflowBlock({ id, data }: NodeProps<WorkflowBlockProps>) {
         console.log(`[WorkflowBlock ${id}] Field diff:`, fieldDiff)
       }
     }
-  }, [currentWorkflow.isDiffMode, currentBlock, diffStatus, fieldDiff || null, id])
+    if (diffAnalysis && !isShowingDiff) {
+      console.log(`[WorkflowBlock ${id}] Diff analysis available in original workflow:`, {
+        deleted_blocks: diffAnalysis.deleted_blocks,
+        isDeletedBlock,
+        isShowingDiff
+      })
+    }
+    if (isDeletedBlock) {
+      console.log(`[WorkflowBlock ${id}] Block marked for deletion in original workflow`)
+    }
+  }, [currentWorkflow.isDiffMode, currentBlock, diffStatus, fieldDiff || null, isDeletedBlock, diffAnalysis, isShowingDiff, id])
   const horizontalHandles = data.isPreview 
     ? (data.blockState?.horizontalHandles ?? true)  // In preview mode, use blockState and default to horizontal
     : useWorkflowStore((state) => state.blocks[id]?.horizontalHandles ?? true)  // Changed default to true for consistency
@@ -490,6 +506,8 @@ export function WorkflowBlock({ id, data }: NodeProps<WorkflowBlockProps>) {
           // Diff highlighting
           diffStatus === 'new' && 'ring-2 ring-green-500 bg-green-50/50 dark:bg-green-900/10',
           diffStatus === 'edited' && 'ring-2 ring-orange-500 bg-orange-50/50 dark:bg-orange-900/10',
+          // Deleted block highlighting (in original workflow)
+          isDeletedBlock && 'ring-2 ring-red-500 bg-red-50/50 dark:bg-red-900/10',
           'z-[20]'
         )}
       >
