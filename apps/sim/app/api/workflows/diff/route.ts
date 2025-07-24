@@ -3,6 +3,7 @@ import { z } from 'zod'
 import crypto from 'crypto'
 import { createLogger } from '@/lib/logs/console-logger'
 import { parseWorkflowYaml } from '@/stores/workflows/yaml/importer'
+import { load as yamlParse, dump as yamlDump } from 'js-yaml'
 
 const logger = createLogger('WorkflowYamlDiffAPI')
 
@@ -13,6 +14,50 @@ const YamlDiffRequestSchema = z.object({
 })
 
 type YamlDiffRequest = z.infer<typeof YamlDiffRequestSchema>
+
+/**
+ * Clean up YAML by removing empty blocks programmatically
+ */
+function cleanupYamlContent(yamlContent: string): string {
+  try {
+    // Parse the YAML
+    const workflow = yamlParse(yamlContent) as any
+    
+    if (!workflow || !workflow.blocks) {
+      return yamlContent
+    }
+    
+    // Filter out empty blocks
+    const cleanedBlocks: Record<string, any> = {}
+    Object.entries(workflow.blocks).forEach(([blockId, block]) => {
+      // Only include blocks that have at least type and name
+      if (block && typeof block === 'object' && 
+          (block as any).type && (block as any).name &&
+          Object.keys(block).length > 0) {
+        cleanedBlocks[blockId] = block
+      } else {
+        logger.info(`Filtering out empty block: ${blockId}`)
+      }
+    })
+    
+    // Rebuild the workflow with cleaned blocks
+    const cleanedWorkflow = {
+      ...workflow,
+      blocks: cleanedBlocks
+    }
+    
+    // Convert back to YAML
+    return yamlDump(cleanedWorkflow, { 
+      indent: 2,
+      lineWidth: -1,
+      noRefs: true,
+      sortKeys: false
+    })
+  } catch (error) {
+    logger.warn('Failed to clean YAML content, returning original', error)
+    return yamlContent
+  }
+}
 
 interface EdgeDiff {
   new_edges: string[]
@@ -365,9 +410,15 @@ export async function POST(request: NextRequest) {
     logger.info(`[${requestId}] Original YAML content (first 500 chars):`, original_yaml.substring(0, 500))
     logger.info(`[${requestId}] Agent YAML content (first 500 chars):`, agent_yaml.substring(0, 500))
 
+    // Clean up YAML to remove empty blocks
+    const cleanedOriginalYaml = cleanupYamlContent(original_yaml)
+    const cleanedAgentYaml = cleanupYamlContent(agent_yaml)
+
+    logger.info(`[${requestId}] Cleaned YAML by removing empty blocks`)
+
     // Parse both YAML documents
-    const { data: originalWorkflow, errors: originalErrors } = parseWorkflowYaml(original_yaml)
-    const { data: agentWorkflow, errors: agentErrors } = parseWorkflowYaml(agent_yaml)
+    const { data: originalWorkflow, errors: originalErrors } = parseWorkflowYaml(cleanedOriginalYaml)
+    const { data: agentWorkflow, errors: agentErrors } = parseWorkflowYaml(cleanedAgentYaml)
 
     // Check for parsing errors
     if (!originalWorkflow || originalErrors.length > 0) {
