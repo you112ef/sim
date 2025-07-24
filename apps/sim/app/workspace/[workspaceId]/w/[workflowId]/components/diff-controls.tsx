@@ -33,7 +33,7 @@ export function DiffControls() {
     
     try {
       // Accept the changes in the diff store (this updates the main workflow store)
-      acceptChanges()
+      await acceptChanges()
       
       // Update the copilot tool call state and clear preview YAML
       updatePreviewToolCallState('applied')

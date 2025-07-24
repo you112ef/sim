@@ -29,7 +29,7 @@ interface WorkflowDiffActions {
   toggleDiffView: () => void
   
   // Accept the proposed changes (merge into main workflow store)
-  acceptChanges: () => void
+  acceptChanges: () => Promise<void>
   
   // Reject the proposed changes (clear diff store)
   rejectChanges: () => void
@@ -78,7 +78,7 @@ export const useWorkflowDiffStore = create<WorkflowDiffStore>()(
       set({ isShowingDiff: !isShowingDiff })
     },
 
-    acceptChanges: () => {
+    acceptChanges: async () => {
       const { diffWorkflow } = get()
       
       if (!diffWorkflow) {
@@ -88,30 +88,19 @@ export const useWorkflowDiffStore = create<WorkflowDiffStore>()(
       
       logger.info('Accepting proposed changes')
       
-      // Get the main workflow store and apply the changes
-      const workflowStore = useWorkflowStore.getState()
       const activeWorkflowId = useWorkflowRegistry.getState().activeWorkflowId
-
-      // Apply the diff workflow state directly (same as modal's approach)
-      const newWorkflowState = {
-        blocks: diffWorkflow.blocks,
-        edges: diffWorkflow.edges,
-        loops: diffWorkflow.loops || {},
-        parallels: diffWorkflow.parallels || {},
-        lastSaved: Date.now(),
-        // Preserve existing deployment status and other metadata
-        isDeployed: workflowStore.isDeployed,
-        deployedAt: workflowStore.deployedAt,
-        deploymentStatuses: workflowStore.deploymentStatuses,
-        needsRedeployment: workflowStore.needsRedeployment,
-        hasActiveWebhook: workflowStore.hasActiveWebhook,
+      
+      if (!activeWorkflowId) {
+        logger.error('No active workflow ID for accepting changes')
+        return
       }
 
-      useWorkflowStore.setState(newWorkflowState)
-
-      // Extract and update subblock values (exactly like modal's logic)
-      if (activeWorkflowId) {
-        const subblockValues: Record<string, Record<string, any>> = {}
+      try {
+        // Convert diff workflow to YAML using the same approach as other components
+        const { generateWorkflowYaml } = await import('@/lib/workflows/yaml-generator')
+        
+        // Extract subblock values from diff workflow
+        const subBlockValues: Record<string, Record<string, any>> = {}
         Object.values(diffWorkflow.blocks).forEach((block: any) => {
           if (block.subBlocks) {
             const blockValues: Record<string, any> = {}
@@ -121,24 +110,55 @@ export const useWorkflowDiffStore = create<WorkflowDiffStore>()(
               }
             })
             if (Object.keys(blockValues).length > 0) {
-              subblockValues[block.id] = blockValues
+              subBlockValues[block.id] = blockValues
             }
           }
         })
+        
+        // Generate YAML from diff workflow
+        const yamlContent = generateWorkflowYaml(diffWorkflow, subBlockValues)
+        
+        // Use the same consolidated YAML endpoint as the YAML editor
+        const response = await fetch(`/api/workflows/${activeWorkflowId}/yaml`, {
+          method: 'PUT',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            yamlContent,
+            description: 'Applied copilot changes',
+            source: 'copilot',
+            applyAutoLayout: true,
+            createCheckpoint: false,
+          }),
+        })
 
-        // Update subblock store (exactly like modal's logic)
-        if (Object.keys(subblockValues).length > 0) {
-          useSubBlockStore.setState((state: any) => ({
-            workflowValues: {
-              ...state.workflowValues,
-              [activeWorkflowId]: subblockValues,
-            },
-          }))
+        if (!response.ok) {
+          const errorData = await response.json()
+          logger.error('Failed to apply diff changes:', errorData)
+          throw new Error(errorData.message || `Failed to apply changes: ${response.statusText}`)
         }
+
+        const result = await response.json()
+        
+        if (!result.success) {
+          logger.error('Failed to apply diff changes:', result)
+          throw new Error(result.message || 'Failed to apply workflow changes')
+        }
+
+        logger.info('Successfully applied diff changes via YAML endpoint', {
+          blocksCount: result.data?.blocksCount,
+          edgesCount: result.data?.edgesCount,
+        })
+        
+        // Clear the diff after successful acceptance
+        get().clearDiff()
+        
+      } catch (error) {
+        logger.error('Error accepting diff changes:', error)
+        // Don't clear diff on error so user can try again
+        throw error
       }
-      
-      // Clear the diff after accepting
-      get().clearDiff()
     },
 
     rejectChanges: () => {
