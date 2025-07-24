@@ -1129,6 +1129,7 @@ export const useCopilotStore = create<CopilotStore>()(
           // Import YAML parsing utilities
           const { parseWorkflowYaml, convertYamlToWorkflow } = await import('@/stores/workflows/yaml/importer')
           const { getBlock } = await import('@/blocks')
+          const { resolveOutputType } = await import('@/blocks/utils')
           const { generateLoopBlocks, generateParallelBlocks } = await import('@/stores/workflows/workflow/utils')
 
           logger.info('Converting copilot YAML to workflow state for diff store')
@@ -1180,7 +1181,7 @@ export const useCopilotStore = create<CopilotStore>()(
                 }
               })
 
-              const outputs = blockConfig.outputs || {}
+              const outputs = resolveOutputType(blockConfig.outputs)
 
               workflowBlocks[block.id] = {
                 id: block.id,
