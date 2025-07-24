@@ -1,5 +1,5 @@
 import { createLogger } from '@/lib/logs/console-logger'
-import type { WorkflowState } from '@/stores/workflows/workflow/types'
+import type { WorkflowState, BlockState } from '@/stores/workflows/workflow/types'
 import { convertYamlToWorkflowState, applyAutoLayoutToBlocks } from '@/lib/workflows/yaml-converter'
 
 const logger = createLogger('WorkflowDiffEngine')
@@ -57,16 +57,12 @@ export class WorkflowDiffEngine {
       }
 
       const proposedState = conversionResult.workflowState
-
-      // Apply auto layout for better visualization
-      const layoutResult = await applyAutoLayoutToBlocks(
-        proposedState.blocks,
-        proposedState.edges
-      )
-
-      if (layoutResult.success && layoutResult.layoutedBlocks) {
-        proposedState.blocks = layoutResult.layoutedBlocks
-      }
+      
+      logger.info('Conversion result:', {
+        hasProposedState: !!proposedState,
+        blockCount: proposedState ? Object.keys(proposedState.blocks).length : 0,
+        edgeCount: proposedState ? proposedState.edges.length : 0
+      })
 
       // Add diff markers to blocks if analysis is provided
       let mappedDiffAnalysis = diffAnalysis
@@ -79,6 +75,8 @@ export class WorkflowDiffEngine {
         this.applyDiffMarkers(proposedState, diffAnalysis, conversionResult.idMapping!)
         // Create a mapped version of the diff analysis with new IDs
         mappedDiffAnalysis = this.createMappedDiffAnalysis(diffAnalysis, conversionResult.idMapping!)
+      } else {
+        logger.info('No diff analysis provided, skipping diff markers')
       }
 
       // Debug: Log blocks with parent relationships
@@ -95,6 +93,76 @@ export class WorkflowDiffEngine {
       logger.info(`Found ${containerBlocks.length} container blocks (loops/parallels):`, 
         containerBlocks.map(b => ({ id: b.id, type: b.type, name: b.name }))
       )
+
+      // Ensure all blocks have their id property set
+      Object.entries(proposedState.blocks).forEach(([blockId, block]) => {
+        if (!block.id) {
+          logger.warn(`Block ${blockId} missing id property, setting it now`)
+          block.id = blockId
+        }
+      })
+      
+      // Debug: Check what Object.values returns
+      const blockValues = Object.values(proposedState.blocks)
+      logger.info('Object.values(blocks) returns:', {
+        count: blockValues.length,
+        blocks: blockValues.map((block, index) => ({
+          index,
+          hasId: !!block.id,
+          id: block.id,
+          type: block.type
+        }))
+      })
+      
+      // Apply auto layout using the service directly
+      const { autoLayoutWorkflow } = await import('@/lib/autolayout/service')
+      
+      try {
+        logger.info('Applying auto layout to diff workflow', {
+          blockCount: Object.keys(proposedState.blocks).length,
+          edgeCount: proposedState.edges.length,
+          blocks: Object.keys(proposedState.blocks)
+        })
+        
+        const layoutedBlocks = await autoLayoutWorkflow(
+          proposedState.blocks,
+          proposedState.edges,
+          {} // Default options
+        )
+        
+        if (layoutedBlocks) {
+          // Apply the layouted blocks
+          proposedState.blocks = layoutedBlocks
+          
+          // Ensure all blocks still have their id property after layout
+          Object.entries(proposedState.blocks).forEach(([blockId, block]) => {
+            if (!block.id) {
+              logger.warn(`Block ${blockId} lost its id property after layout, restoring it`)
+              block.id = blockId
+            }
+          })
+          
+          // Re-apply diff markers after layout
+          if (mappedDiffAnalysis) {
+            Object.entries(proposedState.blocks).forEach(([blockId, block]) => {
+              if (mappedDiffAnalysis.new_blocks.includes(blockId)) {
+                (block as any).is_diff = 'new'
+              } else if (mappedDiffAnalysis.edited_blocks.includes(blockId)) {
+                (block as any).is_diff = 'edited'
+              } else {
+                (block as any).is_diff = 'unchanged'
+              }
+            })
+          }
+          
+          logger.info('Auto layout applied successfully')
+        } else {
+          logger.warn('Auto layout returned no blocks')
+        }
+      } catch (error) {
+        logger.error('Auto layout failed:', error)
+        logger.info('Continuing without auto-layout')
+      }
 
       // Create the diff object
       this.currentDiff = {
@@ -136,6 +204,84 @@ export class WorkflowDiffEngine {
       edited_blocks: analysis.edited_blocks.map(oldId => idMapping.get(oldId) || oldId),
       deleted_blocks: analysis.deleted_blocks // Deleted blocks won't have new IDs
     }
+  }
+
+  /**
+   * Adjust child block positions to be relative to their parent containers
+   */
+  private adjustChildBlockPositions(blocks: Record<string, BlockState>): void {
+    // Group blocks by their parent
+    const blocksByParent = new Map<string, BlockState[]>()
+    
+    Object.values(blocks).forEach(block => {
+      const parentId = block.data?.parentId || (block as any).parentNode
+      if (parentId && blocks[parentId]) {
+        if (!blocksByParent.has(parentId)) {
+          blocksByParent.set(parentId, [])
+        }
+        blocksByParent.get(parentId)!.push(block)
+      }
+    })
+    
+    // Adjust positions for each parent's children
+    blocksByParent.forEach((childBlocks, parentId) => {
+      const parentBlock = blocks[parentId]
+      if (!parentBlock) return
+      
+      // Get parent position
+      const parentPos = parentBlock.position
+      
+      logger.info(`Adjusting ${childBlocks.length} child blocks for parent ${parentId}`)
+      
+      // Track bounds for container sizing
+      let maxX = 0
+      let maxY = 0
+      
+      // Make child positions relative to parent
+      childBlocks.forEach(childBlock => {
+        const currentPos = childBlock.position
+        
+        // Check if position is already relative (within reasonable bounds of parent container)
+        const isAlreadyRelative = Math.abs(currentPos.x) < 800 && Math.abs(currentPos.y) < 600
+        
+        if (!isAlreadyRelative) {
+          // Position seems absolute, convert to relative
+          const relativePos = {
+            x: currentPos.x - parentPos.x,
+            y: currentPos.y - parentPos.y
+          }
+          
+          childBlock.position = relativePos
+          logger.info(`Adjusted child block ${childBlock.id} position from absolute`, currentPos, 'to relative', relativePos)
+        } else {
+          logger.info(`Child block ${childBlock.id} position already relative:`, currentPos)
+        }
+        
+        // Track max bounds for container sizing
+        const blockWidth = childBlock.isWide ? 450 : 350
+        const blockHeight = Math.max(childBlock.height || 100, 100)
+        maxX = Math.max(maxX, childBlock.position.x + blockWidth)
+        maxY = Math.max(maxY, childBlock.position.y + blockHeight)
+      })
+      
+      // Update container dimensions to fit all children
+      if (parentBlock.type === 'loop' || parentBlock.type === 'parallel') {
+        const padding = 150 // Extra padding for container
+        const minWidth = 500
+        const minHeight = 300
+        
+        parentBlock.data = {
+          ...parentBlock.data,
+          width: Math.max(minWidth, maxX + padding),
+          height: Math.max(minHeight, maxY + padding)
+        }
+        
+        logger.info(`Updated container ${parentId} dimensions:`, {
+          width: parentBlock.data.width,
+          height: parentBlock.data.height
+        })
+      }
+    })
   }
 
   /**

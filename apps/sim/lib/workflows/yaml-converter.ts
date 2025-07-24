@@ -217,7 +217,7 @@ function createContainerBlock(
   blockId: string,
   importedBlock: ImportedBlock
 ): BlockState {
-  return {
+  const block: BlockState = {
     id: blockId,
     type: importedBlock.type,
     name: importedBlock.name,
@@ -230,12 +230,23 @@ function createContainerBlock(
     height: 0,
     data: {
       ...importedBlock.data,
+      // Ensure container has dimensions
+      width: importedBlock.data?.width || 500,
+      height: importedBlock.data?.height || 300,
+      type: importedBlock.type === 'loop' ? 'loopNode' : 'parallelNode',
       ...(importedBlock.parentId && { 
         parentId: importedBlock.parentId,
         extent: importedBlock.extent
       })
     }
   }
+  
+  // Add parentNode for ReactFlow if this block is inside another container
+  if (importedBlock.parentId) {
+    (block as any).parentNode = importedBlock.parentId
+  }
+  
+  return block
 }
 
 /**
@@ -381,18 +392,27 @@ export async function applyAutoLayoutToBlocks(
   layoutedBlocks?: Record<string, BlockState>
   error?: string 
 }> {
+  logger.info('=== applyAutoLayoutToBlocks called ===', {
+    blockCount: Object.keys(blocks).length,
+    edgeCount: edges.length
+  })
+  
   try {
     // Try to import from the actual auto-layout location
+    logger.info('Attempting to import auto-layout module...')
     const autoLayoutModule = await import('@/app/workspace/[workspaceId]/w/[workflowId]/utils/auto-layout')
     
     if (autoLayoutModule.applyAutoLayoutToBlocks) {
+      logger.info('Using auto-layout module function')
       // Use the existing auto-layout function
       return await autoLayoutModule.applyAutoLayoutToBlocks(blocks, edges)
     }
     
     // Fallback to autolayout service
+    logger.info('Falling back to autolayout service')
     const { autoLayoutWorkflow } = await import('@/lib/autolayout/service')
     
+    logger.info('Calling autoLayoutWorkflow with options')
     const layoutedBlocks = await autoLayoutWorkflow(
       blocks,
       edges,
@@ -411,6 +431,11 @@ export async function applyAutoLayoutToBlocks(
         },
       }
     )
+    
+    logger.info('autoLayoutWorkflow returned:', {
+      hasLayoutedBlocks: !!layoutedBlocks,
+      layoutedBlockCount: layoutedBlocks ? Object.keys(layoutedBlocks).length : 0
+    })
     
     return {
       success: true,
