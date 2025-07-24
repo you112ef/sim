@@ -332,6 +332,9 @@ export function WorkflowBlock({ id, data }: NodeProps<WorkflowBlockProps>) {
     if (data.isPreview && data.subBlockValues) {
       // In preview mode, use the preview values
       stateToUse = data.subBlockValues
+    } else if (currentWorkflow.isDiffMode && currentBlock) {
+      // In diff mode, use the diff workflow's subblock values
+      stateToUse = currentBlock.subBlocks || {}
     } else {
       // In normal mode, use merged state
       const blocks = useWorkflowStore.getState().blocks
