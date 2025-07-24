@@ -394,6 +394,34 @@ export const useCopilotStore = create<CopilotStore>()(
         }
       },
 
+      // Update preview tool call state without sending feedback
+      updatePreviewToolCallState: (toolCallState: 'applied' | 'rejected') => {
+        const { messages } = get()
+
+        // Find the last message with a preview_workflow tool call
+        const lastMessageWithPreview = [...messages].reverse().find(msg => 
+          msg.role === 'assistant' && msg.toolCalls?.some(tc => tc.name === 'preview_workflow')
+        )
+
+        if (lastMessageWithPreview) {
+          set((state) => ({
+            messages: state.messages.map((msg) =>
+              msg.id === lastMessageWithPreview.id ? {
+                ...msg,
+                toolCalls: msg.toolCalls?.map(tc => 
+                  tc.name === 'preview_workflow' ? { ...tc, state: toolCallState } : tc
+                ),
+                contentBlocks: msg.contentBlocks?.map(block =>
+                  block.type === 'tool_call' && block.toolCall.name === 'preview_workflow'
+                    ? { ...block, toolCall: { ...block.toolCall, state: toolCallState } }
+                    : block
+                )
+              } : msg
+            ),
+          }))
+        }
+      },
+
       // Send implicit feedback and update preview tool call state
       sendImplicitFeedback: async (implicitFeedback: string, toolCallState?: 'applied' | 'rejected') => {
         const { workflowId, currentChat, mode, messages } = get()

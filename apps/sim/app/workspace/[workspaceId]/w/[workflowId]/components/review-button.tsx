@@ -20,7 +20,7 @@ export function ReviewButton() {
   const params = useParams()
   const workspaceId = params.workspaceId as string
   const { activeWorkflowId, createWorkflow } = useWorkflowRegistry()
-  const { currentChat, sendImplicitFeedback, clearPreviewYaml } = useCopilotStore()
+  const { currentChat, updatePreviewToolCallState, clearPreviewYaml } = useCopilotStore()
   const [showModal, setShowModal] = useState(false)
   const [isProcessing, setIsProcessing] = useState(false)
   const [previewWorkflowState, setPreviewWorkflowState] = useState<any>(null)
@@ -280,18 +280,11 @@ export function ReviewButton() {
       // Save to database without blocking UI
       saveToDatabase()
 
-      // STEP 3: Clear preview YAML after successful store update (user has accepted)
-      console.log('Clearing preview YAML after successful apply')
+      // Clear preview YAML after successful store update (user has accepted)
+      updatePreviewToolCallState('applied')
       await clearPreviewYaml()
-      console.log('Preview YAML cleared, closing modal')
       setShowModal(false)
       setPreviewWorkflowState(null)
-      
-      // Continue the copilot conversation with acceptance message
-      await sendImplicitFeedback(
-        'The user has accepted and applied the workflow changes. Please provide an acknowledgement.',
-        'applied'
-      )
     } catch (error) {
       logger.error('Failed to apply preview:', error)
     } finally {
@@ -351,15 +344,10 @@ export function ReviewButton() {
       }
 
       logger.info('Successfully created new workflow from preview')
+      updatePreviewToolCallState('applied')
       await clearPreviewYaml()
       setShowModal(false)
       setPreviewWorkflowState(null)
-      
-      // Continue the copilot conversation with save as new message  
-      await sendImplicitFeedback(
-        `The user has saved the workflow changes as a new workflow named "${name}". Please continue.`,
-        'applied'
-      )
     } catch (error) {
       logger.error('Failed to save preview as new workflow:', error)
     } finally {
@@ -372,15 +360,10 @@ export function ReviewButton() {
     
     try {
       setIsProcessing(true)
+      updatePreviewToolCallState('rejected')
       await clearPreviewYaml()
       setShowModal(false)
       setPreviewWorkflowState(null)
-      
-      // Continue the copilot conversation with rejection message
-      await sendImplicitFeedback(
-        'The user has rejected the workflow changes. Please continue.',
-        'rejected'
-      )
     } catch (error) {
       logger.error('Failed to reject preview:', error)
     } finally {
