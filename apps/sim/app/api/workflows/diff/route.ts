@@ -14,11 +14,18 @@ const YamlDiffRequestSchema = z.object({
 
 type YamlDiffRequest = z.infer<typeof YamlDiffRequestSchema>
 
+interface EdgeDiff {
+  new_edges: string[]
+  deleted_edges: string[]
+  unchanged_edges: string[]
+}
+
 interface DiffResult {
   deleted_blocks: string[]
   edited_blocks: string[]
   new_blocks: string[]
   field_diffs?: Record<string, { changed_fields: string[], unchanged_fields: string[] }>
+  edge_diff?: EdgeDiff
 }
 
 interface BlockHash {
@@ -26,6 +33,172 @@ interface BlockHash {
   name: string
   hash: string
   inputs?: Record<string, any>
+}
+
+interface EdgeIdentity {
+  id: string
+  source: string
+  target: string
+  sourceHandle?: string
+  targetHandle?: string
+}
+
+/**
+ * Generate a unique identifier for an edge based on block names (not IDs)
+ * Must match the frontend logic which defaults sourceHandle to 'success'
+ */
+function generateEdgeIdentity(sourceName: string, targetName: string, sourceHandle?: string, targetHandle?: string): string {
+  // Match frontend logic: use 'success' as default when sourceHandle is undefined/null
+  const effectiveSourceHandle = sourceHandle || 'success'
+  return `${sourceName}:${effectiveSourceHandle}->${targetName}${targetHandle ? `:${targetHandle}` : ''}`
+}
+
+/**
+ * Extract edges from YAML workflow connections using block names
+ */
+function extractEdges(yamlWorkflow: any): EdgeIdentity[] {
+  const edges: EdgeIdentity[] = []
+  
+  if (!yamlWorkflow.blocks || typeof yamlWorkflow.blocks !== 'object') {
+    return edges
+  }
+  
+  // Create mapping from block ID to block name
+  const blockIdToName = new Map<string, string>()
+  Object.entries(yamlWorkflow.blocks).forEach(([blockId, block]: [string, any]) => {
+    if (block && typeof block === 'object' && block.name) {
+      blockIdToName.set(blockId, block.name)
+    }
+  })
+  
+  Object.entries(yamlWorkflow.blocks).forEach(([blockId, block]: [string, any]) => {
+    if (!block || typeof block !== 'object' || !block.connections) {
+      return
+    }
+    
+    const sourceName = blockIdToName.get(blockId)
+    if (!sourceName) return
+    
+    const connections = block.connections
+    
+    // Handle 'default' connections (simple format)
+    if (connections.default) {
+      const targets = Array.isArray(connections.default) ? connections.default : [connections.default]
+      targets.forEach((targetId: string) => {
+        const targetName = blockIdToName.get(targetId)
+        if (!targetName) return
+        
+        const edgeId = generateEdgeIdentity(sourceName, targetName)
+        edges.push({
+          id: edgeId,
+          source: sourceName,
+          target: targetName,
+        })
+      })
+    }
+    
+    // Handle named output connections
+    Object.entries(connections).forEach(([outputName, targets]) => {
+      if (outputName === 'default') return // Already handled
+      
+      const targetList = Array.isArray(targets) ? targets : [targets]
+      targetList.forEach((target: any) => {
+        if (typeof target === 'string') {
+          const targetName = blockIdToName.get(target)
+          if (!targetName) return
+          
+          const edgeId = generateEdgeIdentity(sourceName, targetName, outputName)
+          edges.push({
+            id: edgeId,
+            source: sourceName,
+            target: targetName,
+            sourceHandle: outputName,
+          })
+        } else if (typeof target === 'object' && target.block) {
+          const targetName = blockIdToName.get(target.block)
+          if (!targetName) return
+          
+          const edgeId = generateEdgeIdentity(sourceName, targetName, outputName, target.input)
+          edges.push({
+            id: edgeId,
+            source: sourceName,
+            target: targetName,
+            sourceHandle: outputName,
+            targetHandle: target.input,
+          })
+        }
+      })
+    })
+  })
+  
+  return edges
+}
+
+/**
+ * Compare edges between two workflows to find differences
+ */
+function compareEdges(
+  originalEdges: EdgeIdentity[],
+  agentEdges: EdgeIdentity[],
+  blockNameToHash: { originalNameToHash: Map<string, string>, agentNameToHash: Map<string, string> },
+  blockDiff: { new_blocks: string[], deleted_blocks: string[], edited_blocks: string[] }
+): EdgeDiff {
+  const result: EdgeDiff = {
+    new_edges: [],
+    deleted_edges: [],
+    unchanged_edges: [],
+  }
+  
+  // Create edge ID sets for comparison
+  const originalEdgeIds = new Set(originalEdges.map(e => e.id))
+  const agentEdgeIds = new Set(agentEdges.map(e => e.id))
+  
+  // Get block names that are new or deleted
+  const newBlockNames = new Set<string>()
+  const deletedBlockNames = new Set<string>()
+  
+  // Map block IDs to names for new/deleted blocks
+  Array.from(blockNameToHash.originalNameToHash.entries()).forEach(([name, _]) => {
+    const nameExistsInAgent = blockNameToHash.agentNameToHash.has(name)
+    if (!nameExistsInAgent) {
+      deletedBlockNames.add(name)
+    }
+  })
+  
+  Array.from(blockNameToHash.agentNameToHash.entries()).forEach(([name, _]) => {
+    const nameExistsInOriginal = blockNameToHash.originalNameToHash.has(name)
+    if (!nameExistsInOriginal) {
+      newBlockNames.add(name)
+    }
+  })
+  
+  // Find deleted edges (in original but not in agent)
+  originalEdges.forEach(edge => {
+    // An edge is deleted if:
+    // 1. The edge doesn't exist in the agent workflow (was removed), OR
+    // 2. Either its source or target block was deleted
+    const edgeRemoved = !agentEdgeIds.has(edge.id)
+    const sourceDeleted = deletedBlockNames.has(edge.source)
+    const targetDeleted = deletedBlockNames.has(edge.target)
+    
+    if (edgeRemoved || sourceDeleted || targetDeleted) {
+      result.deleted_edges.push(edge.id)
+    }
+  })
+  
+  // Find new and unchanged edges in agent workflow
+  agentEdges.forEach(edge => {
+    const isNewEdge = !originalEdgeIds.has(edge.id)
+    const connectsToNewBlock = newBlockNames.has(edge.source) || newBlockNames.has(edge.target)
+    
+    if (isNewEdge || connectsToNewBlock) {
+      result.new_edges.push(edge.id)
+    } else {
+      result.unchanged_edges.push(edge.id)
+    }
+  })
+  
+  return result
 }
 
 /**
@@ -298,6 +471,30 @@ export async function POST(request: NextRequest) {
       }
       // If name doesn't exist but hash exists, it's a renamed block (treat as unchanged)
     }
+
+    // Extract and compare edges
+    const originalEdges = extractEdges(originalWorkflow)
+    const agentEdges = extractEdges(agentWorkflow)
+    
+    logger.info(`[${requestId}] Extracted edges`, {
+      originalEdgeCount: originalEdges.length,
+      agentEdgeCount: agentEdges.length,
+    })
+    
+    // Compare edges
+    const edgeDiff = compareEdges(
+      originalEdges, 
+      agentEdges, 
+      { originalNameToHash, agentNameToHash }, 
+      result
+    )
+    result.edge_diff = edgeDiff
+    
+    logger.info(`[${requestId}] Edge diff analysis`, {
+      newEdges: edgeDiff.new_edges.length,
+      deletedEdges: edgeDiff.deleted_edges.length,
+      unchangedEdges: edgeDiff.unchanged_edges.length,
+    })
 
     const elapsed = Date.now() - startTime
     

@@ -9,11 +9,18 @@ export interface DiffMetadata {
   timestamp: number
 }
 
+export interface EdgeDiff {
+  new_edges: string[]
+  deleted_edges: string[]
+  unchanged_edges: string[]
+}
+
 export interface DiffAnalysis {
   new_blocks: string[]
   edited_blocks: string[]
   deleted_blocks: string[]
   field_diffs?: Record<string, { changed_fields: string[], unchanged_fields: string[] }>
+  edge_diff?: EdgeDiff
 }
 
 export interface WorkflowDiff {
@@ -71,7 +78,8 @@ export class WorkflowDiffEngine {
         logger.info('Applying diff markers with analysis:', {
           new_blocks: diffAnalysis.new_blocks,
           edited_blocks: diffAnalysis.edited_blocks,
-          deleted_blocks: diffAnalysis.deleted_blocks
+          deleted_blocks: diffAnalysis.deleted_blocks,
+          edge_diff: diffAnalysis.edge_diff
         })
         this.applyDiffMarkers(proposedState, diffAnalysis, conversionResult.idMapping!)
         // Create a mapped version of the diff analysis with new IDs
@@ -218,6 +226,16 @@ export class WorkflowDiffEngine {
         const newId = idMapping.get(oldId) || oldId
         mapped.field_diffs![newId] = fieldDiff
       })
+    }
+    
+    // Edge identifiers use block names (not IDs), so they don't need mapping
+    // They should remain as-is since block names are stable between workflows
+    if (analysis.edge_diff) {
+      mapped.edge_diff = {
+        new_edges: analysis.edge_diff.new_edges, // Keep original - uses block names
+        deleted_edges: analysis.edge_diff.deleted_edges, // Keep original - uses block names
+        unchanged_edges: analysis.edge_diff.unchanged_edges // Keep original - uses block names
+      }
     }
     
     return mapped
