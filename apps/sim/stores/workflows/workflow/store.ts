@@ -450,6 +450,23 @@ export const useWorkflowStore = create<WorkflowStoreWithHistory>()(
         // Note: Socket.IO handles real-time sync automatically
       },
 
+      // Add method to get current workflow state (eliminates duplication in diff store)
+      getWorkflowState: (): WorkflowState => {
+        const state = get()
+        return {
+          blocks: state.blocks,
+          edges: state.edges,
+          loops: state.loops,
+          parallels: state.parallels,
+          lastSaved: state.lastSaved,
+          isDeployed: state.isDeployed,
+          deployedAt: state.deployedAt,
+          deploymentStatuses: state.deploymentStatuses,
+          needsRedeployment: state.needsRedeployment,
+          hasActiveWebhook: state.hasActiveWebhook,
+        }
+      },
+
       toggleBlockEnabled: (id: string) => {
         const newState = {
           blocks: {

@@ -132,7 +132,7 @@ export async function applyAutoLayoutAndUpdateStore(
 
     // Update workflow store immediately with new positions
     const newWorkflowState = {
-      ...workflowStore,
+      ...workflowStore.getWorkflowState(),
       blocks: result.layoutedBlocks,
       lastSaved: Date.now(),
     }

@@ -250,20 +250,9 @@ export const useWorkflowDiffStore = create<WorkflowDiffStore>()(
         return diffWorkflow
       }
       
-      // Return the actual workflow state
-      const workflowStore = useWorkflowStore.getState()
-      return {
-        blocks: workflowStore.blocks,
-        edges: workflowStore.edges,
-        loops: workflowStore.loops,
-        parallels: workflowStore.parallels,
-        lastSaved: workflowStore.lastSaved,
-        isDeployed: workflowStore.isDeployed,
-        deployedAt: workflowStore.deployedAt,
-        deploymentStatuses: workflowStore.deploymentStatuses,
-        needsRedeployment: workflowStore.needsRedeployment,
-        hasActiveWebhook: workflowStore.hasActiveWebhook,
-      }
+      // Return the actual workflow state using the main store's method
+      // This eliminates code duplication and automatically stays in sync with WorkflowState changes
+      return useWorkflowStore.getState().getWorkflowState()
     },
   }))
 ) 
