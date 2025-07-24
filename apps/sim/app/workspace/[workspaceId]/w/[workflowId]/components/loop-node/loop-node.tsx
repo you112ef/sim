@@ -8,6 +8,7 @@ import { Card } from '@/components/ui/card'
 import { cn } from '@/lib/utils'
 import { useCollaborativeWorkflow } from '@/hooks/use-collaborative-workflow'
 import { LoopBadges } from './components/loop-badges'
+import { useCurrentWorkflow } from '../../hooks'
 
 // Add these styles to your existing global CSS file or create a separate CSS module
 const LoopNodeStyles: React.FC = () => {
@@ -71,6 +72,11 @@ export const LoopNodeComponent = memo(({ data, selected, id }: NodeProps) => {
   const { getNodes } = useReactFlow()
   const { collaborativeRemoveBlock } = useCollaborativeWorkflow()
   const blockRef = useRef<HTMLDivElement>(null)
+  
+  // Use the clean abstraction for current workflow state
+  const currentWorkflow = useCurrentWorkflow()
+  const currentBlock = currentWorkflow.getBlockById(id)
+  const diffStatus = currentBlock?.is_diff
 
   // Check if this is preview mode
   const isPreview = data?.isPreview || false
@@ -124,7 +130,10 @@ export const LoopNodeComponent = memo(({ data, selected, id }: NodeProps) => {
             data?.state === 'valid',
             nestingLevel > 0 &&
               `border border-[0.5px] ${nestingLevel % 2 === 0 ? 'border-slate-300/60' : 'border-slate-400/60'}`,
-            data?.hasNestedError && 'border-2 border-red-500 bg-red-50/50'
+            data?.hasNestedError && 'border-2 border-red-500 bg-red-50/50',
+            // Diff highlighting
+            diffStatus === 'new' && 'ring-2 ring-green-500 bg-green-50/50 dark:bg-green-900/10',
+            diffStatus === 'edited' && 'ring-2 ring-orange-500 bg-orange-50/50 dark:bg-orange-900/10',
           )}
           style={{
             width: data.width || 500,

@@ -348,6 +348,11 @@ export const useWorkflowDiffStore = create<WorkflowDiffState & WorkflowDiffActio
           // Get the current active workflow ID for subblock store updates
           const activeWorkflowId = useWorkflowRegistry.getState().activeWorkflowId
           
+          if (!activeWorkflowId) {
+            logger.error('No active workflow ID found when accepting diff')
+            throw new Error('No active workflow found')
+          }
+          
           // Directly replace the workflow state instead of using addBlock
           // This preserves all the block data including subBlocks with their values
           const newState = {
@@ -403,6 +408,51 @@ export const useWorkflowDiffStore = create<WorkflowDiffState & WorkflowDiffActio
             loopsCount: Object.keys(newState.loops).length,
             parallelsCount: Object.keys(newState.parallels).length,
           })
+          
+          // IMPORTANT: Persist to database
+          // This was the missing piece that caused accepted diffs not to be saved
+          try {
+            logger.info('Persisting accepted diff changes to database')
+            
+            // Get the complete workflow state for database persistence
+            const completeWorkflowState = {
+              blocks: newState.blocks,
+              edges: newState.edges,
+              loops: newState.loops,
+              parallels: newState.parallels,
+              lastSaved: Date.now(),
+              isDeployed: diffWorkflow.isDeployed || false,
+              deployedAt: diffWorkflow.deployedAt,
+              deploymentStatuses: diffWorkflow.deploymentStatuses || {},
+              hasActiveWebhook: diffWorkflow.hasActiveWebhook || false,
+            }
+            
+            const response = await fetch(`/api/workflows/${activeWorkflowId}/state`, {
+              method: 'PUT',
+              headers: {
+                'Content-Type': 'application/json',
+              },
+              body: JSON.stringify(completeWorkflowState),
+            })
+
+            if (!response.ok) {
+              const errorData = await response.json()
+              logger.error('Failed to persist accepted diff to database:', errorData)
+              throw new Error(errorData.error || `Failed to save: ${response.statusText}`)
+            }
+
+            const result = await response.json()
+            logger.info('Successfully persisted accepted diff to database', {
+              blocksCount: result.blocksCount,
+              edgesCount: result.edgesCount,
+            })
+            
+          } catch (persistError) {
+            logger.error('Failed to persist accepted diff to database:', persistError)
+            // Don't throw here - the store is already updated, so the UI is correct
+            // The user can try manual save or the socket will eventually sync
+            logger.warn('Diff was applied to local stores but not persisted to database')
+          }
           
           // Clear the diff
           get().clearDiff()
