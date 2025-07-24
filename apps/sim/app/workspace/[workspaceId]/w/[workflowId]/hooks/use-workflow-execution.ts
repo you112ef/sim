@@ -17,6 +17,7 @@ import { useGeneralStore } from '@/stores/settings/general/store'
 import { useWorkflowRegistry } from '@/stores/workflows/registry/store'
 import { mergeSubblockState } from '@/stores/workflows/utils'
 import { useWorkflowStore } from '@/stores/workflows/workflow/store'
+import { useWorkflowDiffStore } from '@/stores/workflow-diff/store'
 
 const logger = createLogger('useWorkflowExecution')
 
@@ -45,6 +46,7 @@ interface DebugValidationResult {
 export function useWorkflowExecution() {
   const { blocks, edges, loops, parallels } = useWorkflowStore()
   const { activeWorkflowId } = useWorkflowRegistry()
+  const { isShowingDiff, diffWorkflow } = useWorkflowDiffStore()
   const { toggleConsole } = useConsoleStore()
   const { getAllVariables } = useEnvironmentStore()
   const { isDebugModeEnabled } = useGeneralStore()
@@ -418,8 +420,24 @@ export function useWorkflowExecution() {
     onStream?: (se: StreamingExecution) => Promise<void>,
     executionId?: string
   ): Promise<ExecutionResult | StreamingExecution> => {
+    // Determine which workflow state to use - diff or main
+    const workflowBlocks = isShowingDiff && diffWorkflow ? diffWorkflow.blocks : blocks
+    const workflowEdges = isShowingDiff && diffWorkflow ? diffWorkflow.edges : edges
+    const workflowLoops = isShowingDiff && diffWorkflow ? diffWorkflow.loops || {} : loops
+    const workflowParallels = isShowingDiff && diffWorkflow ? diffWorkflow.parallels || {} : parallels
+
+    logger.info('Executing workflow', { 
+      mode: isShowingDiff ? 'diff' : 'main', 
+      blocksCount: Object.keys(workflowBlocks).length,
+      edgesCount: workflowEdges.length
+    })
+
     // Use the mergeSubblockState utility to get all block states
-    const mergedStates = mergeSubblockState(blocks)
+    // In diff mode, subblock values are already in the workflow blocks
+    // In normal mode, we need to merge from the subblock store
+    const mergedStates = isShowingDiff && diffWorkflow 
+      ? workflowBlocks // Diff blocks already have embedded subblock values
+      : mergeSubblockState(workflowBlocks)
 
     // Filter out trigger blocks for manual execution
     const filteredStates = Object.entries(mergedStates).reduce(
@@ -476,7 +494,7 @@ export function useWorkflowExecution() {
       return blockConfig?.category === 'triggers'
     })
 
-    const filteredEdges = edges.filter(
+    const filteredEdges = workflowEdges.filter(
       (edge) => !triggerBlockIds.includes(edge.source) && !triggerBlockIds.includes(edge.target)
     )
 
@@ -484,8 +502,8 @@ export function useWorkflowExecution() {
     const workflow = new Serializer().serializeWorkflow(
       filteredStates,
       filteredEdges,
-      loops,
-      parallels
+      workflowLoops,
+      workflowParallels
     )
 
     // Determine if this is a chat execution
