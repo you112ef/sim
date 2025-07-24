@@ -107,6 +107,21 @@ const WorkflowContent = React.memo(() => {
   // User permissions - get current user's specific permissions from context
   const userPermissions = useUserPermissionsContext()
 
+  // Create diff-aware permissions that disable editing when in diff mode
+  const effectivePermissions = useMemo(() => {
+    if (isShowingDiff) {
+      // In diff mode, disable all editing regardless of user permissions
+      return {
+        ...userPermissions,
+        canEdit: false,
+        canAdmin: false,
+        // Keep canRead true so users can still view content
+        canRead: userPermissions.canRead,
+      }
+    }
+    return userPermissions
+  }, [userPermissions, isShowingDiff])
+
   // Workspace permissions - get all users and their permissions for this workspace
   const { permissions: workspacePermissions, error: permissionsError } = useWorkspacePermissions(
     workspaceId || null
@@ -340,7 +355,7 @@ const WorkflowContent = React.memo(() => {
   useEffect(() => {
     const handleAddBlockFromToolbar = (event: CustomEvent) => {
       // Check if user has permission to interact with blocks
-      if (!userPermissions.canEdit) {
+      if (!effectivePermissions.canEdit) {
         return
       }
 
@@ -463,7 +478,7 @@ const WorkflowContent = React.memo(() => {
     addEdge,
     findClosestOutput,
     determineSourceHandle,
-    userPermissions.canEdit,
+    effectivePermissions.canEdit,
   ])
 
   // Update the onDrop handler
@@ -1471,11 +1486,11 @@ const WorkflowContent = React.memo(() => {
           edges={edgesWithSelection}
           onNodesChange={onNodesChange}
           onEdgesChange={onEdgesChange}
-          onConnect={userPermissions.canEdit ? onConnect : undefined}
+          onConnect={effectivePermissions.canEdit ? onConnect : undefined}
           nodeTypes={nodeTypes}
           edgeTypes={edgeTypes}
-          onDrop={userPermissions.canEdit ? onDrop : undefined}
-          onDragOver={userPermissions.canEdit ? onDragOver : undefined}
+          onDrop={effectivePermissions.canEdit ? onDrop : undefined}
+          onDragOver={effectivePermissions.canEdit ? onDragOver : undefined}
           fitView
           minZoom={0.1}
           maxZoom={1.3}
@@ -1495,22 +1510,22 @@ const WorkflowContent = React.memo(() => {
           onEdgeClick={onEdgeClick}
           elementsSelectable={true}
           selectNodesOnDrag={false}
-          nodesConnectable={userPermissions.canEdit}
-          nodesDraggable={userPermissions.canEdit}
+          nodesConnectable={effectivePermissions.canEdit}
+          nodesDraggable={effectivePermissions.canEdit}
           draggable={false}
           noWheelClassName='allow-scroll'
           edgesFocusable={true}
-          edgesUpdatable={userPermissions.canEdit}
+          edgesUpdatable={effectivePermissions.canEdit}
           className='workflow-container h-full'
-          onNodeDrag={userPermissions.canEdit ? onNodeDrag : undefined}
-          onNodeDragStop={userPermissions.canEdit ? onNodeDragStop : undefined}
-          onNodeDragStart={userPermissions.canEdit ? onNodeDragStart : undefined}
+          onNodeDrag={effectivePermissions.canEdit ? onNodeDrag : undefined}
+          onNodeDragStop={effectivePermissions.canEdit ? onNodeDragStop : undefined}
+          onNodeDragStart={effectivePermissions.canEdit ? onNodeDragStart : undefined}
           snapToGrid={false}
           snapGrid={[20, 20]}
           elevateEdgesOnSelect={true}
           elevateNodesOnSelect={true}
-          autoPanOnConnect={userPermissions.canEdit}
-          autoPanOnNodeDrag={userPermissions.canEdit}
+          autoPanOnConnect={effectivePermissions.canEdit}
+          autoPanOnNodeDrag={effectivePermissions.canEdit}
         >
           <Background
             color='hsl(var(--workflow-dots))'

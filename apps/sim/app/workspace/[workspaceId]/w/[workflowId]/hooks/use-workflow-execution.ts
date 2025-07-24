@@ -412,6 +412,8 @@ export function useWorkflowExecution() {
       setExecutor,
       setPendingBlocks,
       setActiveBlocks,
+      isShowingDiff,
+      diffWorkflow,
     ]
   )
 
@@ -420,14 +422,21 @@ export function useWorkflowExecution() {
     onStream?: (se: StreamingExecution) => Promise<void>,
     executionId?: string
   ): Promise<ExecutionResult | StreamingExecution> => {
-    // Determine which workflow state to use - diff or main
-    const workflowBlocks = isShowingDiff && diffWorkflow ? diffWorkflow.blocks : blocks
-    const workflowEdges = isShowingDiff && diffWorkflow ? diffWorkflow.edges : edges
-    const workflowLoops = isShowingDiff && diffWorkflow ? diffWorkflow.loops || {} : loops
-    const workflowParallels = isShowingDiff && diffWorkflow ? diffWorkflow.parallels || {} : parallels
+    // Use diff workflow when in diff mode, normal workflow when in normal mode
+    // This ensures chat tests the proposed changes when in diff mode
+    const isExecutingFromChat = workflowInput && typeof workflowInput === 'object' && 'input' in workflowInput
+    const shouldUseDiffForExecution = isShowingDiff && diffWorkflow
+    
+    // Determine which workflow state to use based on current mode
+    const workflowBlocks = shouldUseDiffForExecution ? diffWorkflow.blocks : blocks
+    const workflowEdges = shouldUseDiffForExecution ? diffWorkflow.edges : edges
+    const workflowLoops = shouldUseDiffForExecution ? diffWorkflow.loops || {} : loops
+    const workflowParallels = shouldUseDiffForExecution ? diffWorkflow.parallels || {} : parallels
 
     logger.info('Executing workflow', { 
-      mode: isShowingDiff ? 'diff' : 'main', 
+      mode: shouldUseDiffForExecution ? 'diff' : 'main', 
+      isExecutingFromChat,
+      isShowingDiff,
       blocksCount: Object.keys(workflowBlocks).length,
       edgesCount: workflowEdges.length
     })
@@ -506,13 +515,9 @@ export function useWorkflowExecution() {
       workflowParallels
     )
 
-    // Determine if this is a chat execution
-    const isChatExecution =
-      workflowInput && typeof workflowInput === 'object' && 'input' in workflowInput
-
     // If this is a chat execution, get the selected outputs
     let selectedOutputIds: string[] | undefined
-    if (isChatExecution && activeWorkflowId) {
+    if (isExecutingFromChat && activeWorkflowId) {
       // Get selected outputs from chat store
       const chatStore = await import('@/stores/panel/chat/store').then((mod) => mod.useChatStore)
       selectedOutputIds = chatStore.getState().getSelectedWorkflowOutput(activeWorkflowId)
@@ -526,7 +531,7 @@ export function useWorkflowExecution() {
       workflowInput,
       workflowVariables,
       contextExtensions: {
-        stream: isChatExecution,
+        stream: isExecutingFromChat,
         selectedOutputIds,
         edges: workflow.connections.map((conn) => ({
           source: conn.source,
