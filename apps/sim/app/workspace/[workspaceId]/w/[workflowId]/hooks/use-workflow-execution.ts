@@ -417,28 +417,44 @@ export function useWorkflowExecution() {
     onStream?: (se: StreamingExecution) => Promise<void>,
     executionId?: string
   ): Promise<ExecutionResult | StreamingExecution> => {
-    // Use the current workflow abstraction (handles diff vs normal automatically)
+    // Use currentWorkflow but check if we're in diff mode
+    const { blocks: workflowBlocks, edges: workflowEdges, loops: workflowLoops, parallels: workflowParallels } = currentWorkflow
+    
     const isExecutingFromChat = workflowInput && typeof workflowInput === 'object' && 'input' in workflowInput
-    const { blocks: workflowBlocks, edges: workflowEdges, loops: workflowLoops, parallels: workflowParallels, isDiffMode } = currentWorkflow
 
     logger.info('Executing workflow', { 
-      mode: isDiffMode ? 'diff' : 'main', 
+      isDiffMode: currentWorkflow.isDiffMode,
       isExecutingFromChat,
-      isDiffMode,
       blocksCount: Object.keys(workflowBlocks).length,
       edgesCount: workflowEdges.length
     })
 
-    // Use the mergeSubblockState utility to get all block states
-    // In diff mode, subblock values are already in the workflow blocks
-    // In normal mode, we need to merge from the subblock store
-    const mergedStates = isDiffMode 
-      ? workflowBlocks // Diff blocks already have embedded subblock values
-      : mergeSubblockState(workflowBlocks)
+    // Debug: Check for blocks with undefined types before merging
+    Object.entries(workflowBlocks).forEach(([blockId, block]) => {
+      if (!block || !block.type) {
+        logger.error('Found block with undefined type before merging:', { blockId, block })
+      }
+    })
+
+    // Merge subblock states from the appropriate store
+    const mergedStates = mergeSubblockState(workflowBlocks)
+
+    // Debug: Check for blocks with undefined types after merging
+    Object.entries(mergedStates).forEach(([blockId, block]) => {
+      if (!block || !block.type) {
+        logger.error('Found block with undefined type after merging:', { blockId, block })
+      }
+    })
 
     // Filter out trigger blocks for manual execution
     const filteredStates = Object.entries(mergedStates).reduce(
       (acc, [id, block]) => {
+        // Skip blocks with undefined type
+        if (!block || !block.type) {
+          logger.warn(`Skipping block with undefined type: ${id}`, block)
+          return acc
+        }
+
         const blockConfig = getBlock(block.type)
         const isTriggerBlock = blockConfig?.category === 'triggers'
 
