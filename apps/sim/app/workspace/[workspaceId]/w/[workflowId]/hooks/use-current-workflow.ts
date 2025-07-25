@@ -44,12 +44,13 @@ export function useCurrentWorkflow(): CurrentWorkflow {
   // Get normal workflow state
   const normalWorkflow = useWorkflowStore((state) => state.getWorkflowState())
   
-  // Get diff state
-  const { isShowingDiff, diffWorkflow } = useWorkflowDiffStore()
+  // Get diff state - now including isDiffReady
+  const { isShowingDiff, isDiffReady, diffWorkflow } = useWorkflowDiffStore()
   
   // Debug: Log when diff state changes
   console.log('[useCurrentWorkflow] State update:', {
     isShowingDiff,
+    isDiffReady,
     hasDiffWorkflow: !!diffWorkflow,
     diffWorkflowBlockCount: diffWorkflow ? Object.keys(diffWorkflow.blocks).length : 0,
     timestamp: Date.now()
@@ -57,8 +58,9 @@ export function useCurrentWorkflow(): CurrentWorkflow {
 
   // Create the abstracted interface
   const currentWorkflow = useMemo((): CurrentWorkflow => {
-    // Determine which workflow to use
-    const activeWorkflow = isShowingDiff && diffWorkflow ? diffWorkflow : normalWorkflow
+    // Determine which workflow to use - only use diff if it's ready
+    const shouldUseDiff = isShowingDiff && isDiffReady && !!diffWorkflow
+    const activeWorkflow = shouldUseDiff ? diffWorkflow : normalWorkflow
     
     // Debug: Log which workflow is being used and sample block diff status
     const sampleBlockId = Object.keys(activeWorkflow.blocks)[0]
@@ -66,7 +68,7 @@ export function useCurrentWorkflow(): CurrentWorkflow {
     const sampleDiffStatus = sampleBlock ? (sampleBlock as any).is_diff : undefined
     
     console.log('[useCurrentWorkflow] Using workflow:', {
-      type: isShowingDiff && diffWorkflow ? 'diff' : 'normal',
+      type: shouldUseDiff ? 'diff' : 'normal',
       blockCount: Object.keys(activeWorkflow.blocks).length,
       sampleBlockId,
       sampleDiffStatus,
@@ -86,9 +88,9 @@ export function useCurrentWorkflow(): CurrentWorkflow {
       needsRedeployment: activeWorkflow.needsRedeployment,
       hasActiveWebhook: activeWorkflow.hasActiveWebhook,
       
-      // Mode information
-      isDiffMode: isShowingDiff && !!diffWorkflow,
-      isNormalMode: !isShowingDiff || !diffWorkflow,
+      // Mode information - update to reflect ready state
+      isDiffMode: shouldUseDiff,
+      isNormalMode: !shouldUseDiff,
       
       // Full workflow state (for cases that need the complete object)
       workflowState: activeWorkflow,
@@ -100,7 +102,7 @@ export function useCurrentWorkflow(): CurrentWorkflow {
       hasBlocks: () => Object.keys(activeWorkflow.blocks).length > 0,
       hasEdges: () => activeWorkflow.edges.length > 0,
     }
-  }, [normalWorkflow, isShowingDiff, diffWorkflow])
+  }, [normalWorkflow, isShowingDiff, isDiffReady, diffWorkflow])
   
   return currentWorkflow
 } 

@@ -45,6 +45,7 @@ export const WorkflowEdge = ({
   // Get edge diff status
   const diffAnalysis = useWorkflowDiffStore((state) => state.diffAnalysis)
   const isShowingDiff = useWorkflowDiffStore((state) => state.isShowingDiff)
+  const isDiffReady = useWorkflowDiffStore((state) => state.isDiffReady)
   const currentWorkflow = useCurrentWorkflow()
   
   // Generate edge identifier using block names (not IDs) to match diff analysis
@@ -109,9 +110,10 @@ export const WorkflowEdge = ({
   }, [diffAnalysis, id, currentWorkflow.blocks, currentWorkflow.edges, isShowingDiff])
   
   // Determine edge diff status
-  let edgeDiffStatus: 'new' | 'deleted' | 'unchanged' | undefined = undefined
+  let edgeDiffStatus: 'new' | 'deleted' | 'unchanged' | null = null
   
-  if (diffAnalysis?.edge_diff && edgeIdentifier) {
+  // Only attempt to determine diff status if all required data is available
+  if (diffAnalysis?.edge_diff && edgeIdentifier && sourceName && targetName && isDiffReady) {
     if (isShowingDiff) {
       // In diff view, show new edges
       if (diffAnalysis.edge_diff.new_edges.includes(edgeIdentifier)) {

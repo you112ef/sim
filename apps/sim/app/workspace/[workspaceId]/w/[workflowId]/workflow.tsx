@@ -103,13 +103,14 @@ const WorkflowContent = React.memo(() => {
   const { blocks, edges, loops, parallels, isDiffMode } = currentWorkflow
 
   // Get diff analysis for edge reconstruction
-  const { diffAnalysis, isShowingDiff } = useWorkflowDiffStore()
+  const { diffAnalysis, isShowingDiff, isDiffReady } = useWorkflowDiffStore()
 
   // Reconstruct deleted edges when viewing original workflow
   const edgesForDisplay = useMemo(() => {
     // If we're not in diff mode and we have diff analysis with deleted edges,
     // we need to reconstruct those deleted edges and add them to the display
-    if (!isShowingDiff && diffAnalysis?.edge_diff?.deleted_edges) {
+    // Only do this if diff is ready to prevent race conditions
+    if (!isShowingDiff && isDiffReady && diffAnalysis?.edge_diff?.deleted_edges) {
       const reconstructedEdges: Edge[] = []
       
       // Parse deleted edge identifiers to reconstruct edges
@@ -152,7 +153,7 @@ const WorkflowContent = React.memo(() => {
     
     // Otherwise, just use the edges as-is
     return edges
-  }, [edges, isShowingDiff, diffAnalysis, blocks])
+  }, [edges, isShowingDiff, isDiffReady, diffAnalysis, blocks])
 
   // User permissions - get current user's specific permissions from context
   const userPermissions = useUserPermissionsContext()

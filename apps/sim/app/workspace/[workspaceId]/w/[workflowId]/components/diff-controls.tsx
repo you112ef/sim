@@ -8,7 +8,8 @@ const logger = createLogger('DiffControls')
 
 export function DiffControls() {
   const { 
-    isShowingDiff, 
+    isShowingDiff,
+    isDiffReady, 
     diffWorkflow, 
     toggleDiffView, 
     acceptChanges, 
@@ -18,8 +19,8 @@ export function DiffControls() {
   
   const { updatePreviewToolCallState, clearPreviewYaml } = useCopilotStore()
 
-  // Don't show anything if no diff is available
-  if (!diffWorkflow) {
+  // Don't show anything if no diff is available or diff is not ready
+  if (!diffWorkflow || !isDiffReady) {
     return null
   }
 

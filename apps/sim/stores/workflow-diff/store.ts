@@ -14,6 +14,7 @@ const diffEngine = new WorkflowDiffEngine()
 
 interface WorkflowDiffState {
   isShowingDiff: boolean
+  isDiffReady: boolean  // New flag to track when diff is fully ready
   diffWorkflow: WorkflowState | null
   diffAnalysis: DiffAnalysis | null
   diffMetadata: {
@@ -39,12 +40,16 @@ export const useWorkflowDiffStore = create<WorkflowDiffState & WorkflowDiffActio
   devtools(
     (set, get) => ({
       isShowingDiff: false,
+      isDiffReady: false,  // Initialize to false
       diffWorkflow: null,
       diffAnalysis: null,
       diffMetadata: null,
 
       setProposedChanges: async (yamlContent: string, diffAnalysis?: DiffAnalysis) => {
         logger.info('Setting proposed changes via YAML')
+        
+        // First, set isDiffReady to false to prevent premature rendering
+        set({ isDiffReady: false })
         
         const result = await diffEngine.createDiffFromYaml(yamlContent, diffAnalysis)
         
@@ -62,8 +67,10 @@ export const useWorkflowDiffStore = create<WorkflowDiffState & WorkflowDiffActio
             timestamp: Date.now()
           })
           
+          // Set all state at once, with isDiffReady true to indicate everything is ready
           set({ 
             isShowingDiff: true,
+            isDiffReady: true,  // Now it's safe to render
             diffWorkflow: result.diff.proposedState,
             diffAnalysis: result.diff.diffAnalysis || null,
             diffMetadata: result.diff.metadata
@@ -71,6 +78,8 @@ export const useWorkflowDiffStore = create<WorkflowDiffState & WorkflowDiffActio
           logger.info('Diff created successfully')
         } else {
           logger.error('Failed to create diff:', result.errors)
+          // Reset isDiffReady on failure
+          set({ isDiffReady: false })
           throw new Error(result.errors?.join(', ') || 'Failed to create diff')
         }
       },
@@ -81,6 +90,7 @@ export const useWorkflowDiffStore = create<WorkflowDiffState & WorkflowDiffActio
         diffEngine.clearDiff()
         set({ 
           isShowingDiff: false,
+          isDiffReady: false,  // Reset ready flag
           diffWorkflow: null,
           diffAnalysis: null,
           diffMetadata: null
@@ -88,9 +98,15 @@ export const useWorkflowDiffStore = create<WorkflowDiffState & WorkflowDiffActio
       },
 
       toggleDiffView: () => {
-        const { isShowingDiff } = get()
-        logger.info('Toggling diff view', { currentState: isShowingDiff })
-        set({ isShowingDiff: !isShowingDiff })
+        const { isShowingDiff, isDiffReady } = get()
+        logger.info('Toggling diff view', { currentState: isShowingDiff, isDiffReady })
+        
+        // Only toggle if diff is ready or we're turning off diff view
+        if (!isShowingDiff || isDiffReady) {
+          set({ isShowingDiff: !isShowingDiff })
+        } else {
+          logger.warn('Cannot toggle to diff view - diff not ready')
+        }
       },
 
       acceptChanges: async () => {
@@ -189,9 +205,10 @@ export const useWorkflowDiffStore = create<WorkflowDiffState & WorkflowDiffActio
       },
 
       getCurrentWorkflowForCanvas: () => {
-        const { isShowingDiff } = get()
+        const { isShowingDiff, isDiffReady } = get()
         
-        if (isShowingDiff && diffEngine.hasDiff()) {
+        // Only return diff workflow if both showing diff AND diff is ready
+        if (isShowingDiff && isDiffReady && diffEngine.hasDiff()) {
           logger.debug('Returning diff workflow for canvas')
           const currentState = useWorkflowStore.getState().getWorkflowState()
           return diffEngine.getDisplayState(currentState)
