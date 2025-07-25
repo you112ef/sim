@@ -81,6 +81,20 @@ export function WorkflowBlock({ id, data }: NodeProps<WorkflowBlockProps>) {
   const fieldDiff = currentWorkflow.isDiffMode && currentBlock ? 
     (currentBlock as any).field_diff : undefined
   
+  // Debug: Log diff status for this block
+  useEffect(() => {
+    if (currentWorkflow.isDiffMode) {
+      console.log(`[WorkflowBlock ${id}] Diff status:`, {
+        blockId: id,
+        blockName: currentBlock?.name,
+        isDiffMode: currentWorkflow.isDiffMode,
+        diffStatus,
+        hasFieldDiff: !!fieldDiff,
+        timestamp: Date.now()
+      })
+    }
+  }, [id, currentWorkflow.isDiffMode, diffStatus, fieldDiff, currentBlock?.name])
+  
   // Check if this block is marked for deletion (in original workflow, not diff)
   const diffAnalysis = useWorkflowDiffStore((state) => state.diffAnalysis)
   const isShowingDiff = useWorkflowDiffStore((state) => state.isShowingDiff)

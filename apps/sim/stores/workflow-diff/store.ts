@@ -49,6 +49,19 @@ export const useWorkflowDiffStore = create<WorkflowDiffState & WorkflowDiffActio
         const result = await diffEngine.createDiffFromYaml(yamlContent, diffAnalysis)
         
         if (result.success && result.diff) {
+          // Debug: Log the diff state being set
+          const sampleBlockId = Object.keys(result.diff.proposedState.blocks)[0]
+          const sampleBlock = sampleBlockId ? result.diff.proposedState.blocks[sampleBlockId] : null
+          const sampleDiffStatus = sampleBlock ? (sampleBlock as any).is_diff : undefined
+          
+          console.log('[DiffStore] Setting new diff:', {
+            blockCount: Object.keys(result.diff.proposedState.blocks).length,
+            sampleBlockId,
+            sampleDiffStatus,
+            hasDiffAnalysis: !!result.diff.diffAnalysis,
+            timestamp: Date.now()
+          })
+          
           set({ 
             isShowingDiff: true,
             diffWorkflow: result.diff.proposedState,
@@ -64,6 +77,7 @@ export const useWorkflowDiffStore = create<WorkflowDiffState & WorkflowDiffActio
 
       clearDiff: () => {
         logger.info('Clearing diff')
+        console.log('[DiffStore] Clearing diff at:', Date.now())
         diffEngine.clearDiff()
         set({ 
           isShowingDiff: false,

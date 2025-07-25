@@ -327,12 +327,21 @@ export class WorkflowDiffEngine {
     analysis: DiffAnalysis,
     idMapping: Map<string, string>
   ): void {
+    console.log('[DiffEngine] Applying diff markers:', {
+      newBlocks: analysis.new_blocks,
+      editedBlocks: analysis.edited_blocks,
+      deletedBlocks: analysis.deleted_blocks,
+      totalBlocks: Object.keys(state.blocks).length,
+      timestamp: Date.now()
+    })
+    
     // Create reverse mapping from new IDs to original IDs
     const reverseMapping = new Map<string, string>()
     idMapping.forEach((newId, originalId) => {
       reverseMapping.set(newId, originalId)
     })
 
+    let markersApplied = 0
     Object.entries(state.blocks).forEach(([blockId, block]) => {
       // Find original ID to check diff analysis
       const originalId = reverseMapping.get(blockId)
@@ -340,9 +349,11 @@ export class WorkflowDiffEngine {
       if (originalId) {
         if (analysis.new_blocks.includes(originalId)) {
           (block as any).is_diff = 'new'
+          markersApplied++
           logger.info(`Block ${blockId} (original: ${originalId}) marked as new`)
         } else if (analysis.edited_blocks.includes(originalId)) {
           (block as any).is_diff = 'edited'
+          markersApplied++
           
           // Add field-level diff information if available
           if (analysis.field_diffs && analysis.field_diffs[originalId]) {
@@ -361,6 +372,12 @@ export class WorkflowDiffEngine {
         (block as any).is_diff = 'unchanged'
         logger.warn(`Block ${blockId} has no original ID mapping`)
       }
+    })
+    
+    console.log('[DiffEngine] Diff markers applied:', {
+      markersApplied,
+      totalBlocks: Object.keys(state.blocks).length,
+      timestamp: Date.now()
     })
   }
 

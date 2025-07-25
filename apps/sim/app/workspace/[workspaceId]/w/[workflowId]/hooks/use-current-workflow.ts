@@ -47,10 +47,31 @@ export function useCurrentWorkflow(): CurrentWorkflow {
   // Get diff state
   const { isShowingDiff, diffWorkflow } = useWorkflowDiffStore()
   
+  // Debug: Log when diff state changes
+  console.log('[useCurrentWorkflow] State update:', {
+    isShowingDiff,
+    hasDiffWorkflow: !!diffWorkflow,
+    diffWorkflowBlockCount: diffWorkflow ? Object.keys(diffWorkflow.blocks).length : 0,
+    timestamp: Date.now()
+  })
+
   // Create the abstracted interface
   const currentWorkflow = useMemo((): CurrentWorkflow => {
     // Determine which workflow to use
     const activeWorkflow = isShowingDiff && diffWorkflow ? diffWorkflow : normalWorkflow
+    
+    // Debug: Log which workflow is being used and sample block diff status
+    const sampleBlockId = Object.keys(activeWorkflow.blocks)[0]
+    const sampleBlock = sampleBlockId ? activeWorkflow.blocks[sampleBlockId] : null
+    const sampleDiffStatus = sampleBlock ? (sampleBlock as any).is_diff : undefined
+    
+    console.log('[useCurrentWorkflow] Using workflow:', {
+      type: isShowingDiff && diffWorkflow ? 'diff' : 'normal',
+      blockCount: Object.keys(activeWorkflow.blocks).length,
+      sampleBlockId,
+      sampleDiffStatus,
+      timestamp: Date.now()
+    })
     
     return {
       // Current workflow state
