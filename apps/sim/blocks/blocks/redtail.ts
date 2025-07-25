@@ -14,6 +14,14 @@ export const RedtailBlock: BlockConfig<RedtailResponse> = {
   icon: RedtailIcon,
   subBlocks: [
     {
+      id: 'apiKey',
+      title: 'API Key',
+      type: 'short-input',
+      layout: 'full',
+      placeholder: 'Enter your Redtail API Key',
+      password: true,
+    },
+    {
       id: 'operation',
       title: 'Operation',
       type: 'dropdown',
@@ -27,14 +35,19 @@ export const RedtailBlock: BlockConfig<RedtailResponse> = {
       ],
     },
     {
-      id: 'credential',
-      title: 'Redtail Account',
-      type: 'oauth-input',
+      id: 'username',
+      title: 'Username',
+      type: 'short-input',
       layout: 'full',
-      provider: 'redtail',
-      serviceId: 'redtail',
-      requiredScopes: [],
-      placeholder: 'Select Redtail account',
+      placeholder: 'Enter your Redtail username',
+    },
+    {
+      id: 'password',
+      title: 'Password',
+      type: 'short-input',
+      layout: 'full',
+      placeholder: 'Enter your Redtail password',
+      password: true,
     },
     {
       id: 'contactId',
@@ -114,13 +127,19 @@ export const RedtailBlock: BlockConfig<RedtailResponse> = {
         }
       },
       params: (params) => {
-        // const { credential, operation, ...rest } = params
-        const { operation, ...rest } = params
+        const { operation, apiKey, username, password, ...rest } = params
+
+        // Validate authentication credentials
+        if (!apiKey || !username || !password) {
+          throw new Error('API Key, username, and password are required')
+        }
 
         // Build the parameters based on operation type
         const baseParams = {
           ...rest,
-          // accessToken: credential,
+          apiKey,
+          username,
+          password,
           operation,
         }
 
@@ -128,15 +147,15 @@ export const RedtailBlock: BlockConfig<RedtailResponse> = {
         switch (operation) {
           case 'read_note':
           case 'write_note':
-            if (!params.noteId) {
-              throw new Error('Note ID is required for note operations')
+            if (!params.contactId) {
+              throw new Error('Contact ID is required for note operations')
             }
             break
 
           case 'read_contact':
           case 'write_contact':
-            if (!params.contactId) {
-              throw new Error('Contact ID is required for contact operations')
+            if (!params.contactId && operation !== 'write_contact') {
+              throw new Error('Contact ID is required for contact read operations')
             }
             break
 
@@ -153,20 +172,27 @@ export const RedtailBlock: BlockConfig<RedtailResponse> = {
   },
   inputs: {
     operation: { type: 'string', required: true },
-    // credential: { type: 'string', required: true },
+    apiKey: { type: 'string', required: true },
+    username: { type: 'string', required: true },
+    password: { type: 'string', required: true },
     noteId: { type: 'number', required: false },
     contactId: { type: 'number', required: false },
     firstName: { type: 'string', required: false },
     lastName: { type: 'string', required: false },
     contactEmailAddress: { type: 'string', required: false },
+    contactPhoneNumber: { type: 'string', required: false },
     contactNote: { type: 'string', required: false },
   },
   outputs: {
-    response: {
-      type: {
-        metadata: 'json',
-        success: 'any'
-      },
-    },
+    note: 'any',
+    contact: 'any', 
+    account: 'any',
+    notes: 'any',
+    contacts: 'any',
+    accounts: 'any',
+    meta: 'any',
+    success: 'any',
+    warnings: 'any',
+    metadata: 'json',
   },
 }

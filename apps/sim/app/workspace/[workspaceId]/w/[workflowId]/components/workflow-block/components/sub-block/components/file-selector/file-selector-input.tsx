@@ -78,6 +78,10 @@ export function FileSelectorInput({
   // For Discord, we need the bot token and server ID
   const botToken = isDiscord ? (getValue(blockId, 'botToken') as string) || '' : ''
   const serverId = isDiscord ? (getValue(blockId, 'serverId') as string) || '' : ''
+  // For Redtail, we need the API credentials
+  const redtailApiKey = isRedtail ? (getValue(blockId, 'apiKey') as string) || '' : ''
+  const redtailUsername = isRedtail ? (getValue(blockId, 'username') as string) || '' : ''
+  const redtailPassword = isRedtail ? (getValue(blockId, 'password') as string) || '' : ''
 
   // Use preview value when in preview mode, otherwise use store value
   const value = isPreview ? previewValue : storeValue
@@ -449,6 +453,9 @@ export function FileSelectorInput({
       <RedtailContactSelector
         value={selectedContactId}
         onChange={handleContactChange}
+        apiKey={redtailApiKey}
+        username={redtailUsername}
+        password={redtailPassword}
         label={subBlock.placeholder || 'Search and select a contact'}
         disabled={disabled}
         showPreview={true}

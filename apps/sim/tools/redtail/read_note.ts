@@ -1,5 +1,4 @@
 import { createLogger } from '@/lib/logs/console-logger'
-import { env } from '@/lib/env'
 import type { ToolConfig } from '../types'
 import type { RedtailResponse, RedtailReadParams } from './types'
 
@@ -22,32 +21,59 @@ export const redtailReadNoteTool: ToolConfig<RedtailReadParams, RedtailResponse>
       description: 'The ID of the contact whose notes to read',
     },
   },
-  request: {
-    url: (params) => {
-      const contactId = params.contactId
-      if (!contactId) {
-        throw new Error('Contact ID is required')
-      }
-        return `https://review.crm.redtailtechnology.com/api/public/v1/contacts/${contactId}/notes`
-    },
-    method: 'GET',
-    headers: () => {
-      const apiKey = env.REDTAIL_API_KEY
-      const userKey = env.REDTAIL_USER_KEY
-      
-      if (!apiKey || !userKey) {
-        throw new Error('Redtail credentials not configured. Please set REDTAIL_API_KEY and REDTAIL_USER_KEY environment variables.')
-      }
-      
-      // Format: "APIKey:UserKey" 
-      const credentials = `${apiKey}:${userKey}`
-      const encodedCredentials = Buffer.from(credentials).toString('base64')
-      
-      return {
+  directExecution: async (params) => {
+    if (!params.contactId) {
+      throw new Error('Contact ID is required')
+    }
+    
+    if (!params.apiKey || !params.username || !params.password) {
+      throw new Error('API Key, username, and password are required')
+    }
+
+    // First, authenticate to get the userKey
+    logger.info('Authenticating with Redtail...')
+    const authResponse = await fetch('https://review.crm.redtailtechnology.com/api/public/v1/authentication', {
+      method: 'GET',
+      headers: {
+        Authorization: `Basic ${Buffer.from(`${params.apiKey}:${params.username}:${params.password}`).toString('base64')}`,
+        'Content-Type': 'application/json',
+      },
+    })
+    
+    if (!authResponse.ok) {
+      const errorText = await authResponse.text()
+      logger.error(`Redtail authentication failed: ${authResponse.status} ${authResponse.statusText}`, errorText)
+      throw new Error(`Authentication failed: ${authResponse.status} ${authResponse.statusText} - ${errorText}`)
+    }
+    
+    const authData = await authResponse.json()
+    const userKey = authData.authenticated_user?.user_key || authData.userkey
+    
+    if (!userKey) {
+      logger.error('No userkey found in authentication response', authData)
+      throw new Error('Authentication response did not contain a valid userkey')
+    }
+
+    // Now make the actual API call with the userKey
+    const url = `https://review.crm.redtailtechnology.com/api/public/v1/contacts/${params.contactId}/notes`
+    const credentials = `${params.apiKey}:${userKey}`
+    const encodedCredentials = Buffer.from(credentials).toString('base64')
+    
+    const response = await fetch(url, {
+      method: 'GET',
+      headers: {
         Authorization: `UserKeyAuth ${encodedCredentials}`,
         'Content-Type': 'application/json',
-      }
-    },
+      },
+    })
+    
+    return redtailReadNoteTool.transformResponse?.(response, params)
+  },
+
+  request: {
+    url: () => '', // Not used with directExecution
+    method: 'GET',
+    headers: () => ({}), // Not used with directExecution
   },
   transformResponse: async (response: Response, params?: RedtailReadParams) => {
     if (!response.ok) {

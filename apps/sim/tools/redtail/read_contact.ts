@@ -1,5 +1,4 @@
 import { createLogger } from '@/lib/logs/console-logger'
-import { env } from '@/lib/env'
 import type { ToolConfig } from '../types'
 import type { RedtailResponse, RedtailReadParams } from './types'
 
@@ -22,53 +21,82 @@ export const redtailReadContactTool: ToolConfig<RedtailReadParams, RedtailRespon
       description: 'Page number for contact list (default: 1)',
     },
   },
-  request: {
-    url: (params) => {
-      const baseUrl = 'https://review.crm.redtailtechnology.com/api/public/v1'
-      
-      if (params.contactId) {
-        // Get specific contact by ID
-        const url = new URL(`${baseUrl}/contacts/${params.contactId}`)
-        url.searchParams.set('recently_viewed', 'true')
-        return url.toString()
-      } else {
-        // Get list of contacts
-        const url = new URL(`${baseUrl}/contacts`)
-        url.searchParams.set('page', (params.page || 1).toString())
-        return url.toString()
-      }
-    },
-    method: 'GET',
-    headers: (params) => {
-      const apiKey = env.REDTAIL_API_KEY
-      const userKey = env.REDTAIL_USER_KEY
-      
-      if (!apiKey || !userKey) {
-        throw new Error('Redtail credentials not configured. Please set REDTAIL_API_KEY and REDTAIL_USER_KEY environment variables.')
-      }
-      
-      // Format: "APIKey:UserKey" 
-      const credentials = `${apiKey}:${userKey}`
-      const encodedCredentials = Buffer.from(credentials).toString('base64')
-      
-      // Set different include headers based on whether we're getting a specific contact or list
-      const includeHeader = params.contactId 
-        ? 'addresses,phones,emails,urls'
-        : 'addresses,phones,emails,urls,family,family.members,tag_memberships'
-      
-      const headers: Record<string, string> = {
-        'Authorization': `Userkeyauth ${encodedCredentials}`,
+  directExecution: async (params) => {
+    if (!params.apiKey || !params.username || !params.password) {
+      throw new Error('API Key, username, and password are required')
+    }
+
+    // First, authenticate to get the userKey
+    logger.info('Authenticating with Redtail...')
+    const authResponse = await fetch('https://review.crm.redtailtechnology.com/api/public/v1/authentication', {
+      method: 'GET',
+      headers: {
+        Authorization: `Basic ${Buffer.from(`${params.apiKey}:${params.username}:${params.password}`).toString('base64')}`,
         'Content-Type': 'application/json',
-        'include': includeHeader,
-      }
-      
-      // Add pagesize header for list requests
-      if (!params.contactId) {
-        headers['pagesize'] = (params.page || 1).toString()
-      }
-      
-      return headers
-    },
+      },
+    })
+    
+    if (!authResponse.ok) {
+      const errorText = await authResponse.text()
+      logger.error(`Redtail authentication failed: ${authResponse.status} ${authResponse.statusText}`, errorText)
+      throw new Error(`Authentication failed: ${authResponse.status} ${authResponse.statusText} - ${errorText}`)
+    }
+    
+    const authData = await authResponse.json()
+    const userKey = authData.authenticated_user?.user_key || authData.userkey
+    
+    if (!userKey) {
+      logger.error('No userkey found in authentication response', authData)
+      throw new Error('Authentication response did not contain a valid userkey')
+    }
+
+    // Build URL based on whether we're getting a specific contact or list
+    const baseUrl = 'https://review.crm.redtailtechnology.com/api/public/v1'
+    let url: string
+    
+    if (params.contactId) {
+      // Get specific contact by ID
+      const contactUrl = new URL(`${baseUrl}/contacts/${params.contactId}`)
+      contactUrl.searchParams.set('recently_viewed', 'true')
+      url = contactUrl.toString()
+    } else {
+      // Get list of contacts
+      const listUrl = new URL(`${baseUrl}/contacts`)
+      listUrl.searchParams.set('page', (params.page || 1).toString())
+      url = listUrl.toString()
+    }
+    
+    // Build headers
+    const credentials = `${params.apiKey}:${userKey}`
+    const encodedCredentials = Buffer.from(credentials).toString('base64')
+    
+    const includeHeader = params.contactId 
+      ? 'addresses,phones,emails,urls'
+      : 'addresses,phones,emails,urls,family,family.members,tag_memberships'
+    
+    const headers: Record<string, string> = {
+      'Authorization': `Userkeyauth ${encodedCredentials}`,
+      'Content-Type': 'application/json',
+      'include': includeHeader,
+    }
+    
+    // Add pagesize header for list requests
+    if (!params.contactId) {
+      headers['pagesize'] = (params.page || 1).toString()
+    }
+    
+    const response = await fetch(url, {
+      method: 'GET',
+      headers,
+    })
+    
+    return redtailReadContactTool.transformResponse?.(response, params)
+  },
+
+  request: {
+    url: () => '', // Not used with directExecution
+    method: 'GET',
+    headers: () => ({}), // Not used with directExecution
   },
   transformResponse: async (response: Response, params?: RedtailReadParams) => {
     if (!response.ok) {

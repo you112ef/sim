@@ -28,6 +28,9 @@ export interface RedtailContactInfo {
 interface RedtailContactSelectorProps {
   value: string
   onChange: (contactId: string, contact?: RedtailContactInfo) => void
+  apiKey: string
+  username: string  
+  password: string
   label?: string
   disabled?: boolean
   showPreview?: boolean
@@ -37,6 +40,9 @@ interface RedtailContactSelectorProps {
 export function RedtailContactSelector({
   value,
   onChange,
+  apiKey,
+  username,
+  password,
   label = 'Select contact',
   disabled = false,
   showPreview = true,
@@ -54,16 +60,27 @@ export function RedtailContactSelector({
 
   // Fetch available contacts from our API endpoint
   const fetchAvailableContacts = useCallback(async (searchQuery?: string) => {
+    if (!apiKey || !username || !password) {
+      logger.error('Missing Redtail credentials')
+      setAvailableContacts([])
+      return
+    }
+
     setIsLoadingContacts(true)
     
     try {
-      const queryParams = new URLSearchParams()
-      
-      if (searchQuery?.trim()) {
-        queryParams.append('q', searchQuery.trim())
-      }
-      
-      const response = await fetch(`/api/tools/redtail/contacts/search?${queryParams.toString()}`)
+      const response = await fetch('/api/tools/redtail/contacts/search', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          apiKey,
+          username,
+          password,
+          query: searchQuery?.trim() || '',
+        }),
+      })
 
       if (response.ok) {
         const data = await response.json()
@@ -80,7 +97,7 @@ export function RedtailContactSelector({
     } finally {
       setIsLoadingContacts(false)
     }
-  }, [])
+  }, [apiKey, username, password])
 
   // Fetch a single contact by ID (if needed for display purposes)
   const fetchContactById = useCallback(

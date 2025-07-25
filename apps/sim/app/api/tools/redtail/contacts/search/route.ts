@@ -1,33 +1,93 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { env } from '@/lib/env'
 import { createLogger } from '@/lib/logs/console-logger'
 
 const logger = createLogger('RedtailContactSearch')
 
-export async function GET(request: NextRequest) {
+export async function POST(request: NextRequest) {
   try {
-    const { searchParams } = new URL(request.url)
-    const query = searchParams.get('q') || ''
+    const { apiKey, username, password, query } = await request.json()
     
-    // Get hardcoded credentials
-    const apiKey = env.REDTAIL_API_KEY
-    const userKey = env.REDTAIL_USER_KEY
-    
-    if (!apiKey || !userKey) {
-      logger.error('Redtail credentials not configured')
+    if (!apiKey || !username || !password) {
       return NextResponse.json(
-        { error: 'Redtail credentials not configured' },
+        { error: 'API Key, username, and password are required' },
+        { status: 400 }
+      )
+    }
+    
+    // First authenticate to get userKey
+    logger.info('Authenticating with Redtail for contact search', {
+      apiKey: apiKey ? `${apiKey.substring(0, 4)}...` : 'missing',
+      username: username ? `${username.substring(0, 2)}...` : 'missing',
+      password: password ? '***' : 'missing'
+    })
+    
+    const authCredentials = `${apiKey}:${username}:${password}`
+    const authEncodedCredentials = Buffer.from(authCredentials).toString('base64')
+    logger.info('Authentication format', {
+      credentialsLength: authCredentials.length,
+      encodedLength: authEncodedCredentials.length,
+      authHeader: `Basic ${authEncodedCredentials.substring(0, 20)}...`
+    })
+    
+    const authResponse = await fetch('https://review.crm.redtailtechnology.com/api/public/v1/authentication', {
+      method: 'GET',
+      headers: {
+        Authorization: `Basic ${authEncodedCredentials}`,
+        'Content-Type': 'application/json',
+      },
+    })
+    
+    logger.info('Authentication response status', {
+      status: authResponse.status,
+      statusText: authResponse.statusText,
+      headers: Object.fromEntries(authResponse.headers.entries())
+    })
+    
+    if (!authResponse.ok) {
+      const errorText = await authResponse.text()
+      logger.error(`Redtail authentication failed: ${authResponse.status}`, {
+        statusText: authResponse.statusText,
+        error: errorText,
+        url: 'https://review.crm.redtailtechnology.com/api/public/v1/authentication'
+      })
+      return NextResponse.json(
+        { error: `Authentication failed: ${authResponse.status} - ${errorText}` },
+        { status: authResponse.status }
+      )
+    }
+    
+    const authData = await authResponse.json()
+    logger.info('Authentication response data', {
+      responseKeys: Object.keys(authData),
+      responseData: authData
+    })
+    
+    // Extract userkey from the nested structure
+    const userKey = authData.authenticated_user?.user_key || authData.userkey
+    
+    if (!userKey) {
+      logger.error('No userkey in response', {
+        authData,
+        expectedPaths: ['authenticated_user.user_key', 'userkey'],
+        availableKeys: Object.keys(authData),
+        authenticatedUser: authData.authenticated_user
+      })
+      return NextResponse.json(
+        { error: 'Authentication response did not contain userkey' },
         { status: 500 }
       )
     }
     
-    // Format credentials for UserKeyAuth
+    logger.info('Successfully extracted userkey', {
+      userKey: userKey ? `${userKey.substring(0, 8)}...` : 'missing'
+    })
+    
+    // Now search contacts using the userKey
     const credentials = `${apiKey}:${userKey}`
     const encodedCredentials = Buffer.from(credentials).toString('base64')
     
     // Build search URL
     const searchUrl = new URL('https://review.crm.redtailtechnology.com/api/public/v1/contacts/search')    
-    // Add search parameters
     if (query) {
       searchUrl.searchParams.set('formatted_full_name', query)
     }
@@ -51,7 +111,7 @@ export async function GET(request: NextRequest) {
         error: errorText 
       })
       return NextResponse.json(
-        { error: `Search failed: ${response.status} ${response.statusText}` },
+        { error: `Search failed: ${response.status}` },
         { status: response.status }
       )
     }

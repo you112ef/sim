@@ -142,6 +142,13 @@ export interface RedtailResponse extends ToolResponse {
   output: RedtailOutput
 }
 
+export interface RedtailCredentials {
+  apiKey: string
+  username: string
+  password: string
+  userKey?: string // Will be populated after authentication
+}
+
 export interface RedtailReadParams {
   operation: Extract<RedtailOperation, 'read_note' | 'read_contact' | 'read_account'>
   noteId?: number        
@@ -151,6 +158,11 @@ export interface RedtailReadParams {
   recentlyViewed?: boolean
   page?: number
   includeAssets?: boolean
+  // Authentication credentials
+  apiKey: string
+  username: string
+  password: string
+  userKey?: string
 }
 
 export interface RedtailWriteParams {
@@ -169,4 +181,9 @@ export interface RedtailWriteParams {
   sourceId?: number
   statusId?: number
   categoryId?: number
+  // Authentication credentials
+  apiKey: string
+  username: string
+  password: string
+  userKey?: string
 }
