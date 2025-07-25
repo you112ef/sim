@@ -11,6 +11,7 @@ import { docsSearchTool } from '@/tools/docs/search'
 import { tools } from '@/tools/registry'
 import type { TableRow, ToolConfig, ToolResponse } from '@/tools/types'
 import { getUserWorkflowTool } from '@/tools/workflow/get-yaml'
+import { getWorkflowExamplesTool } from '@/tools/workflow/get-examples'
 
 const logger = createLogger('ToolsUtils')
 
@@ -18,6 +19,7 @@ const logger = createLogger('ToolsUtils')
 const internalTools: Record<string, ToolConfig> = {
   docs_search_internal: docsSearchTool,
   get_user_workflow: getUserWorkflowTool,
+  get_workflow_examples: getWorkflowExamplesTool,
   get_blocks_and_tools: getAllBlocksTool,
   get_blocks_metadata: getBlockMetadataTool,
   get_yaml_structure: getYamlStructureTool,

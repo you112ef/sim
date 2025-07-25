@@ -2,6 +2,7 @@ import { createLogger } from '@/lib/logs/console-logger'
 import { useWorkflowRegistry } from '@/stores/workflows/registry/store'
 import { useWorkflowYamlStore } from '@/stores/workflows/yaml/store'
 import { searchDocumentation } from './service'
+import { WORKFLOW_EXAMPLES } from './examples'
 
 const logger = createLogger('CopilotTools')
 
@@ -153,6 +154,66 @@ const getUserWorkflowTool: CopilotTool = {
       return {
         success: false,
         error: `Failed to get user workflow: ${error instanceof Error ? error.message : 'Unknown error'}`,
+      }
+    }
+  },
+}
+
+/**
+ * Get workflow examples tool for copilot
+ */
+export const getWorkflowExamplesTool: CopilotTool = {
+  id: 'get_workflow_examples',
+  name: 'Get Workflow Examples',
+  description: `Get YAML workflow examples by ID. Available example IDs: ${Object.keys(WORKFLOW_EXAMPLES).join(', ')}`,
+  parameters: {
+    type: 'object',
+    properties: {
+      exampleIds: {
+        type: 'array',
+        items: {
+          type: 'string'
+        },
+        description: 'Array of example IDs to retrieve'
+      }
+    },
+    required: ['exampleIds'],
+  },
+  execute: async (args: Record<string, any>): Promise<CopilotToolResult> => {
+    try {
+      const { exampleIds } = args
+      
+      if (!Array.isArray(exampleIds)) {
+        return {
+          success: false,
+          error: 'exampleIds must be an array'
+        }
+      }
+
+      const examples: Record<string, string> = {}
+      const notFound: string[] = []
+
+      for (const id of exampleIds) {
+        if (WORKFLOW_EXAMPLES[id]) {
+          examples[id] = WORKFLOW_EXAMPLES[id]
+        } else {
+          notFound.push(id)
+        }
+      }
+
+      return {
+        success: true,
+        data: {
+          examples,
+          notFound,
+          availableIds: Object.keys(WORKFLOW_EXAMPLES)
+        }
+      }
+    } catch (error) {
+      logger.error('Get workflow examples failed', error)
+      return {
+        success: false,
+        error: `Failed to get workflow examples: ${error instanceof Error ? error.message : 'Unknown error'}`
       }
     }
   },

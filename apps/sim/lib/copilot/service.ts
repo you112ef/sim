@@ -1,7 +1,7 @@
 import { and, desc, eq, sql } from 'drizzle-orm'
 import { createLogger } from '@/lib/logs/console-logger'
 import { getRotatingApiKey } from '@/lib/utils'
-import { generateEmbeddings } from '@/app/api/knowledge/utils'
+// Dynamic import to avoid client-side bundling of file-parsers
 import { db } from '@/db'
 import { copilotChats, docsEmbeddings } from '@/db/schema'
 import { executeProviderRequest } from '@/providers'
@@ -15,6 +15,7 @@ import {
   TITLE_GENERATION_USER_PROMPT,
   validateSystemPrompts,
 } from './prompts'
+import { WORKFLOW_EXAMPLES } from './examples'
 
 const logger = createLogger('CopilotService')
 
@@ -239,6 +240,25 @@ function getAvailableTools(mode: 'ask' | 'agent'): ProviderToolConfig[] {
       },
     },
     {
+      id: 'get_workflow_examples',
+      name: 'Get Workflow Examples',
+      description: `Get proven YAML workflow examples by ID to reference when building workflows. Available IDs: ${Object.keys(WORKFLOW_EXAMPLES as Record<string, string>).join(', ')}`,
+      params: {},
+      parameters: {
+        type: 'object',
+        properties: {
+          exampleIds: {
+            type: 'array',
+            items: {
+              type: 'string'
+            },
+            description: 'Array of example IDs to retrieve'
+          }
+        },
+        required: ['exampleIds'],
+      },
+    },
+    {
       id: 'get_blocks_and_tools',
       name: 'Get All Blocks and Tools',
       description:
@@ -393,6 +413,7 @@ export async function searchDocumentation(
 
   try {
     // Generate embedding for the query
+    const { generateEmbeddings } = await import('@/app/api/knowledge/utils')
     const embeddings = await generateEmbeddings([query])
     const queryEmbedding = embeddings[0]
 
