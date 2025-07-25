@@ -428,6 +428,29 @@ function getAvailableTools(mode: 'ask' | 'agent'): ProviderToolConfig[] {
         required: ['variables'],
       },
     },
+    {
+      id: 'get_workflow_console',
+      name: 'Get Workflow Console Logs',
+      description:
+        'Get console logs and execution history from the current workflow. This shows real-time execution logs including block inputs, outputs, execution times, and any errors or warnings from recent workflow runs.',
+      params: {},
+      parameters: {
+        type: 'object',
+        properties: {
+          limit: {
+            type: 'number',
+            description: 'Maximum number of console entries to return (default: 50, max: 100)',
+            default: 50,
+          },
+          includeDetails: {
+            type: 'boolean',
+            description: 'Whether to include detailed input/output data for each console entry (default: false)',
+            default: false,
+          },
+        },
+        required: [],
+      },
+    },
   ]
 
   // Filter tools based on mode
