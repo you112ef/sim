@@ -419,8 +419,8 @@ ${fieldDescriptions}
                   
                   logger.info(`Tool ${toolCall.name} ${result.success ? 'succeeded' : 'failed'}`)
 
-                  // Send tool result event to frontend for preview_workflow tools
-                  if (toolCall.name === 'preview_workflow' && result.success) {
+                  // Send tool result event to frontend for preview_workflow and targeted_updates tools
+                  if ((toolCall.name === 'preview_workflow' || toolCall.name === 'targeted_updates') && result.success) {
                     const toolResultEvent = {
                       type: 'tool_result',
                       toolCallId: toolCall.id,
@@ -429,7 +429,7 @@ ${fieldDescriptions}
                       success: true,
                     }
                     controller.enqueue(encoder.encode(`data: ${JSON.stringify(toolResultEvent)}\n\n`))
-                    logger.info('Sent preview_workflow result to frontend:', toolCall.id)
+                    logger.info(`Sent ${toolCall.name} result to frontend:`, toolCall.id)
                   }
 
                   return {
@@ -502,10 +502,10 @@ ${fieldDescriptions}
                    continuationToolCalls = []
                  }
                 
-                 // Also check for any preview_workflow results in continuation
+                 // Also check for any preview_workflow or targeted_updates results in continuation
                  continuationToolCalls.forEach(toolCall => {
-                   if (toolCall.name === 'preview_workflow') {
-                     logger.info('Found preview_workflow in continuation, will send result after execution')
+                   if (toolCall.name === 'preview_workflow' || toolCall.name === 'targeted_updates') {
+                     logger.info(`Found ${toolCall.name} in continuation, will send result after execution`)
                    }
                  })
               }

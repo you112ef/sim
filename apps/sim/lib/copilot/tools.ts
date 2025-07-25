@@ -95,13 +95,22 @@ async function applyOperationsToYaml(currentYaml: string, operations: TargetedUp
   }
 
   // Apply operations to the parsed YAML data (preserving all existing fields)
+  logger.info('Starting YAML operations', {
+    initialBlockCount: Object.keys(workflowData.blocks).length,
+    version: workflowData.version,
+    operationCount: operations.length
+  })
+
   for (const operation of operations) {
     const { operation_type, block_id, params } = operation
+
+    logger.info(`Processing operation: ${operation_type} for block ${block_id}`, { params })
 
     switch (operation_type) {
       case 'delete':
         if (workflowData.blocks[block_id]) {
           delete workflowData.blocks[block_id]
+          logger.info(`Deleted block ${block_id}`)
           // Remove connections mentioning this block
           Object.values(workflowData.blocks).forEach((block: any) => {
             if (block.connections) {
@@ -112,6 +121,8 @@ async function applyOperationsToYaml(currentYaml: string, operations: TargetedUp
               })
             }
           })
+        } else {
+          logger.warn(`Block ${block_id} not found for deletion`)
         }
         break
 
@@ -123,13 +134,17 @@ async function applyOperationsToYaml(currentYaml: string, operations: TargetedUp
           if (params?.inputs) {
             if (!block.inputs) block.inputs = {}
             Object.assign(block.inputs, params.inputs)
+            logger.info(`Updated inputs for block ${block_id}`, { inputs: block.inputs })
           }
           
           // Update connections (preserve existing connections, only overwrite specified ones)
           if (params?.connections) {
             if (!block.connections) block.connections = {}
             Object.assign(block.connections, params.connections)
+            logger.info(`Updated connections for block ${block_id}`, { connections: block.connections })
           }
+        } else {
+          logger.warn(`Block ${block_id} not found for editing`)
         }
         break
 
@@ -141,10 +156,20 @@ async function applyOperationsToYaml(currentYaml: string, operations: TargetedUp
             inputs: params.inputs || {},
             connections: params.connections || {}
           }
+          logger.info(`Added block ${block_id}`, { type: params.type, name: params.name })
+        } else {
+          logger.warn(`Invalid add operation for block ${block_id} - missing type or name`)
         }
         break
+
+      default:
+        logger.warn(`Unknown operation type: ${operation_type}`)
     }
   }
+
+  logger.info('Completed YAML operations', {
+    finalBlockCount: Object.keys(workflowData.blocks).length
+  })
 
   // Convert the complete workflow data back to YAML (preserving version and all other fields)
   return yaml.stringify(workflowData)
@@ -432,21 +457,98 @@ const targetedUpdatesTool: CopilotTool = {
         }
       }
 
-      // Get current workflow YAML directly from the existing getUserWorkflowTool
-      const getUserWorkflowResult = await executeCopilotTool('get_user_workflow', { _context })
+      // Get current workflow YAML directly from the API endpoint (not the client-side store)
+      const workflowResponse = await fetch(`${process.env.NEXTAUTH_URL || 'http://localhost:3000'}/api/tools/get-user-workflow`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          workflowId: workflowId,
+          includeMetadata: false,
+        }),
+      })
+
+      if (!workflowResponse.ok) {
+        return {
+          success: false,
+          error: `Failed to get current workflow YAML: ${workflowResponse.status} ${workflowResponse.statusText}`
+        }
+      }
+
+      const getUserWorkflowResult = await workflowResponse.json()
       
-      if (!getUserWorkflowResult.success || !getUserWorkflowResult.data?.yaml) {
+      if (!getUserWorkflowResult.success || !getUserWorkflowResult.output?.yaml) {
         return {
           success: false,
           error: 'Failed to get current workflow YAML'
         }
       }
 
-      const currentYaml = getUserWorkflowResult.data.yaml
+      const currentYaml = getUserWorkflowResult.output.yaml
+      
+      logger.info('Retrieved current workflow YAML', {
+        yamlLength: currentYaml.length,
+        yamlPreview: currentYaml.substring(0, 200),
+        getUserWorkflowData: getUserWorkflowResult.output
+      })
 
       // Apply operations to generate modified YAML
       const modifiedYaml = await applyOperationsToYaml(currentYaml, operations)
+      
+      logger.info('Applied operations to YAML', {
+        operationCount: operations.length,
+        currentYamlLength: currentYaml.length,
+        modifiedYamlLength: modifiedYaml.length,
+        operations: operations.map(op => ({ type: op.operation_type, blockId: op.block_id }))
+      })
 
+      logger.info(`Successfully generated modified YAML for ${operations.length} targeted update operations`)
+      
+      // Return the modified YAML directly - the UI will handle preview generation via updateDiffStore()
+      return {
+        success: true,
+        data: {
+          yamlContent: modifiedYaml,
+          operations: operations.map(op => ({ type: op.operation_type, blockId: op.block_id }))
+        }
+      }
+
+    } catch (error) {
+      logger.error('Targeted updates execution failed:', error)
+      return {
+        success: false,
+        error: `Targeted updates failed: ${error instanceof Error ? error.message : 'Unknown error'}`
+      }
+    }
+  }
+}
+
+/**
+ * Preview workflow tool for copilot - allows internal calls to preview functionality
+ */
+const previewWorkflowTool: CopilotTool = {
+  id: 'preview_workflow',
+  name: 'Preview Workflow',
+  description: 'Generate a sandbox preview of the workflow without saving it',
+  parameters: {
+    type: 'object',
+    properties: {
+      yamlContent: {
+        type: 'string',
+        description: 'The complete YAML workflow content to preview',
+      },
+      description: {
+        type: 'string',
+        description: 'Optional description of the proposed changes',
+      },
+    },
+    required: ['yamlContent'],
+  },
+  execute: async (args: Record<string, any>): Promise<CopilotToolResult> => {
+    try {
+      const { yamlContent, description } = args
+      
       // Make direct API call to workflow preview endpoint
       const response = await fetch(`${process.env.NEXTAUTH_URL || 'http://localhost:3000'}/api/workflows/preview`, {
         method: 'POST',
@@ -454,7 +556,7 @@ const targetedUpdatesTool: CopilotTool = {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          yamlContent: modifiedYaml,
+          yamlContent,
           applyAutoLayout: true,
         }),
       })
@@ -475,19 +577,21 @@ const targetedUpdatesTool: CopilotTool = {
         }
       }
 
-      logger.info(`Successfully generated preview for ${operations.length} targeted update operations`)
-      
-      // Return the preview result in the same format as preview_workflow
+      // Return in the format expected by the UI for diff functionality
       return {
         success: true,
-        data: previewData
+        data: {
+          ...previewData,
+          yamlContent, // Include the original YAML for diff functionality
+          description
+        }
       }
 
     } catch (error) {
-      logger.error('Targeted updates execution failed:', error)
+      logger.error('Preview workflow execution failed:', error)
       return {
         success: false,
-        error: `Targeted updates failed: ${error instanceof Error ? error.message : 'Unknown error'}`
+        error: `Preview workflow failed: ${error instanceof Error ? error.message : 'Unknown error'}`
       }
     }
   }
@@ -501,6 +605,7 @@ const copilotTools: Record<string, CopilotTool> = {
   get_user_workflow: getUserWorkflowTool,
   get_workflow_examples: getWorkflowExamplesTool,
   targeted_updates: targetedUpdatesTool,
+  preview_workflow: previewWorkflowTool,
 }
 
 /**

@@ -619,10 +619,12 @@ export const useCopilotStore = create<CopilotStore>()(
                   // Handle tool result events (our custom event for preview_workflow)
                   else if (data.type === 'tool_result') {
                     const { toolCallId, result, success } = data
+                    logger.info('Received tool_result event', { toolCallId, success, hasResult: !!result })
                     if (toolCallId) {
                       // Find the corresponding tool call and update its result
                       const existingToolCall = toolCalls.find(tc => tc.id === toolCallId)
                       if (existingToolCall) {
+                        logger.info('Found existing tool call for result', { name: existingToolCall.name, toolCallId })
                         if (success) {
                           existingToolCall.result = result
                           logger.info('Updated tool call result:', toolCallId, existingToolCall.name)
@@ -635,6 +637,35 @@ export const useCopilotStore = create<CopilotStore>()(
                             })
                             get().setPreviewYaml(result.yamlContent)
                             get().updateDiffStore(result.yamlContent)
+                          }
+                          
+                          // Handle successful targeted_updates tool result
+                          if (existingToolCall.name === 'targeted_updates') {
+                            logger.info('Targeted updates tool_result received', {
+                              hasResult: !!result,
+                              resultType: typeof result,
+                              resultKeys: result ? Object.keys(result) : [],
+                              hasYamlContent: !!result?.yamlContent,
+                              // Log the full result structure for debugging
+                              fullResult: JSON.stringify(result, null, 2)
+                            })
+                            
+                            // The targeted_updates tool returns yamlContent directly in the result
+                            if (result?.yamlContent) {
+                              logger.info('Setting preview YAML from targeted_updates tool_result event', {
+                                yamlLength: result.yamlContent.length,
+                                yamlPreview: result.yamlContent.substring(0, 200),
+                                // Log the full YAML for debugging
+                                fullYaml: result.yamlContent
+                              })
+                              get().setPreviewYaml(result.yamlContent)
+                              get().updateDiffStore(result.yamlContent)
+                            } else {
+                              logger.error('Targeted updates tool_result missing yamlContent', {
+                                expectedPath: 'result.yamlContent',
+                                actualStructure: JSON.stringify(result, null, 2)
+                              })
+                            }
                           }
                         } else {
                           // Tool execution failed
@@ -813,6 +844,9 @@ export const useCopilotStore = create<CopilotStore>()(
                             logger.warn('Preview workflow tool completed but no yamlContent found in input')
                           }
                         }
+                        
+                        // Don't handle targeted_updates here - it needs to wait for the tool_result event
+                        // The result isn't available yet at content_block_stop, only the input
                       } catch (error) {
                         logger.error('Error parsing tool call input:', error)
                         toolCallBuffer.state = 'error'
