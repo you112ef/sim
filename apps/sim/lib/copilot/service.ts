@@ -451,6 +451,42 @@ function getAvailableTools(mode: 'ask' | 'agent'): ProviderToolConfig[] {
         required: [],
       },
     },
+    {
+      id: 'targeted_updates',
+      name: 'Targeted Updates',
+      description:
+        'Make targeted updates to the workflow with atomic add, edit, or delete operations. Allows precise modifications to specific blocks without affecting the entire workflow.',
+      params: {},
+      parameters: {
+        type: 'object',
+        properties: {
+          operations: {
+            type: 'array',
+            description: 'Array of targeted update operations to perform',
+            items: {
+              type: 'object',
+              properties: {
+                operation_type: {
+                  type: 'string',
+                  enum: ['add', 'edit', 'delete'],
+                  description: 'Type of operation to perform'
+                },
+                block_id: {
+                  type: 'string', 
+                  description: 'Block ID for the operation. For add operations, this will be the desired ID for the new block.'
+                },
+                params: {
+                  type: 'object',
+                  description: 'Parameters for the operation. For add: {type: "block_type", name: "Block Name", inputs: {...}, connections: {...}}, for edit: {inputs: {...}, connections: {...}}, for delete: empty'
+                }
+              },
+              required: ['operation_type', 'block_id']
+            }
+          }
+        },
+        required: ['operations']
+      },
+    },
   ]
 
   // Filter tools based on mode

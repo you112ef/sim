@@ -1,8 +1,14 @@
 import { createLogger } from '@/lib/logs/console-logger'
 import { useWorkflowRegistry } from '@/stores/workflows/registry/store'
 import { useWorkflowYamlStore } from '@/stores/workflows/yaml/store'
+import { useWorkflowStore } from '@/stores/workflows/workflow/store'
+import { useSubBlockStore } from '@/stores/workflows/subblock/store'
+import { getBlock } from '@/blocks'
+import { resolveOutputType } from '@/blocks/utils'
+import { parseWorkflowYaml, convertYamlToWorkflow } from '@/stores/workflows/yaml/importer'
 import { searchDocumentation } from './service'
 import { WORKFLOW_EXAMPLES } from './examples'
+import { v4 as uuidv4 } from 'uuid'
 
 const logger = createLogger('CopilotTools')
 
@@ -36,6 +42,20 @@ export interface CopilotTool {
 }
 
 /**
+ * Operation types for targeted updates
+ */
+export type TargetedUpdateOperationType = 'add' | 'edit' | 'delete'
+
+/**
+ * Interface for targeted update operation
+ */
+export interface TargetedUpdateOperation {
+  operation_type: TargetedUpdateOperationType
+  block_id: string
+  params?: any
+}
+
+/**
  * Interface for documentation search arguments
  */
 interface DocsSearchArgs {
@@ -59,6 +79,129 @@ interface WorkflowMetadata {
 interface UserWorkflowData {
   yaml: string
   metadata?: WorkflowMetadata
+}
+
+/**
+ * Apply targeted update operations to YAML content
+ */
+async function applyOperationsToYaml(currentYaml: string, operations: TargetedUpdateOperation[]): Promise<string> {
+  const { parseWorkflowYaml } = await import('@/stores/workflows/yaml/importer')
+  const yaml = await import('yaml')
+  
+  // Parse current YAML to get the complete structure
+  const { data: workflowData, errors } = parseWorkflowYaml(currentYaml)
+  if (!workflowData || errors.length > 0) {
+    throw new Error(`Failed to parse current YAML: ${errors.join(', ')}`)
+  }
+
+  // Apply operations to the parsed YAML data (preserving all existing fields)
+  for (const operation of operations) {
+    const { operation_type, block_id, params } = operation
+
+    switch (operation_type) {
+      case 'delete':
+        if (workflowData.blocks[block_id]) {
+          delete workflowData.blocks[block_id]
+          // Remove connections mentioning this block
+          Object.values(workflowData.blocks).forEach((block: any) => {
+            if (block.connections) {
+              Object.keys(block.connections).forEach(key => {
+                if (block.connections[key] === block_id) {
+                  delete block.connections[key]
+                }
+              })
+            }
+          })
+        }
+        break
+
+      case 'edit':
+        if (workflowData.blocks[block_id]) {
+          const block = workflowData.blocks[block_id]
+          
+          // Update inputs (preserve existing inputs, only overwrite specified ones)
+          if (params?.inputs) {
+            if (!block.inputs) block.inputs = {}
+            Object.assign(block.inputs, params.inputs)
+          }
+          
+          // Update connections (preserve existing connections, only overwrite specified ones)
+          if (params?.connections) {
+            if (!block.connections) block.connections = {}
+            Object.assign(block.connections, params.connections)
+          }
+        }
+        break
+
+      case 'add':
+        if (params?.type && params?.name) {
+          workflowData.blocks[block_id] = {
+            type: params.type,
+            name: params.name,
+            inputs: params.inputs || {},
+            connections: params.connections || {}
+          }
+        }
+        break
+    }
+  }
+
+  // Convert the complete workflow data back to YAML (preserving version and all other fields)
+  return yaml.stringify(workflowData)
+}
+
+/**
+ * Update block references in values to use new mapped IDs
+ * Uses the same logic as the YAML converter
+ */
+function updateBlockReferences(value: any, blockIdMapping: Map<string, string>): any {
+  if (typeof value === 'string' && value.includes('<') && value.includes('>')) {
+    let processedValue = value
+    const blockMatches = value.match(/<([^>]+)>/g)
+
+    if (blockMatches) {
+      for (const match of blockMatches) {
+        const path = match.slice(1, -1)
+        const [blockRef] = path.split('.')
+
+        // Skip system references
+        if (['start', 'loop', 'parallel', 'variable'].includes(blockRef.toLowerCase())) {
+          continue
+        }
+
+        // Check if this references an old block ID that needs mapping
+        const newMappedId = blockIdMapping.get(blockRef)
+        if (newMappedId) {
+          processedValue = processedValue.replace(
+            new RegExp(`<${blockRef}\\.`, 'g'),
+            `<${newMappedId}.`
+          )
+          processedValue = processedValue.replace(
+            new RegExp(`<${blockRef}>`, 'g'),
+            `<${newMappedId}>`
+          )
+        }
+      }
+    }
+
+    return processedValue
+  }
+
+  // Handle arrays
+  if (Array.isArray(value)) {
+    return value.map(item => updateBlockReferences(item, blockIdMapping))
+  }
+
+  // Handle objects
+  if (value !== null && typeof value === 'object') {
+    const result = { ...value }
+    for (const key in result) {
+      result[key] = updateBlockReferences(result[key], blockIdMapping)
+    }
+    return result
+  }
+
+  return value
 }
 
 /**
@@ -220,12 +363,144 @@ export const getWorkflowExamplesTool: CopilotTool = {
 }
 
 /**
+ * Targeted updates tool for copilot - allows atomic add/edit/delete operations
+ */
+const targetedUpdatesTool: CopilotTool = {
+  id: 'targeted_updates',
+  name: 'Targeted Updates',
+  description: 'Make targeted updates to the workflow with atomic add, edit, or delete operations. Takes an array of operations to execute.',
+  parameters: {
+    type: 'object',
+    properties: {
+      operations: {
+        type: 'array',
+        description: 'Array of targeted update operations to perform',
+        items: {
+          type: 'object',
+          properties: {
+            operation_type: {
+              type: 'string',
+              enum: ['add', 'edit', 'delete'],
+              description: 'Type of operation to perform'
+            },
+            block_id: {
+              type: 'string', 
+              description: 'Block ID for the operation. For add operations, this will be the desired ID for the new block.'
+            },
+            params: {
+              type: 'object',
+              description: 'Parameters for the operation. For add: full block YAML, for edit: partial updates to inputs/connections, for delete: empty'
+            }
+          },
+          required: ['operation_type', 'block_id']
+        }
+      }
+    },
+    required: ['operations']
+  },
+  execute: async (args: Record<string, any>): Promise<CopilotToolResult> => {
+    try {
+      const { operations, _context } = args
+      
+      if (!Array.isArray(operations)) {
+        return {
+          success: false,
+          error: 'Operations must be an array'
+        }
+      }
+
+      const workflowId = _context?.workflowId
+      
+      if (!workflowId) {
+        return {
+          success: false,
+          error: 'No workflow ID provided in context'
+        }
+      }
+
+      // Get current workflow state from database
+      const { db } = await import('@/db')
+      const { workflow, workflowBlocks } = await import('@/db/schema')
+      const { eq } = await import('drizzle-orm')
+      
+      const workflowData = await db.select().from(workflow).where(eq(workflow.id, workflowId)).limit(1)
+      
+      if (!workflowData.length) {
+        return {
+          success: false,
+          error: 'Workflow not found'
+        }
+      }
+
+      // Get current workflow YAML directly from the existing getUserWorkflowTool
+      const getUserWorkflowResult = await executeCopilotTool('get_user_workflow', { _context })
+      
+      if (!getUserWorkflowResult.success || !getUserWorkflowResult.data?.yaml) {
+        return {
+          success: false,
+          error: 'Failed to get current workflow YAML'
+        }
+      }
+
+      const currentYaml = getUserWorkflowResult.data.yaml
+
+      // Apply operations to generate modified YAML
+      const modifiedYaml = await applyOperationsToYaml(currentYaml, operations)
+
+      // Make direct API call to workflow preview endpoint
+      const response = await fetch(`${process.env.NEXTAUTH_URL || 'http://localhost:3000'}/api/workflows/preview`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          yamlContent: modifiedYaml,
+          applyAutoLayout: true,
+        }),
+      })
+
+      if (!response.ok) {
+        return {
+          success: false,
+          error: `Preview generation failed: ${response.status} ${response.statusText}`
+        }
+      }
+
+      const previewData = await response.json()
+
+      if (!previewData.success) {
+        return {
+          success: false,
+          error: `Preview generation failed: ${previewData.message || 'Unknown error'}`
+        }
+      }
+
+      logger.info(`Successfully generated preview for ${operations.length} targeted update operations`)
+      
+      // Return the preview result in the same format as preview_workflow
+      return {
+        success: true,
+        data: previewData
+      }
+
+    } catch (error) {
+      logger.error('Targeted updates execution failed:', error)
+      return {
+        success: false,
+        error: `Targeted updates failed: ${error instanceof Error ? error.message : 'Unknown error'}`
+      }
+    }
+  }
+}
+
+/**
  * Copilot tools registry
  */
 const copilotTools: Record<string, CopilotTool> = {
   docs_search_internal: docsSearchTool,
   get_user_workflow: getUserWorkflowTool,
   get_workflow_examples: getWorkflowExamplesTool,
+  targeted_updates: targetedUpdatesTool,
 }
 
 /**

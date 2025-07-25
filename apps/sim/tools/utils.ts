@@ -15,6 +15,7 @@ import { getWorkflowConsoleTool } from '@/tools/workflow/get-console'
 import { getWorkflowExamplesTool } from '@/tools/workflow/get-examples'
 import { getEnvironmentVariablesTool } from '@/tools/environment/get-variables'
 import { setEnvironmentVariablesTool } from '@/tools/environment/set-variables'
+import { targetedUpdatesTool } from '@/tools/workflow/targeted-updates'
 
 const logger = createLogger('ToolsUtils')
 
@@ -30,6 +31,7 @@ const internalTools: Record<string, ToolConfig> = {
   get_environment_variables: getEnvironmentVariablesTool,
   set_environment_variables: setEnvironmentVariablesTool,
   // edit_workflow: editWorkflowTool, // Commented out - only preview is allowed
+  targeted_updates: targetedUpdatesTool,
   preview_workflow: previewWorkflowTool,
 }
 
