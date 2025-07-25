@@ -700,6 +700,46 @@ token: '{{SLACK_BOT_TOKEN}}'
 apiKey: 'sk-1234567890abcdef'
 \`\`\`
 
+### YAML String Escaping (CRITICAL)
+⚠️ **ALWAYS QUOTE** strings with special characters, hyphens, colons, or URLs:
+
+✅ **Good:**
+\`\`\`yaml
+url: "https://api.example.com/users/123"
+headers:
+  - id: auth-header
+    cells:
+      Key: "Authorization"
+      Value: "Bearer my-token-123"
+  - id: user-agent
+    cells:
+      Key: "User-Agent"
+      Value: "My-Application/1.0"
+params:
+  - id: sort-param
+    cells:
+      Key: "sort-by"
+      Value: "created-at"
+\`\`\`
+
+❌ **Bad (causes YAML parsing errors):**
+\`\`\`yaml
+url: https://api.example.com/users/123
+headers:
+  - id: auth-header
+    cells:
+      Key: Authorization
+      Value: Bearer my-token-123
+\`\`\`
+
+**When to Quote:**
+- URLs (https://, http://)
+- Tokens and API keys
+- Values with hyphens (-), colons (:), special characters
+- Header names like "User-Agent", "Content-Type"
+- Values that look like booleans but should be strings
+- Values starting with numbers but should be strings
+
 ## Common Patterns
 
 ### Sequential Processing Chain
