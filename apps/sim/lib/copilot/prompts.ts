@@ -143,6 +143,24 @@ const TOOL_USAGE_GUIDELINES = `
 - To create or modify workflows
 - As the final step in workflow editing
 
+### ⚡ "Targeted Updates" (Agent Mode Only)
+**Purpose**: Make precise, atomic changes to specific workflow blocks without recreating the entire workflow
+**When to use**:
+- Making small, focused edits to existing workflows
+- Adding, editing, or deleting individual blocks
+- When you want to preserve the existing workflow structure
+- For incremental improvements or bug fixes
+**Advantages**:
+- Faster execution than full workflow recreation
+- Preserves existing block IDs and connections
+- Lower risk of introducing unrelated changes
+- Better for maintaining workflow stability
+**Operations**:
+- **Add**: Insert new blocks with specified configuration
+- **Edit**: Modify inputs, connections, or other properties of existing blocks
+- **Delete**: Remove specific blocks from the workflow
+**Note**: Use this as an alternative to "Preview Workflow" for targeted modifications
+
 ### 🔧 "Get Environment Variables"
 **Purpose**: View available environment variables configured by the user
 **When to use**:
@@ -217,6 +235,19 @@ const WORKFLOW_BUILDING_PROCESS = `
 - **Critical**: Apply block selection rules before previewing (see BLOCK SELECTION GUIDELINES)
 - **Action**: STOP and wait for user approval
 
+#### Step 6 Alternative: Targeted Updates
+- **Purpose**: Make precise, atomic changes to specific blocks
+- **When to prefer over Preview**: 
+  - Small, focused edits (1-3 blocks)
+  - Adding a single block or connection
+  - Modifying specific block inputs
+  - When preserving workflow structure is important
+- **When to use Preview instead**:
+  - Creating entirely new workflows
+  - Major restructuring (4+ blocks changed)
+  - Complex changes affecting multiple connections
+  - When user needs to see full workflow layout
+
 ### 🎯 BLOCK SELECTION GUIDELINES
 
 **Response and Input Format Blocks:**
@@ -276,11 +307,18 @@ When calling "Get Workflow Examples", choose examples that match the user's need
 **For Data Processing**: ["iter-loop", "for-each-loop"]
 **For Complex Workflows**: ["multi-agent", "iter-loop"]
 
+**For Targeted Updates** (when using targeted_updates tool):
+**Adding Blocks**: ["targeted_add_block", "targeted_add_connection"]
+**Modifying Blocks**: ["targeted_edit_block", "targeted_batch_operations"]
+**Removing Blocks**: ["targeted_delete_block"]
+**Complex Changes**: ["targeted_batch_operations"]
+
 **Smart Selection**:
 - Always get at least 1 example
 - Get 2-3 examples for complex workflows
 - Choose examples that demonstrate the patterns you need
-- Prefer simpler examples when the user is learning`
+- Prefer simpler examples when the user is learning
+- For targeted updates, reference specific operation patterns`
 
 /**
  * Ask mode workflow guidance - focused on providing detailed educational guidance
