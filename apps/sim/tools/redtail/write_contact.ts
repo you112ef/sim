@@ -1,3 +1,4 @@
+import { env } from '@/lib/env'
 import { createLogger } from '@/lib/logs/console-logger'
 import type { ToolConfig } from '../types'
 import type { RedtailResponse, RedtailWriteParams } from './types'
@@ -7,7 +8,7 @@ const logger = createLogger('RedtailWriteContact')
 // Helper function to parse phone number and extract country code
 const parsePhoneNumber = (phoneNumber: string) => {
   const cleaned = phoneNumber.trim()
-  
+
   if (cleaned.startsWith('+')) {
     // Extract country code (1-3 digits after +)
     const match = cleaned.match(/^\+(\d{1,3})(.+)$/)
@@ -18,7 +19,7 @@ const parsePhoneNumber = (phoneNumber: string) => {
       }
     }
   }
-  
+
   // Default to US (+1) if no country code provided
   return {
     countryCode: '1',
@@ -33,7 +34,7 @@ export const redtailWriteContactTool: ToolConfig<RedtailWriteParams, RedtailResp
   version: '1.0.0',
 
   directExecution: async (params) => {
-    if (!params.apiKey || !params.username || !params.password) {
+    if (!env.REDTAIL_API_KEY || !params.username || !params.password) {
       throw new Error('API Key, username, and password are required')
     }
 
@@ -47,32 +48,40 @@ export const redtailWriteContactTool: ToolConfig<RedtailWriteParams, RedtailResp
 
     // First, authenticate to get the userKey
     logger.info('Authenticating with Redtail...')
-    const authResponse = await fetch('https://review.crm.redtailtechnology.com/api/public/v1/authentication', {
-      method: 'GET',
-      headers: {
-        Authorization: `Basic ${Buffer.from(`${params.apiKey}:${params.username}:${params.password}`).toString('base64')}`,
-        'Content-Type': 'application/json',
-      },
-    })
-    
+    const authResponse = await fetch(
+      'https://review.crm.redtailtechnology.com/api/public/v1/authentication',
+      {
+        method: 'GET',
+        headers: {
+          Authorization: `Basic ${Buffer.from(`${env.REDTAIL_API_KEY}:${params.username}:${params.password}`).toString('base64')}`,
+          'Content-Type': 'application/json',
+        },
+      }
+    )
+
     if (!authResponse.ok) {
       const errorText = await authResponse.text()
-      logger.error(`Redtail authentication failed: ${authResponse.status} ${authResponse.statusText}`, errorText)
-      throw new Error(`Authentication failed: ${authResponse.status} ${authResponse.statusText} - ${errorText}`)
+      logger.error(
+        `Redtail authentication failed: ${authResponse.status} ${authResponse.statusText}`,
+        errorText
+      )
+      throw new Error(
+        `Authentication failed: ${authResponse.status} ${authResponse.statusText} - ${errorText}`
+      )
     }
-    
+
     const authData = await authResponse.json()
     const userKey = authData.authenticated_user?.user_key || authData.userkey
-    
+
     if (!userKey) {
       logger.error('No userkey found in authentication response', authData)
       throw new Error('Authentication response did not contain a valid userkey')
     }
 
     // Create the contact
-    const credentials = `${params.apiKey}:${userKey}`
+    const credentials = `${env.REDTAIL_API_KEY}:${userKey}`
     const encodedCredentials = Buffer.from(credentials).toString('base64')
-    
+
     const contactBody = {
       first_name: params.firstName.trim(),
       last_name: params.lastName.trim(),
@@ -84,24 +93,32 @@ export const redtailWriteContactTool: ToolConfig<RedtailWriteParams, RedtailResp
       category_id: params.categoryId || 5,
     }
 
-    const response = await fetch('https://review.crm.redtailtechnology.com/api/public/v1/contacts', {
-      method: 'POST',
-      headers: {
-        Authorization: `Userkeyauth ${encodedCredentials}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify(contactBody),
-    })
-    
+    const response = await fetch(
+      'https://review.crm.redtailtechnology.com/api/public/v1/contacts',
+      {
+        method: 'POST',
+        headers: {
+          Authorization: `Userkeyauth ${encodedCredentials}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(contactBody),
+      }
+    )
+
     if (!response.ok) {
       const errorText = await response.text()
-      logger.error(`Redtail write contact API error: ${response.status} ${response.statusText}`, errorText)
-      throw new Error(`Failed to write Redtail contact: ${response.status} ${response.statusText} - ${errorText}`)
+      logger.error(
+        `Redtail write contact API error: ${response.status} ${response.statusText}`,
+        errorText
+      )
+      throw new Error(
+        `Failed to write Redtail contact: ${response.status} ${response.statusText} - ${errorText}`
+      )
     }
 
     const data = await response.json()
-    let contact = data.contact || data
-    let contactId = contact.id
+    const contact = data.contact || data
+    const contactId = contact.id
 
     if (!contactId) {
       throw new Error('Failed to get contact ID from response')
@@ -113,24 +130,26 @@ export const redtailWriteContactTool: ToolConfig<RedtailWriteParams, RedtailResp
     // Add email if provided
     if (params.contactEmailAddress && params.contactEmailAddress.trim() !== '') {
       try {
-        const emailResponse = await fetch(`https://review.crm.redtailtechnology.com/api/public/v1/contacts/${contactId}/emails`, {
-          method: 'POST',
-          headers: {
-            Authorization: `Userkeyauth ${encodedCredentials}`,
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            address: params.contactEmailAddress.trim(),
-            email_type: 'Personal',
-            primary: true,
-          }),
-        })
-        
+        const emailResponse = await fetch(
+          `https://review.crm.redtailtechnology.com/api/public/v1/contacts/${contactId}/emails`,
+          {
+            method: 'POST',
+            headers: {
+              Authorization: `Userkeyauth ${encodedCredentials}`,
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+              address: params.contactEmailAddress.trim(),
+              email_type: 'Personal',
+              primary: true,
+            }),
+          }
+        )
+
         if (!emailResponse.ok) {
           const errorText = await emailResponse.text()
           throw new Error(`HTTP ${emailResponse.status}: ${errorText}`)
         }
-        
       } catch (error) {
         const errorMsg = `Failed to add email to contact: ${error instanceof Error ? error.message : String(error)}`
         logger.error(errorMsg)
@@ -142,26 +161,28 @@ export const redtailWriteContactTool: ToolConfig<RedtailWriteParams, RedtailResp
     if (params.contactPhoneNumber && params.contactPhoneNumber.trim() !== '') {
       try {
         const { countryCode, number } = parsePhoneNumber(params.contactPhoneNumber)
-        
-        const phoneResponse = await fetch(`https://review.crm.redtailtechnology.com/api/public/v1/contacts/${contactId}/phones`, {
-          method: 'POST',
-          headers: {
-            Authorization: `Userkeyauth ${encodedCredentials}`,
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            number: number,
-            country_code: countryCode,
-            phone_type: 'Mobile',
-            primary: true,
-          }),
-        })
-        
+
+        const phoneResponse = await fetch(
+          `https://review.crm.redtailtechnology.com/api/public/v1/contacts/${contactId}/phones`,
+          {
+            method: 'POST',
+            headers: {
+              Authorization: `Userkeyauth ${encodedCredentials}`,
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+              number: number,
+              country_code: countryCode,
+              phone_type: 'Mobile',
+              primary: true,
+            }),
+          }
+        )
+
         if (!phoneResponse.ok) {
           const errorText = await phoneResponse.text()
           throw new Error(`HTTP ${phoneResponse.status}: ${errorText}`)
         }
-        
       } catch (error) {
         const errorMsg = `Failed to add phone to contact: ${error instanceof Error ? error.message : String(error)}`
         logger.error(errorMsg)
@@ -172,26 +193,28 @@ export const redtailWriteContactTool: ToolConfig<RedtailWriteParams, RedtailResp
     // Add note if provided
     if (params.contactNote && params.contactNote.trim() !== '') {
       try {
-        const noteResponse = await fetch(`https://review.crm.redtailtechnology.com/api/public/v1/contacts/${contactId}/notes`, {
-          method: 'POST',
-          headers: {
-            Authorization: `Userkeyauth ${encodedCredentials}`,
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            body: params.contactNote.trim(),
-            category_id: 2,
-            note_type: 1,
-            pinned: false,
-            draft: false,
-          }),
-        })
-        
+        const noteResponse = await fetch(
+          `https://review.crm.redtailtechnology.com/api/public/v1/contacts/${contactId}/notes`,
+          {
+            method: 'POST',
+            headers: {
+              Authorization: `Userkeyauth ${encodedCredentials}`,
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+              body: params.contactNote.trim(),
+              category_id: 2,
+              note_type: 1,
+              pinned: false,
+              draft: false,
+            }),
+          }
+        )
+
         if (!noteResponse.ok) {
           const errorText = await noteResponse.text()
           throw new Error(`HTTP ${noteResponse.status}: ${errorText}`)
         }
-        
       } catch (error) {
         const errorMsg = `Failed to add note to contact: ${error instanceof Error ? error.message : String(error)}`
         logger.error(errorMsg)
@@ -276,10 +299,10 @@ export const redtailWriteContactTool: ToolConfig<RedtailWriteParams, RedtailResp
     },
     method: 'POST',
     headers: (params) => {
-      if (!params.apiKey || !params.username || !params.password) {
+      if (!env.REDTAIL_API_KEY || !params.username || !params.password) {
         throw new Error('API Key, username, and password are required')
       }
-      
+
       // Note: This is a placeholder. The actual authentication will be handled in directExecution
       return {
         'Content-Type': 'application/json',

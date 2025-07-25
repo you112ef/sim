@@ -78,8 +78,7 @@ export function FileSelectorInput({
   // For Discord, we need the bot token and server ID
   const botToken = isDiscord ? (getValue(blockId, 'botToken') as string) || '' : ''
   const serverId = isDiscord ? (getValue(blockId, 'serverId') as string) || '' : ''
-  // For Redtail, we need the API credentials
-  const redtailApiKey = isRedtail ? (getValue(blockId, 'apiKey') as string) || '' : ''
+  // For Redtail, we need the username and password
   const redtailUsername = isRedtail ? (getValue(blockId, 'username') as string) || '' : ''
   const redtailPassword = isRedtail ? (getValue(blockId, 'password') as string) || '' : ''
 
@@ -453,7 +452,6 @@ export function FileSelectorInput({
       <RedtailContactSelector
         value={selectedContactId}
         onChange={handleContactChange}
-        apiKey={redtailApiKey}
         username={redtailUsername}
         password={redtailPassword}
         label={subBlock.placeholder || 'Search and select a contact'}

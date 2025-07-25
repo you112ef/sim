@@ -1,6 +1,7 @@
+import { env } from '@/lib/env'
 import { createLogger } from '@/lib/logs/console-logger'
 import type { ToolConfig } from '../types'
-import type { RedtailResponse, RedtailReadParams } from './types'
+import type { RedtailReadParams, RedtailResponse } from './types'
 
 const logger = createLogger('RedtailReadContact')
 
@@ -13,7 +14,8 @@ export const redtailReadContactTool: ToolConfig<RedtailReadParams, RedtailRespon
     contactId: {
       type: 'dropdown',
       required: false, // Make optional so we can get list when none selected
-      description: 'The ID of the contact to read (optional - if not provided, returns list of contacts)',
+      description:
+        'The ID of the contact to read (optional - if not provided, returns list of contacts)',
     },
     page: {
       type: 'input',
@@ -22,29 +24,37 @@ export const redtailReadContactTool: ToolConfig<RedtailReadParams, RedtailRespon
     },
   },
   directExecution: async (params) => {
-    if (!params.apiKey || !params.username || !params.password) {
+    if (!env.REDTAIL_API_KEY || !params.username || !params.password) {
       throw new Error('API Key, username, and password are required')
     }
 
     // First, authenticate to get the userKey
     logger.info('Authenticating with Redtail...')
-    const authResponse = await fetch('https://review.crm.redtailtechnology.com/api/public/v1/authentication', {
-      method: 'GET',
-      headers: {
-        Authorization: `Basic ${Buffer.from(`${params.apiKey}:${params.username}:${params.password}`).toString('base64')}`,
-        'Content-Type': 'application/json',
-      },
-    })
-    
+    const authResponse = await fetch(
+      'https://review.crm.redtailtechnology.com/api/public/v1/authentication',
+      {
+        method: 'GET',
+        headers: {
+          Authorization: `Basic ${Buffer.from(`${env.REDTAIL_API_KEY}:${params.username}:${params.password}`).toString('base64')}`,
+          'Content-Type': 'application/json',
+        },
+      }
+    )
+
     if (!authResponse.ok) {
       const errorText = await authResponse.text()
-      logger.error(`Redtail authentication failed: ${authResponse.status} ${authResponse.statusText}`, errorText)
-      throw new Error(`Authentication failed: ${authResponse.status} ${authResponse.statusText} - ${errorText}`)
+      logger.error(
+        `Redtail authentication failed: ${authResponse.status} ${authResponse.statusText}`,
+        errorText
+      )
+      throw new Error(
+        `Authentication failed: ${authResponse.status} ${authResponse.statusText} - ${errorText}`
+      )
     }
-    
+
     const authData = await authResponse.json()
     const userKey = authData.authenticated_user?.user_key || authData.userkey
-    
+
     if (!userKey) {
       logger.error('No userkey found in authentication response', authData)
       throw new Error('Authentication response did not contain a valid userkey')
@@ -53,7 +63,7 @@ export const redtailReadContactTool: ToolConfig<RedtailReadParams, RedtailRespon
     // Build URL based on whether we're getting a specific contact or list
     const baseUrl = 'https://review.crm.redtailtechnology.com/api/public/v1'
     let url: string
-    
+
     if (params.contactId) {
       // Get specific contact by ID
       const contactUrl = new URL(`${baseUrl}/contacts/${params.contactId}`)
@@ -65,31 +75,31 @@ export const redtailReadContactTool: ToolConfig<RedtailReadParams, RedtailRespon
       listUrl.searchParams.set('page', (params.page || 1).toString())
       url = listUrl.toString()
     }
-    
+
     // Build headers
-    const credentials = `${params.apiKey}:${userKey}`
+    const credentials = `${env.REDTAIL_API_KEY}:${userKey}`
     const encodedCredentials = Buffer.from(credentials).toString('base64')
-    
-    const includeHeader = params.contactId 
+
+    const includeHeader = params.contactId
       ? 'addresses,phones,emails,urls'
       : 'addresses,phones,emails,urls,family,family.members,tag_memberships'
-    
+
     const headers: Record<string, string> = {
-      'Authorization': `Userkeyauth ${encodedCredentials}`,
+      Authorization: `Userkeyauth ${encodedCredentials}`,
       'Content-Type': 'application/json',
-      'include': includeHeader,
+      include: includeHeader,
     }
-    
+
     // Add pagesize header for list requests
     if (!params.contactId) {
-      headers['pagesize'] = (params.page || 1).toString()
+      headers.pagesize = (params.page || 1).toString()
     }
-    
+
     const response = await fetch(url, {
       method: 'GET',
       headers,
     })
-    
+
     return redtailReadContactTool.transformResponse?.(response, params)
   },
 
@@ -141,37 +151,35 @@ export const redtailReadContactTool: ToolConfig<RedtailReadParams, RedtailRespon
             },
           },
         }
-      } else {
-        // Direct contact object
-        return {
-          success: true,
-          output: {
-            contact: data,
-            metadata: {
-              operation: 'read_contact' as const,
-              itemId: data.id,
-              contactId: params.contactId,
-              itemType: 'contact' as const,
-            },
-          },
-        }
       }
-    } else {
-      // Multiple contacts response
-      if (data.contacts) {
-        const contacts = Array.isArray(data.contacts) ? data.contacts : [data.contacts]
-        
-        return {
-          success: true,
-          output: {
-            contacts,
-            meta: data.meta, // Include pagination info
-            metadata: {
-              operation: 'read_contact' as const,
-              itemType: 'contact' as const,
-            },
+      // Direct contact object
+      return {
+        success: true,
+        output: {
+          contact: data,
+          metadata: {
+            operation: 'read_contact' as const,
+            itemId: data.id,
+            contactId: params.contactId,
+            itemType: 'contact' as const,
           },
-        }
+        },
+      }
+    }
+    // Multiple contacts response
+    if (data.contacts) {
+      const contacts = Array.isArray(data.contacts) ? data.contacts : [data.contacts]
+
+      return {
+        success: true,
+        output: {
+          contacts,
+          meta: data.meta, // Include pagination info
+          metadata: {
+            operation: 'read_contact' as const,
+            itemType: 'contact' as const,
+          },
+        },
       }
     }
 

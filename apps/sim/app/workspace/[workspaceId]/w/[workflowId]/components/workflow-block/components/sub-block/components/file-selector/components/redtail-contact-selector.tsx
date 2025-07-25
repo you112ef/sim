@@ -1,6 +1,6 @@
 'use client'
 
-import { useCallback, useEffect, useState, useRef } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { Check, ChevronDown, RefreshCw, X } from 'lucide-react'
 import { RedtailIcon } from '@/components/icons'
 import { Button } from '@/components/ui/button'
@@ -28,8 +28,7 @@ export interface RedtailContactInfo {
 interface RedtailContactSelectorProps {
   value: string
   onChange: (contactId: string, contact?: RedtailContactInfo) => void
-  apiKey: string
-  username: string  
+  username: string
   password: string
   label?: string
   disabled?: boolean
@@ -40,7 +39,6 @@ interface RedtailContactSelectorProps {
 export function RedtailContactSelector({
   value,
   onChange,
-  apiKey,
   username,
   password,
   label = 'Select contact',
@@ -59,45 +57,47 @@ export function RedtailContactSelector({
   const searchTimeoutRef = useRef<NodeJS.Timeout | null>(null)
 
   // Fetch available contacts from our API endpoint
-  const fetchAvailableContacts = useCallback(async (searchQuery?: string) => {
-    if (!apiKey || !username || !password) {
-      logger.error('Missing Redtail credentials')
-      setAvailableContacts([])
-      return
-    }
-
-    setIsLoadingContacts(true)
-    
-    try {
-      const response = await fetch('/api/tools/redtail/contacts/search', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          apiKey,
-          username,
-          password,
-          query: searchQuery?.trim() || '',
-        }),
-      })
-
-      if (response.ok) {
-        const data = await response.json()
-        setAvailableContacts(data.options || [])
-      } else {
-        logger.error('Error fetching available contacts:', {
-          error: await response.text(),
-        })
+  const fetchAvailableContacts = useCallback(
+    async (searchQuery?: string) => {
+      if (!username || !password) {
+        logger.error('Missing Redtail credentials')
         setAvailableContacts([])
+        return
       }
-    } catch (error) {
-      logger.error('Error fetching available contacts:', { error })
-      setAvailableContacts([])
-    } finally {
-      setIsLoadingContacts(false)
-    }
-  }, [apiKey, username, password])
+
+      setIsLoadingContacts(true)
+
+      try {
+        const response = await fetch('/api/tools/redtail/contacts/search', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            username,
+            password,
+            query: searchQuery?.trim() || '',
+          }),
+        })
+
+        if (response.ok) {
+          const data = await response.json()
+          setAvailableContacts(data.options || [])
+        } else {
+          logger.error('Error fetching available contacts:', {
+            error: await response.text(),
+          })
+          setAvailableContacts([])
+        }
+      } catch (error) {
+        logger.error('Error fetching available contacts:', { error })
+        setAvailableContacts([])
+      } finally {
+        setIsLoadingContacts(false)
+      }
+    },
+    [username, password]
+  )
 
   // Fetch a single contact by ID (if needed for display purposes)
   const fetchContactById = useCallback(
@@ -113,7 +113,7 @@ export function RedtailContactSelector({
           label: `Contact ${contactId}`,
           value: contactId,
         }
-        
+
         setSelectedContact(contact)
         onContactInfoChange?.(contact)
         return contact
@@ -160,7 +160,7 @@ export function RedtailContactSelector({
   }
 
   // Handle search input changes
-  const handleSearch = (value: string) => {    
+  const handleSearch = (value: string) => {
     if (searchTimeoutRef.current) {
       clearTimeout(searchTimeoutRef.current)
     }
@@ -223,10 +223,7 @@ export function RedtailContactSelector({
 
       <PopoverContent className='w-[300px] p-0' align='start'>
         <Command>
-          <CommandInput
-            placeholder='Search contacts...'
-            onValueChange={handleSearch}
-          />
+          <CommandInput placeholder='Search contacts...' onValueChange={handleSearch} />
           <CommandList>
             {isLoadingContacts && (
               <div className='flex items-center justify-center p-4'>
@@ -260,9 +257,7 @@ export function RedtailContactSelector({
                       <div className='min-w-0 flex-1'>
                         <span className='truncate font-normal'>{contact.label}</span>
                         {contact.email && (
-                          <div className='text-muted-foreground text-xs'>
-                            {contact.email}
-                          </div>
+                          <div className='text-muted-foreground text-xs'>{contact.email}</div>
                         )}
                       </div>
                     </div>
@@ -276,4 +271,4 @@ export function RedtailContactSelector({
       </PopoverContent>
     </Popover>
   )
-} 
+}

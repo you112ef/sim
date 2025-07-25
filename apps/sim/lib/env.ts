@@ -46,6 +46,7 @@ export const env = createEnv({
     ANTHROPIC_API_KEY_2: z.string().min(1).optional(),
     ANTHROPIC_API_KEY_3: z.string().min(1).optional(),
     FREESTYLE_API_KEY: z.string().min(1).optional(),
+    REDTAIL_API_KEY: z.string().min(1).optional(),
     TELEMETRY_ENDPOINT: z.string().url().optional(),
     COST_MULTIPLIER: z.number().optional(),
     JWT_SECRET: z.string().min(1).optional(),

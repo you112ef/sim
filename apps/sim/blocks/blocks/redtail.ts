@@ -14,14 +14,6 @@ export const RedtailBlock: BlockConfig<RedtailResponse> = {
   icon: RedtailIcon,
   subBlocks: [
     {
-      id: 'apiKey',
-      title: 'API Key',
-      type: 'short-input',
-      layout: 'full',
-      placeholder: 'Enter your Redtail API Key',
-      password: true,
-    },
-    {
       id: 'operation',
       title: 'Operation',
       type: 'dropdown',
@@ -58,7 +50,10 @@ export const RedtailBlock: BlockConfig<RedtailResponse> = {
       serviceId: 'redtail',
       requiredScopes: [],
       placeholder: 'Search and select a contact',
-      condition: { field: 'operation', value: ['read_contact', 'read_account', 'read_note', 'write_note'] },
+      condition: {
+        field: 'operation',
+        value: ['read_contact', 'read_account', 'read_note', 'write_note'],
+      },
     },
     {
       id: 'firstName',
@@ -85,12 +80,12 @@ export const RedtailBlock: BlockConfig<RedtailResponse> = {
       condition: { field: 'operation', value: ['write_contact'] },
     },
     {
-        id: 'contactPhoneNumber',
-        title: 'Phone Number',
-        type: 'short-input',
-        layout: 'full',
-        placeholder: 'Enter Phone Number',
-        condition: { field: 'operation', value: ['write_contact'] },
+      id: 'contactPhoneNumber',
+      title: 'Phone Number',
+      type: 'short-input',
+      layout: 'full',
+      placeholder: 'Enter Phone Number',
+      condition: { field: 'operation', value: ['write_contact'] },
     },
     {
       id: 'contactNote',
@@ -127,17 +122,16 @@ export const RedtailBlock: BlockConfig<RedtailResponse> = {
         }
       },
       params: (params) => {
-        const { operation, apiKey, username, password, ...rest } = params
+        const { operation, username, password, ...rest } = params
 
         // Validate authentication credentials
-        if (!apiKey || !username || !password) {
-          throw new Error('API Key, username, and password are required')
+        if (!username || !password) {
+          throw new Error('Username and password are required')
         }
 
         // Build the parameters based on operation type
         const baseParams = {
           ...rest,
-          apiKey,
           username,
           password,
           operation,
@@ -172,7 +166,6 @@ export const RedtailBlock: BlockConfig<RedtailResponse> = {
   },
   inputs: {
     operation: { type: 'string', required: true },
-    apiKey: { type: 'string', required: true },
     username: { type: 'string', required: true },
     password: { type: 'string', required: true },
     noteId: { type: 'number', required: false },
@@ -185,7 +178,7 @@ export const RedtailBlock: BlockConfig<RedtailResponse> = {
   },
   outputs: {
     note: 'any',
-    contact: 'any', 
+    contact: 'any',
     account: 'any',
     notes: 'any',
     contacts: 'any',

@@ -1,6 +1,11 @@
 import type { ToolResponse } from '../types'
 
-export type RedtailOperation = 'read_note' | 'write_note' | 'read_contact' | 'write_contact' | 'read_account'
+export type RedtailOperation =
+  | 'read_note'
+  | 'write_note'
+  | 'read_contact'
+  | 'write_contact'
+  | 'read_account'
 export type RedtailEntityType = 'note' | 'contact' | 'account'
 
 export interface RedtailNoteAssociation {
@@ -143,7 +148,6 @@ export interface RedtailResponse extends ToolResponse {
 }
 
 export interface RedtailCredentials {
-  apiKey: string
   username: string
   password: string
   userKey?: string // Will be populated after authentication
@@ -151,7 +155,7 @@ export interface RedtailCredentials {
 
 export interface RedtailReadParams {
   operation: Extract<RedtailOperation, 'read_note' | 'read_contact' | 'read_account'>
-  noteId?: number        
+  noteId?: number
   contactId?: number
   accountId?: number
   include?: string
@@ -159,7 +163,6 @@ export interface RedtailReadParams {
   page?: number
   includeAssets?: boolean
   // Authentication credentials
-  apiKey: string
   username: string
   password: string
   userKey?: string
@@ -182,7 +185,6 @@ export interface RedtailWriteParams {
   statusId?: number
   categoryId?: number
   // Authentication credentials
-  apiKey: string
   username: string
   password: string
   userKey?: string

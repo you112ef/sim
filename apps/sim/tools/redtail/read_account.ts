@@ -1,6 +1,7 @@
+import { env } from '@/lib/env'
 import { createLogger } from '@/lib/logs/console-logger'
 import type { ToolConfig } from '../types'
-import type { RedtailResponse, RedtailReadParams } from './types'
+import type { RedtailReadParams, RedtailResponse } from './types'
 
 const logger = createLogger('RedtailReadAccount')
 
@@ -30,30 +31,43 @@ export const redtailReadAccountTool: ToolConfig<RedtailReadParams, RedtailRespon
     if (!params.contactId) {
       throw new Error('Contact ID is required')
     }
-    
-    if (!params.apiKey || !params.username || !params.password) {
-      throw new Error('API Key, username, and password are required')
+
+    if (!params.username || !params.password) {
+      throw new Error('Username and password are required')
+    }
+
+    const apiKey = env.REDTAIL_API_KEY
+    if (!apiKey) {
+      throw new Error('Redtail API key not configured')
     }
 
     // First, authenticate to get the userKey
     logger.info('Authenticating with Redtail...')
-    const authResponse = await fetch('https://review.crm.redtailtechnology.com/api/public/v1/authentication', {
-      method: 'GET',
-      headers: {
-        Authorization: `Basic ${Buffer.from(`${params.apiKey}:${params.username}:${params.password}`).toString('base64')}`,
-        'Content-Type': 'application/json',
-      },
-    })
-    
+    const authResponse = await fetch(
+      'https://review.crm.redtailtechnology.com/api/public/v1/authentication',
+      {
+        method: 'GET',
+        headers: {
+          Authorization: `Basic ${Buffer.from(`${apiKey}:${params.username}:${params.password}`).toString('base64')}`,
+          'Content-Type': 'application/json',
+        },
+      }
+    )
+
     if (!authResponse.ok) {
       const errorText = await authResponse.text()
-      logger.error(`Redtail authentication failed: ${authResponse.status} ${authResponse.statusText}`, errorText)
-      throw new Error(`Authentication failed: ${authResponse.status} ${authResponse.statusText} - ${errorText}`)
+      logger.error(
+        `Redtail authentication failed: ${authResponse.status} ${authResponse.statusText}`,
+        errorText
+      )
+      throw new Error(
+        `Authentication failed: ${authResponse.status} ${authResponse.statusText} - ${errorText}`
+      )
     }
-    
+
     const authData = await authResponse.json()
     const userKey = authData.authenticated_user?.user_key || authData.userkey
-    
+
     if (!userKey) {
       logger.error('No userkey found in authentication response', authData)
       throw new Error('Authentication response did not contain a valid userkey')
@@ -62,19 +76,19 @@ export const redtailReadAccountTool: ToolConfig<RedtailReadParams, RedtailRespon
     // Now make the actual API call with the userKey
     const baseUrl = `https://review.crm.redtailtechnology.com/api/public/v1/contacts/${params.contactId}/accounts`
     const url = new URL(baseUrl)
-    
+
     // Add query parameters
     url.searchParams.set('page', (params.page || 1).toString())
-    
+
     // Include assets by default (true unless explicitly set to false)
     const includeAssets = params.includeAssets !== false
     if (includeAssets) {
       url.searchParams.set('assets', 'true')
     }
-    
-    const credentials = `${params.apiKey}:${userKey}`
+
+    const credentials = `${apiKey}:${userKey}`
     const encodedCredentials = Buffer.from(credentials).toString('base64')
-    
+
     const response = await fetch(url.toString(), {
       method: 'GET',
       headers: {
@@ -82,7 +96,7 @@ export const redtailReadAccountTool: ToolConfig<RedtailReadParams, RedtailRespon
         'Content-Type': 'application/json',
       },
     })
-    
+
     return redtailReadAccountTool.transformResponse?.(response, params)
   },
 
@@ -121,7 +135,7 @@ export const redtailReadAccountTool: ToolConfig<RedtailReadParams, RedtailRespon
     // Handle accounts response
     if (data.accounts) {
       const accounts = Array.isArray(data.accounts) ? data.accounts : [data.accounts]
-      
+
       return {
         success: true,
         output: {
