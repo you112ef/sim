@@ -3,9 +3,12 @@ import { type NextRequest, NextResponse } from 'next/server'
 import { z } from 'zod'
 import { getSession } from '@/lib/auth'
 import { createLogger } from '@/lib/logs/console-logger'
+
+export const dynamic = 'force-dynamic'
+
 import { db } from '@/db'
 import { document, embedding } from '@/db/schema'
-import { checkDocumentAccess, processDocumentAsync } from '../../../utils'
+import { checkDocumentAccess, checkDocumentWriteAccess, processDocumentAsync } from '../../../utils'
 
 const logger = createLogger('DocumentByIdAPI')
 
@@ -78,7 +81,7 @@ export async function PUT(
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
-    const accessCheck = await checkDocumentAccess(knowledgeBaseId, documentId, session.user.id)
+    const accessCheck = await checkDocumentWriteAccess(knowledgeBaseId, documentId, session.user.id)
 
     if (!accessCheck.hasAccess) {
       if (accessCheck.notFound) {
@@ -258,7 +261,7 @@ export async function DELETE(
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
-    const accessCheck = await checkDocumentAccess(knowledgeBaseId, documentId, session.user.id)
+    const accessCheck = await checkDocumentWriteAccess(knowledgeBaseId, documentId, session.user.id)
 
     if (!accessCheck.hasAccess) {
       if (accessCheck.notFound) {

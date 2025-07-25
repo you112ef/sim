@@ -89,10 +89,13 @@ export class WorkflowBlockHandler implements BlockHandler {
         workflow: childWorkflow.serializedState,
         workflowInput: childWorkflowInput,
         envVarValues: context.environmentVariables,
+        workflowVariables: childWorkflow.variables || {},
       })
 
       const startTime = performance.now()
-      const result = await subExecutor.execute(executionId)
+      // Use the actual child workflow ID for authentication, not the execution ID
+      // This ensures knowledge base and other API calls can properly authenticate
+      const result = await subExecutor.execute(workflowId)
       const duration = performance.now() - startTime
 
       // Remove current execution from stack after completion
@@ -176,9 +179,20 @@ export class WorkflowBlockHandler implements BlockHandler {
         workflowState.parallels || {}
       )
 
+      const workflowVariables = (workflowData.variables as Record<string, any>) || {}
+
+      if (Object.keys(workflowVariables).length > 0) {
+        logger.info(
+          `Loaded ${Object.keys(workflowVariables).length} variables for child workflow: ${workflowId}`
+        )
+      } else {
+        logger.debug(`No workflow variables found for child workflow: ${workflowId}`)
+      }
+
       return {
         name: workflowData.name,
         serializedState: serializedWorkflow,
+        variables: workflowVariables,
       }
     } catch (error) {
       logger.error(`Error loading child workflow ${workflowId}:`, error)

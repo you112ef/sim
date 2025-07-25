@@ -120,6 +120,9 @@ export interface FilterState {
   // Original logs from API
   logs: WorkflowLog[]
 
+  // Workspace context
+  workspaceId: string
+
   // Filter states
   timeRange: TimeRange
   level: LogLevel
@@ -137,8 +140,12 @@ export interface FilterState {
   hasMore: boolean
   isFetchingMore: boolean
 
+  // Internal state
+  _isInitializing: boolean
+
   // Actions
   setLogs: (logs: WorkflowLog[], append?: boolean) => void
+  setWorkspaceId: (workspaceId: string) => void
   setTimeRange: (timeRange: TimeRange) => void
   setLevel: (level: LogLevel) => void
   setWorkflowIds: (workflowIds: string[]) => void
@@ -154,6 +161,10 @@ export interface FilterState {
   setHasMore: (hasMore: boolean) => void
   setIsFetchingMore: (isFetchingMore: boolean) => void
   resetPagination: () => void
+
+  // URL synchronization methods
+  initializeFromURL: () => void
+  syncWithURL: () => void
 
   // Build query parameters for server-side filtering
   buildQueryParams: (page: number, limit: number) => string

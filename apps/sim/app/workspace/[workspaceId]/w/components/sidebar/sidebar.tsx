@@ -8,18 +8,20 @@ import { ScrollArea } from '@/components/ui/scroll-area'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import { useSession } from '@/lib/auth-client'
 import { createLogger } from '@/lib/logs/console-logger'
+import { generateWorkspaceName } from '@/lib/naming'
 import { cn } from '@/lib/utils'
+import { useUserPermissionsContext } from '@/app/workspace/[workspaceId]/components/providers/workspace-permissions-provider'
 import {
   getKeyboardShortcutText,
   useGlobalShortcuts,
 } from '@/app/workspace/[workspaceId]/w/hooks/use-keyboard-shortcuts'
 import { useWorkflowRegistry } from '@/stores/workflows/registry/store'
 import type { WorkflowMetadata } from '@/stores/workflows/registry/types'
-import { useUserPermissionsContext } from '../providers/workspace-permissions-provider'
 import { SearchModal } from '../search-modal/search-modal'
 import { CreateMenu } from './components/create-menu/create-menu'
 import { FolderTree } from './components/folder-tree/folder-tree'
 import { HelpModal } from './components/help-modal/help-modal'
+import { LogsFilters } from './components/logs-filters/logs-filters'
 import { SettingsModal } from './components/settings-modal/settings-modal'
 import { Toolbar } from './components/toolbar/toolbar'
 import { WorkspaceHeader } from './components/workspace-header/workspace-header'
@@ -129,6 +131,13 @@ export function Sidebar() {
     // Pattern: /workspace/[workspaceId]/w/[workflowId]
     const workflowPageRegex = /^\/workspace\/[^/]+\/w\/[^/]+$/
     return workflowPageRegex.test(pathname)
+  }, [pathname])
+
+  // Check if we're on the logs page
+  const isOnLogsPage = useMemo(() => {
+    // Pattern: /workspace/[workspaceId]/logs
+    const logsPageRegex = /^\/workspace\/[^/]+\/logs$/
+    return logsPageRegex.test(pathname)
   }, [pathname])
 
   /**
@@ -287,13 +296,18 @@ export function Sidebar() {
       setIsCreatingWorkspace(true)
       logger.info('Creating new workspace')
 
+      // Generate workspace name using utility function
+      const workspaceName = await generateWorkspaceName()
+
+      logger.info(`Generated workspace name: ${workspaceName}`)
+
       const response = await fetch('/api/workspaces', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          name: 'Untitled workspace',
+          name: workspaceName,
         }),
       })
 
@@ -853,6 +867,19 @@ export function Sidebar() {
           userPermissions={userPermissions}
           isWorkspaceSelectorVisible={isWorkspaceSelectorVisible}
         />
+      </div>
+
+      {/* Floating Logs Filters - Only on logs page */}
+      <div
+        className={`pointer-events-auto fixed left-4 z-50 w-56 rounded-[14px] border bg-card shadow-xs ${
+          !isOnLogsPage || isSidebarCollapsed ? 'hidden' : ''
+        }`}
+        style={{
+          top: `${toolbarTop}px`,
+          bottom: `${navigationBottom + 42 + 12}px`, // Navigation height + gap
+        }}
+      >
+        <LogsFilters />
       </div>
 
       {/* Floating Navigation - Always visible */}
