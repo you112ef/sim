@@ -147,7 +147,7 @@ export interface CopilotActions {
   setMode: (mode: CopilotMode) => void
 
   // Chat management
-  setWorkflowId: (workflowId: string | null) => void
+  setWorkflowId: (workflowId: string | null) => Promise<void>
   validateCurrentChat: () => boolean
   loadChats: () => Promise<void>
   selectChat: (chat: CopilotChat) => Promise<void>

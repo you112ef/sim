@@ -86,7 +86,9 @@ export const Copilot = forwardRef<CopilotRef, CopilotProps>(
     // Sync workflow ID with store
     useEffect(() => {
       if (activeWorkflowId !== workflowId) {
-        setWorkflowId(activeWorkflowId)
+        setWorkflowId(activeWorkflowId).catch((error) => {
+          console.error('Failed to set workflow ID:', error)
+        })
       }
     }, [activeWorkflowId, workflowId, setWorkflowId])
 

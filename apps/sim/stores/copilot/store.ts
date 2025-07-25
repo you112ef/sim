@@ -40,7 +40,7 @@ const initialState = {
 }
 
 /**
- * Helper function to create a new user message
+ * Helper function to create a new user messagenow let
  */
 function createUserMessage(content: string): CopilotMessage {
   return {
@@ -132,10 +132,34 @@ export const useCopilotStore = create<CopilotStore>()(
       },
 
       // Set current workflow ID
-      setWorkflowId: (workflowId: string | null) => {
+      setWorkflowId: async (workflowId: string | null) => {
         const currentWorkflowId = get().workflowId
         if (currentWorkflowId !== workflowId) {
           logger.info(`Workflow ID changed from ${currentWorkflowId} to ${workflowId}`)
+
+          // Auto-reject any pending diff changes before switching workflows
+          try {
+            // Import diff store dynamically to avoid circular dependencies
+            const { useWorkflowDiffStore } = await import('@/stores/workflow-diff')
+            const diffStore = useWorkflowDiffStore.getState()
+            
+            // Check if there are any pending diff changes
+            if (diffStore.diffWorkflow && diffStore.isDiffReady) {
+              logger.info('Auto-rejecting pending diff changes before workflow change')
+              
+              // Reject the changes in the diff store
+              diffStore.rejectChanges()
+              
+              // Update copilot tool call state and clear preview YAML
+              get().updatePreviewToolCallState('rejected')
+              await get().clearPreviewYaml()
+              
+              logger.info('Successfully auto-rejected pending diff changes')
+            }
+          } catch (error) {
+            logger.error('Failed to auto-reject pending changes during workflow change:', error)
+            // Don't prevent workflow change if cleanup fails
+          }
 
           // Clear all state to prevent cross-workflow data leaks
           set({
@@ -229,11 +253,48 @@ export const useCopilotStore = create<CopilotStore>()(
 
       // Select a specific chat
       selectChat: async (chat: CopilotChat) => {
-        const { workflowId } = get()
+        const { workflowId, currentChat } = get()
 
         if (!workflowId) {
           logger.error('Cannot select chat: no workflow ID set')
           return
+        }
+
+        // Auto-reject any pending diff changes before switching chats
+        if (currentChat && currentChat.id !== chat.id) {
+          logger.info(`Chat change detected: ${currentChat.id} -> ${chat.id}`)
+          try {
+            // Import diff store dynamically to avoid circular dependencies
+            const { useWorkflowDiffStore } = await import('@/stores/workflow-diff')
+            const diffStore = useWorkflowDiffStore.getState()
+            
+            logger.info('Diff store state:', {
+              hasDiffWorkflow: !!diffStore.diffWorkflow,
+              isDiffReady: diffStore.isDiffReady,
+              isShowingDiff: diffStore.isShowingDiff
+            })
+            
+            // Check if there are any pending diff changes
+            if (diffStore.diffWorkflow && diffStore.isDiffReady) {
+              logger.info('Auto-rejecting pending diff changes before chat change')
+              
+              // Reject the changes in the diff store
+              diffStore.rejectChanges()
+              
+              // Update copilot tool call state and clear preview YAML
+              get().updatePreviewToolCallState('rejected')
+              await get().clearPreviewYaml()
+              
+              logger.info('Successfully auto-rejected pending diff changes')
+            } else {
+              logger.info('No pending diff changes to reject')
+            }
+          } catch (error) {
+            logger.error('Failed to auto-reject pending changes during chat change:', error)
+            // Don't prevent chat change if cleanup fails
+          }
+        } else {
+          logger.info('No chat change detected or no current chat')
         }
 
         set({ isLoading: true, error: null })
@@ -270,10 +331,47 @@ export const useCopilotStore = create<CopilotStore>()(
 
       // Create a new chat
       createNewChat: async (options = {}) => {
-        const { workflowId } = get()
+        const { workflowId, currentChat } = get()
         if (!workflowId) {
           logger.warn('Cannot create chat: no workflow ID set')
           return
+        }
+
+        // Auto-reject any pending diff changes before creating new chat
+        if (currentChat) {
+          logger.info(`Creating new chat while current chat exists: ${currentChat.id}`)
+          try {
+            // Import diff store dynamically to avoid circular dependencies
+            const { useWorkflowDiffStore } = await import('@/stores/workflow-diff')
+            const diffStore = useWorkflowDiffStore.getState()
+            
+            logger.info('Diff store state:', {
+              hasDiffWorkflow: !!diffStore.diffWorkflow,
+              isDiffReady: diffStore.isDiffReady,
+              isShowingDiff: diffStore.isShowingDiff
+            })
+            
+            // Check if there are any pending diff changes
+            if (diffStore.diffWorkflow && diffStore.isDiffReady) {
+              logger.info('Auto-rejecting pending diff changes before creating new chat')
+              
+              // Reject the changes in the diff store
+              diffStore.rejectChanges()
+              
+              // Update copilot tool call state and clear preview YAML
+              get().updatePreviewToolCallState('rejected')
+              await get().clearPreviewYaml()
+              
+              logger.info('Successfully auto-rejected pending diff changes')
+            } else {
+              logger.info('No pending diff changes to reject')
+            }
+          } catch (error) {
+            logger.error('Failed to auto-reject pending changes during new chat creation:', error)
+            // Don't prevent new chat creation if cleanup fails
+          }
+        } else {
+          logger.info('Creating new chat with no current chat')
         }
 
         set({ isLoading: true, error: null })
