@@ -103,6 +103,10 @@ function getToolDisplayName(toolName: string): string {
       return 'Analyzing workflow structure'
     case 'edit_workflow':
       return 'Editing your workflow'
+    case 'serper_search':
+      return 'Searching online'
+    case 'get_workflow_examples':
+      return 'Reviewing the design'
     default:
       return toolName.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())
   }

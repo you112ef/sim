@@ -355,6 +355,44 @@ function getAvailableTools(mode: 'ask' | 'agent'): ProviderToolConfig[] {
     //     required: ['yamlContent'],
     //   },
     // },
+    {
+      id: 'serper_search',
+      name: 'Web Search',
+      description:
+        'Search the internet for real-time information using Google search results. Useful for finding current information, news, facts, and general web content that may not be available in the documentation.',
+      params: {
+        apiKey: process.env.SERPER_API_KEY || '',
+      },
+      parameters: {
+        type: 'object',
+        properties: {
+          query: {
+            type: 'string',
+            description: 'The search query to find relevant information on the web',
+          },
+          num: {
+            type: 'number',
+            description: 'Number of search results to return (default: 10, max: 100)',
+            default: 10,
+          },
+          type: {
+            type: 'string',
+            enum: ['search', 'news', 'places', 'images'],
+            description: 'Type of search to perform (default: search)',
+            default: 'search',
+          },
+          gl: {
+            type: 'string',
+            description: 'Country code for localized results (e.g., "us", "uk", "ca")',
+          },
+          hl: {
+            type: 'string',
+            description: 'Language code for results (e.g., "en", "es", "fr")',
+          },
+        },
+        required: ['query'],
+      },
+    },
   ]
 
   // Filter tools based on mode
