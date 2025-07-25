@@ -911,8 +911,8 @@ export const useCopilotStore = create<CopilotStore>()(
                       try {
                         // Parse complete tool call input
                         toolCallBuffer.input = JSON.parse(toolCallBuffer.partialInput || '{}')
-                        // Set preview_workflow tools to ready_for_review, others to completed
-                        toolCallBuffer.state = toolCallBuffer.name === 'preview_workflow' ? 'ready_for_review' : 'completed'
+                        // Set preview_workflow and targeted_updates tools to ready_for_review, others to completed
+                        toolCallBuffer.state = (toolCallBuffer.name === 'preview_workflow' || toolCallBuffer.name === 'targeted_updates') ? 'ready_for_review' : 'completed'
                         toolCallBuffer.endTime = Date.now()
                         toolCallBuffer.duration = toolCallBuffer.endTime - toolCallBuffer.startTime
                         logger.info(`Tool call completed: ${toolCallBuffer.name}`, toolCallBuffer.input)
