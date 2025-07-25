@@ -440,7 +440,8 @@ export class WorkflowDiffEngine {
     Object.entries(cleanState.blocks).forEach(([blockId, block]) => {
       if (block.type && block.name) {
         // Remove diff markers
-        ;(block as any).is_diff = undefined(block as any).field_diff = undefined
+        ;(block as any).is_diff = undefined
+        ;(block as any).field_diff = undefined
         filteredBlocks[blockId] = block
       } else {
         logger.info(`Filtering out block ${blockId} - missing type or name`)
