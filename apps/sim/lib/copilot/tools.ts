@@ -135,8 +135,35 @@ async function applyOperationsToYaml(currentYaml: string, operations: TargetedUp
           Object.values(workflowData.blocks).forEach((block: any) => {
             if (block.connections) {
               Object.keys(block.connections).forEach(key => {
-                if (allDeletedBlocks.includes(block.connections[key])) {
-                  delete block.connections[key]
+                const connectionValue = block.connections[key]
+                
+                if (typeof connectionValue === 'string') {
+                  // Simple format: connections: { default: "block2" }
+                  if (allDeletedBlocks.includes(connectionValue)) {
+                    delete block.connections[key]
+                    logger.info(`Removed connection ${key} to deleted block ${connectionValue}`)
+                  }
+                } else if (Array.isArray(connectionValue)) {
+                  // Array format: connections: { default: ["block2", "block3"] }
+                  block.connections[key] = connectionValue.filter((item: any) => {
+                    if (typeof item === 'string') {
+                      return !allDeletedBlocks.includes(item)
+                    } else if (typeof item === 'object' && item.block) {
+                      return !allDeletedBlocks.includes(item.block)
+                    }
+                    return true
+                  })
+                  
+                  // If array is empty after filtering, remove the connection
+                  if (block.connections[key].length === 0) {
+                    delete block.connections[key]
+                  }
+                } else if (typeof connectionValue === 'object' && connectionValue.block) {
+                  // Object format: connections: { success: { block: "block2", input: "data" } }
+                  if (allDeletedBlocks.includes(connectionValue.block)) {
+                    delete block.connections[key]
+                    logger.info(`Removed object connection ${key} to deleted block ${connectionValue.block}`)
+                  }
                 }
               })
             }
@@ -160,8 +187,61 @@ async function applyOperationsToYaml(currentYaml: string, operations: TargetedUp
           // Update connections (preserve existing connections, only overwrite specified ones)
           if (params?.connections) {
             if (!block.connections) block.connections = {}
-            Object.assign(block.connections, params.connections)
+            
+            // Handle edge removals - if a connection is explicitly set to null, remove it
+            Object.entries(params.connections).forEach(([key, value]) => {
+              if (value === null) {
+                delete (block.connections as any)[key]
+                logger.info(`Removed connection ${key} from block ${block_id}`)
+              } else {
+                (block.connections as any)[key] = value
+              }
+            })
+            
             logger.info(`Updated connections for block ${block_id}`, { connections: block.connections })
+          }
+          
+          // Handle edge removals when specified in params
+          if (params?.removeEdges && Array.isArray(params.removeEdges)) {
+            params.removeEdges.forEach((edgeToRemove: { targetBlockId: string, sourceHandle?: string, targetHandle?: string }) => {
+              if (!block.connections) return
+              
+              const { targetBlockId, sourceHandle = 'default' } = edgeToRemove
+              
+              // Handle different connection formats
+              const connectionValue = (block.connections as any)[sourceHandle]
+              
+              if (typeof connectionValue === 'string') {
+                // Simple format: connections: { default: "block2" }
+                if (connectionValue === targetBlockId) {
+                  delete (block.connections as any)[sourceHandle]
+                  logger.info(`Removed edge from ${block_id}:${sourceHandle} to ${targetBlockId}`)
+                }
+              } else if (Array.isArray(connectionValue)) {
+                // Array format: connections: { default: ["block2", "block3"] }
+                (block.connections as any)[sourceHandle] = connectionValue.filter((item: any) => {
+                  if (typeof item === 'string') {
+                    return item !== targetBlockId
+                  } else if (typeof item === 'object' && item.block) {
+                    return item.block !== targetBlockId
+                  }
+                  return true
+                })
+                
+                // If array is empty after filtering, remove the connection
+                if ((block.connections as any)[sourceHandle].length === 0) {
+                  delete (block.connections as any)[sourceHandle]
+                }
+                
+                logger.info(`Updated array connection for ${block_id}:${sourceHandle}`)
+              } else if (typeof connectionValue === 'object' && connectionValue.block) {
+                // Object format: connections: { success: { block: "block2", input: "data" } }
+                if (connectionValue.block === targetBlockId) {
+                  delete (block.connections as any)[sourceHandle]
+                  logger.info(`Removed object connection from ${block_id}:${sourceHandle} to ${targetBlockId}`)
+                }
+              }
+            })
           }
         } else {
           logger.warn(`Block ${block_id} not found for editing`)
