@@ -111,6 +111,8 @@ function getToolDisplayName(toolName: string): string {
       return 'Checking your environment variables'
     case 'set_environment_variables':
       return 'Setting your environment variables'
+    case 'targeted_updates':
+      return 'Editing workflow'
     default:
       return toolName.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())
   }
@@ -504,9 +506,9 @@ export const useCopilotStore = create<CopilotStore>()(
       updatePreviewToolCallState: (toolCallState: 'applied' | 'rejected') => {
         const { messages } = get()
 
-        // Find the last message with a preview_workflow tool call
+        // Find the last message with a preview_workflow or targeted_updates tool call
         const lastMessageWithPreview = [...messages].reverse().find(msg => 
-          msg.role === 'assistant' && msg.toolCalls?.some(tc => tc.name === 'preview_workflow')
+          msg.role === 'assistant' && msg.toolCalls?.some(tc => tc.name === 'preview_workflow' || tc.name === 'targeted_updates')
         )
 
         if (lastMessageWithPreview) {
@@ -515,10 +517,10 @@ export const useCopilotStore = create<CopilotStore>()(
               msg.id === lastMessageWithPreview.id ? {
                 ...msg,
                 toolCalls: msg.toolCalls?.map(tc => 
-                  tc.name === 'preview_workflow' ? { ...tc, state: toolCallState } : tc
+                  (tc.name === 'preview_workflow' || tc.name === 'targeted_updates') ? { ...tc, state: toolCallState } : tc
                 ),
                 contentBlocks: msg.contentBlocks?.map(block =>
-                  block.type === 'tool_call' && block.toolCall.name === 'preview_workflow'
+                  block.type === 'tool_call' && (block.toolCall.name === 'preview_workflow' || block.toolCall.name === 'targeted_updates')
                     ? { ...block, toolCall: { ...block.toolCall, state: toolCallState } }
                     : block
                 )
@@ -539,11 +541,11 @@ export const useCopilotStore = create<CopilotStore>()(
 
         set({ isSendingMessage: true, error: null })
 
-        // Update the preview_workflow tool call state if provided
+        // Update the preview_workflow or targeted_updates tool call state if provided
         if (toolCallState) {
-          // Find the last message with a preview_workflow tool call
+          // Find the last message with a preview_workflow or targeted_updates tool call
           const lastMessageWithPreview = [...messages].reverse().find(msg => 
-            msg.role === 'assistant' && msg.toolCalls?.some(tc => tc.name === 'preview_workflow')
+            msg.role === 'assistant' && msg.toolCalls?.some(tc => tc.name === 'preview_workflow' || tc.name === 'targeted_updates')
           )
 
           if (lastMessageWithPreview) {
@@ -552,10 +554,10 @@ export const useCopilotStore = create<CopilotStore>()(
                 msg.id === lastMessageWithPreview.id ? {
                   ...msg,
                   toolCalls: msg.toolCalls?.map(tc => 
-                    tc.name === 'preview_workflow' ? { ...tc, state: toolCallState } : tc
+                    (tc.name === 'preview_workflow' || tc.name === 'targeted_updates') ? { ...tc, state: toolCallState } : tc
                   ),
                   contentBlocks: msg.contentBlocks?.map(block =>
-                    block.type === 'tool_call' && block.toolCall.name === 'preview_workflow'
+                    block.type === 'tool_call' && (block.toolCall.name === 'preview_workflow' || block.toolCall.name === 'targeted_updates')
                       ? { ...block, toolCall: { ...block.toolCall, state: toolCallState } }
                       : block
                   )
@@ -758,11 +760,17 @@ export const useCopilotStore = create<CopilotStore>()(
                               })
                               get().setPreviewYaml(result.yamlContent)
                               get().updateDiffStore(result.yamlContent)
+                              
+                              // Set the tool call state to ready_for_review like preview_workflow
+                              existingToolCall.state = 'ready_for_review'
                             } else {
                               logger.error('Targeted updates tool_result missing yamlContent', {
                                 expectedPath: 'result.yamlContent',
                                 actualStructure: JSON.stringify(result, null, 2)
                               })
+                              // Set to error state if yamlContent is missing
+                              existingToolCall.state = 'error'
+                              existingToolCall.error = 'Missing yamlContent in result'
                             }
                           }
                         } else {

@@ -1017,3 +1017,9 @@ For detailed examples and schemas:
 - **Best Practices**: Review the workflow building guide
 
 Remember: Always use the "Get All Blocks" and "Get Block Metadata" tools for the latest information when building workflows!`
+
+/**
+ * Function wrapper for YAML_WORKFLOW_PROMPT to maintain compatibility with API routes
+ * that expect a function call for lazy loading
+ */
+export const getYamlWorkflowPrompt = () => YAML_WORKFLOW_PROMPT

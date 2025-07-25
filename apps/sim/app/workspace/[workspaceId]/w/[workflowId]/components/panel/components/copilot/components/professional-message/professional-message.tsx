@@ -65,8 +65,8 @@ function InlineToolCall({ tool, stepNumber }: { tool: ToolCallState | any, stepN
     return duration < 1000 ? `${duration}ms` : `${(duration / 1000).toFixed(1)}s`
   }
 
-  // Special handling for preview workflow
-  const isPreviewTool = tool.name === 'preview_workflow'
+  // Special handling for preview workflow and targeted updates
+  const isPreviewTool = tool.name === 'preview_workflow' || tool.name === 'targeted_updates'
   
   if (isPreviewTool) {
     return (
@@ -102,7 +102,10 @@ function InlineToolCall({ tool, stepNumber }: { tool: ToolCallState | any, stepN
               tool.state === 'rejected' && 'text-orange-900 dark:text-orange-100',
               tool.state === 'error' && 'text-red-900 dark:text-red-100'
             )}>
-              {tool.state === 'executing' ? 'Building workflow' : (tool.displayName || tool.name)}
+              {tool.state === 'executing' 
+                ? (tool.name === 'targeted_updates' ? 'Editing workflow' : 'Building workflow')
+                : (tool.displayName || tool.name)
+              }
             </div>
             <div className={cn(
               'text-xs',
@@ -113,14 +116,14 @@ function InlineToolCall({ tool, stepNumber }: { tool: ToolCallState | any, stepN
               tool.state === 'error' && 'text-red-700 dark:text-red-300'
             )}>
               {tool.state === 'executing' 
-                ? 'Building workflow...'
+                ? (tool.name === 'targeted_updates' ? 'Editing workflow...' : 'Building workflow...')
                 : tool.state === 'ready_for_review'
                 ? 'Ready for review'
                 : tool.state === 'applied'
                 ? 'Applied changes'
                 : tool.state === 'rejected'
                 ? 'Rejected changes'
-                : 'Workflow generation failed'
+                : (tool.name === 'targeted_updates' ? 'Workflow editing failed' : 'Workflow generation failed')
               }
             </div>
           </div>
