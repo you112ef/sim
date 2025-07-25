@@ -136,7 +136,7 @@ export class AutoLayoutService {
           // For blocks without explicit height, estimate based on content
           const hasLongContent = block.subBlocks && Object.keys(block.subBlocks).length > 3
           const isComplexBlock = ['agent', 'api', 'function'].includes(block.type)
-          
+
           if (hasLongContent || isComplexBlock) {
             actualHeight = Math.max(actualHeight * 1.8, 200) // Increase estimated height for content-heavy blocks
           } else if (Object.keys(block.subBlocks || {}).length > 0) {
@@ -359,7 +359,7 @@ export class AutoLayoutService {
         // For blocks without explicit height, estimate based on content
         const hasLongContent = block.subBlocks && Object.keys(block.subBlocks).length > 3
         const isComplexBlock = ['agent', 'api', 'function'].includes(block.type)
-        
+
         if (hasLongContent || isComplexBlock) {
           actualHeight = Math.max(actualHeight * 1.8, 200) // Increase estimated height for content-heavy blocks
         } else if (Object.keys(block.subBlocks || {}).length > 0) {

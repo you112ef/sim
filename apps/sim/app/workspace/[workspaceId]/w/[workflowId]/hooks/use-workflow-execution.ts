@@ -16,8 +16,6 @@ import { useEnvironmentStore } from '@/stores/settings/environment/store'
 import { useGeneralStore } from '@/stores/settings/general/store'
 import { useWorkflowRegistry } from '@/stores/workflows/registry/store'
 import { mergeSubblockState } from '@/stores/workflows/utils'
-import { useWorkflowStore } from '@/stores/workflows/workflow/store'
-import { useWorkflowDiffStore } from '@/stores/workflow-diff/store'
 import { useCurrentWorkflow } from './use-current-workflow'
 
 const logger = createLogger('useWorkflowExecution')
@@ -418,24 +416,33 @@ export function useWorkflowExecution() {
     executionId?: string
   ): Promise<ExecutionResult | StreamingExecution> => {
     // Use currentWorkflow but check if we're in diff mode
-    const { blocks: workflowBlocks, edges: workflowEdges, loops: workflowLoops, parallels: workflowParallels } = currentWorkflow
-    
-    // Filter out blocks without type (these are layout-only blocks)
-    const validBlocks = Object.entries(workflowBlocks).reduce((acc, [blockId, block]) => {
-      if (block && block.type) {
-        acc[blockId] = block
-      }
-      return acc
-    }, {} as typeof workflowBlocks)
-    
-    const isExecutingFromChat = workflowInput && typeof workflowInput === 'object' && 'input' in workflowInput
+    const {
+      blocks: workflowBlocks,
+      edges: workflowEdges,
+      loops: workflowLoops,
+      parallels: workflowParallels,
+    } = currentWorkflow
 
-    logger.info('Executing workflow', { 
+    // Filter out blocks without type (these are layout-only blocks)
+    const validBlocks = Object.entries(workflowBlocks).reduce(
+      (acc, [blockId, block]) => {
+        if (block?.type) {
+          acc[blockId] = block
+        }
+        return acc
+      },
+      {} as typeof workflowBlocks
+    )
+
+    const isExecutingFromChat =
+      workflowInput && typeof workflowInput === 'object' && 'input' in workflowInput
+
+    logger.info('Executing workflow', {
       isDiffMode: currentWorkflow.isDiffMode,
       isExecutingFromChat,
       totalBlocksCount: Object.keys(workflowBlocks).length,
       validBlocksCount: Object.keys(validBlocks).length,
-      edgesCount: workflowEdges.length
+      edgesCount: workflowEdges.length,
     })
 
     // Debug: Check for blocks with undefined types before merging

@@ -1,11 +1,29 @@
 'use client'
 
 import { useState } from 'react'
-import { Eye, Maximize2, Minimize2, Save, CheckCircle, X, AlertCircle, XCircle, ChevronDown, Plus, Edit, Trash2 } from 'lucide-react'
+import {
+  AlertCircle,
+  CheckCircle,
+  ChevronDown,
+  Edit,
+  Eye,
+  Maximize2,
+  Minimize2,
+  Plus,
+  Save,
+  Trash2,
+  X,
+  XCircle,
+} from 'lucide-react'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu'
 import { createLogger } from '@/lib/logs/console-logger'
 import { cn } from '@/lib/utils'
 import { WorkflowPreview } from '@/app/workspace/[workspaceId]/w/components/workflow-preview/workflow-preview'
@@ -76,7 +94,7 @@ export function CopilotSandboxModal({
     try {
       setIsSaving(true)
       // Generate auto name based on description or use default
-      const autoName = description 
+      const autoName = description
         ? `${description.slice(0, 50)}${description.length > 50 ? '...' : ''}`
         : 'Copilot Generated Workflow'
       await onSaveAsNewWorkflow(autoName)
@@ -118,11 +136,11 @@ export function CopilotSandboxModal({
   const edgeCount = proposedWorkflowState.edges?.length || 0
 
   // Debug logging
-  console.log('CopilotSandboxModal rendering with props:', { 
-    diffInfo: diffInfo ? 'present' : 'null', 
-    isDiffLoading, 
+  console.log('CopilotSandboxModal rendering with props:', {
+    diffInfo: diffInfo ? 'present' : 'null',
+    isDiffLoading,
     isOpen,
-    proposedWorkflowState: proposedWorkflowState ? 'present' : 'null' 
+    proposedWorkflowState: proposedWorkflowState ? 'present' : 'null',
   })
 
   // Helper function to get block name from ID
@@ -179,33 +197,38 @@ export function CopilotSandboxModal({
         {/* Diff Information Section - Always Rendered */}
         <div className='border-b bg-background px-6 py-4' style={{ backgroundColor: '#f8f9fa' }}>
           <div className='space-y-3'>
-            <h3 className='font-medium text-sm text-foreground'>
-              Workflow Changes 
-              <span className='text-xs text-muted-foreground ml-2'>
-                (Debug: diffInfo={diffInfo ? 'present' : 'null'}, loading={isDiffLoading ? 'true' : 'false'})
+            <h3 className='font-medium text-foreground text-sm'>
+              Workflow Changes
+              <span className='ml-2 text-muted-foreground text-xs'>
+                (Debug: diffInfo={diffInfo ? 'present' : 'null'}, loading=
+                {isDiffLoading ? 'true' : 'false'})
               </span>
             </h3>
-            
+
             {isDiffLoading ? (
               <div className='flex items-center gap-2 text-muted-foreground text-sm'>
-                <div className='h-3 w-3 animate-spin rounded-full border-2 border-gray-300 border-t-gray-600'></div>
+                <div className='h-3 w-3 animate-spin rounded-full border-2 border-gray-300 border-t-gray-600' />
                 Analyzing workflow changes...
               </div>
             ) : diffInfo ? (
               <>
-                <div className='grid grid-cols-1 md:grid-cols-3 gap-4'>
+                <div className='grid grid-cols-1 gap-4 md:grid-cols-3'>
                   {/* New Blocks */}
                   {diffInfo.new_blocks.length > 0 && (
                     <div className='space-y-2'>
                       <div className='flex items-center gap-2'>
                         <Plus className='h-4 w-4 text-green-600 dark:text-green-400' />
-                        <span className='font-medium text-green-700 dark:text-green-300 text-sm'>
+                        <span className='font-medium text-green-700 text-sm dark:text-green-300'>
                           New Blocks ({diffInfo.new_blocks.length})
                         </span>
                       </div>
                       <div className='space-y-1'>
-                        {diffInfo.new_blocks.map(blockId => (
-                          <Badge key={blockId} variant='outline' className='text-xs bg-green-50 border-green-200 text-green-700 dark:bg-green-950 dark:border-green-800 dark:text-green-300'>
+                        {diffInfo.new_blocks.map((blockId) => (
+                          <Badge
+                            key={blockId}
+                            variant='outline'
+                            className='border-green-200 bg-green-50 text-green-700 text-xs dark:border-green-800 dark:bg-green-950 dark:text-green-300'
+                          >
                             {getBlockName(blockId)}
                           </Badge>
                         ))}
@@ -218,13 +241,17 @@ export function CopilotSandboxModal({
                     <div className='space-y-2'>
                       <div className='flex items-center gap-2'>
                         <Edit className='h-4 w-4 text-orange-600 dark:text-orange-400' />
-                        <span className='font-medium text-orange-700 dark:text-orange-300 text-sm'>
+                        <span className='font-medium text-orange-700 text-sm dark:text-orange-300'>
                           Modified Blocks ({diffInfo.edited_blocks.length})
                         </span>
                       </div>
                       <div className='space-y-1'>
-                        {diffInfo.edited_blocks.map(blockId => (
-                          <Badge key={blockId} variant='outline' className='text-xs bg-orange-50 border-orange-200 text-orange-700 dark:bg-orange-950 dark:border-orange-800 dark:text-orange-300'>
+                        {diffInfo.edited_blocks.map((blockId) => (
+                          <Badge
+                            key={blockId}
+                            variant='outline'
+                            className='border-orange-200 bg-orange-50 text-orange-700 text-xs dark:border-orange-800 dark:bg-orange-950 dark:text-orange-300'
+                          >
                             {getBlockName(blockId)}
                           </Badge>
                         ))}
@@ -237,13 +264,17 @@ export function CopilotSandboxModal({
                     <div className='space-y-2'>
                       <div className='flex items-center gap-2'>
                         <Trash2 className='h-4 w-4 text-red-600 dark:text-red-400' />
-                        <span className='font-medium text-red-700 dark:text-red-300 text-sm'>
+                        <span className='font-medium text-red-700 text-sm dark:text-red-300'>
                           Deleted Blocks ({diffInfo.deleted_blocks.length})
                         </span>
                       </div>
                       <div className='space-y-1'>
-                        {diffInfo.deleted_blocks.map(blockId => (
-                          <Badge key={blockId} variant='outline' className='text-xs bg-red-50 border-red-200 text-red-700 dark:bg-red-950 dark:border-red-800 dark:text-red-300'>
+                        {diffInfo.deleted_blocks.map((blockId) => (
+                          <Badge
+                            key={blockId}
+                            variant='outline'
+                            className='border-red-200 bg-red-50 text-red-700 text-xs dark:border-red-800 dark:bg-red-950 dark:text-red-300'
+                          >
                             {blockId}
                           </Badge>
                         ))}
@@ -253,9 +284,14 @@ export function CopilotSandboxModal({
                 </div>
 
                 {/* Summary */}
-                {(diffInfo.new_blocks.length > 0 || diffInfo.edited_blocks.length > 0 || diffInfo.deleted_blocks.length > 0) ? (
+                {diffInfo.new_blocks.length > 0 ||
+                diffInfo.edited_blocks.length > 0 ||
+                diffInfo.deleted_blocks.length > 0 ? (
                   <div className='text-muted-foreground text-xs'>
-                    {diffInfo.new_blocks.length + diffInfo.edited_blocks.length + diffInfo.deleted_blocks.length} total changes detected
+                    {diffInfo.new_blocks.length +
+                      diffInfo.edited_blocks.length +
+                      diffInfo.deleted_blocks.length}{' '}
+                    total changes detected
                   </div>
                 ) : (
                   <div className='flex items-center gap-2 text-muted-foreground text-xs'>
@@ -269,9 +305,9 @@ export function CopilotSandboxModal({
                 <div className='text-muted-foreground text-sm'>
                   Unable to analyze workflow changes - comparing against current workflow structure
                 </div>
-                <div className='text-xs text-gray-500 bg-gray-50 p-2 rounded border'>
+                <div className='rounded border bg-gray-50 p-2 text-gray-500 text-xs'>
                   Debug: No diff data available. This could be due to:
-                  <ul className='list-disc list-inside mt-1'>
+                  <ul className='mt-1 list-inside list-disc'>
                     <li>Current workflow has no existing blocks</li>
                     <li>API call to get current workflow failed</li>
                     <li>Diff API call failed</li>
@@ -294,21 +330,20 @@ export function CopilotSandboxModal({
           />
         </div>
 
-
-
         {/* Action Buttons */}
         <div className='border-t bg-background px-6 py-4'>
           <div className='flex items-center justify-between'>
             <div className='text-muted-foreground text-sm'>
-              💡 This is a preview of the workflow the copilot wants to create. Choose how to proceed.
+              💡 This is a preview of the workflow the copilot wants to create. Choose how to
+              proceed.
             </div>
-            
+
             <div className='flex items-center gap-3'>
               <Button
                 variant='outline'
                 onClick={handleReject}
                 disabled={isProcessing || isSaving || isApplying || isRejecting}
-                className='text-red-600 border-red-200 hover:bg-red-50 hover:border-red-300 dark:text-red-400 dark:border-red-800 dark:hover:bg-red-950'
+                className='border-red-200 text-red-600 hover:border-red-300 hover:bg-red-50 dark:border-red-800 dark:text-red-400 dark:hover:bg-red-950'
               >
                 {isRejecting ? (
                   <>
@@ -328,9 +363,10 @@ export function CopilotSandboxModal({
                 <Button
                   onClick={saveAsNewMode ? handleSaveAsNewWorkflow : handleApplyToCurrentWorkflow}
                   disabled={isProcessing || isSaving || isApplying || isRejecting}
-                  className={saveAsNewMode 
-                    ? 'bg-gray-600 hover:bg-gray-700 rounded-r-none border-r border-gray-500' 
-                    : 'bg-purple-600 hover:bg-purple-700 rounded-r-none border-r border-purple-500'
+                  className={
+                    saveAsNewMode
+                      ? 'rounded-r-none border-gray-500 border-r bg-gray-600 hover:bg-gray-700'
+                      : 'rounded-r-none border-purple-500 border-r bg-purple-600 hover:bg-purple-700'
                   }
                 >
                   {(saveAsNewMode ? isSaving : isApplying) ? (
@@ -340,12 +376,16 @@ export function CopilotSandboxModal({
                     </>
                   ) : (
                     <>
-                      {saveAsNewMode ? <Save className='mr-2 h-4 w-4' /> : <CheckCircle className='mr-2 h-4 w-4' />}
+                      {saveAsNewMode ? (
+                        <Save className='mr-2 h-4 w-4' />
+                      ) : (
+                        <CheckCircle className='mr-2 h-4 w-4' />
+                      )}
                       {saveAsNewMode ? 'Save as New Workflow' : 'Accept'}
                     </>
                   )}
                 </Button>
-                
+
                 {/* Dropdown Arrow Button */}
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
@@ -353,9 +393,10 @@ export function CopilotSandboxModal({
                       variant='default'
                       size='sm'
                       disabled={isProcessing || isSaving || isApplying || isRejecting}
-                      className={saveAsNewMode 
-                        ? 'bg-gray-600 hover:bg-gray-700 rounded-l-none border-l-0 px-2 h-10' 
-                        : 'bg-purple-600 hover:bg-purple-700 rounded-l-none border-l-0 px-2 h-10'
+                      className={
+                        saveAsNewMode
+                          ? 'h-10 rounded-l-none border-l-0 bg-gray-600 px-2 hover:bg-gray-700'
+                          : 'h-10 rounded-l-none border-l-0 bg-purple-600 px-2 hover:bg-purple-700'
                       }
                     >
                       <ChevronDown className='h-4 w-4' />
@@ -402,4 +443,4 @@ export function CopilotSandboxModal({
       </DialogContent>
     </Dialog>
   )
-} 
+}

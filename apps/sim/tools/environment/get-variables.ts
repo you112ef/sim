@@ -13,7 +13,10 @@ export interface GetEnvironmentVariablesResponse extends ToolResponse {
   }
 }
 
-export const getEnvironmentVariablesTool: ToolConfig<GetEnvironmentVariablesParams, GetEnvironmentVariablesResponse> = {
+export const getEnvironmentVariablesTool: ToolConfig<
+  GetEnvironmentVariablesParams,
+  GetEnvironmentVariablesResponse
+> = {
   id: 'get_environment_variables',
   name: 'Get Environment Variables',
   description:
@@ -33,4 +36,4 @@ export const getEnvironmentVariablesTool: ToolConfig<GetEnvironmentVariablesPara
     }),
     isInternalRoute: true,
   },
-} 
+}

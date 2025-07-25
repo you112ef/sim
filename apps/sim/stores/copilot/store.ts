@@ -114,7 +114,7 @@ function getToolDisplayName(toolName: string): string {
     case 'targeted_updates':
       return 'Editing workflow'
     default:
-      return toolName.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())
+      return toolName.replace(/_/g, ' ').replace(/\b\w/g, (l) => l.toUpperCase())
   }
 }
 
@@ -144,18 +144,18 @@ export const useCopilotStore = create<CopilotStore>()(
             // Import diff store dynamically to avoid circular dependencies
             const { useWorkflowDiffStore } = await import('@/stores/workflow-diff')
             const diffStore = useWorkflowDiffStore.getState()
-            
+
             // Check if there are any pending diff changes
             if (diffStore.diffWorkflow && diffStore.isDiffReady) {
               logger.info('Auto-rejecting pending diff changes before workflow change')
-              
+
               // Reject the changes in the diff store
               diffStore.rejectChanges()
-              
+
               // Update copilot tool call state and clear preview YAML
               get().updatePreviewToolCallState('rejected')
               await get().clearPreviewYaml()
-              
+
               logger.info('Successfully auto-rejected pending diff changes')
             }
           } catch (error) {
@@ -269,24 +269,24 @@ export const useCopilotStore = create<CopilotStore>()(
             // Import diff store dynamically to avoid circular dependencies
             const { useWorkflowDiffStore } = await import('@/stores/workflow-diff')
             const diffStore = useWorkflowDiffStore.getState()
-            
+
             logger.info('Diff store state:', {
               hasDiffWorkflow: !!diffStore.diffWorkflow,
               isDiffReady: diffStore.isDiffReady,
-              isShowingDiff: diffStore.isShowingDiff
+              isShowingDiff: diffStore.isShowingDiff,
             })
-            
+
             // Check if there are any pending diff changes
             if (diffStore.diffWorkflow && diffStore.isDiffReady) {
               logger.info('Auto-rejecting pending diff changes before chat change')
-              
+
               // Reject the changes in the diff store
               diffStore.rejectChanges()
-              
+
               // Update copilot tool call state and clear preview YAML
               get().updatePreviewToolCallState('rejected')
               await get().clearPreviewYaml()
-              
+
               logger.info('Successfully auto-rejected pending diff changes')
             } else {
               logger.info('No pending diff changes to reject')
@@ -346,24 +346,24 @@ export const useCopilotStore = create<CopilotStore>()(
             // Import diff store dynamically to avoid circular dependencies
             const { useWorkflowDiffStore } = await import('@/stores/workflow-diff')
             const diffStore = useWorkflowDiffStore.getState()
-            
+
             logger.info('Diff store state:', {
               hasDiffWorkflow: !!diffStore.diffWorkflow,
               isDiffReady: diffStore.isDiffReady,
-              isShowingDiff: diffStore.isShowingDiff
+              isShowingDiff: diffStore.isShowingDiff,
             })
-            
+
             // Check if there are any pending diff changes
             if (diffStore.diffWorkflow && diffStore.isDiffReady) {
               logger.info('Auto-rejecting pending diff changes before creating new chat')
-              
+
               // Reject the changes in the diff store
               diffStore.rejectChanges()
-              
+
               // Update copilot tool call state and clear preview YAML
               get().updatePreviewToolCallState('rejected')
               await get().clearPreviewYaml()
-              
+
               logger.info('Successfully auto-rejected pending diff changes')
             } else {
               logger.info('No pending diff changes to reject')
@@ -507,31 +507,46 @@ export const useCopilotStore = create<CopilotStore>()(
         const { messages } = get()
 
         // Find the last message with a preview_workflow or targeted_updates tool call
-        const lastMessageWithPreview = [...messages].reverse().find(msg => 
-          msg.role === 'assistant' && msg.toolCalls?.some(tc => tc.name === 'preview_workflow' || tc.name === 'targeted_updates')
-        )
+        const lastMessageWithPreview = [...messages]
+          .reverse()
+          .find(
+            (msg) =>
+              msg.role === 'assistant' &&
+              msg.toolCalls?.some(
+                (tc) => tc.name === 'preview_workflow' || tc.name === 'targeted_updates'
+              )
+          )
 
         if (lastMessageWithPreview) {
           set((state) => ({
             messages: state.messages.map((msg) =>
-              msg.id === lastMessageWithPreview.id ? {
-                ...msg,
-                toolCalls: msg.toolCalls?.map(tc => 
-                  (tc.name === 'preview_workflow' || tc.name === 'targeted_updates') ? { ...tc, state: toolCallState } : tc
-                ),
-                contentBlocks: msg.contentBlocks?.map(block =>
-                  block.type === 'tool_call' && (block.toolCall.name === 'preview_workflow' || block.toolCall.name === 'targeted_updates')
-                    ? { ...block, toolCall: { ...block.toolCall, state: toolCallState } }
-                    : block
-                )
-              } : msg
+              msg.id === lastMessageWithPreview.id
+                ? {
+                    ...msg,
+                    toolCalls: msg.toolCalls?.map((tc) =>
+                      tc.name === 'preview_workflow' || tc.name === 'targeted_updates'
+                        ? { ...tc, state: toolCallState }
+                        : tc
+                    ),
+                    contentBlocks: msg.contentBlocks?.map((block) =>
+                      block.type === 'tool_call' &&
+                      (block.toolCall.name === 'preview_workflow' ||
+                        block.toolCall.name === 'targeted_updates')
+                        ? { ...block, toolCall: { ...block.toolCall, state: toolCallState } }
+                        : block
+                    ),
+                  }
+                : msg
             ),
           }))
         }
       },
 
       // Send implicit feedback and update preview tool call state
-      sendImplicitFeedback: async (implicitFeedback: string, toolCallState?: 'applied' | 'rejected') => {
+      sendImplicitFeedback: async (
+        implicitFeedback: string,
+        toolCallState?: 'applied' | 'rejected'
+      ) => {
         const { workflowId, currentChat, mode, messages } = get()
 
         if (!workflowId) {
@@ -544,24 +559,36 @@ export const useCopilotStore = create<CopilotStore>()(
         // Update the preview_workflow or targeted_updates tool call state if provided
         if (toolCallState) {
           // Find the last message with a preview_workflow or targeted_updates tool call
-          const lastMessageWithPreview = [...messages].reverse().find(msg => 
-            msg.role === 'assistant' && msg.toolCalls?.some(tc => tc.name === 'preview_workflow' || tc.name === 'targeted_updates')
-          )
+          const lastMessageWithPreview = [...messages]
+            .reverse()
+            .find(
+              (msg) =>
+                msg.role === 'assistant' &&
+                msg.toolCalls?.some(
+                  (tc) => tc.name === 'preview_workflow' || tc.name === 'targeted_updates'
+                )
+            )
 
           if (lastMessageWithPreview) {
             set((state) => ({
               messages: state.messages.map((msg) =>
-                msg.id === lastMessageWithPreview.id ? {
-                  ...msg,
-                  toolCalls: msg.toolCalls?.map(tc => 
-                    (tc.name === 'preview_workflow' || tc.name === 'targeted_updates') ? { ...tc, state: toolCallState } : tc
-                  ),
-                  contentBlocks: msg.contentBlocks?.map(block =>
-                    block.type === 'tool_call' && (block.toolCall.name === 'preview_workflow' || block.toolCall.name === 'targeted_updates')
-                      ? { ...block, toolCall: { ...block.toolCall, state: toolCallState } }
-                      : block
-                  )
-                } : msg
+                msg.id === lastMessageWithPreview.id
+                  ? {
+                      ...msg,
+                      toolCalls: msg.toolCalls?.map((tc) =>
+                        tc.name === 'preview_workflow' || tc.name === 'targeted_updates'
+                          ? { ...tc, state: toolCallState }
+                          : tc
+                      ),
+                      contentBlocks: msg.contentBlocks?.map((block) =>
+                        block.type === 'tool_call' &&
+                        (block.toolCall.name === 'preview_workflow' ||
+                          block.toolCall.name === 'targeted_updates')
+                          ? { ...block, toolCall: { ...block.toolCall, state: toolCallState } }
+                          : block
+                      ),
+                    }
+                  : msg
               ),
             }))
           }
@@ -658,18 +685,22 @@ export const useCopilotStore = create<CopilotStore>()(
       },
 
       // Handle streaming response
-      handleStreamingResponse: async (stream: ReadableStream, messageId: string, isContinuation = false) => {
+      handleStreamingResponse: async (
+        stream: ReadableStream,
+        messageId: string,
+        isContinuation = false
+      ) => {
         const reader = stream.getReader()
         const decoder = new TextDecoder()
-        
+
         // If this is a continuation, start with the existing message content
         let accumulatedContent = ''
         if (isContinuation) {
           const { messages } = get()
-          const existingMessage = messages.find(msg => msg.id === messageId)
+          const existingMessage = messages.find((msg) => msg.id === messageId)
           accumulatedContent = existingMessage?.content || ''
         }
-        
+
         let newChatId: string | undefined
         let streamComplete = false
 
@@ -677,7 +708,7 @@ export const useCopilotStore = create<CopilotStore>()(
         let currentBlockType: 'text' | 'tool_use' | null = null
         let toolCallBuffer: any = null
         const toolCalls: any[] = []
-        
+
         // Track content blocks chronologically
         const contentBlocks: any[] = []
         let currentTextBlock: any = null
@@ -709,7 +740,7 @@ export const useCopilotStore = create<CopilotStore>()(
                   if (data.type === 'chat_id') {
                     newChatId = data.chatId
                     logger.info('Received chatId from stream:', newChatId)
-                    
+
                     // Update current chat if we don't have one
                     const { currentChat } = get()
                     if (!currentChat && newChatId) {
@@ -719,26 +750,37 @@ export const useCopilotStore = create<CopilotStore>()(
                   // Handle tool result events (our custom event for preview_workflow)
                   else if (data.type === 'tool_result') {
                     const { toolCallId, result, success } = data
-                    logger.info('Received tool_result event', { toolCallId, success, hasResult: !!result })
+                    logger.info('Received tool_result event', {
+                      toolCallId,
+                      success,
+                      hasResult: !!result,
+                    })
                     if (toolCallId) {
                       // Find the corresponding tool call and update its result
-                      const existingToolCall = toolCalls.find(tc => tc.id === toolCallId)
+                      const existingToolCall = toolCalls.find((tc) => tc.id === toolCallId)
                       if (existingToolCall) {
-                        logger.info('Found existing tool call for result', { name: existingToolCall.name, toolCallId })
+                        logger.info('Found existing tool call for result', {
+                          name: existingToolCall.name,
+                          toolCallId,
+                        })
                         if (success) {
                           existingToolCall.result = result
-                          logger.info('Updated tool call result:', toolCallId, existingToolCall.name)
-                          
+                          logger.info(
+                            'Updated tool call result:',
+                            toolCallId,
+                            existingToolCall.name
+                          )
+
                           // Handle successful preview_workflow tool result
                           if (existingToolCall.name === 'preview_workflow' && result?.yamlContent) {
                             logger.info('Setting preview YAML from tool_result event', {
                               yamlLength: result.yamlContent.length,
-                              yamlPreview: result.yamlContent.substring(0, 100)
+                              yamlPreview: result.yamlContent.substring(0, 100),
                             })
                             get().setPreviewYaml(result.yamlContent)
                             get().updateDiffStore(result.yamlContent)
                           }
-                          
+
                           // Handle successful targeted_updates tool result
                           if (existingToolCall.name === 'targeted_updates') {
                             logger.info('Targeted updates tool_result received', {
@@ -747,26 +789,29 @@ export const useCopilotStore = create<CopilotStore>()(
                               resultKeys: result ? Object.keys(result) : [],
                               hasYamlContent: !!result?.yamlContent,
                               // Log the full result structure for debugging
-                              fullResult: JSON.stringify(result, null, 2)
+                              fullResult: JSON.stringify(result, null, 2),
                             })
-                            
+
                             // The targeted_updates tool returns yamlContent directly in the result
                             if (result?.yamlContent) {
-                              logger.info('Setting preview YAML from targeted_updates tool_result event', {
-                                yamlLength: result.yamlContent.length,
-                                yamlPreview: result.yamlContent.substring(0, 200),
-                                // Log the full YAML for debugging
-                                fullYaml: result.yamlContent
-                              })
+                              logger.info(
+                                'Setting preview YAML from targeted_updates tool_result event',
+                                {
+                                  yamlLength: result.yamlContent.length,
+                                  yamlPreview: result.yamlContent.substring(0, 200),
+                                  // Log the full YAML for debugging
+                                  fullYaml: result.yamlContent,
+                                }
+                              )
                               get().setPreviewYaml(result.yamlContent)
                               get().updateDiffStore(result.yamlContent)
-                              
+
                               // Set the tool call state to ready_for_review like preview_workflow
                               existingToolCall.state = 'ready_for_review'
                             } else {
                               logger.error('Targeted updates tool_result missing yamlContent', {
                                 expectedPath: 'result.yamlContent',
-                                actualStructure: JSON.stringify(result, null, 2)
+                                actualStructure: JSON.stringify(result, null, 2),
                               })
                               // Set to error state if yamlContent is missing
                               existingToolCall.state = 'error'
@@ -777,11 +822,18 @@ export const useCopilotStore = create<CopilotStore>()(
                           // Tool execution failed
                           existingToolCall.state = 'error'
                           existingToolCall.error = result || 'Tool execution failed'
-                          logger.error('Tool call failed:', toolCallId, existingToolCall.name, result)
-                          
+                          logger.error(
+                            'Tool call failed:',
+                            toolCallId,
+                            existingToolCall.name,
+                            result
+                          )
+
                           // If this is a preview_workflow tool that failed, send error back to agent
                           if (existingToolCall.name === 'preview_workflow') {
-                            logger.info('Preview workflow tool execution failed, sending error back to agent for retry')
+                            logger.info(
+                              'Preview workflow tool execution failed, sending error back to agent for retry'
+                            )
                             // Send the error back to the agent after a brief delay to let the UI update
                             setTimeout(() => {
                               get().sendImplicitFeedback(
@@ -790,20 +842,22 @@ export const useCopilotStore = create<CopilotStore>()(
                             }, 1000)
                           }
                         }
-                        
+
                         // Update message with the result and content blocks
                         set((state) => ({
                           messages: state.messages.map((msg) =>
-                            msg.id === messageId ? { 
-                              ...msg, 
-                              content: accumulatedContent, 
-                              toolCalls: [...toolCalls],
-                              contentBlocks: msg.contentBlocks?.map(block =>
-                                block.type === 'tool_call' && block.toolCall.id === toolCallId
-                                  ? { ...block, toolCall: { ...existingToolCall } }
-                                  : block
-                              )
-                            } : msg
+                            msg.id === messageId
+                              ? {
+                                  ...msg,
+                                  content: accumulatedContent,
+                                  toolCalls: [...toolCalls],
+                                  contentBlocks: msg.contentBlocks?.map((block) =>
+                                    block.type === 'tool_call' && block.toolCall.id === toolCallId
+                                      ? { ...block, toolCall: { ...existingToolCall } }
+                                      : block
+                                  ),
+                                }
+                              : msg
                           ),
                         }))
                       }
@@ -814,7 +868,7 @@ export const useCopilotStore = create<CopilotStore>()(
                     logger.info('Message started')
                   } else if (data.type === 'content_block_start') {
                     currentBlockType = data.content_block?.type
-                    
+
                     if (currentBlockType === 'text') {
                       // Start a new text block
                       currentTextBlock = {
@@ -834,7 +888,7 @@ export const useCopilotStore = create<CopilotStore>()(
                         startTime: Date.now(),
                       }
                       toolCalls.push(toolCallBuffer)
-                      
+
                       // Add tool call to content blocks
                       const toolCallBlock = {
                         type: 'tool_call',
@@ -842,26 +896,34 @@ export const useCopilotStore = create<CopilotStore>()(
                         timestamp: Date.now(),
                       }
                       contentBlocks.push(toolCallBlock)
-                      
+
                       logger.info(`Starting tool call: ${data.content_block.name}`)
-                      
+
                       // Update message with content blocks
                       set((state) => ({
                         messages: state.messages.map((msg) =>
-                          msg.id === messageId ? { 
-                            ...msg, 
-                            content: accumulatedContent, 
-                            toolCalls: [...toolCalls],
-                            contentBlocks: [...contentBlocks]
-                          } : msg
+                          msg.id === messageId
+                            ? {
+                                ...msg,
+                                content: accumulatedContent,
+                                toolCalls: [...toolCalls],
+                                contentBlocks: [...contentBlocks],
+                              }
+                            : msg
                         ),
                       }))
                     }
                   } else if (data.type === 'content_block_delta') {
                     if (currentBlockType === 'text' && data.delta?.text) {
                       // Add text content to accumulated content
-                      if (isContinuation && accumulatedContent && !accumulatedContent.endsWith(' ') && data.delta.text && !data.delta.text.startsWith(' ')) {
-                        accumulatedContent += ' ' + data.delta.text
+                      if (
+                        isContinuation &&
+                        accumulatedContent &&
+                        !accumulatedContent.endsWith(' ') &&
+                        data.delta.text &&
+                        !data.delta.text.startsWith(' ')
+                      ) {
+                        accumulatedContent += ` ${data.delta.text}`
                       } else {
                         accumulatedContent += data.delta.text
                       }
@@ -869,13 +931,14 @@ export const useCopilotStore = create<CopilotStore>()(
                       // Add text to current text block
                       if (currentTextBlock) {
                         currentTextBlock.content += data.delta.text
-                        
+
                         // Update the content blocks array with the streaming text block
                         const updatedContentBlocks = [...contentBlocks]
-                        const existingBlockIndex = updatedContentBlocks.findIndex(block => 
-                          block.type === 'text' && block.timestamp === currentTextBlock.timestamp
+                        const existingBlockIndex = updatedContentBlocks.findIndex(
+                          (block) =>
+                            block.type === 'text' && block.timestamp === currentTextBlock.timestamp
                         )
-                        
+
                         if (existingBlockIndex >= 0) {
                           // Update existing block
                           updatedContentBlocks[existingBlockIndex] = { ...currentTextBlock }
@@ -883,7 +946,7 @@ export const useCopilotStore = create<CopilotStore>()(
                           // Add new text block to content blocks for real-time display
                           updatedContentBlocks.push({ ...currentTextBlock })
                         }
-                        
+
                         // Replace contentBlocks array contents
                         contentBlocks.splice(0, contentBlocks.length, ...updatedContentBlocks)
                       }
@@ -891,15 +954,21 @@ export const useCopilotStore = create<CopilotStore>()(
                       // Update message in real-time
                       set((state) => ({
                         messages: state.messages.map((msg) =>
-                          msg.id === messageId ? { 
-                            ...msg, 
-                            content: accumulatedContent, 
-                            toolCalls: [...toolCalls],
-                            contentBlocks: [...contentBlocks]
-                          } : msg
+                          msg.id === messageId
+                            ? {
+                                ...msg,
+                                content: accumulatedContent,
+                                toolCalls: [...toolCalls],
+                                contentBlocks: [...contentBlocks],
+                              }
+                            : msg
                         ),
                       }))
-                    } else if (currentBlockType === 'tool_use' && data.delta?.partial_json && toolCallBuffer) {
+                    } else if (
+                      currentBlockType === 'tool_use' &&
+                      data.delta?.partial_json &&
+                      toolCallBuffer
+                    ) {
                       // Buffer partial JSON for tool calls (silently)
                       toolCallBuffer.partialInput += data.delta.partial_json
                     }
@@ -912,45 +981,63 @@ export const useCopilotStore = create<CopilotStore>()(
                         // Parse complete tool call input
                         toolCallBuffer.input = JSON.parse(toolCallBuffer.partialInput || '{}')
                         // Set preview_workflow and targeted_updates tools to ready_for_review, others to completed
-                        toolCallBuffer.state = (toolCallBuffer.name === 'preview_workflow' || toolCallBuffer.name === 'targeted_updates') ? 'ready_for_review' : 'completed'
+                        toolCallBuffer.state =
+                          toolCallBuffer.name === 'preview_workflow' ||
+                          toolCallBuffer.name === 'targeted_updates'
+                            ? 'ready_for_review'
+                            : 'completed'
                         toolCallBuffer.endTime = Date.now()
                         toolCallBuffer.duration = toolCallBuffer.endTime - toolCallBuffer.startTime
-                        logger.info(`Tool call completed: ${toolCallBuffer.name}`, toolCallBuffer.input)
-                        
+                        logger.info(
+                          `Tool call completed: ${toolCallBuffer.name}`,
+                          toolCallBuffer.input
+                        )
+
                         // Update message with completed tool call and content blocks
                         set((state) => ({
                           messages: state.messages.map((msg) =>
-                            msg.id === messageId ? { 
-                              ...msg, 
-                              content: accumulatedContent, 
-                              toolCalls: [...toolCalls],
-                              contentBlocks: contentBlocks.map(block =>
-                                block.type === 'tool_call' && block.toolCall.id === toolCallBuffer.id
-                                  ? { ...block, toolCall: { ...toolCallBuffer } }
-                                  : block
-                              )
-                            } : msg
+                            msg.id === messageId
+                              ? {
+                                  ...msg,
+                                  content: accumulatedContent,
+                                  toolCalls: [...toolCalls],
+                                  contentBlocks: contentBlocks.map((block) =>
+                                    block.type === 'tool_call' &&
+                                    block.toolCall.id === toolCallBuffer.id
+                                      ? { ...block, toolCall: { ...toolCallBuffer } }
+                                      : block
+                                  ),
+                                }
+                              : msg
                           ),
                         }))
-                        
+
                         // If this is a preview_workflow tool call, set the preview YAML and diff store
                         if (toolCallBuffer.name === 'preview_workflow') {
-                          logger.info('Preview workflow tool completed with input:', toolCallBuffer.input)
-                          
+                          logger.info(
+                            'Preview workflow tool completed with input:',
+                            toolCallBuffer.input
+                          )
+
                           if (toolCallBuffer.input?.yamlContent) {
-                            logger.info('Setting preview YAML from completed preview_workflow tool call', {
-                              yamlLength: toolCallBuffer.input.yamlContent.length,
-                              yamlPreview: toolCallBuffer.input.yamlContent.substring(0, 100)
-                            })
+                            logger.info(
+                              'Setting preview YAML from completed preview_workflow tool call',
+                              {
+                                yamlLength: toolCallBuffer.input.yamlContent.length,
+                                yamlPreview: toolCallBuffer.input.yamlContent.substring(0, 100),
+                              }
+                            )
                             get().setPreviewYaml(toolCallBuffer.input.yamlContent)
-                            
+
                             // Also update the diff store with the proposed workflow state
                             get().updateDiffStore(toolCallBuffer.input.yamlContent)
                           } else {
-                            logger.warn('Preview workflow tool completed but no yamlContent found in input')
+                            logger.warn(
+                              'Preview workflow tool completed but no yamlContent found in input'
+                            )
                           }
                         }
-                        
+
                         // Don't handle targeted_updates here - it needs to wait for the tool_result event
                         // The result isn't available yet at content_block_stop, only the input
                       } catch (error) {
@@ -958,11 +1045,14 @@ export const useCopilotStore = create<CopilotStore>()(
                         toolCallBuffer.state = 'error'
                         toolCallBuffer.endTime = Date.now()
                         toolCallBuffer.duration = toolCallBuffer.endTime - toolCallBuffer.startTime
-                        toolCallBuffer.error = error instanceof Error ? error.message : String(error)
-                        
+                        toolCallBuffer.error =
+                          error instanceof Error ? error.message : String(error)
+
                         // If this is a preview_workflow tool that failed, send error back to agent
                         if (toolCallBuffer.name === 'preview_workflow') {
-                          logger.info('Preview workflow tool failed, sending error back to agent for retry')
+                          logger.info(
+                            'Preview workflow tool failed, sending error back to agent for retry'
+                          )
                           // Send the error back to the agent after a brief delay to let the UI update
                           setTimeout(() => {
                             get().sendImplicitFeedback(
@@ -977,13 +1067,15 @@ export const useCopilotStore = create<CopilotStore>()(
                   } else if (data.type === 'message_delta') {
                     // Handle token usage updates silently
                     if (data.delta?.stop_reason === 'tool_use') {
-                      logger.info('Message stopped for tool use - backend will handle execution and continue')
+                      logger.info(
+                        'Message stopped for tool use - backend will handle execution and continue'
+                      )
                     }
                   } else if (data.type === 'message_stop') {
                     // Backend will continue streaming if there are tools to execute
                     // Don't break the loop - just continue listening for more events
                     logger.info('Message stopped - backend may continue after tool execution')
-                    
+
                     // Reset block state for potential continuation
                     currentBlockType = null
                     toolCallBuffer = null
@@ -1005,18 +1097,20 @@ export const useCopilotStore = create<CopilotStore>()(
 
           // Stream ended naturally - finalize the message
           logger.info(`Completed streaming response, content length: ${accumulatedContent.length}`)
-          
+
           // Text blocks are already in contentBlocks from streaming, no need to add again
 
           // Final update when stream actually ends
           set((state) => ({
             messages: state.messages.map((msg) =>
-              msg.id === messageId ? { 
-                ...msg, 
-                content: accumulatedContent, 
-                toolCalls: [...toolCalls],
-                contentBlocks: [...contentBlocks]
-              } : msg
+              msg.id === messageId
+                ? {
+                    ...msg,
+                    content: accumulatedContent,
+                    toolCalls: [...toolCalls],
+                    contentBlocks: [...contentBlocks],
+                  }
+                : msg
             ),
             isSendingMessage: false,
           }))
@@ -1024,10 +1118,13 @@ export const useCopilotStore = create<CopilotStore>()(
           // Auto-save messages after streaming completes
           const { currentChat } = get()
           const chatIdToSave = currentChat?.id || newChatId
-          
+
           if (chatIdToSave) {
             try {
-              logger.info('Auto-saving chat messages after streaming completion to chat:', chatIdToSave)
+              logger.info(
+                'Auto-saving chat messages after streaming completion to chat:',
+                chatIdToSave
+              )
               await get().saveChatMessages(chatIdToSave)
             } catch (error) {
               logger.error('Failed to auto-save chat messages:', error)
@@ -1192,10 +1289,12 @@ export const useCopilotStore = create<CopilotStore>()(
         try {
           // Update local state immediately
           set((state) => ({
-            currentChat: state.currentChat ? {
-              ...state.currentChat,
-              previewYaml: yamlContent
-            } : null
+            currentChat: state.currentChat
+              ? {
+                  ...state.currentChat,
+                  previewYaml: yamlContent,
+                }
+              : null,
           }))
 
           // Update database
@@ -1217,10 +1316,12 @@ export const useCopilotStore = create<CopilotStore>()(
           logger.error('Failed to set preview YAML:', error)
           // Revert local state on error
           set((state) => ({
-            currentChat: state.currentChat ? {
-              ...state.currentChat,
-              previewYaml: null
-            } : null
+            currentChat: state.currentChat
+              ? {
+                  ...state.currentChat,
+                  previewYaml: null,
+                }
+              : null,
           }))
         }
       },
@@ -1236,10 +1337,12 @@ export const useCopilotStore = create<CopilotStore>()(
         try {
           // Update local state immediately
           set((state) => ({
-            currentChat: state.currentChat ? {
-              ...state.currentChat,
-              previewYaml: null
-            } : null
+            currentChat: state.currentChat
+              ? {
+                  ...state.currentChat,
+                  previewYaml: null,
+                }
+              : null,
           }))
 
           // Update database
@@ -1292,7 +1395,7 @@ export const useCopilotStore = create<CopilotStore>()(
         try {
           // Import diff store dynamically to avoid circular dependencies
           const { useWorkflowDiffStore } = await import('@/stores/workflow-diff')
-          
+
           logger.info('Updating diff store with copilot YAML')
 
           // Generate diff analysis by comparing current vs proposed YAML
@@ -1301,7 +1404,7 @@ export const useCopilotStore = create<CopilotStore>()(
             // Get current workflow as YAML for comparison
             const { useWorkflowYamlStore } = await import('@/stores/workflows/yaml/store')
             const currentYaml = useWorkflowYamlStore.getState().getYaml()
-            
+
             // Call the diff API to compare current vs proposed YAML
             const diffResponse = await fetch('/api/workflows/diff', {
               method: 'POST',
@@ -1336,12 +1439,11 @@ export const useCopilotStore = create<CopilotStore>()(
           await diffStore.setProposedChanges(yamlContent, diffAnalysis)
 
           logger.info('Successfully updated diff store with proposed workflow changes')
-          
         } catch (error) {
           logger.error('Failed to update diff store:', error)
           // Show error to user
           console.error('[Copilot] Error updating diff store:', error)
-          
+
           // Try to show at least the preview YAML even if diff fails
           const { currentChat } = get()
           if (currentChat?.previewYaml) {

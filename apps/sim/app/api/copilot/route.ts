@@ -155,13 +155,15 @@ export async function POST(req: NextRequest) {
     }
 
     if (streamToRead) {
-      logger.info(`[${requestId}] Returning native SSE streaming response with chatId: ${result.chatId}`)
+      logger.info(
+        `[${requestId}] Returning native SSE streaming response with chatId: ${result.chatId}`
+      )
 
       // Create a new stream that first sends the chatId, then forwards the actual response
       const transformedStream = new ReadableStream({
         async start(controller) {
           const encoder = new TextEncoder()
-          
+
           // First, send the chatId as an SSE event
           if (result.chatId) {
             const chatIdEvent = `data: ${JSON.stringify({ type: 'chat_id', chatId: result.chatId })}\n\n`
@@ -182,7 +184,7 @@ export async function POST(req: NextRequest) {
           } finally {
             controller.close()
           }
-        }
+        },
       })
 
       // Pass through native Anthropic SSE events directly to the frontend

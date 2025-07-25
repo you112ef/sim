@@ -3,9 +3,9 @@ import { Check, ChevronDown } from 'lucide-react'
 import { extractFieldsFromSchema, parseResponseFormatSafely } from '@/lib/response-format'
 import { cn } from '@/lib/utils'
 import { getBlock } from '@/blocks'
+import { useWorkflowDiffStore } from '@/stores/workflow-diff/store'
 import { useSubBlockStore } from '@/stores/workflows/subblock/store'
 import { useWorkflowStore } from '@/stores/workflows/workflow/store'
-import { useWorkflowDiffStore } from '@/stores/workflow-diff/store'
 
 interface OutputSelectProps {
   workflowId: string | null
@@ -26,7 +26,7 @@ export function OutputSelect({
   const dropdownRef = useRef<HTMLDivElement>(null)
   const blocks = useWorkflowStore((state) => state.blocks)
   const { isShowingDiff, diffWorkflow } = useWorkflowDiffStore()
-  
+
   // Use diff blocks when in diff mode, otherwise use main blocks
   const workflowBlocks = isShowingDiff && diffWorkflow ? diffWorkflow.blocks : blocks
 
@@ -56,9 +56,10 @@ export function OutputSelect({
 
       // Check for custom response format first
       // In diff mode, get value from diff blocks; otherwise use store
-      const responseFormatValue = isShowingDiff && diffWorkflow
-        ? diffWorkflow.blocks[block.id]?.subBlocks?.responseFormat?.value
-        : useSubBlockStore.getState().getValue(block.id, 'responseFormat')
+      const responseFormatValue =
+        isShowingDiff && diffWorkflow
+          ? diffWorkflow.blocks[block.id]?.subBlocks?.responseFormat?.value
+          : useSubBlockStore.getState().getValue(block.id, 'responseFormat')
       const responseFormat = parseResponseFormatSafely(responseFormatValue, block.id)
 
       let outputsToProcess: Record<string, any> = {}

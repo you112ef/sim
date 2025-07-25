@@ -1,6 +1,6 @@
 /**
  * YAML Workflow Examples for Copilot
- * 
+ *
  * This file contains example YAML workflows that the copilot can reference
  * when helping users build workflows.
  */
@@ -27,7 +27,7 @@ blocks:
       model: gpt-4o
       apiKey: '{{OPENAI_API_KEY}}'`,
 
-  'tool_call_agent': `version: '1.0'
+  tool_call_agent: `version: '1.0'
 blocks:
   start:
     type: starter
@@ -218,7 +218,7 @@ blocks:
       apiKey: '{{OPENAI_API_KEY}}'`,
 
   // Targeted Update Examples - for demonstrating targeted_updates tool usage patterns
-  'targeted_add_block': `// Example: Adding a new agent block to an existing workflow
+  targeted_add_block: `// Example: Adding a new agent block to an existing workflow
 // Operation: Add a new block after an existing agent
 {
   "operations": [
@@ -248,7 +248,7 @@ blocks:
   ]
 }`,
 
-  'targeted_edit_block': `// Example: Modifying an existing block's configuration
+  targeted_edit_block: `// Example: Modifying an existing block's configuration
 // Operation: Update system prompt and add tools to an agent
 {
   "operations": [
@@ -278,7 +278,7 @@ blocks:
   ]
 }`,
 
-  'targeted_delete_block': `// Example: Removing a block and updating connections
+  targeted_delete_block: `// Example: Removing a block and updating connections
 // Operation: Delete a block and redirect its connections
 {
   "operations": [
@@ -298,7 +298,7 @@ blocks:
   ]
 }`,
 
-  'targeted_add_connection': `// Example: Adding new parallel connections
+  targeted_add_connection: `// Example: Adding new parallel connections
 // Operation: Make one block connect to multiple agents
 {
   "operations": [
@@ -328,7 +328,7 @@ blocks:
   ]
 }`,
 
-  'targeted_batch_operations': `// Example: Multiple operations in one targeted update
+  targeted_batch_operations: `// Example: Multiple operations in one targeted update
 // Operation: Add API block, update agent, and create new connections
 {
   "operations": [
@@ -381,5 +381,5 @@ blocks:
       }
     }
   ]
-}`
-} 
+}`,
+}

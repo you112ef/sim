@@ -1,7 +1,7 @@
+import { eq } from 'drizzle-orm'
 import { createLogger } from '@/lib/logs/console-logger'
 import { db } from '@/db'
 import { environment } from '@/db/schema'
-import { eq } from 'drizzle-orm'
 
 const logger = createLogger('EnvironmentUtils')
 
@@ -39,4 +39,4 @@ export async function getEnvironmentVariableKeys(userId: string): Promise<{
     logger.error('Error getting environment variable keys:', error)
     throw new Error('Failed to get environment variables')
   }
-} 
+}

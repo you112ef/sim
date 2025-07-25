@@ -32,7 +32,8 @@ const SPECIAL_BLOCKS_METADATA: Record<string, any> = {
     type: 'loop',
     name: 'Loop',
     description: 'Control flow block for iterating over collections or repeating actions',
-    longDescription: 'Execute a set of blocks repeatedly, either for a fixed number of iterations or for each item in a collection. Loop blocks create sub-workflows that run multiple times with different iteration data.',
+    longDescription:
+      'Execute a set of blocks repeatedly, either for a fixed number of iterations or for each item in a collection. Loop blocks create sub-workflows that run multiple times with different iteration data.',
     category: 'blocks',
     bgColor: '#9333EA',
     subBlocks: [
@@ -59,7 +60,7 @@ const SPECIAL_BLOCKS_METADATA: Record<string, any> = {
       {
         id: 'collection',
         title: 'Collection',
-        type: 'short-input', 
+        type: 'short-input',
         layout: 'full',
         placeholder: 'Reference to array or object',
         condition: { field: 'iterationType', value: 'forEach' },
@@ -81,7 +82,8 @@ const SPECIAL_BLOCKS_METADATA: Record<string, any> = {
     type: 'parallel',
     name: 'Parallel',
     description: 'Control flow block for executing multiple branches simultaneously',
-    longDescription: 'Execute multiple sets of blocks simultaneously, either with a fixed number of parallel branches or by distributing items from a collection across parallel executions.',
+    longDescription:
+      'Execute multiple sets of blocks simultaneously, either with a fixed number of parallel branches or by distributing items from a collection across parallel executions.',
     category: 'blocks',
     bgColor: '#059669',
     subBlocks: [
@@ -182,15 +184,15 @@ export async function POST(request: NextRequest) {
 
     for (const blockId of blockIds) {
       const blockConfig = blockRegistry[blockId]
-      
+
       // Check if it's a special block not in the standard registry
       if (!blockConfig && SPECIAL_BLOCKS_METADATA[blockId]) {
         const specialBlock = SPECIAL_BLOCKS_METADATA[blockId]
-        
+
         // Check if this special block has YAML documentation
         if (CORE_BLOCKS_WITH_DOCS.includes(blockId)) {
           const yamlSchema = getYamlSchemaFromDocs(blockId)
-          
+
           if (yamlSchema) {
             result[blockId] = {
               type: 'block',

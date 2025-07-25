@@ -41,33 +41,39 @@ export const WorkflowEdge = ({
   const isSelected = data?.isSelected ?? false
   const isInsideLoop = data?.isInsideLoop ?? false
   const parentLoopId = data?.parentLoopId
-  
+
   // Get edge diff status
   const diffAnalysis = useWorkflowDiffStore((state) => state.diffAnalysis)
   const isShowingDiff = useWorkflowDiffStore((state) => state.isShowingDiff)
   const isDiffReady = useWorkflowDiffStore((state) => state.isDiffReady)
   const currentWorkflow = useCurrentWorkflow()
-  
+
   // Generate edge identifier using block names (not IDs) to match diff analysis
   // This must exactly match the logic in /api/workflows/diff route
-  const generateEdgeIdentity = (sourceName: string, targetName: string, sourceHandle?: string | null, targetHandle?: string | null): string => {
+  const generateEdgeIdentity = (
+    sourceName: string,
+    targetName: string,
+    sourceHandle?: string | null,
+    targetHandle?: string | null
+  ): string => {
     // The API route uses "success" as the default handle when sourceHandle is null/undefined
     // We need to match this logic exactly
     const effectiveSourceHandle = sourceHandle || 'success'
     return `${sourceName}:${effectiveSourceHandle}->${targetName}${targetHandle ? `:${targetHandle}` : ''}`
   }
-  
+
   // Get block names from workflow - handle both diff and normal modes
   const sourceBlock = currentWorkflow.getBlockById(source)
   const targetBlock = currentWorkflow.getBlockById(target)
   const sourceName = sourceBlock?.name
   const targetName = targetBlock?.name
-  
+
   // Generate edge identifier using the exact same logic as the API route
-  const edgeIdentifier = sourceName && targetName ? 
-    generateEdgeIdentity(sourceName, targetName, sourceHandle, targetHandle) : 
-    null
-  
+  const edgeIdentifier =
+    sourceName && targetName
+      ? generateEdgeIdentity(sourceName, targetName, sourceHandle, targetHandle)
+      : null
+
   // Debug logging to understand what's happening
   useEffect(() => {
     if (edgeIdentifier && diffAnalysis?.edge_diff) {
@@ -92,11 +98,24 @@ export const WorkflowEdge = ({
         matchesUnchanged: diffAnalysis.edge_diff.unchanged_edges.includes(edgeIdentifier),
       })
     }
-  }, [edgeIdentifier, diffAnalysis, isShowingDiff, id, sourceName, targetName, sourceHandle, targetHandle, source, target, currentWorkflow.isDiffMode])
-  
+  }, [
+    edgeIdentifier,
+    diffAnalysis,
+    isShowingDiff,
+    id,
+    sourceName,
+    targetName,
+    sourceHandle,
+    targetHandle,
+    source,
+    target,
+    currentWorkflow.isDiffMode,
+  ])
+
   // One-time debug log of full diff analysis
   useEffect(() => {
-    if (diffAnalysis && id === Object.keys(currentWorkflow.blocks)[0]) { // Only log once per diff
+    if (diffAnalysis && id === Object.keys(currentWorkflow.blocks)[0]) {
+      // Only log once per diff
       console.log('[Full Diff Analysis]:', {
         edge_diff: diffAnalysis.edge_diff,
         new_blocks: diffAnalysis.new_blocks,
@@ -104,14 +123,14 @@ export const WorkflowEdge = ({
         deleted_blocks: diffAnalysis.deleted_blocks,
         isShowingDiff,
         currentWorkflowEdgeCount: currentWorkflow.edges.length,
-        currentWorkflowBlockCount: Object.keys(currentWorkflow.blocks).length
+        currentWorkflowBlockCount: Object.keys(currentWorkflow.blocks).length,
       })
     }
   }, [diffAnalysis, id, currentWorkflow.blocks, currentWorkflow.edges, isShowingDiff])
-  
+
   // Determine edge diff status
   let edgeDiffStatus: 'new' | 'deleted' | 'unchanged' | null = null
-  
+
   // Only attempt to determine diff status if all required data is available
   if (diffAnalysis?.edge_diff && edgeIdentifier && sourceName && targetName && isDiffReady) {
     if (isShowingDiff) {
@@ -136,15 +155,15 @@ export const WorkflowEdge = ({
     if (isSelected) return '#475569'
     return '#94a3b8'
   }
-  
+
   const edgeStyle = {
-    strokeWidth: edgeDiffStatus ? 3 : (isSelected ? 2.5 : 2),
+    strokeWidth: edgeDiffStatus ? 3 : isSelected ? 2.5 : 2,
     stroke: getEdgeColor(),
     strokeDasharray: edgeDiffStatus === 'deleted' ? '10,5' : '5,5', // Longer dashes for deleted
     opacity: edgeDiffStatus === 'deleted' ? 0.7 : 1,
     ...style,
   }
-  
+
   return (
     <>
       <BaseEdge

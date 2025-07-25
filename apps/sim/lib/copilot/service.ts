@@ -8,6 +8,7 @@ import { executeProviderRequest } from '@/providers'
 import type { ProviderToolConfig } from '@/providers/types'
 import { getApiKey } from '@/providers/utils'
 import { getCopilotConfig, getCopilotModel } from './config'
+import { WORKFLOW_EXAMPLES } from './examples'
 import {
   AGENT_MODE_SYSTEM_PROMPT,
   ASK_MODE_SYSTEM_PROMPT,
@@ -15,7 +16,6 @@ import {
   TITLE_GENERATION_USER_PROMPT,
   validateSystemPrompts,
 } from './prompts'
-import { WORKFLOW_EXAMPLES } from './examples'
 
 const logger = createLogger('CopilotService')
 
@@ -27,8 +27,6 @@ if (!promptValidation.askMode.valid) {
 if (!promptValidation.agentMode.valid) {
   logger.error('Agent mode system prompt validation failed:', promptValidation.agentMode.issues)
 }
-
-
 
 /**
  * Citation information for documentation references
@@ -251,10 +249,10 @@ function getAvailableTools(mode: 'ask' | 'agent'): ProviderToolConfig[] {
           exampleIds: {
             type: 'array',
             items: {
-              type: 'string'
+              type: 'string',
             },
-            description: 'Array of example IDs to retrieve'
-          }
+            description: 'Array of example IDs to retrieve',
+          },
         },
         required: ['exampleIds'],
       },
@@ -414,7 +412,8 @@ function getAvailableTools(mode: 'ask' | 'agent'): ProviderToolConfig[] {
       params: {
         variables: {
           type: 'object',
-          description: 'A key-value object containing the environment variables to set. Example: {"API_KEY": "your-key", "DATABASE_URL": "your-url"}',
+          description:
+            'A key-value object containing the environment variables to set. Example: {"API_KEY": "your-key", "DATABASE_URL": "your-url"}',
         },
       },
       parameters: {
@@ -422,7 +421,8 @@ function getAvailableTools(mode: 'ask' | 'agent'): ProviderToolConfig[] {
         properties: {
           variables: {
             type: 'object',
-            description: 'A key-value object containing the environment variables to set. Example: {"API_KEY": "your-key", "DATABASE_URL": "your-url"}',
+            description:
+              'A key-value object containing the environment variables to set. Example: {"API_KEY": "your-key", "DATABASE_URL": "your-url"}',
           },
         },
         required: ['variables'],
@@ -444,7 +444,8 @@ function getAvailableTools(mode: 'ask' | 'agent'): ProviderToolConfig[] {
           },
           includeDetails: {
             type: 'boolean',
-            description: 'Whether to include detailed input/output data for each console entry (default: false)',
+            description:
+              'Whether to include detailed input/output data for each console entry (default: false)',
             default: false,
           },
         },
@@ -469,30 +470,30 @@ function getAvailableTools(mode: 'ask' | 'agent'): ProviderToolConfig[] {
                 operation_type: {
                   type: 'string',
                   enum: ['add', 'edit', 'delete'],
-                  description: 'Type of operation to perform'
+                  description: 'Type of operation to perform',
                 },
                 block_id: {
-                  type: 'string', 
-                  description: 'Block ID for the operation. For add operations, this will be the desired ID for the new block.'
+                  type: 'string',
+                  description:
+                    'Block ID for the operation. For add operations, this will be the desired ID for the new block.',
                 },
                 params: {
                   type: 'object',
-                  description: 'Parameters for the operation. For add: {type: "block_type", name: "Block Name", inputs: {...}, connections: {...}}, for edit: {inputs: {...}, connections: {...}}, for delete: empty'
-                }
+                  description:
+                    'Parameters for the operation. For add: {type: "block_type", name: "Block Name", inputs: {...}, connections: {...}}, for edit: {inputs: {...}, connections: {...}}, for delete: empty',
+                },
               },
-              required: ['operation_type', 'block_id']
-            }
-          }
+              required: ['operation_type', 'block_id'],
+            },
+          },
         },
-        required: ['operations']
+        required: ['operations'],
       },
     },
   ]
 
   // Filter tools based on mode
-  return mode === 'ask' 
-    ? allTools.filter((tool) => tool.id !== 'preview_workflow') 
-    : allTools
+  return mode === 'ask' ? allTools.filter((tool) => tool.id !== 'preview_workflow') : allTools
 }
 
 /**
@@ -629,7 +630,7 @@ export async function generateChatResponse(
       streamToolCalls: true, // Enable tool call streaming for copilot
       workflowId: options.workflowId,
       chatId: options.chatId,
-      userId: options.userId || 'unknown_user' // Pass userId to provider request
+      userId: options.userId || 'unknown_user', // Pass userId to provider request
     })
 
     // Handle StreamingExecution (from providers with tool calls)
@@ -898,7 +899,7 @@ export async function sendMessage(request: SendMessageRequest): Promise<{
       mode,
       chatId: currentChat?.id,
       implicitFeedback: request.implicitFeedback,
-      userId: userId // Pass userId to generateChatResponse
+      userId: userId, // Pass userId to generateChatResponse
     })
 
     // For non-streaming responses, save immediately
@@ -960,5 +961,3 @@ export async function updateChatMessages(
     throw error
   }
 }
-
-

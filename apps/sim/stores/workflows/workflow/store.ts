@@ -198,7 +198,7 @@ export const useWorkflowStore = create<WorkflowStoreWithHistory>()(
             logger.warn(`Cannot update dimensions: Block ${id} not found in workflow store`)
             return state // Return unchanged state
           }
-          
+
           return {
             blocks: {
               ...state.blocks,

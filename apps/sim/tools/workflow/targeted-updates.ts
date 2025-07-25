@@ -52,7 +52,7 @@ export const targetedUpdatesTool: ToolConfig<TargetedUpdatesParams, TargetedUpda
     }),
     body: (params) => ({
       operations: params.operations,
-      workflowId: params._context?.workflowId
+      workflowId: params._context?.workflowId,
     }),
     isInternalRoute: true,
   },
@@ -75,8 +75,8 @@ export const targetedUpdatesTool: ToolConfig<TargetedUpdatesParams, TargetedUpda
       success: true,
       output: data.data || {
         results: [],
-        processedOperations: 0
-      }
+        processedOperations: 0,
+      },
     }
   },
 
@@ -86,4 +86,4 @@ export const targetedUpdatesTool: ToolConfig<TargetedUpdatesParams, TargetedUpda
     }
     return 'An unexpected error occurred while performing targeted updates'
   },
-} 
+}

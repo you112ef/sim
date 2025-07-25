@@ -174,12 +174,15 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
     // Save to normalized tables
     // Ensure all required fields are present for WorkflowState type
     // Filter out blocks without type or name before saving
-    const filteredBlocks = Object.entries(state.blocks).reduce((acc, [blockId, block]) => {
-      if (block.type && block.name) {
-        acc[blockId] = block
-      }
-      return acc
-    }, {} as typeof state.blocks)
+    const filteredBlocks = Object.entries(state.blocks).reduce(
+      (acc, [blockId, block]) => {
+        if (block.type && block.name) {
+          acc[blockId] = block
+        }
+        return acc
+      },
+      {} as typeof state.blocks
+    )
 
     const workflowState = {
       blocks: filteredBlocks,

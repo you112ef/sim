@@ -1,22 +1,22 @@
-import { Check, X, Eye } from 'lucide-react'
+import { Check, Eye, X } from 'lucide-react'
 import { Button } from '@/components/ui/button'
-import { useWorkflowDiffStore } from '@/stores/workflow-diff'
-import { useCopilotStore } from '@/stores/copilot/store'
 import { createLogger } from '@/lib/logs/console-logger'
+import { useCopilotStore } from '@/stores/copilot/store'
+import { useWorkflowDiffStore } from '@/stores/workflow-diff'
 
 const logger = createLogger('DiffControls')
 
 export function DiffControls() {
-  const { 
+  const {
     isShowingDiff,
-    isDiffReady, 
-    diffWorkflow, 
-    toggleDiffView, 
-    acceptChanges, 
+    isDiffReady,
+    diffWorkflow,
+    toggleDiffView,
+    acceptChanges,
     rejectChanges,
-    diffMetadata 
+    diffMetadata,
   } = useWorkflowDiffStore()
-  
+
   const { updatePreviewToolCallState, clearPreviewYaml } = useCopilotStore()
 
   // Don't show anything if no diff is available or diff is not ready
@@ -31,15 +31,15 @@ export function DiffControls() {
 
   const handleAccept = async () => {
     logger.info('Accepting proposed changes')
-    
+
     try {
       // Accept the changes in the diff store (this updates the main workflow store)
       await acceptChanges()
-      
+
       // Update the copilot tool call state and clear preview YAML
       updatePreviewToolCallState('applied')
       await clearPreviewYaml()
-      
+
       logger.info('Successfully accepted proposed changes')
     } catch (error) {
       logger.error('Failed to accept changes:', error)
@@ -48,15 +48,15 @@ export function DiffControls() {
 
   const handleReject = async () => {
     logger.info('Rejecting proposed changes')
-    
+
     try {
       // Reject the changes in the diff store
       rejectChanges()
-      
+
       // Update the copilot tool call state and clear preview YAML
       updatePreviewToolCallState('rejected')
       await clearPreviewYaml()
-      
+
       logger.info('Successfully rejected proposed changes')
     } catch (error) {
       logger.error('Failed to reject changes:', error)
@@ -64,7 +64,7 @@ export function DiffControls() {
   }
 
   return (
-    <div className='fixed bottom-20 left-1/2 z-30 -translate-x-1/2'>
+    <div className='-translate-x-1/2 fixed bottom-20 left-1/2 z-30'>
       <div className='rounded-lg border bg-background/95 p-4 shadow-lg backdrop-blur-sm'>
         <div className='flex items-center gap-4'>
           {/* Info section */}
@@ -77,8 +77,9 @@ export function DiffControls() {
                 {isShowingDiff ? 'Viewing Proposed Changes' : 'Copilot has proposed changes'}
               </span>
               {diffMetadata && (
-                <span className='text-xs text-muted-foreground'>
-                  Source: {diffMetadata.source} • {new Date(diffMetadata.timestamp).toLocaleTimeString()}
+                <span className='text-muted-foreground text-xs'>
+                  Source: {diffMetadata.source} •{' '}
+                  {new Date(diffMetadata.timestamp).toLocaleTimeString()}
                 </span>
               )}
             </div>
@@ -108,12 +109,7 @@ export function DiffControls() {
                   <Check className='mr-1 h-3 w-3' />
                   Accept
                 </Button>
-                <Button
-                  variant='destructive'
-                  size='sm'
-                  onClick={handleReject}
-                  className='h-8 px-3'
-                >
+                <Button variant='destructive' size='sm' onClick={handleReject} className='h-8 px-3'>
                   <X className='mr-1 h-3 w-3' />
                   Reject
                 </Button>
@@ -124,4 +120,4 @@ export function DiffControls() {
       </div>
     </div>
   )
-} 
+}

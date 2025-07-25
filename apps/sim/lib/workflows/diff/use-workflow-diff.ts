@@ -1,9 +1,9 @@
-import { useState, useCallback, useRef, useEffect } from 'react'
+import { useCallback, useRef, useState } from 'react'
 import { createLogger } from '@/lib/logs/console-logger'
-import { useWorkflowStore } from '@/stores/workflows/workflow/store'
-import { useSubBlockStore } from '@/stores/workflows/subblock/store'
 import { useWorkflowRegistry } from '@/stores/workflows/registry/store'
-import { WorkflowDiffEngine, type DiffAnalysis } from './diff-engine'
+import { useSubBlockStore } from '@/stores/workflows/subblock/store'
+import { useWorkflowStore } from '@/stores/workflows/workflow/store'
+import { type DiffAnalysis, WorkflowDiffEngine } from './diff-engine'
 
 const logger = createLogger('useWorkflowDiff')
 
@@ -25,40 +25,37 @@ export interface UseWorkflowDiffReturn {
 export function useWorkflowDiff(): UseWorkflowDiffReturn {
   const [isShowingDiff, setIsShowingDiff] = useState(false)
   const diffEngineRef = useRef<WorkflowDiffEngine | null>(null)
-  
+
   // Get store methods
   const workflowStore = useWorkflowStore()
-  const activeWorkflowId = useWorkflowRegistry(state => state.activeWorkflowId)
+  const activeWorkflowId = useWorkflowRegistry((state) => state.activeWorkflowId)
 
   // Initialize diff engine
   if (!diffEngineRef.current) {
     diffEngineRef.current = new WorkflowDiffEngine()
   }
 
-  const setProposedChanges = useCallback(async (
-    yamlContent: string,
-    diffAnalysis?: DiffAnalysis
-  ): Promise<boolean> => {
-    try {
-      logger.info('Setting proposed changes')
-      
-      const result = await diffEngineRef.current!.createDiffFromYaml(
-        yamlContent,
-        diffAnalysis
-      )
+  const setProposedChanges = useCallback(
+    async (yamlContent: string, diffAnalysis?: DiffAnalysis): Promise<boolean> => {
+      try {
+        logger.info('Setting proposed changes')
 
-      if (result.success) {
-        setIsShowingDiff(true)
-        return true
+        const result = await diffEngineRef.current!.createDiffFromYaml(yamlContent, diffAnalysis)
+
+        if (result.success) {
+          setIsShowingDiff(true)
+          return true
+        }
+
+        logger.error('Failed to create diff:', result.errors)
+        return false
+      } catch (error) {
+        logger.error('Error setting proposed changes:', error)
+        return false
       }
-
-      logger.error('Failed to create diff:', result.errors)
-      return false
-    } catch (error) {
-      logger.error('Error setting proposed changes:', error)
-      return false
-    }
-  }, [])
+    },
+    []
+  )
 
   const clearDiff = useCallback(() => {
     logger.info('Clearing diff')
@@ -74,7 +71,7 @@ export function useWorkflowDiff(): UseWorkflowDiffReturn {
 
     try {
       logger.info('Accepting diff changes')
-      
+
       const cleanState = diffEngineRef.current!.acceptDiff()
       if (!cleanState) {
         logger.warn('No diff to accept')
@@ -86,7 +83,7 @@ export function useWorkflowDiff(): UseWorkflowDiffReturn {
         blocks: cleanState.blocks,
         edges: cleanState.edges,
         loops: cleanState.loops,
-        parallels: cleanState.parallels
+        parallels: cleanState.parallels,
       })
 
       // Update subblock store with values from diff
@@ -101,8 +98,8 @@ export function useWorkflowDiff(): UseWorkflowDiffReturn {
       useSubBlockStore.setState((state) => ({
         workflowValues: {
           ...state.workflowValues,
-          [activeWorkflowId]: subblockValues
-        }
+          [activeWorkflowId]: subblockValues,
+        },
       }))
 
       // Update last saved timestamp
@@ -115,8 +112,8 @@ export function useWorkflowDiff(): UseWorkflowDiffReturn {
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             ...cleanState,
-            lastSaved: Date.now()
-          })
+            lastSaved: Date.now(),
+          }),
         })
 
         if (!response.ok) {
@@ -143,16 +140,16 @@ export function useWorkflowDiff(): UseWorkflowDiffReturn {
   }, [clearDiff])
 
   const toggleDiffView = useCallback(() => {
-    setIsShowingDiff(prev => !prev)
+    setIsShowingDiff((prev) => !prev)
   }, [])
 
   const getCurrentWorkflowForCanvas = useCallback(() => {
     const currentState = workflowStore.getWorkflowState()
-    
+
     if (isShowingDiff && diffEngineRef.current!.hasDiff()) {
       return diffEngineRef.current!.getDisplayState(currentState)
     }
-    
+
     return currentState
   }, [isShowingDiff, workflowStore])
 
@@ -164,6 +161,6 @@ export function useWorkflowDiff(): UseWorkflowDiffReturn {
     acceptChanges,
     rejectChanges,
     toggleDiffView,
-    getCurrentWorkflowForCanvas
+    getCurrentWorkflowForCanvas,
   }
-} 
+}

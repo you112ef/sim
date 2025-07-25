@@ -60,7 +60,7 @@ export async function applyAutoLayoutToWorkflow(
 
     // Import auto layout service
     const { autoLayoutWorkflow } = await import('@/lib/autolayout/service')
-    
+
     // Merge with default options and ensure all required properties are present
     const layoutOptions = {
       strategy: options.strategy || DEFAULT_AUTO_LAYOUT_OPTIONS.strategy!,
@@ -76,10 +76,10 @@ export async function applyAutoLayoutToWorkflow(
         y: options.padding?.y || DEFAULT_AUTO_LAYOUT_OPTIONS.padding!.y!,
       },
     }
-    
+
     // Apply auto layout
     const layoutedBlocks = await autoLayoutWorkflow(blocks, edges, layoutOptions)
-    
+
     logger.info('Successfully applied auto layout', {
       workflowId,
       originalBlockCount: Object.keys(blocks).length,
@@ -93,7 +93,7 @@ export async function applyAutoLayoutToWorkflow(
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : 'Unknown auto layout error'
     logger.error('Auto layout failed:', { workflowId, error: errorMessage })
-    
+
     return {
       success: false,
       error: errorMessage,
@@ -114,7 +114,7 @@ export async function applyAutoLayoutAndUpdateStore(
   try {
     // Import workflow store
     const { useWorkflowStore } = await import('@/stores/workflows/workflow/store')
-    
+
     const workflowStore = useWorkflowStore.getState()
     const { blocks, edges } = workflowStore
 
@@ -125,7 +125,7 @@ export async function applyAutoLayoutAndUpdateStore(
 
     // Apply auto layout
     const result = await applyAutoLayoutToWorkflow(workflowId, blocks, edges, options)
-    
+
     if (!result.success || !result.layoutedBlocks) {
       return { success: false, error: result.error }
     }
@@ -138,7 +138,7 @@ export async function applyAutoLayoutAndUpdateStore(
     }
 
     useWorkflowStore.setState(newWorkflowState)
-    
+
     logger.info('Successfully updated workflow store with auto layout', { workflowId })
 
     // Save to database in background (don't await to keep UI responsive)
@@ -148,7 +148,7 @@ export async function applyAutoLayoutAndUpdateStore(
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : 'Unknown store update error'
     logger.error('Failed to update store with auto layout:', { workflowId, error: errorMessage })
-    
+
     return {
       success: false,
       error: errorMessage,
@@ -216,4 +216,4 @@ export async function applyAutoLayoutToBlocks(
   error?: string
 }> {
   return applyAutoLayoutToWorkflow('preview', blocks, edges, options)
-} 
+}

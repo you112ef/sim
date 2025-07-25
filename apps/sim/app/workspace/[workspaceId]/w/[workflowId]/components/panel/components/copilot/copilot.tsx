@@ -11,16 +11,16 @@ import {
 } from '@/components/ui/dropdown-menu'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { createLogger } from '@/lib/logs/console-logger'
+import { usePreviewStore } from '@/stores/copilot/preview-store'
 import { useCopilotStore } from '@/stores/copilot/store'
 import { useWorkflowRegistry } from '@/stores/workflows/registry/store'
+import { useCopilotSandbox } from '../../../../hooks/use-copilot-sandbox'
+import { CopilotSandboxModal } from '../../../copilot-sandbox-modal/copilot-sandbox-modal'
 import { CheckpointPanel } from './components/checkpoint-panel'
 import { CopilotModal } from './components/copilot-modal/copilot-modal'
 import { ProfessionalInput } from './components/professional-input/professional-input'
 import { ProfessionalMessage } from './components/professional-message/professional-message'
 import { CopilotWelcome } from './components/welcome/welcome'
-import { CopilotSandboxModal } from '../../../copilot-sandbox-modal/copilot-sandbox-modal'
-import { useCopilotSandbox } from '../../../../hooks/use-copilot-sandbox'
-import { usePreviewStore } from '@/stores/copilot/preview-store'
 
 const logger = createLogger('Copilot')
 
@@ -56,8 +56,9 @@ export const Copilot = forwardRef<CopilotRef, CopilotProps>(
     const { activeWorkflowId } = useWorkflowRegistry()
 
     // Use copilot sandbox for workflow previews
-    const { sandboxState, showSandbox, closeSandbox, applyToCurrentWorkflow, saveAsNewWorkflow } = useCopilotSandbox()
-    
+    const { sandboxState, showSandbox, closeSandbox, applyToCurrentWorkflow, saveAsNewWorkflow } =
+      useCopilotSandbox()
+
     // Use preview store to track seen previews
     const { scanAndMarkExistingPreviews, isToolCallSeen, markToolCallAsSeen } = usePreviewStore()
 
@@ -126,10 +127,10 @@ export const Copilot = forwardRef<CopilotRef, CopilotProps>(
 
       // Check for completed preview_workflow tool calls
       const previewToolCall = lastMessage.toolCalls.find(
-        tc => tc.name === 'preview_workflow' && tc.state === 'completed' && !isToolCallSeen(tc.id)
+        (tc) => tc.name === 'preview_workflow' && tc.state === 'completed' && !isToolCallSeen(tc.id)
       )
 
-      if (previewToolCall && previewToolCall.result) {
+      if (previewToolCall?.result) {
         logger.info('Preview workflow completed via native SSE - handling result')
         // Mark as seen to prevent duplicate processing
         markToolCallAsSeen(previewToolCall.id)
@@ -436,7 +437,7 @@ export const Copilot = forwardRef<CopilotRef, CopilotProps>(
           mode={mode}
           onModeChange={setMode}
         />
-        
+
         {/* Copilot Sandbox Modal */}
         <CopilotSandboxModal
           isOpen={sandboxState.isOpen}

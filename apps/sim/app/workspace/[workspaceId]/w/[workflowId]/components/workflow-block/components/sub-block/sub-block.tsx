@@ -1,4 +1,5 @@
-import React, { useState, useEffect } from 'react'
+import type React from 'react'
+import { useEffect, useState } from 'react'
 import { AlertTriangle, Info } from 'lucide-react'
 import { Label } from '@/components/ui/label'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
@@ -53,7 +54,7 @@ export function SubBlock({
   fieldDiffStatus,
 }: SubBlockProps) {
   const [isValidJson, setIsValidJson] = useState(true)
-  
+
   // Debug field diff status
   useEffect(() => {
     if (fieldDiffStatus) {
@@ -415,12 +416,13 @@ export function SubBlock({
   const required = isFieldRequired()
 
   return (
-    <div 
+    <div
       className={cn(
         'space-y-[6px] pt-[2px]',
         // Field-level diff highlighting - make it more prominent for testing
-        fieldDiffStatus === 'changed' && 'ring-2 ring-orange-500 bg-orange-100 dark:bg-orange-900/40 rounded-lg p-3 -m-1 border border-orange-200 dark:border-orange-800'
-      )} 
+        fieldDiffStatus === 'changed' &&
+          '-m-1 rounded-lg border border-orange-200 bg-orange-100 p-3 ring-2 ring-orange-500 dark:border-orange-800 dark:bg-orange-900/40'
+      )}
       onMouseDown={handleMouseDown}
     >
       {config.type !== 'switch' && (

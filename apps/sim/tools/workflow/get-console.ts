@@ -57,7 +57,8 @@ export const getWorkflowConsoleTool: ToolConfig<GetConsoleParams, GetConsoleResp
     includeDetails: {
       type: 'boolean',
       required: false,
-      description: 'Whether to include detailed block-level logs for the most recent execution (default: false)',
+      description:
+        'Whether to include detailed block-level logs for the most recent execution (default: false)',
     },
   },
 
@@ -75,4 +76,4 @@ export const getWorkflowConsoleTool: ToolConfig<GetConsoleParams, GetConsoleResp
     }),
     isInternalRoute: true,
   },
-} 
+}

@@ -5,11 +5,11 @@ import { useParams, useRouter } from 'next/navigation'
 import ReactFlow, {
   Background,
   ConnectionLineType,
+  type Edge,
   type EdgeTypes,
   type NodeTypes,
   ReactFlowProvider,
   useReactFlow,
-  type Edge,
 } from 'reactflow'
 import 'reactflow/dist/style.css'
 import { createLogger } from '@/lib/logs/console-logger'
@@ -26,23 +26,20 @@ import { useWorkspacePermissions } from '@/hooks/use-workspace-permissions'
 import { useExecutionStore } from '@/stores/execution/store'
 import { useVariablesStore } from '@/stores/panel/variables/store'
 import { useGeneralStore } from '@/stores/settings/general/store'
+import { useWorkflowDiffStore } from '@/stores/workflow-diff/store'
 import { useWorkflowRegistry } from '@/stores/workflows/registry/store'
 import { useWorkflowStore } from '@/stores/workflows/workflow/store'
-import { useWorkflowDiffStore } from '@/stores/workflow-diff/store'
 import { WorkflowBlock } from './components/workflow-block/workflow-block'
 import { WorkflowEdge } from './components/workflow-edge/workflow-edge'
+import { useCurrentWorkflow } from './hooks'
 import {
-  analyzeWorkflowGraph,
-  detectHandleOrientation,
   getNodeAbsolutePosition,
   getNodeDepth,
   getNodeHierarchy,
   isPointInLoopNode,
-  LayoutOptions,
   resizeLoopNodes,
   updateNodeParent as updateNodeParentUtil,
 } from './utils'
-import { useCurrentWorkflow } from './hooks'
 
 const logger = createLogger('Workflow')
 
@@ -92,11 +89,8 @@ const WorkflowContent = React.memo(() => {
 
   // Use the clean abstraction for current workflow state
   const currentWorkflow = useCurrentWorkflow()
-  
-  const {
-    updateNodeDimensions,
-    updateBlockPosition: storeUpdateBlockPosition,
-  } = useWorkflowStore()
+
+  const { updateNodeDimensions, updateBlockPosition: storeUpdateBlockPosition } = useWorkflowStore()
 
   // Extract workflow data from the abstraction
   const { blocks, edges, loops, parallels, isDiffMode } = currentWorkflow
@@ -111,29 +105,29 @@ const WorkflowContent = React.memo(() => {
     // Only do this if diff is ready to prevent race conditions
     if (!isShowingDiff && isDiffReady && diffAnalysis?.edge_diff?.deleted_edges) {
       const reconstructedEdges: Edge[] = []
-      
+
       // Parse deleted edge identifiers to reconstruct edges
-      diffAnalysis.edge_diff.deleted_edges.forEach(edgeIdentifier => {
+      diffAnalysis.edge_diff.deleted_edges.forEach((edgeIdentifier) => {
         // Edge identifier format: "sourceName:sourceHandle->targetName:targetHandle"
         // Parse this to extract the components
         const match = edgeIdentifier.match(/^([^:]+):([^-]+)->([^:]+)(?::(.+))?$/)
         if (match) {
           const [, sourceName, sourceHandle, targetName, targetHandle] = match
-          
+
           // Find block IDs by name
           let sourceId: string | null = null
           let targetId: string | null = null
-          
+
           Object.entries(blocks).forEach(([blockId, block]) => {
             if (block.name === sourceName) sourceId = blockId
             if (block.name === targetName) targetId = blockId
           })
-          
+
           // Only reconstruct if both blocks exist
           if (sourceId && targetId) {
             // Generate a unique edge ID
             const edgeId = `deleted-edge-${sourceId}-${sourceHandle}-${targetId}-${targetHandle || 'default'}`
-            
+
             reconstructedEdges.push({
               id: edgeId,
               source: sourceId,
@@ -145,11 +139,11 @@ const WorkflowContent = React.memo(() => {
           }
         }
       })
-      
+
       // Combine existing edges with reconstructed deleted edges
       return [...edges, ...reconstructedEdges]
     }
-    
+
     // Otherwise, just use the edges as-is
     return edges
   }, [edges, isShowingDiff, isDiffReady, diffAnalysis, blocks])
@@ -297,15 +291,14 @@ const WorkflowContent = React.memo(() => {
     try {
       // Use the shared auto layout utility for immediate frontend updates
       const { applyAutoLayoutAndUpdateStore } = await import('./utils/auto-layout')
-      
+
       const result = await applyAutoLayoutAndUpdateStore(activeWorkflowId!)
-      
+
       if (result.success) {
         logger.info('Auto layout completed successfully')
       } else {
         logger.error('Auto layout failed:', result.error)
       }
-      
     } catch (error) {
       logger.error('Auto layout error:', error)
     }

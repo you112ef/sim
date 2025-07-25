@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react'
+import { useCallback, useState } from 'react'
 import { useParams } from 'next/navigation'
 import { createLogger } from '@/lib/logs/console-logger'
 import { useWorkflowRegistry } from '@/stores/workflows/registry/store'
@@ -27,19 +27,18 @@ export function useCopilotSandbox() {
   const workspaceId = params.workspaceId as string
   const { activeWorkflowId, createWorkflow } = useWorkflowRegistry()
 
-  const showSandbox = useCallback((
-    workflowState: WorkflowState,
-    yamlContent: string,
-    description?: string
-  ) => {
-    setSandboxState({
-      isOpen: true,
-      proposedWorkflowState: workflowState,
-      yamlContent,
-      description,
-      isProcessing: false,
-    })
-  }, [])
+  const showSandbox = useCallback(
+    (workflowState: WorkflowState, yamlContent: string, description?: string) => {
+      setSandboxState({
+        isOpen: true,
+        proposedWorkflowState: workflowState,
+        yamlContent,
+        description,
+        isProcessing: false,
+      })
+    },
+    []
+  )
 
   const closeSandbox = useCallback(() => {
     setSandboxState({
@@ -57,7 +56,7 @@ export function useCopilotSandbox() {
     }
 
     try {
-      setSandboxState(prev => ({ ...prev, isProcessing: true }))
+      setSandboxState((prev) => ({ ...prev, isProcessing: true }))
 
       logger.info('Applying sandbox workflow to current workflow', {
         workflowId: activeWorkflowId,
@@ -85,7 +84,7 @@ export function useCopilotSandbox() {
       }
 
       const result = await response.json()
-      
+
       if (!result.success) {
         throw new Error(result.message || 'Failed to apply workflow changes')
       }
@@ -95,81 +94,82 @@ export function useCopilotSandbox() {
         blocksCount: result.data?.blocksCount,
         edgesCount: result.data?.edgesCount,
       })
-
     } catch (error) {
       logger.error('Failed to apply sandbox workflow:', error)
       throw error
     } finally {
-      setSandboxState(prev => ({ ...prev, isProcessing: false }))
+      setSandboxState((prev) => ({ ...prev, isProcessing: false }))
     }
   }, [activeWorkflowId, sandboxState.yamlContent, sandboxState.description])
 
-  const saveAsNewWorkflow = useCallback(async (name: string) => {
-    if (!sandboxState.yamlContent) {
-      throw new Error('No YAML content to save')
-    }
-
-    try {
-      setSandboxState(prev => ({ ...prev, isProcessing: true }))
-
-      logger.info('Creating new workflow from sandbox', {
-        name,
-        yamlLength: sandboxState.yamlContent.length,
-      })
-
-      // First create a new workflow
-      const newWorkflowId = await createWorkflow({
-        name,
-        description: sandboxState.description,
-        workspaceId,
-      })
-
-      if (!newWorkflowId) {
-        throw new Error('Failed to create new workflow')
+  const saveAsNewWorkflow = useCallback(
+    async (name: string) => {
+      if (!sandboxState.yamlContent) {
+        throw new Error('No YAML content to save')
       }
 
-      // Then apply the YAML content to the new workflow
-      const response = await fetch(`/api/workflows/${newWorkflowId}/yaml`, {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          yamlContent: sandboxState.yamlContent,
-          description: sandboxState.description || 'Created from copilot proposal',
-          source: 'copilot',
-          applyAutoLayout: true,
-          createCheckpoint: false, // No need for checkpoint on new workflow
-        }),
-      })
+      try {
+        setSandboxState((prev) => ({ ...prev, isProcessing: true }))
 
-      if (!response.ok) {
-        const errorData = await response.json()
-        throw new Error(errorData.message || `Failed to save workflow: ${response.statusText}`)
+        logger.info('Creating new workflow from sandbox', {
+          name,
+          yamlLength: sandboxState.yamlContent.length,
+        })
+
+        // First create a new workflow
+        const newWorkflowId = await createWorkflow({
+          name,
+          description: sandboxState.description,
+          workspaceId,
+        })
+
+        if (!newWorkflowId) {
+          throw new Error('Failed to create new workflow')
+        }
+
+        // Then apply the YAML content to the new workflow
+        const response = await fetch(`/api/workflows/${newWorkflowId}/yaml`, {
+          method: 'PUT',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            yamlContent: sandboxState.yamlContent,
+            description: sandboxState.description || 'Created from copilot proposal',
+            source: 'copilot',
+            applyAutoLayout: true,
+            createCheckpoint: false, // No need for checkpoint on new workflow
+          }),
+        })
+
+        if (!response.ok) {
+          const errorData = await response.json()
+          throw new Error(errorData.message || `Failed to save workflow: ${response.statusText}`)
+        }
+
+        const result = await response.json()
+
+        if (!result.success) {
+          throw new Error(result.message || 'Failed to save workflow')
+        }
+
+        logger.info('Successfully created new workflow from sandbox', {
+          newWorkflowId,
+          name,
+          blocksCount: result.data?.blocksCount,
+          edgesCount: result.data?.edgesCount,
+        })
+
+        return newWorkflowId
+      } catch (error) {
+        logger.error('Failed to save sandbox workflow as new:', error)
+        throw error
+      } finally {
+        setSandboxState((prev) => ({ ...prev, isProcessing: false }))
       }
-
-      const result = await response.json()
-      
-      if (!result.success) {
-        throw new Error(result.message || 'Failed to save workflow')
-      }
-
-      logger.info('Successfully created new workflow from sandbox', {
-        newWorkflowId,
-        name,
-        blocksCount: result.data?.blocksCount,
-        edgesCount: result.data?.edgesCount,
-      })
-
-      return newWorkflowId
-
-    } catch (error) {
-      logger.error('Failed to save sandbox workflow as new:', error)
-      throw error
-    } finally {
-      setSandboxState(prev => ({ ...prev, isProcessing: false }))
-    }
-  }, [sandboxState.yamlContent, sandboxState.description, createWorkflow])
+    },
+    [sandboxState.yamlContent, sandboxState.description, createWorkflow]
+  )
 
   return {
     sandboxState,
@@ -178,4 +178,4 @@ export function useCopilotSandbox() {
     applyToCurrentWorkflow,
     saveAsNewWorkflow,
   }
-} 
+}

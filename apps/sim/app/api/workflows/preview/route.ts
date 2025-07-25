@@ -91,7 +91,7 @@ export async function POST(request: NextRequest) {
         // Get block config and populate subBlocks with YAML input values
         const blockConfig = getBlock(block.type)
         const subBlocks: Record<string, any> = {}
-        
+
         if (blockConfig) {
           // Set up subBlocks from block configuration
           blockConfig.subBlocks.forEach((subBlock) => {
@@ -135,7 +135,7 @@ export async function POST(request: NextRequest) {
         // Get block config and populate subBlocks with YAML input values
         const blockConfig = getBlock(block.type)
         const subBlocks: Record<string, any> = {}
-        
+
         if (blockConfig) {
           // Set up subBlocks from block configuration
           blockConfig.subBlocks.forEach((subBlock) => {
@@ -286,7 +286,10 @@ export async function POST(request: NextRequest) {
         previewWorkflowState.blocks = layoutedBlocks
         logger.info(`[${requestId}] Autolayout completed successfully for preview`)
       } catch (layoutError) {
-        logger.warn(`[${requestId}] Autolayout failed for preview, using original positions:`, layoutError)
+        logger.warn(
+          `[${requestId}] Autolayout failed for preview, using original positions:`,
+          layoutError
+        )
       }
     }
 
@@ -340,4 +343,4 @@ export async function POST(request: NextRequest) {
       { status: 500 }
     )
   }
-} 
+}

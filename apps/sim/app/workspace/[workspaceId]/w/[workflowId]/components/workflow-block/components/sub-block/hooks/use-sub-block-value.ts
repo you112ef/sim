@@ -3,10 +3,10 @@ import { isEqual } from 'lodash'
 import { createLogger } from '@/lib/logs/console-logger'
 import { useCollaborativeWorkflow } from '@/hooks/use-collaborative-workflow'
 import { getProviderFromModel } from '@/providers/utils'
+import { useWorkflowDiffStore } from '@/stores/workflow-diff/store'
 import { useWorkflowRegistry } from '@/stores/workflows/registry/store'
 import { useSubBlockStore } from '@/stores/workflows/subblock/store'
 import { useWorkflowStore } from '@/stores/workflows/workflow/store'
-import { useWorkflowDiffStore } from '@/stores/workflow-diff/store'
 
 const logger = createLogger('SubBlockValue')
 
@@ -63,9 +63,10 @@ export function useSubBlockValue<T = any>(
 
   // Check if we're in diff mode and get diff value if available
   const { isShowingDiff, diffWorkflow } = useWorkflowDiffStore()
-  const diffValue = isShowingDiff && diffWorkflow 
-    ? diffWorkflow.blocks?.[blockId]?.subBlocks?.[subBlockId]?.value ?? null
-    : null
+  const diffValue =
+    isShowingDiff && diffWorkflow
+      ? (diffWorkflow.blocks?.[blockId]?.subBlocks?.[subBlockId]?.value ?? null)
+      : null
 
   // Check if this is an API key field that could be auto-filled
   const isApiKey =
@@ -193,7 +194,12 @@ export function useSubBlockValue<T = any>(
   )
 
   // Determine the effective value: diff value takes precedence if in diff mode
-  const effectiveValue = isShowingDiff && diffValue !== null ? diffValue : (storeValue !== undefined ? storeValue : initialValue)
+  const effectiveValue =
+    isShowingDiff && diffValue !== null
+      ? diffValue
+      : storeValue !== undefined
+        ? storeValue
+        : initialValue
 
   // Initialize valueRef on first render
   useEffect(() => {

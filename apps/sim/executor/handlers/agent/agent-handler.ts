@@ -15,7 +15,6 @@ import { getApiKey, getProviderFromModel, transformBlockTool } from '@/providers
 import type { SerializedBlock } from '@/serializer/types'
 import { executeTool } from '@/tools'
 import { getTool, getToolAsync } from '@/tools/utils'
-import { getBaseUrl } from '@/lib/urls/utils'
 
 const logger = createLogger('AgentBlockHandler')
 

@@ -1,11 +1,10 @@
-import { env } from '@/lib/env'
 import { createLogger } from '@/lib/logs/console-logger'
+import { getBaseUrl } from '@/lib/urls/utils'
 import type { BlockOutput } from '@/blocks/types'
 import { BlockType } from '@/executor/consts'
 import type { BlockHandler, ExecutionContext } from '@/executor/types'
 import { calculateCost, getProviderFromModel } from '@/providers/utils'
 import type { SerializedBlock } from '@/serializer/types'
-import { getBaseUrl } from '@/lib/urls/utils'
 
 const logger = createLogger('EvaluatorBlockHandler')
 

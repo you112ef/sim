@@ -40,10 +40,10 @@ export async function POST(request: NextRequest) {
         description: 'Control flow block for iterating over collections or repeating actions',
       },
       parallel: {
-        tools: [], // Parallel blocks don't use standard tools  
+        tools: [], // Parallel blocks don't use standard tools
         category: 'blocks',
         description: 'Control flow block for executing multiple branches simultaneously',
-      }
+      },
     }
 
     // Add special blocks if they pass the category filter
@@ -69,8 +69,10 @@ export async function POST(request: NextRequest) {
       filterCategory,
       blockToolsMapping: blockToolsInfo,
       outputMapping: blockToToolsMapping,
-      specialBlocksAdded: Object.keys(specialBlocks).filter(blockType => 
-        !filterCategory || specialBlocks[blockType as keyof typeof specialBlocks].category === filterCategory
+      specialBlocksAdded: Object.keys(specialBlocks).filter(
+        (blockType) =>
+          !filterCategory ||
+          specialBlocks[blockType as keyof typeof specialBlocks].category === filterCategory
       ),
     })
 

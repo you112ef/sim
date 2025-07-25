@@ -1,20 +1,22 @@
 'use client'
 
-import { useState, useCallback } from 'react'
-import { useParams } from 'next/navigation'
+import { useState } from 'react'
 import { Eye, FileText } from 'lucide-react'
+import { useParams } from 'next/navigation'
 import { Button } from '@/components/ui/button'
-import { CopilotSandboxModal } from './copilot-sandbox-modal/copilot-sandbox-modal'
-import { useWorkflowRegistry } from '@/stores/workflows/registry/store'
-import { useCopilotStore } from '@/stores/copilot/store'
 import { createLogger } from '@/lib/logs/console-logger'
+import { useCopilotStore } from '@/stores/copilot/store'
+import { useWorkflowRegistry } from '@/stores/workflows/registry/store'
+import { CopilotSandboxModal } from './copilot-sandbox-modal/copilot-sandbox-modal'
 
 const logger = createLogger('ReviewButton')
 
 // Backward compatibility exports (deprecated)
 export function setLatestPreview() {}
 export function clearLatestPreview() {}
-export function getLatestUnseenPreview() { return null }
+export function getLatestUnseenPreview() {
+  return null
+}
 
 export function ReviewButton() {
   const params = useParams()
@@ -37,7 +39,7 @@ export function ReviewButton() {
 
   const handleShowPreview = async () => {
     if (!currentChat?.previewYaml || !activeWorkflowId) return
-    
+
     try {
       // Validate YAML content before sending
       const yamlContent = currentChat.previewYaml.trim()
@@ -45,8 +47,11 @@ export function ReviewButton() {
         throw new Error('Preview YAML content is empty')
       }
 
-      logger.info('Generating preview with YAML content (first 200 chars):', yamlContent.substring(0, 200))
-      
+      logger.info(
+        'Generating preview with YAML content (first 200 chars):',
+        yamlContent.substring(0, 200)
+      )
+
       // Generate workflow state from YAML for the modal
       logger.info('Step 1: Calling preview API...')
       const previewResponse = await fetch('/api/workflows/preview', {
@@ -57,17 +62,27 @@ export function ReviewButton() {
           applyAutoLayout: true,
         }),
       })
-      logger.info('Step 1 complete: Preview API response received', { status: previewResponse.status })
+      logger.info('Step 1 complete: Preview API response received', {
+        status: previewResponse.status,
+      })
 
       if (!previewResponse.ok) {
         const errorText = await previewResponse.text()
-        logger.error('Preview API response not ok:', { status: previewResponse.status, statusText: previewResponse.statusText, errorText })
-        throw new Error(`Failed to generate preview: ${previewResponse.status} ${previewResponse.statusText}`)
+        logger.error('Preview API response not ok:', {
+          status: previewResponse.status,
+          statusText: previewResponse.statusText,
+          errorText,
+        })
+        throw new Error(
+          `Failed to generate preview: ${previewResponse.status} ${previewResponse.statusText}`
+        )
       }
 
       const previewResult = await previewResponse.json()
-      logger.info('Step 1 result: Preview API parsed successfully', { success: previewResult.success })
-      
+      logger.info('Step 1 result: Preview API parsed successfully', {
+        success: previewResult.success,
+      })
+
       if (!previewResult.success) {
         logger.error('Preview API returned error:', previewResult)
         throw new Error(previewResult.message || 'Failed to generate preview')
@@ -85,17 +100,24 @@ export function ReviewButton() {
             includeMetadata: false,
           }),
         })
-        logger.info('Step 2: Current workflow API response received', { status: currentWorkflowResponse.status })
+        logger.info('Step 2: Current workflow API response received', {
+          status: currentWorkflowResponse.status,
+        })
 
         if (currentWorkflowResponse.ok) {
           const currentWorkflowResult = await currentWorkflowResponse.json()
-          logger.info('Step 2: Current workflow API parsed', { success: currentWorkflowResult.success, hasYaml: !!currentWorkflowResult.output?.yaml })
+          logger.info('Step 2: Current workflow API parsed', {
+            success: currentWorkflowResult.success,
+            hasYaml: !!currentWorkflowResult.output?.yaml,
+          })
           if (currentWorkflowResult.success && currentWorkflowResult.output?.yaml) {
             originalYaml = currentWorkflowResult.output.yaml
             logger.info('Step 2: Original YAML obtained', { length: originalYaml.length })
           }
         } else {
-          logger.warn('Step 2: Current workflow API failed', { status: currentWorkflowResponse.status })
+          logger.warn('Step 2: Current workflow API failed', {
+            status: currentWorkflowResponse.status,
+          })
         }
       } catch (yamlError) {
         logger.error('Step 2: Failed to get current workflow YAML for diff:', yamlError)
@@ -107,8 +129,13 @@ export function ReviewButton() {
       if (originalYaml) {
         try {
           setIsDiffLoading(true)
-          logger.info('Step 3: Starting diff with original YAML length:', originalYaml.length, 'agent YAML length:', yamlContent.length)
-          
+          logger.info(
+            'Step 3: Starting diff with original YAML length:',
+            originalYaml.length,
+            'agent YAML length:',
+            yamlContent.length
+          )
+
           const diffResponse = await fetch('/api/workflows/diff', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -129,7 +156,11 @@ export function ReviewButton() {
               logger.error('Step 3: Diff API returned unsuccessful response:', diffData)
             }
           } else {
-            logger.error('Step 3: Diff API request failed:', diffResponse.status, diffResponse.statusText)
+            logger.error(
+              'Step 3: Diff API request failed:',
+              diffResponse.status,
+              diffResponse.statusText
+            )
             const errorText = await diffResponse.text()
             logger.error('Step 3: Diff API error response:', errorText)
           }
@@ -155,7 +186,7 @@ export function ReviewButton() {
         error: error instanceof Error ? error.message : String(error),
         stack: error instanceof Error ? error.stack : undefined,
         yamlLength: currentChat?.previewYaml?.length,
-        yamlPreview: currentChat?.previewYaml?.substring(0, 100)
+        yamlPreview: currentChat?.previewYaml?.substring(0, 100),
       })
       // Reset loading states on error
       setIsDiffLoading(false)
@@ -165,7 +196,7 @@ export function ReviewButton() {
 
   const handleApply = async () => {
     if (!currentChat?.previewYaml) return
-    
+
     try {
       setIsProcessing(true)
 
@@ -183,21 +214,26 @@ export function ReviewButton() {
 
         // Convert YAML to workflow state using our unified converter
         const conversionResult = await convertYamlToWorkflowState(currentChat.previewYaml, {
-          generateNewIds: false // Keep existing IDs for preview
+          generateNewIds: false, // Keep existing IDs for preview
         })
 
         if (!conversionResult.success || !conversionResult.workflowState) {
           throw new Error(`Failed to convert YAML: ${conversionResult.errors.join(', ')}`)
         }
 
-        const { blocks: workflowBlocks, edges: workflowEdges, loops, parallels } = conversionResult.workflowState
+        const {
+          blocks: workflowBlocks,
+          edges: workflowEdges,
+          loops,
+          parallels,
+        } = conversionResult.workflowState
 
         // Apply auto layout using the shared utility
         const { applyAutoLayoutToBlocks } = await import('../utils/auto-layout')
         const layoutResult = await applyAutoLayoutToBlocks(workflowBlocks, workflowEdges)
-        
+
         const layoutedBlocks = layoutResult.success ? layoutResult.layoutedBlocks! : workflowBlocks
-        
+
         if (layoutResult.success) {
           logger.info('Successfully applied auto layout to preview blocks')
         } else {
@@ -247,7 +283,6 @@ export function ReviewButton() {
         }
 
         logger.info('Successfully updated local stores with preview content')
-
       } catch (parseError) {
         logger.error('Failed to parse and apply preview locally:', parseError)
         throw parseError
@@ -276,7 +311,7 @@ export function ReviewButton() {
           }
 
           const result = await response.json()
-          
+
           if (!result.success) {
             throw new Error(result.message || 'Failed to apply workflow changes')
           }
@@ -352,7 +387,7 @@ export function ReviewButton() {
       }
 
       const result = await response.json()
-      
+
       if (!result.success) {
         throw new Error(result.message || 'Failed to save workflow')
       }
@@ -373,7 +408,7 @@ export function ReviewButton() {
 
   const handleReject = async () => {
     if (!currentChat?.previewYaml) return
-    
+
     try {
       setIsProcessing(true)
       updatePreviewToolCallState('rejected')
@@ -397,25 +432,28 @@ export function ReviewButton() {
   }
 
   // Create preview data for the sandbox modal
-  const previewData = currentChat?.previewYaml && previewWorkflowState ? {
-    workflowState: previewWorkflowState,
-    yamlContent: currentChat.previewYaml,
-    description: 'Copilot generated workflow preview'
-  } : null
+  const previewData =
+    currentChat?.previewYaml && previewWorkflowState
+      ? {
+          workflowState: previewWorkflowState,
+          yamlContent: currentChat.previewYaml,
+          description: 'Copilot generated workflow preview',
+        }
+      : null
 
   // Debug logging
-  console.log('ReviewButton render state:', { 
-    showModal, 
-    previewData: previewData ? 'present' : 'null', 
-    diffInfo: diffInfo ? `present (${Object.keys(diffInfo).join(',')})` : 'null', 
+  console.log('ReviewButton render state:', {
+    showModal,
+    previewData: previewData ? 'present' : 'null',
+    diffInfo: diffInfo ? `present (${Object.keys(diffInfo).join(',')})` : 'null',
     isDiffLoading,
-    hasPreviewYaml: !!currentChat?.previewYaml
+    hasPreviewYaml: !!currentChat?.previewYaml,
   })
 
   return (
     <>
       {/* Simple button at bottom center */}
-      <div className='fixed bottom-20 left-1/2 z-30 -translate-x-1/2'>
+      <div className='-translate-x-1/2 fixed bottom-20 left-1/2 z-30'>
         <div className='rounded-lg border bg-background/95 p-3 shadow-lg backdrop-blur-sm'>
           <div className='flex items-center gap-3'>
             <div className='flex items-center gap-2'>
@@ -455,4 +493,4 @@ export function ReviewButton() {
       )}
     </>
   )
-} 
+}

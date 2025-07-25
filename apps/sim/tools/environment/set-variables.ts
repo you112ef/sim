@@ -15,7 +15,10 @@ export interface SetEnvironmentVariablesResponse extends ToolResponse {
   }
 }
 
-export const setEnvironmentVariablesTool: ToolConfig<SetEnvironmentVariablesParams, SetEnvironmentVariablesResponse> = {
+export const setEnvironmentVariablesTool: ToolConfig<
+  SetEnvironmentVariablesParams,
+  SetEnvironmentVariablesResponse
+> = {
   id: 'set_environment_variables',
   name: 'Set Environment Variables',
   description:
@@ -27,7 +30,8 @@ export const setEnvironmentVariablesTool: ToolConfig<SetEnvironmentVariablesPara
       type: 'json',
       required: true,
       visibility: 'user-or-llm',
-      description: 'A key-value object containing the environment variables to set. Example: {"API_KEY": "your-key", "DATABASE_URL": "your-url"}',
+      description:
+        'A key-value object containing the environment variables to set. Example: {"API_KEY": "your-key", "DATABASE_URL": "your-url"}',
     },
   },
 
@@ -59,4 +63,4 @@ export const setEnvironmentVariablesTool: ToolConfig<SetEnvironmentVariablesPara
   transformError: (error: any) => {
     return `Failed to set environment variables: ${error.message || 'Unknown error'}`
   },
-} 
+}

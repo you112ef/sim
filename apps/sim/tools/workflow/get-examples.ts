@@ -14,7 +14,10 @@ interface GetWorkflowExamplesResponse extends ToolResponse {
   output: GetWorkflowExamplesResult
 }
 
-export const getWorkflowExamplesTool: ToolConfig<GetWorkflowExamplesParams, GetWorkflowExamplesResponse> = {
+export const getWorkflowExamplesTool: ToolConfig<
+  GetWorkflowExamplesParams,
+  GetWorkflowExamplesResponse
+> = {
   id: 'get_workflow_examples',
   name: 'Getting relevant examples',
   description: 'Get YAML workflow examples by ID to reference when building workflows',
@@ -61,4 +64,4 @@ export const getWorkflowExamplesTool: ToolConfig<GetWorkflowExamplesParams, GetW
     console.error('Get workflow examples error:', error)
     return `Failed to get workflow examples: ${error.message || 'Unknown error'}`
   },
-} 
+}

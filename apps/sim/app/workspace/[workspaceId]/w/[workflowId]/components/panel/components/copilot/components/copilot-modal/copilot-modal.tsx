@@ -1,15 +1,7 @@
 'use client'
 
 import { useEffect, useRef, useState } from 'react'
-import {
-  Bot,
-  ChevronDown,
-  History,
-  MessageSquarePlus,
-  MoreHorizontal,
-  Trash2,
-  X,
-} from 'lucide-react'
+import { Bot, History, MessageSquarePlus, MoreHorizontal, Trash2, X } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import {
   DropdownMenu,
@@ -76,10 +68,10 @@ export function CopilotModal({
   // Auto-scroll to bottom when new messages are added with smooth behavior
   useEffect(() => {
     if (messagesEndRef.current) {
-      messagesEndRef.current.scrollIntoView({ 
+      messagesEndRef.current.scrollIntoView({
         behavior: 'smooth',
         block: 'end',
-        inline: 'nearest'
+        inline: 'nearest',
       })
     }
   }, [messages])
@@ -88,12 +80,13 @@ export function CopilotModal({
   useEffect(() => {
     if (isLoading && messagesContainerRef.current) {
       const container = messagesContainerRef.current
-      const isNearBottom = container.scrollHeight - container.scrollTop - container.clientHeight < 100
-      
+      const isNearBottom =
+        container.scrollHeight - container.scrollTop - container.clientHeight < 100
+
       if (isNearBottom) {
-        messagesEndRef.current?.scrollIntoView({ 
+        messagesEndRef.current?.scrollIntoView({
           behavior: 'smooth',
-          block: 'end'
+          block: 'end',
         })
       }
     }
@@ -126,7 +119,9 @@ export function CopilotModal({
             <div>
               <h2 className='font-semibold text-foreground text-lg'>Copilot Assistant</h2>
               <p className='text-muted-foreground text-sm'>
-                {mode === 'ask' ? 'Ask questions about your workflow' : 'Agent mode - Let me help you build'}
+                {mode === 'ask'
+                  ? 'Ask questions about your workflow'
+                  : 'Agent mode - Let me help you build'}
               </p>
             </div>
           </div>
@@ -149,7 +144,7 @@ export function CopilotModal({
                   {isLoadingChats ? (
                     <div className='flex items-center justify-center p-4'>
                       <div className='h-4 w-4 animate-spin rounded-full border-2 border-primary border-t-transparent' />
-                      <span className='ml-2 text-sm text-muted-foreground'>Loading chats...</span>
+                      <span className='ml-2 text-muted-foreground text-sm'>Loading chats...</span>
                     </div>
                   ) : chats.length === 0 ? (
                     <div className='p-4 text-center text-muted-foreground text-sm'>
@@ -159,14 +154,14 @@ export function CopilotModal({
                     chats.map((chat) => (
                       <DropdownMenuItem
                         key={chat.id}
-                        className='flex items-center justify-between p-3 cursor-pointer'
+                        className='flex cursor-pointer items-center justify-between p-3'
                         onClick={() => {
                           onSelectChat(chat)
                           setIsDropdownOpen(false)
                         }}
                       >
-                        <div className='flex-1 min-w-0'>
-                          <div className='font-medium text-sm truncate'>
+                        <div className='min-w-0 flex-1'>
+                          <div className='truncate font-medium text-sm'>
                             {chat.title || 'Untitled Chat'}
                           </div>
                           <div className='text-muted-foreground text-xs'>
@@ -176,7 +171,7 @@ export function CopilotModal({
                         <Button
                           variant='ghost'
                           size='sm'
-                          className='h-6 w-6 p-0 ml-2 opacity-0 group-hover:opacity-100 hover:bg-destructive/10 hover:text-destructive'
+                          className='ml-2 h-6 w-6 p-0 opacity-0 hover:bg-destructive/10 hover:text-destructive group-hover:opacity-100'
                           onClick={(e) => {
                             e.stopPropagation()
                             onDeleteChat(chat.id)
@@ -245,8 +240,8 @@ export function CopilotModal({
           ) : (
             <>
               {/* Messages Area */}
-              <ScrollArea 
-                ref={messagesContainerRef} 
+              <ScrollArea
+                ref={messagesContainerRef}
                 className='flex-1 px-4 py-2'
                 style={{ height: 'calc(100% - 120px)' }}
               >
@@ -261,7 +256,9 @@ export function CopilotModal({
                         <ProfessionalMessage
                           key={message.id}
                           message={message}
-                          isStreaming={isLoading && message.id === messages[messages.length - 1]?.id}
+                          isStreaming={
+                            isLoading && message.id === messages[messages.length - 1]?.id
+                          }
                         />
                       ))}
                     </div>
@@ -302,7 +299,7 @@ export function CopilotModal({
                       Agent
                     </Button>
                   </div>
-                  
+
                   {/* Input */}
                   <ProfessionalInput
                     onSubmit={async (message) => {

@@ -2,7 +2,7 @@ import { desc, eq } from 'drizzle-orm'
 import { type NextRequest, NextResponse } from 'next/server'
 import { createLogger } from '@/lib/logs/console-logger'
 import { db } from '@/db'
-import { workflowExecutionLogs, workflowExecutionBlocks } from '@/db/schema'
+import { workflowExecutionBlocks, workflowExecutionLogs } from '@/db/schema'
 
 const logger = createLogger('GetWorkflowConsoleAPI')
 
@@ -43,11 +43,11 @@ export async function POST(request: NextRequest) {
       .limit(Math.min(limit, 100))
 
     let blockLogs: any[] = []
-    
+
     // If we have execution logs and details are requested, get block-level logs
     if (executionLogs.length > 0 && includeDetails) {
-      const executionIds = executionLogs.map(log => log.executionId)
-      
+      const executionIds = executionLogs.map((log) => log.executionId)
+
       blockLogs = await db
         .select({
           id: workflowExecutionBlocks.id,
@@ -84,7 +84,7 @@ export async function POST(request: NextRequest) {
         blockCount: log.blockCount,
         successCount: log.successCount,
         errorCount: log.errorCount,
-        totalCost: log.totalCost ? parseFloat(log.totalCost.toString()) : null,
+        totalCost: log.totalCost ? Number.parseFloat(log.totalCost.toString()) : null,
         type: 'execution',
       }
 
@@ -111,7 +111,7 @@ export async function POST(request: NextRequest) {
         durationMs: block.durationMs,
         input: block.inputData,
         output: block.outputData,
-        cost: block.costTotal ? parseFloat(block.costTotal.toString()) : null,
+        cost: block.costTotal ? Number.parseFloat(block.costTotal.toString()) : null,
         tokens: block.tokensTotal,
         type: 'block',
       }))
@@ -128,19 +128,18 @@ export async function POST(request: NextRequest) {
         workflowId,
         retrievedAt: new Date().toISOString(),
         hasBlockDetails: includeDetails && blockLogs.length > 0,
-      }
+      },
     }
 
     return NextResponse.json(response)
-
   } catch (error) {
     logger.error('Failed to get workflow console logs:', error)
     return NextResponse.json(
-      { 
-        success: false, 
-        error: `Failed to get console logs: ${error instanceof Error ? error.message : 'Unknown error'}` 
+      {
+        success: false,
+        error: `Failed to get console logs: ${error instanceof Error ? error.message : 'Unknown error'}`,
       },
       { status: 500 }
     )
   }
-} 
+}

@@ -1,6 +1,6 @@
 import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
-import type { CopilotToolCall, CopilotMessage } from './types'
+import type { CopilotMessage, CopilotToolCall } from './types'
 
 export interface PreviewData {
   id: string
@@ -65,7 +65,7 @@ export const usePreviewStore = create<PreviewStore>()(
           if (!existingPreview) {
             return state
           }
-          
+
           return {
             previews: {
               ...state.previews,
@@ -84,7 +84,7 @@ export const usePreviewStore = create<PreviewStore>()(
           if (!existingPreview) {
             return state
           }
-          
+
           return {
             previews: {
               ...state.previews,
@@ -142,7 +142,9 @@ export const usePreviewStore = create<PreviewStore>()(
       clearPreviewsForWorkflow: (workflowId) => {
         set((state) => ({
           previews: Object.fromEntries(
-            Object.entries(state.previews).filter(([_, preview]) => preview.workflowId !== workflowId)
+            Object.entries(state.previews).filter(
+              ([_, preview]) => preview.workflowId !== workflowId
+            )
           ),
         }))
       },
@@ -177,14 +179,16 @@ export const usePreviewStore = create<PreviewStore>()(
 
         set((state) => ({
           previews: Object.fromEntries(
-            Object.entries(state.previews).filter(([_, preview]) => now - preview.timestamp <= maxAge)
+            Object.entries(state.previews).filter(
+              ([_, preview]) => now - preview.timestamp <= maxAge
+            )
           ),
         }))
       },
 
       markToolCallAsSeen: (toolCallId) => {
         set((state) => ({
-          seenToolCallIds: new Set([...state.seenToolCallIds, toolCallId])
+          seenToolCallIds: new Set([...state.seenToolCallIds, toolCallId]),
         }))
       },
 
@@ -194,11 +198,15 @@ export const usePreviewStore = create<PreviewStore>()(
 
       scanAndMarkExistingPreviews: (messages: CopilotMessage[]) => {
         const toolCallIds = new Set<string>()
-        
+
         messages.forEach((message) => {
           if (message.role === 'assistant' && message.toolCalls) {
             message.toolCalls.forEach((toolCall: CopilotToolCall) => {
-              if (toolCall.name === 'preview_workflow' && toolCall.state === 'completed' && toolCall.id) {
+              if (
+                toolCall.name === 'preview_workflow' &&
+                toolCall.state === 'completed' &&
+                toolCall.id
+              ) {
                 toolCallIds.add(toolCall.id)
               }
             })
@@ -206,7 +214,7 @@ export const usePreviewStore = create<PreviewStore>()(
         })
 
         set((state) => ({
-          seenToolCallIds: new Set([...state.seenToolCallIds, ...toolCallIds])
+          seenToolCallIds: new Set([...state.seenToolCallIds, ...toolCallIds]),
         }))
       },
     }),
@@ -227,4 +235,4 @@ export const usePreviewStore = create<PreviewStore>()(
       }),
     }
   )
-) 
+)

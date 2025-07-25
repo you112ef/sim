@@ -36,20 +36,18 @@ function createReadableStreamFromAnthropicStream(
  * Helper to create a native SSE stream for copilot that passes through all Anthropic events
  * This preserves the native SSE format for better performance and simpler parsing
  */
-function createNativeSSEStreamForCopilot(
-  anthropicStream: AsyncIterable<any>
-): ReadableStream {
+function createNativeSSEStreamForCopilot(anthropicStream: AsyncIterable<any>): ReadableStream {
   return new ReadableStream({
     async start(controller) {
       try {
         const encoder = new TextEncoder()
-        
+
         for await (const event of anthropicStream) {
           // Pass through the raw Anthropic SSE event
           const sseData = `data: ${JSON.stringify(event)}\n\n`
           controller.enqueue(encoder.encode(sseData))
         }
-        
+
         controller.close()
       } catch (err) {
         controller.error(err)
@@ -377,12 +375,12 @@ ${fieldDescriptions}
       const nativeSSEStream = new ReadableStream({
         async start(controller) {
           const encoder = new TextEncoder()
-          
+
           // Track conversation state and tool calls
           const conversationMessages: any[] = [...(messages || [])]
           let pendingToolCalls: any[] = []
           let currentToolCall: any = null
-          
+
           const executeToolsAndContinue = async (toolCalls: any[]) => {
             try {
               logger.info(`Executing ${toolCalls.length} tool calls`, {
@@ -411,16 +409,22 @@ ${fieldDescriptions}
                           },
                         }
                       : {}),
-                    ...(request.environmentVariables ? { envVars: request.environmentVariables } : {}),
+                    ...(request.environmentVariables
+                      ? { envVars: request.environmentVariables }
+                      : {}),
                   }
 
                   const result = await executeTool(toolCall.name, mergedArgs, true)
                   const toolCallEndTime = Date.now()
-                  
+
                   logger.info(`Tool ${toolCall.name} ${result.success ? 'succeeded' : 'failed'}`)
 
                   // Send tool result event to frontend for preview_workflow and targeted_updates tools
-                  if ((toolCall.name === 'preview_workflow' || toolCall.name === 'targeted_updates') && result.success) {
+                  if (
+                    (toolCall.name === 'preview_workflow' ||
+                      toolCall.name === 'targeted_updates') &&
+                    result.success
+                  ) {
                     const toolResultEvent = {
                       type: 'tool_result',
                       toolCallId: toolCall.id,
@@ -428,7 +432,9 @@ ${fieldDescriptions}
                       result: result.output,
                       success: true,
                     }
-                    controller.enqueue(encoder.encode(`data: ${JSON.stringify(toolResultEvent)}\n\n`))
+                    controller.enqueue(
+                      encoder.encode(`data: ${JSON.stringify(toolResultEvent)}\n\n`)
+                    )
                     logger.info(`Sent ${toolCall.name} result to frontend:`, toolCall.id)
                   }
 
@@ -472,42 +478,56 @@ ${fieldDescriptions}
               // Stream the continuation response and handle any additional tool calls
               let continuationToolCalls: any[] = []
               let currentContinuationToolCall: any = null
-              
+
               for await (const chunk of nextStreamResponse as any) {
                 const sseEvent = `data: ${JSON.stringify(chunk)}\n\n`
                 controller.enqueue(encoder.encode(sseEvent))
-                
+
                 // Check if the continuation response has its own tool calls
-                if (chunk.type === 'content_block_start' && chunk.content_block?.type === 'tool_use') {
+                if (
+                  chunk.type === 'content_block_start' &&
+                  chunk.content_block?.type === 'tool_use'
+                ) {
                   currentContinuationToolCall = {
                     id: chunk.content_block.id,
                     name: chunk.content_block.name,
                     input: {},
                     partialInput: '',
                   }
-                } else if (chunk.type === 'content_block_delta' && currentContinuationToolCall && chunk.delta?.partial_json) {
+                } else if (
+                  chunk.type === 'content_block_delta' &&
+                  currentContinuationToolCall &&
+                  chunk.delta?.partial_json
+                ) {
                   currentContinuationToolCall.partialInput += chunk.delta.partial_json
                 } else if (chunk.type === 'content_block_stop' && currentContinuationToolCall) {
                   try {
-                    currentContinuationToolCall.input = JSON.parse(currentContinuationToolCall.partialInput || '{}')
+                    currentContinuationToolCall.input = JSON.parse(
+                      currentContinuationToolCall.partialInput || '{}'
+                    )
                     continuationToolCalls.push(currentContinuationToolCall)
                     logger.info(`Continuation tool call ready: ${currentContinuationToolCall.name}`)
                   } catch (error) {
                     logger.error('Error parsing continuation tool call input:', error)
                   }
                   currentContinuationToolCall = null
-                                 } else if (chunk.type === 'message_stop' && continuationToolCalls.length > 0) {
-                   // Recursively handle tool calls in the continuation
-                   await executeToolsAndContinue(continuationToolCalls)
-                   continuationToolCalls = []
-                 }
-                
-                 // Also check for any preview_workflow or targeted_updates results in continuation
-                 continuationToolCalls.forEach(toolCall => {
-                   if (toolCall.name === 'preview_workflow' || toolCall.name === 'targeted_updates') {
-                     logger.info(`Found ${toolCall.name} in continuation, will send result after execution`)
-                   }
-                 })
+                } else if (chunk.type === 'message_stop' && continuationToolCalls.length > 0) {
+                  // Recursively handle tool calls in the continuation
+                  await executeToolsAndContinue(continuationToolCalls)
+                  continuationToolCalls = []
+                }
+
+                // Also check for any preview_workflow or targeted_updates results in continuation
+                continuationToolCalls.forEach((toolCall) => {
+                  if (
+                    toolCall.name === 'preview_workflow' ||
+                    toolCall.name === 'targeted_updates'
+                  ) {
+                    logger.info(
+                      `Found ${toolCall.name} in continuation, will send result after execution`
+                    )
+                  }
+                })
               }
             } catch (error) {
               logger.error('Error executing tools and continuing conversation:', { error })
@@ -519,22 +539,29 @@ ${fieldDescriptions}
               controller.enqueue(encoder.encode(`data: ${JSON.stringify(errorEvent)}\n\n`))
             }
           }
-          
+
           try {
             for await (const chunk of streamResponse) {
               // Pass through the SSE event
               const sseEvent = `data: ${JSON.stringify(chunk)}\n\n`
               controller.enqueue(encoder.encode(sseEvent))
-              
+
               // Track tool calls for execution
-              if (chunk.type === 'content_block_start' && chunk.content_block?.type === 'tool_use') {
+              if (
+                chunk.type === 'content_block_start' &&
+                chunk.content_block?.type === 'tool_use'
+              ) {
                 currentToolCall = {
                   id: chunk.content_block.id,
                   name: chunk.content_block.name,
                   input: {},
                   partialInput: '',
                 }
-              } else if (chunk.type === 'content_block_delta' && currentToolCall && chunk.delta?.partial_json) {
+              } else if (
+                chunk.type === 'content_block_delta' &&
+                currentToolCall &&
+                chunk.delta?.partial_json
+              ) {
                 currentToolCall.partialInput += chunk.delta.partial_json
               } else if (chunk.type === 'content_block_stop' && currentToolCall) {
                 try {
