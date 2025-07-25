@@ -406,6 +406,28 @@ function getAvailableTools(mode: 'ask' | 'agent'): ProviderToolConfig[] {
         required: [],
       },
     },
+    {
+      id: 'set_environment_variables',
+      name: 'Set Environment Variables',
+      description:
+        'Set or update environment variables that can be used in workflows. New variables will be added, and existing variables with the same names will be updated. Other existing variables will be preserved. Use this to configure API keys, secrets, and other configuration values.',
+      params: {
+        variables: {
+          type: 'object',
+          description: 'A key-value object containing the environment variables to set. Example: {"API_KEY": "your-key", "DATABASE_URL": "your-url"}',
+        },
+      },
+      parameters: {
+        type: 'object',
+        properties: {
+          variables: {
+            type: 'object',
+            description: 'A key-value object containing the environment variables to set. Example: {"API_KEY": "your-key", "DATABASE_URL": "your-url"}',
+          },
+        },
+        required: ['variables'],
+      },
+    },
   ]
 
   // Filter tools based on mode

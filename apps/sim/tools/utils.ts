@@ -13,6 +13,7 @@ import type { TableRow, ToolConfig, ToolResponse } from '@/tools/types'
 import { getUserWorkflowTool } from '@/tools/workflow/get-yaml'
 import { getWorkflowExamplesTool } from '@/tools/workflow/get-examples'
 import { getEnvironmentVariablesTool } from '@/tools/environment/get-variables'
+import { setEnvironmentVariablesTool } from '@/tools/environment/set-variables'
 
 const logger = createLogger('ToolsUtils')
 
@@ -25,6 +26,7 @@ const internalTools: Record<string, ToolConfig> = {
   get_blocks_metadata: getBlockMetadataTool,
   get_yaml_structure: getYamlStructureTool,
   get_environment_variables: getEnvironmentVariablesTool,
+  set_environment_variables: setEnvironmentVariablesTool,
   // edit_workflow: editWorkflowTool, // Commented out - only preview is allowed
   preview_workflow: previewWorkflowTool,
 }
