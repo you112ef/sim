@@ -107,6 +107,8 @@ function getToolDisplayName(toolName: string): string {
       return 'Searching online'
     case 'get_workflow_examples':
       return 'Reviewing the design'
+    case 'get_environment_variables':
+      return 'Checking your environment variables'
     default:
       return toolName.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())
   }

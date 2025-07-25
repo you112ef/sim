@@ -75,6 +75,7 @@ export interface GenerateChatResponseOptions {
   mode?: 'ask' | 'agent'
   chatId?: string
   implicitFeedback?: string
+  userId?: string
 }
 
 /**
@@ -393,6 +394,18 @@ function getAvailableTools(mode: 'ask' | 'agent'): ProviderToolConfig[] {
         required: ['query'],
       },
     },
+    {
+      id: 'get_environment_variables',
+      name: 'Get Environment Variables',
+      description:
+        'Get a list of available environment variable names that the user has configured. This helps understand what API keys and secrets are available for use in workflows. Returns only the variable names, not their values.',
+      params: {},
+      parameters: {
+        type: 'object',
+        properties: {},
+        required: [],
+      },
+    },
   ]
 
   // Filter tools based on mode
@@ -534,7 +547,8 @@ export async function generateChatResponse(
       stream,
       streamToolCalls: true, // Enable tool call streaming for copilot
       workflowId: options.workflowId,
-      chatId: options.chatId
+      chatId: options.chatId,
+      userId: options.userId || 'unknown_user' // Pass userId to provider request
     })
 
     // Handle StreamingExecution (from providers with tool calls)
@@ -803,6 +817,7 @@ export async function sendMessage(request: SendMessageRequest): Promise<{
       mode,
       chatId: currentChat?.id,
       implicitFeedback: request.implicitFeedback,
+      userId: userId // Pass userId to generateChatResponse
     })
 
     // For non-streaming responses, save immediately

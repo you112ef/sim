@@ -225,6 +225,7 @@ export const getWorkflowExamplesTool: CopilotTool = {
 const copilotTools: Record<string, CopilotTool> = {
   docs_search_internal: docsSearchTool,
   get_user_workflow: getUserWorkflowTool,
+  get_workflow_examples: getWorkflowExamplesTool,
 }
 
 /**

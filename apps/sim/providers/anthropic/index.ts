@@ -407,6 +407,7 @@ ${fieldDescriptions}
                           _context: {
                             workflowId: request.workflowId,
                             ...(request.chatId ? { chatId: request.chatId } : {}),
+                            ...(request.userId ? { userId: request.userId } : {}),
                           },
                         }
                       : {}),
@@ -747,6 +748,7 @@ ${fieldDescriptions}
                         _context: {
                           workflowId: request.workflowId,
                           ...(request.chatId ? { chatId: request.chatId } : {}),
+                          ...(request.userId ? { userId: request.userId } : {}),
                         },
                       }
                     : {}),
@@ -1185,6 +1187,7 @@ ${fieldDescriptions}
                       _context: {
                         workflowId: request.workflowId,
                         ...(request.chatId ? { chatId: request.chatId } : {}),
+                        ...(request.userId ? { userId: request.userId } : {}),
                       },
                     }
                   : {}),
