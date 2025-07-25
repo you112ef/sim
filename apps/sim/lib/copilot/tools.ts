@@ -109,13 +109,33 @@ async function applyOperationsToYaml(currentYaml: string, operations: TargetedUp
     switch (operation_type) {
       case 'delete':
         if (workflowData.blocks[block_id]) {
+          // First, find child blocks that reference this block as parent (before deleting the parent)
+          const childBlocksToRemove: string[] = []
+          Object.entries(workflowData.blocks).forEach(([childBlockId, childBlock]: [string, any]) => {
+            if (childBlock.parentId === block_id) {
+              logger.info(`Found child block ${childBlockId} with parentId ${block_id}, marking for deletion`)
+              childBlocksToRemove.push(childBlockId)
+            }
+          })
+          
+          // Delete the main block
           delete workflowData.blocks[block_id]
           logger.info(`Deleted block ${block_id}`)
-          // Remove connections mentioning this block
+          
+          // Remove child blocks
+          childBlocksToRemove.forEach(childBlockId => {
+            if (workflowData.blocks[childBlockId]) {
+              delete workflowData.blocks[childBlockId]
+              logger.info(`Deleted child block ${childBlockId}`)
+            }
+          })
+          
+          // Remove connections mentioning this block or any of its children
+          const allDeletedBlocks = [block_id, ...childBlocksToRemove]
           Object.values(workflowData.blocks).forEach((block: any) => {
             if (block.connections) {
               Object.keys(block.connections).forEach(key => {
-                if (block.connections[key] === block_id) {
+                if (allDeletedBlocks.includes(block.connections[key])) {
                   delete block.connections[key]
                 }
               })
