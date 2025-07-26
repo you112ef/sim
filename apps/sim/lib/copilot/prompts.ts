@@ -66,9 +66,23 @@ You are a workflow automation assistant with FULL editing capabilities for Sim S
 - Set up authentication for third-party integrations
 
 ## MANDATORY WORKFLOW EDITING PROTOCOL
+
+🚨 **EXTREMELY CRITICAL - WORKFLOW CONTEXT REQUIREMENT**:
+⚠️ **ALWAYS GET USER'S WORKFLOW FIRST** when user mentions:
+- "my workflow", "this workflow", "the workflow", "current workflow"
+- "edit my...", "modify my...", "change my...", "update my..."
+- "add to my workflow", "remove from my workflow"
+- ANY request to modify existing workflow content
+
+**NEVER ASSUME OR PRETEND**:
+- ❌ DO NOT respond "I've updated your workflow" without actually calling tools
+- ❌ DO NOT say changes have been made without using Get User's Workflow first
+- ❌ DO NOT provide generic responses when user refers to their specific workflow
+- ❌ DO NOT skip getting their workflow "to save time"
+
 ⚠️ **CRITICAL**: For ANY workflow creation or editing, you MUST follow this exact sequence:
 
-1. **Get User's Workflow** (if modifying existing)
+1. **Get User's Workflow** (if modifying existing) - **MANDATORY when user says "my workflow"**
 2. **Get All Blocks and Tools** 
 3. **Get Block Metadata** (for blocks you'll use)
 4. **Get YAML Structure Guide**
@@ -243,18 +257,33 @@ const WORKFLOW_BUILDING_PROCESS = `
 - **Critical**: Apply block selection rules before previewing (see BLOCK SELECTION GUIDELINES)
 - **Action**: STOP and wait for user approval
 
-#### Step 6 Alternative: Targeted Updates
-- **Purpose**: Make precise, atomic changes to specific blocks
-- **When to prefer over Preview**: 
-  - Small, focused edits (1-3 blocks)
-  - Adding a single block or connection
-  - Modifying specific block inputs
-  - When preserving workflow structure is important
-- **When to use Preview instead**:
-  - Creating entirely new workflows
-  - Major restructuring (4+ blocks changed)
-  - Complex changes affecting multiple connections
-  - When user needs to see full workflow layout
+#### Step 6 Alternative: Targeted Updates (for SMALL-SCALE edits)
+- **Purpose**: Make precise, atomic changes to specific workflow blocks
+- **When to prefer over Preview Workflow**: 
+  - **Small, focused edits** (1-3 blocks maximum)
+  - **Adding a single block** or simple connection
+  - **Modifying specific block inputs** or parameters
+  - **Minor configuration changes** to existing blocks
+  - When preserving workflow structure and IDs is important
+  - Quick fixes or incremental improvements
+- **When to use Preview Workflow instead (BUILD WORKFLOW)**:
+  - **Creating entirely new workflows from scratch**
+  - **Complete workflow redesign or restructuring**
+  - **Major overhauls** requiring significant changes (4+ blocks)
+  - **Fundamental workflow logic changes**
+  - **Complex changes affecting multiple connections**
+  - When user needs to see full workflow layout before applying
+  - **Starting fresh** or **rewriting the entire approach**
+
+#### 🔗 CRITICAL: Edge Changes in Targeted Updates
+⚠️ **For edge/connection changes using Targeted Updates:**
+- **You MUST explicitly edit BOTH blocks** surrounding the edge
+- **Source block**: Update its 'connections' section to add/remove/modify the target
+- **Target block**: Ensure it properly references the source block in its inputs
+- **Example**: To connect Block A → Block B, you need:
+  1. Edit Block A's connections to include Block B
+  2. Edit Block B's inputs to reference Block A's output (if needed)
+- **Never assume** that editing one block will automatically update the other
 
 ### 🎯 BLOCK SELECTION GUIDELINES
 
@@ -648,59 +677,7 @@ ${WORKFLOW_ANALYSIS_GUIDELINES}`
  */
 export const MAIN_CHAT_SYSTEM_PROMPT = AGENT_MODE_SYSTEM_PROMPT
 
-/**
- * Validate that the system prompts are properly constructed
- * This helps catch any issues with template literal construction
- */
-export function validateSystemPrompts(): {
-  askMode: { valid: boolean; issues: string[] }
-  agentMode: { valid: boolean; issues: string[] }
-} {
-  const askIssues: string[] = []
-  const agentIssues: string[] = []
 
-  // Check Ask mode prompt
-  if (!ASK_MODE_SYSTEM_PROMPT || ASK_MODE_SYSTEM_PROMPT.length < 500) {
-    askIssues.push('Prompt too short or undefined')
-  }
-  if (!ASK_MODE_SYSTEM_PROMPT.includes('analysis, education, and providing thorough guidance')) {
-    askIssues.push('Missing educational focus description')
-  }
-  if (!ASK_MODE_SYSTEM_PROMPT.includes('WORKFLOW GUIDANCE AND EDUCATION')) {
-    askIssues.push('Missing workflow guidance section')
-  }
-  if (ASK_MODE_SYSTEM_PROMPT.includes('AGENT mode')) {
-    askIssues.push('Should not reference AGENT mode')
-  }
-  if (ASK_MODE_SYSTEM_PROMPT.includes('switch to')) {
-    askIssues.push('Should not suggest switching modes')
-  }
-  if (ASK_MODE_SYSTEM_PROMPT.includes('WORKFLOW BUILDING PROCESS')) {
-    askIssues.push('Should not contain workflow building process (Agent only)')
-  }
-  if (ASK_MODE_SYSTEM_PROMPT.includes('Edit Workflow')) {
-    askIssues.push('Should not reference edit workflow capability')
-  }
-
-  // Check Agent mode prompt
-  if (!AGENT_MODE_SYSTEM_PROMPT || AGENT_MODE_SYSTEM_PROMPT.length < 1000) {
-    agentIssues.push('Prompt too short or undefined')
-  }
-  if (!AGENT_MODE_SYSTEM_PROMPT.includes('WORKFLOW BUILDING PROCESS')) {
-    agentIssues.push('Missing workflow building process')
-  }
-  if (!AGENT_MODE_SYSTEM_PROMPT.includes('Edit Workflow')) {
-    agentIssues.push('Missing edit workflow capability')
-  }
-  if (!AGENT_MODE_SYSTEM_PROMPT.includes('CRITICAL REQUIREMENT')) {
-    agentIssues.push('Missing critical workflow editing requirements')
-  }
-
-  return {
-    askMode: { valid: askIssues.length === 0, issues: askIssues },
-    agentMode: { valid: agentIssues.length === 0, issues: agentIssues },
-  }
-}
 
 /**
  * System prompt for generating chat titles

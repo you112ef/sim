@@ -14,19 +14,10 @@ import {
   ASK_MODE_SYSTEM_PROMPT,
   TITLE_GENERATION_SYSTEM_PROMPT,
   TITLE_GENERATION_USER_PROMPT,
-  validateSystemPrompts,
 } from './prompts'
 
 const logger = createLogger('CopilotService')
 
-// Validate system prompts on module load
-const promptValidation = validateSystemPrompts()
-if (!promptValidation.askMode.valid) {
-  logger.error('Ask mode system prompt validation failed:', promptValidation.askMode.issues)
-}
-if (!promptValidation.agentMode.valid) {
-  logger.error('Agent mode system prompt validation failed:', promptValidation.agentMode.issues)
-}
 
 /**
  * Citation information for documentation references

@@ -170,7 +170,7 @@ function extractEdges(yamlWorkflow: any): EdgeIdentity[] {
             target: targetName,
             sourceHandle: outputName,
           })
-        } else if (typeof target === 'object' && target.block) {
+        } else if (target && typeof target === 'object' && target.block) {
           const targetName = blockIdToName.get(target.block)
           if (!targetName) return
 
