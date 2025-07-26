@@ -49,7 +49,7 @@ vi.mock('@/components/ui/card', () => ({
 }))
 
 vi.mock('@/components/icons', async (importOriginal) => {
-  const actual = await importOriginal() as any
+  const actual = (await importOriginal()) as any
   return {
     ...actual,
     // Override specific icons if needed for testing
