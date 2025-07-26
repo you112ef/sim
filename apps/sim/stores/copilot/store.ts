@@ -33,10 +33,12 @@ const initialState = {
   isSendingMessage: false,
   isSaving: false,
   isRevertingCheckpoint: false,
+  isAborting: false,
   error: null,
   saveError: null,
   checkpointError: null,
   workflowId: null,
+  abortController: null,
 }
 
 /**
@@ -462,7 +464,9 @@ export const useCopilotStore = create<CopilotStore>()(
           return
         }
 
-        set({ isSendingMessage: true, error: null })
+        // Create abort controller for this request
+        const abortController = new AbortController()
+        set({ isSendingMessage: true, error: null, abortController })
 
         const userMessage = createUserMessage(message)
         const streamingMessage = createStreamingMessage()
@@ -479,14 +483,26 @@ export const useCopilotStore = create<CopilotStore>()(
             mode,
             createNewChat: !currentChat,
             stream,
+            abortSignal: abortController.signal,
           })
 
           if (result.success && result.stream) {
             await get().handleStreamingResponse(result.stream, streamingMessage.id)
           } else {
+            // Handle abort gracefully
+            if (result.error === 'Request was aborted') {
+              logger.info('Message sending was aborted by user')
+              return // Don't throw or update state, abort handler already did
+            }
             throw new Error(result.error || 'Failed to send message')
           }
         } catch (error) {
+          // Check if this was an abort
+          if (error instanceof Error && error.name === 'AbortError') {
+            logger.info('Message sending was aborted')
+            return // Don't update state, abort handler already did
+          }
+
           const errorMessage = createErrorMessage(
             streamingMessage.id,
             'Sorry, I encountered an error while processing your message. Please try again.'
@@ -498,7 +514,60 @@ export const useCopilotStore = create<CopilotStore>()(
             ),
             error: handleStoreError(error, 'Failed to send message'),
             isSendingMessage: false,
+            abortController: null,
           }))
+        }
+      },
+
+      // Abort current message streaming
+      abortMessage: () => {
+        const { abortController, isSendingMessage, messages } = get()
+        
+        if (!isSendingMessage || !abortController) {
+          logger.warn('Cannot abort: no active streaming request')
+          return
+        }
+
+        logger.info('Aborting message streaming')
+        set({ isAborting: true })
+
+        try {
+          // Abort the request
+          abortController.abort()
+          
+          // Find the last streaming message and replace it with an aborted message
+          const lastMessage = messages[messages.length - 1]
+          if (lastMessage && lastMessage.role === 'assistant' && lastMessage.content === '') {
+            const abortedMessage = createErrorMessage(
+              lastMessage.id,
+              'Message was cancelled. You can continue the conversation below.'
+            )
+
+            set((state) => ({
+              messages: state.messages.map((msg) =>
+                msg.id === lastMessage.id ? abortedMessage : msg
+              ),
+              isSendingMessage: false,
+              isAborting: false,
+              abortController: null,
+            }))
+          } else {
+            // No streaming message found, just reset the state
+            set({
+              isSendingMessage: false,
+              isAborting: false,
+              abortController: null,
+            })
+          }
+
+          logger.info('Message streaming aborted successfully')
+        } catch (error) {
+          logger.error('Error during abort:', error)
+          set({
+            isSendingMessage: false,
+            isAborting: false,
+            abortController: null,
+          })
         }
       },
 
@@ -554,7 +623,9 @@ export const useCopilotStore = create<CopilotStore>()(
           return
         }
 
-        set({ isSendingMessage: true, error: null })
+        // Create abort controller for this request
+        const abortController = new AbortController()
+        set({ isSendingMessage: true, error: null, abortController })
 
         // Update the preview_workflow or targeted_updates tool call state if provided
         if (toolCallState) {
@@ -610,15 +681,27 @@ export const useCopilotStore = create<CopilotStore>()(
             createNewChat: !currentChat,
             stream: true,
             implicitFeedback, // Pass the implicit feedback
+            abortSignal: abortController.signal,
           })
 
           if (result.success && result.stream) {
             // Stream to the new assistant message (not continuation)
             await get().handleStreamingResponse(result.stream, newAssistantMessage.id, false)
           } else {
+            // Handle abort gracefully
+            if (result.error === 'Request was aborted') {
+              logger.info('Implicit feedback sending was aborted by user')
+              return // Don't throw or update state, abort handler already did
+            }
             throw new Error(result.error || 'Failed to send implicit feedback')
           }
         } catch (error) {
+          // Check if this was an abort
+          if (error instanceof Error && error.name === 'AbortError') {
+            logger.info('Implicit feedback sending was aborted')
+            return // Don't update state, abort handler already did
+          }
+
           const errorMessage = createErrorMessage(
             newAssistantMessage.id,
             'Sorry, I encountered an error while processing your feedback. Please try again.'
@@ -630,6 +713,7 @@ export const useCopilotStore = create<CopilotStore>()(
             ),
             error: handleStoreError(error, 'Failed to send implicit feedback'),
             isSendingMessage: false,
+            abortController: null,
           }))
         }
       },
@@ -644,7 +728,9 @@ export const useCopilotStore = create<CopilotStore>()(
           return
         }
 
-        set({ isSendingMessage: true, error: null })
+        // Create abort controller for this request
+        const abortController = new AbortController()
+        set({ isSendingMessage: true, error: null, abortController })
 
         const userMessage = createUserMessage(query)
         const streamingMessage = createStreamingMessage()
@@ -661,14 +747,26 @@ export const useCopilotStore = create<CopilotStore>()(
             workflowId,
             createNewChat: !currentChat,
             stream,
+            abortSignal: abortController.signal,
           })
 
           if (result.success && result.stream) {
             await get().handleStreamingResponse(result.stream, streamingMessage.id)
           } else {
+            // Handle abort gracefully
+            if (result.error === 'Request was aborted') {
+              logger.info('Docs message sending was aborted by user')
+              return // Don't throw or update state, abort handler already did
+            }
             throw new Error(result.error || 'Failed to send docs message')
           }
         } catch (error) {
+          // Check if this was an abort
+          if (error instanceof Error && error.name === 'AbortError') {
+            logger.info('Docs message sending was aborted')
+            return // Don't update state, abort handler already did
+          }
+
           const errorMessage = createErrorMessage(
             streamingMessage.id,
             'Sorry, I encountered an error while searching the documentation. Please try again.'
@@ -680,6 +778,7 @@ export const useCopilotStore = create<CopilotStore>()(
             ),
             error: handleStoreError(error, 'Failed to send docs message'),
             isSendingMessage: false,
+            abortController: null,
           }))
         }
       },
@@ -721,6 +820,15 @@ export const useCopilotStore = create<CopilotStore>()(
 
         try {
           while (true) {
+            const { abortController } = get()
+            
+            // Check if we should abort
+            if (abortController?.signal.aborted) {
+              logger.info('Stream reading aborted')
+              streamComplete = true
+              break
+            }
+
             const { done, value } = await reader.read()
 
             if (done || streamComplete) {
@@ -1113,6 +1221,7 @@ export const useCopilotStore = create<CopilotStore>()(
                 : msg
             ),
             isSendingMessage: false,
+            abortController: null, // Clear abort controller when streaming completes
           }))
 
           // Auto-save messages after streaming completes
@@ -1133,6 +1242,12 @@ export const useCopilotStore = create<CopilotStore>()(
             logger.warn('No chat ID available for auto-saving messages')
           }
         } catch (error) {
+          // Handle AbortError gracefully - this is expected when user aborts
+          if (error instanceof Error && error.name === 'AbortError') {
+            logger.info('Stream reading was aborted by user')
+            return // Don't throw or log as error
+          }
+          
           logger.error('Error handling streaming response:', error)
           throw error
         } finally {

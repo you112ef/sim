@@ -132,11 +132,15 @@ export interface CopilotState {
   isSendingMessage: boolean
   isSaving: boolean
   isRevertingCheckpoint: boolean
+  isAborting: boolean
 
   // Error states
   error: string | null
   saveError: string | null
   checkpointError: string | null
+
+  // Abort controller for cancelling requests
+  abortController: AbortController | null
 }
 
 /**
@@ -156,6 +160,7 @@ export interface CopilotActions {
 
   // Message handling
   sendMessage: (message: string, options?: SendMessageOptions) => Promise<void>
+  abortMessage: () => void
   sendImplicitFeedback: (
     implicitFeedback: string,
     toolCallState?: 'applied' | 'rejected'

@@ -61,6 +61,7 @@ export interface SendMessageRequest {
   createNewChat?: boolean
   stream?: boolean
   implicitFeedback?: string
+  abortSignal?: AbortSignal
 }
 
 /**
@@ -75,6 +76,7 @@ export interface DocsQueryRequest {
   chatId?: string
   workflowId?: string
   createNewChat?: boolean
+  abortSignal?: AbortSignal
 }
 
 /**
@@ -196,6 +198,16 @@ async function makeApiRequest<T>(
     }
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : 'Unknown error'
+    
+    // Handle AbortError gracefully - this is expected when user aborts
+    if (error instanceof Error && error.name === 'AbortError') {
+      logger.info(`API request was aborted: ${defaultErrorMessage}`)
+      return {
+        success: false,
+        error: 'Request was aborted',
+      }
+    }
+    
     logger.error(`API request failed: ${defaultErrorMessage}`, error)
     return {
       success: false,
@@ -343,10 +355,12 @@ export async function sendStreamingMessage(
   request: SendMessageRequest
 ): Promise<StreamingResponse> {
   try {
+    const { abortSignal, ...requestBody } = request
     const response = await fetch('/api/copilot', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ ...request, stream: true }),
+      body: JSON.stringify({ ...requestBody, stream: true }),
+      signal: abortSignal,
     })
 
     if (!response.ok) {
@@ -363,6 +377,15 @@ export async function sendStreamingMessage(
       stream: response.body,
     }
   } catch (error) {
+    // Handle AbortError gracefully - this is expected when user aborts
+    if (error instanceof Error && error.name === 'AbortError') {
+      logger.info('Streaming message was aborted by user')
+      return {
+        success: false,
+        error: 'Request was aborted',
+      }
+    }
+    
     logger.error('Failed to send streaming message:', error)
     return {
       success: false,
@@ -409,18 +432,20 @@ export async function sendStreamingDocsMessage(
   request: DocsQueryRequest
 ): Promise<StreamingResponse> {
   try {
-    const message = `Please search the documentation and answer this question: ${request.query}`
+    const { abortSignal, ...requestData } = request
+    const message = `Please search the documentation and answer this question: ${requestData.query}`
 
     const response = await fetch('/api/copilot', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         message,
-        chatId: request.chatId,
-        workflowId: request.workflowId,
-        createNewChat: request.createNewChat,
+        chatId: requestData.chatId,
+        workflowId: requestData.workflowId,
+        createNewChat: requestData.createNewChat,
         stream: true,
       }),
+      signal: abortSignal,
     })
 
     if (!response.ok) {
@@ -437,6 +462,15 @@ export async function sendStreamingDocsMessage(
       stream: response.body,
     }
   } catch (error) {
+    // Handle AbortError gracefully - this is expected when user aborts
+    if (error instanceof Error && error.name === 'AbortError') {
+      logger.info('Streaming docs message was aborted by user')
+      return {
+        success: false,
+        error: 'Request was aborted',
+      }
+    }
+    
     logger.error('Failed to send streaming docs message:', error)
     return {
       success: false,

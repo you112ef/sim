@@ -70,6 +70,7 @@ export const Copilot = forwardRef<CopilotRef, CopilotProps>(
       isLoading,
       isLoadingChats,
       isSendingMessage,
+      isAborting,
       error,
       workflowId,
       mode,
@@ -79,6 +80,7 @@ export const Copilot = forwardRef<CopilotRef, CopilotProps>(
       createNewChat,
       deleteChat,
       sendMessage,
+      abortMessage,
       clearMessages,
       clearError,
       setMode,
@@ -410,8 +412,10 @@ export const Copilot = forwardRef<CopilotRef, CopilotProps>(
                   {/* Input area */}
                   <ProfessionalInput
                     onSubmit={handleSubmit}
+                    onAbort={abortMessage}
                     disabled={!activeWorkflowId}
                     isLoading={isSendingMessage}
+                    isAborting={isAborting}
                   />
                 </>
               )}
@@ -427,7 +431,9 @@ export const Copilot = forwardRef<CopilotRef, CopilotProps>(
           setCopilotMessage={(message) => onFullscreenInputChange?.(message)}
           messages={messages}
           onSendMessage={handleModalSendMessage}
+          onAbortMessage={abortMessage}
           isLoading={isSendingMessage}
+          isAborting={isAborting}
           isLoadingChats={isLoadingChats}
           chats={chats}
           currentChat={currentChat}

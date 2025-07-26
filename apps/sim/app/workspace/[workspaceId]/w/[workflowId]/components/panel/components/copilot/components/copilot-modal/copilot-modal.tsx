@@ -27,7 +27,9 @@ interface CopilotModalProps {
   setCopilotMessage: (message: string) => void
   messages: CopilotMessage[]
   onSendMessage: (message: string) => Promise<void>
+  onAbortMessage?: () => void
   isLoading: boolean
+  isAborting?: boolean
   isLoadingChats: boolean
   // Chat management props
   chats: CopilotChat[]
@@ -47,7 +49,9 @@ export function CopilotModal({
   setCopilotMessage,
   messages,
   onSendMessage,
+  onAbortMessage,
   isLoading,
+  isAborting,
   isLoadingChats,
   chats,
   currentChat,
@@ -306,8 +310,10 @@ export function CopilotModal({
                       await onSendMessage(message)
                       setCopilotMessage('')
                     }}
+                    onAbort={onAbortMessage}
                     disabled={false}
                     isLoading={isLoading}
+                    isAborting={isAborting}
                     placeholder={
                       mode === 'ask'
                         ? 'Ask me anything about your workflow...'
