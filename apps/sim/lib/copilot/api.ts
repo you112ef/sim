@@ -198,7 +198,7 @@ async function makeApiRequest<T>(
     }
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : 'Unknown error'
-    
+
     // Handle AbortError gracefully - this is expected when user aborts
     if (error instanceof Error && error.name === 'AbortError') {
       logger.info(`API request was aborted: ${defaultErrorMessage}`)
@@ -207,7 +207,7 @@ async function makeApiRequest<T>(
         error: 'Request was aborted',
       }
     }
-    
+
     logger.error(`API request failed: ${defaultErrorMessage}`, error)
     return {
       success: false,
@@ -385,7 +385,7 @@ export async function sendStreamingMessage(
         error: 'Request was aborted',
       }
     }
-    
+
     logger.error('Failed to send streaming message:', error)
     return {
       success: false,
@@ -470,7 +470,7 @@ export async function sendStreamingDocsMessage(
         error: 'Request was aborted',
       }
     }
-    
+
     logger.error('Failed to send streaming docs message:', error)
     return {
       success: false,

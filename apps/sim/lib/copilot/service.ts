@@ -18,7 +18,6 @@ import {
 
 const logger = createLogger('CopilotService')
 
-
 /**
  * Citation information for documentation references
  */

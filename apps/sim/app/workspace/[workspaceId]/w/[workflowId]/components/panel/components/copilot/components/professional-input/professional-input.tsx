@@ -91,7 +91,7 @@ const ProfessionalInput: FC<ProfessionalInputProps> = ({
                   'absolute right-2 bottom-2 h-8 w-8 rounded-xl transition-all',
                   'bg-red-500 text-white shadow-sm hover:bg-red-600'
                 )}
-                title="Stop generation"
+                title='Stop generation'
               >
                 {isAborting ? (
                   <Loader2 className='h-4 w-4 animate-spin' />

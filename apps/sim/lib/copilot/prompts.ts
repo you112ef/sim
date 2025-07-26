@@ -677,8 +677,6 @@ ${WORKFLOW_ANALYSIS_GUIDELINES}`
  */
 export const MAIN_CHAT_SYSTEM_PROMPT = AGENT_MODE_SYSTEM_PROMPT
 
-
-
 /**
  * System prompt for generating chat titles
  * Used when creating concise titles for new conversations

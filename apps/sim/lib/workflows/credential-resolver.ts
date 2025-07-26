@@ -1,8 +1,8 @@
 import { createLogger } from '@/lib/logs/console-logger'
+import { getProviderIdFromServiceId, getServiceIdFromScopes } from '@/lib/oauth/oauth'
 import { getBlock } from '@/blocks/index'
 import type { SubBlockConfig } from '@/blocks/types'
 import type { BlockState } from '@/stores/workflows/workflow/types'
-import { getServiceIdFromScopes, getProviderIdFromServiceId } from '@/lib/oauth/oauth'
 
 const logger = createLogger('CredentialResolver')
 
@@ -64,11 +64,7 @@ export async function resolveCredentialsForWorkflow(
         }
 
         // Resolve credential for this subblock
-        const credentialId = await resolveCredentialForSubBlock(
-          subBlockConfig,
-          blockState,
-          userId
-        )
+        const credentialId = await resolveCredentialForSubBlock(subBlockConfig, blockState, userId)
 
         if (credentialId) {
           resolvedValues[blockId][subBlockId] = credentialId
@@ -105,7 +101,11 @@ export async function resolveCredentialsForWorkflow(
  * Resolves a single credential for a subblock
  */
 async function resolveCredentialForSubBlock(
-  subBlockConfig: SubBlockConfig & { provider?: string; requiredScopes?: string[]; serviceId?: string },
+  subBlockConfig: SubBlockConfig & {
+    provider?: string
+    requiredScopes?: string[]
+    serviceId?: string
+  },
   blockState: BlockState,
   userId?: string
 ): Promise<string | null> {
@@ -140,7 +140,7 @@ async function resolveCredentialForSubBlock(
     // Note: This assumes we're running in a server context with access to fetch
     const baseUrl = process.env.NEXTAUTH_URL || 'http://localhost:3000'
     const credentialsUrl = `${baseUrl}/api/auth/oauth/credentials?provider=${effectiveProviderId}`
-    
+
     logger.debug('Fetching credentials', { url: credentialsUrl })
 
     const response = await fetch(credentialsUrl, {
@@ -159,7 +159,7 @@ async function resolveCredentialForSubBlock(
     const credentials: Credential[] = data.credentials || []
 
     logger.info(`Found ${credentials.length} credential(s) for provider ${effectiveProviderId}`, {
-      credentials: credentials.map(c => ({
+      credentials: credentials.map((c) => ({
         id: c.id,
         isDefault: c.isDefault,
       })),
@@ -215,4 +215,4 @@ export function needsCredentialResolution(
   }
 
   return false
-} 
+}

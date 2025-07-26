@@ -522,7 +522,7 @@ export const useCopilotStore = create<CopilotStore>()(
       // Abort current message streaming
       abortMessage: () => {
         const { abortController, isSendingMessage, messages } = get()
-        
+
         if (!isSendingMessage || !abortController) {
           logger.warn('Cannot abort: no active streaming request')
           return
@@ -534,7 +534,7 @@ export const useCopilotStore = create<CopilotStore>()(
         try {
           // Abort the request
           abortController.abort()
-          
+
           // Find the last streaming message and replace it with an aborted message
           const lastMessage = messages[messages.length - 1]
           if (lastMessage && lastMessage.role === 'assistant' && lastMessage.content === '') {
@@ -821,7 +821,7 @@ export const useCopilotStore = create<CopilotStore>()(
         try {
           while (true) {
             const { abortController } = get()
-            
+
             // Check if we should abort
             if (abortController?.signal.aborted) {
               logger.info('Stream reading aborted')
@@ -1247,7 +1247,7 @@ export const useCopilotStore = create<CopilotStore>()(
             logger.info('Stream reading was aborted by user')
             return // Don't throw or log as error
           }
-          
+
           logger.error('Error handling streaming response:', error)
           throw error
         } finally {
