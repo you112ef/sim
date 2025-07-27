@@ -22,6 +22,7 @@ export const env = createEnv({
     DISABLE_REGISTRATION: z.boolean().optional(),
     ENCRYPTION_KEY: z.string().min(32),
     INTERNAL_API_SECRET: z.string().min(32),
+    SIM_AGENT_API_KEY: z.string().min(1).optional(),
 
     POSTGRES_URL: z.string().url().optional(),
     STRIPE_SECRET_KEY: z.string().min(1).optional(),
@@ -127,6 +128,8 @@ export const env = createEnv({
   client: {
     NEXT_PUBLIC_APP_URL: z.string().url(),
     NEXT_PUBLIC_VERCEL_URL: z.string().optional(),
+    NEXT_PUBLIC_SIM_AGENT_URL: z.string().url().optional(),
+    NEXT_PUBLIC_SIM_AGENT_API_KEY: z.string().min(1).optional(),
     NEXT_PUBLIC_SENTRY_DSN: z.string().url().optional(),
     NEXT_PUBLIC_GOOGLE_CLIENT_ID: z.string().optional(),
     NEXT_PUBLIC_GOOGLE_API_KEY: z.string().optional(),
@@ -143,6 +146,8 @@ export const env = createEnv({
   experimental__runtimeEnv: {
     NEXT_PUBLIC_APP_URL: process.env.NEXT_PUBLIC_APP_URL,
     NEXT_PUBLIC_VERCEL_URL: process.env.NEXT_PUBLIC_VERCEL_URL,
+    NEXT_PUBLIC_SIM_AGENT_URL: process.env.NEXT_PUBLIC_SIM_AGENT_URL,
+    NEXT_PUBLIC_SIM_AGENT_API_KEY: process.env.NEXT_PUBLIC_SIM_AGENT_API_KEY,
     NEXT_PUBLIC_SENTRY_DSN: process.env.NEXT_PUBLIC_SENTRY_DSN,
     NEXT_PUBLIC_GOOGLE_CLIENT_ID: process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID,
     NEXT_PUBLIC_GOOGLE_API_KEY: process.env.NEXT_PUBLIC_GOOGLE_API_KEY,
