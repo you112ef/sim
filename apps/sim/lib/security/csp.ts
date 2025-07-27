@@ -62,6 +62,7 @@ export const cspDirectives: CSPDirectives = {
     env.NEXT_PUBLIC_SOCKET_URL || 'http://localhost:3002',
     env.NEXT_PUBLIC_SOCKET_URL?.replace('http://', 'ws://').replace('https://', 'wss://') ||
       'ws://localhost:3002',
+    'http://localhost:8000',
     'https://*.up.railway.app',
     'wss://*.up.railway.app',
     'https://api.browser-use.com',
