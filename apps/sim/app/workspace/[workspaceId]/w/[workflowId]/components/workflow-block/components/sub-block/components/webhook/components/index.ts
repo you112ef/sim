@@ -4,6 +4,7 @@ export {
   GenericConfig,
   GithubConfig,
   GmailConfig,
+  OutlookConfig,
   MicrosoftTeamsConfig,
   SlackConfig,
   StripeConfig,

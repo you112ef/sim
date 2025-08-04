@@ -385,6 +385,43 @@ export function formatWebhookInput(
     }
   }
 
+  if (foundWebhook.provider === 'outlook') {
+    // Handle Microsoft Graph validation first
+    const validationResponse = handleOutlookValidation(request)
+    if (validationResponse) {
+      return validationResponse
+    }
+
+    // Process actual notifications
+    const notifications = body.value || []
+    
+    return {
+      input: `New email received: ${notifications.length} notification(s)`, 
+      outlook: {
+        notifications: notifications.map((notification: any) => ({
+          subscriptionId: notification.subscriptionId,
+          changeType: notification.changeType,
+          resource: notification.resource,
+          resourceData: notification.resourceData,
+          clientState: notification.clientState,
+          subscriptionExpirationDateTime: notification.subscriptionExpirationDateTime,
+        })),
+        raw: body,
+      },
+      webhook: {
+        data: {
+          provider: 'outlook',
+          path: foundWebhook.path,
+          providerConfig: foundWebhook.providerConfig,
+          payload: body,
+          headers: Object.fromEntries(request.headers.entries()),
+          method: request.method,
+        },
+      },
+      workflowId: foundWorkflow.id,
+    }
+  }
+
   // Generic format for Slack and other providers
   return {
     webhook: {
@@ -1058,5 +1095,75 @@ export async function configureGmailPolling(
       stack: error.stack,
     })
     return false
+  }
+}
+
+/**
+ * Validate Microsoft Graph webhook notification
+ */
+export function validateOutlookWebhook(
+  body: any,
+  expectedClientState: string
+): boolean {
+  // Microsoft Graph sends validation tokens for endpoint verification
+  if (body.validationToken) {
+    return true // Handle validation separately
+  }
+  
+  // For actual notifications, verify clientState
+  return body.value?.some((notification: any) => 
+    notification.clientState === expectedClientState
+  )
+}
+
+/**
+ * Handle Microsoft Graph validation requests
+ */
+export function handleOutlookValidation(request: NextRequest): NextResponse | null {
+  const url = new URL(request.url)
+  const validationToken = url.searchParams.get('validationToken')
+  
+  if (validationToken) {
+    // Microsoft Graph requires plain text response with the validation token
+    return new NextResponse(validationToken, {
+      status: 200,
+      headers: {
+        'Content-Type': 'text/plain',
+      },
+    })
+  }
+  return null
+}
+
+export async function deleteOutlookSubscription(
+  userId: string,
+  providerConfig: any,
+  requestId: string
+) {
+  try {
+    const accessToken = await getOAuthToken(userId, 'outlook')
+    const subscriptionId = providerConfig?.subscriptionId
+
+    if (accessToken && subscriptionId) {
+      const response = await fetch(
+        `https://graph.microsoft.com/v1.0/subscriptions/${subscriptionId}`,
+        {
+          method: 'DELETE',
+          headers: {
+            'Authorization': `Bearer ${accessToken}`,
+          },
+        }
+      )
+      
+      if (response.ok) {
+        logger.info(`[${requestId}] Successfully deleted Outlook subscription ${subscriptionId}`)
+      } else {
+        logger.warn(`[${requestId}] Failed to delete Outlook subscription ${subscriptionId}: ${response.status}`)
+      }
+    } else {
+      logger.warn(`[${requestId}] Missing access token or subscription ID for Outlook cleanup`)
+    }
+  } catch (error) {
+    logger.warn(`[${requestId}] Failed to cleanup Outlook subscription`, error)
   }
 }

@@ -7,6 +7,7 @@ import {
   GithubIcon,
   GmailIcon,
   MicrosoftTeamsIcon,
+  OutlookIcon,
   SlackIcon,
   StripeIcon,
   TelegramIcon,
@@ -27,11 +28,11 @@ export interface WebhookProvider {
   icon: (props: { className?: string }) => React.ReactNode
   configFields: {
     [key: string]: {
-      type: 'string' | 'boolean' | 'select'
+      type: 'string' | 'boolean' | 'select' | 'array'
       label: string
       placeholder?: string
       options?: string[]
-      defaultValue?: string | boolean
+      defaultValue?: string | boolean | string[]
       description?: string
     }
   }
@@ -90,6 +91,10 @@ export interface MicrosoftTeamsConfig {
   hmacSecret: string
 }
 
+export interface OutlookConfig {
+  selectedFolders: string[]
+}
+
 // Union type for all provider configurations
 export type ProviderConfig =
   | WhatsAppConfig
@@ -102,6 +107,7 @@ export type ProviderConfig =
   | TelegramConfig
   | GmailConfig
   | MicrosoftTeamsConfig
+  | OutlookConfig
   | Record<string, never>
 
 // Define available webhook providers
@@ -300,6 +306,19 @@ export const WEBHOOK_PROVIDERS: { [key: string]: WebhookProvider } = {
       },
     },
   },
+  outlook: {
+    id: 'outlook',
+    name: 'Outlook',
+    icon: (props) => <OutlookIcon {...props} />,
+    configFields: {
+      selectedFolders: {
+        type: 'array',
+        label: 'Mail Folders to Monitor',
+        defaultValue: ['inbox'],
+        description: 'Select which Outlook folders to monitor for new emails.',
+      },
+    },
+  },
 }
 
 interface WebhookConfigProps {
@@ -332,6 +351,7 @@ export function WebhookConfig({
   const workflowId = params.workflowId as string
   const [isLoading, setIsLoading] = useState(false)
   const [gmailCredentialId, setGmailCredentialId] = useState<string>('')
+  const [outlookCredentialId, setOutlookCredentialId] = useState<string>('')
 
   // No need to manage webhook status separately - it's determined by having provider + path
 
@@ -700,6 +720,12 @@ export function WebhookConfig({
     setGmailCredentialId(credentialId)
   }
 
+  const handleOutlookCredentialChange = (credentialId: string) => {
+    if (isPreview || disabled) return
+    setOutlookCredentialId(credentialId)
+    useSubBlockStore.getState().setValue(blockId, 'outlookCredentialId', credentialId)
+  }
+
   // For Gmail, we need to show the credential selector
   if (webhookProvider === 'gmail' && !isWebhookConnected) {
     return (
@@ -728,6 +754,65 @@ export function WebhookConfig({
             onClick={handleOpenModal}
             disabled={
               isConnecting || isSaving || isDeleting || !gmailCredentialId || isPreview || disabled
+            }
+          >
+            {isLoading ? (
+              <div className='mr-2 h-4 w-4 animate-spin rounded-full border-[1.5px] border-current border-t-transparent' />
+            ) : (
+              <ExternalLink className='mr-2 h-4 w-4' />
+            )}
+            Configure Webhook
+          </Button>
+        )}
+
+        {isModalOpen && (
+          <WebhookModal
+            isOpen={isModalOpen}
+            onClose={handleCloseModal}
+            webhookPath={webhookPath || ''}
+            webhookProvider={webhookProvider || 'generic'}
+            onSave={handleSaveWebhook}
+            onDelete={handleDeleteWebhook}
+            webhookId={webhookId || undefined}
+          />
+        )}
+      </div>
+    )
+  }
+
+
+
+  // Add Outlook condition after the Gmail condition (around line 777)
+  // For Outlook, we need to show the credential selector
+  if (webhookProvider === 'outlook' && !isWebhookConnected) {
+    return (
+      <div className='w-full'>
+        {error && <div className='mb-2 text-red-500 text-sm dark:text-red-400'>{error}</div>}
+
+        <div className='mb-3'>
+          <ToolCredentialSelector
+            value={outlookCredentialId}
+            onChange={handleOutlookCredentialChange}
+            provider='outlook'
+            requiredScopes={[
+              'Mail.ReadWrite',
+              'Mail.ReadBasic',
+              'Mail.Read',
+              'offline_access',
+            ]}
+            label='Select Microsoft account'
+            disabled={isConnecting || isSaving || isDeleting || isPreview || disabled}
+          />
+        </div>
+
+        {outlookCredentialId && (
+          <Button
+            variant='outline'
+            size='sm'
+            className='flex h-10 w-full items-center bg-background font-normal text-sm'
+            onClick={handleOpenModal}
+            disabled={
+              isConnecting || isSaving || isDeleting || !outlookCredentialId || isPreview || disabled
             }
           >
             {isLoading ? (

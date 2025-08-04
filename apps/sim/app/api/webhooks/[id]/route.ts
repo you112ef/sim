@@ -296,6 +296,40 @@ export async function DELETE(
       }
     }
 
+    // If it's an Outlook webhook, delete all Microsoft Graph subscriptions first
+    if (foundWebhook.provider === 'outlook') {
+      try {
+        const { subscriptions } = foundWebhook.providerConfig as { subscriptions: any[] }
+
+        if (subscriptions && subscriptions.length > 0) {
+          const { deleteOutlookSubscription } = await import('@/lib/webhooks/utils')
+          
+          for (const subscription of subscriptions) {
+            try {
+              await deleteOutlookSubscription(
+                webhookData.workflow.userId,
+                { subscriptionId: subscription.subscriptionId },
+                requestId
+              )
+              logger.info(`[${requestId}] Successfully deleted Outlook subscription ${subscription.subscriptionId}`)
+            } catch (error: any) {
+              logger.warn(`[${requestId}] Failed to delete Outlook subscription ${subscription.subscriptionId}`, error)
+              // Continue with other subscriptions even if one fails
+            }
+          }
+        } else {
+          logger.info(`[${requestId}] No Outlook subscriptions to clean up for webhook ${id}`)
+        }
+      } catch (error: any) {
+        logger.error(`[${requestId}] Error during Outlook webhook cleanup`, {
+          webhookId: id,
+          error: error.message,
+          stack: error.stack,
+        })
+        // Don't fail the entire deletion if cleanup fails
+      }
+    }
+
     // Delete the webhook from the database
     await db.delete(webhook).where(eq(webhook.id, id))
 

@@ -6,6 +6,8 @@ import {
   handleSlackChallenge,
   handleWhatsAppVerification,
   validateMicrosoftTeamsSignature,
+  handleOutlookValidation,
+  validateOutlookWebhook,
 } from '@/lib/webhooks/utils'
 import { db } from '@/db'
 import { subscription, webhook, workflow } from '@/db/schema'
@@ -82,6 +84,24 @@ export async function POST(
   const requestId = crypto.randomUUID().slice(0, 8)
   let foundWorkflow: any = null
   let foundWebhook: any = null
+
+  // --- EARLY MICROSOFT GRAPH VALIDATION CHECK ---
+  const url = new URL(request.url)
+  const validationToken = url.searchParams.get('validationToken')
+  
+  if (validationToken) {
+    logger.info(`[${requestId}] Microsoft Graph validation request detected`, {
+      validationToken: validationToken.substring(0, 50) + '...' // Log partial token for security
+    })
+    
+    // Microsoft Graph requires plain text response with the validation token
+    return new NextResponse(validationToken, {
+      status: 200,
+      headers: {
+        'Content-Type': 'text/plain',
+      },
+    })
+  }
 
   // --- PHASE 1: Request validation and parsing ---
   let rawBody: string | null = null

@@ -266,6 +266,22 @@ export async function POST(request: NextRequest) {
     }
     // --- End Gmail specific logic ---
 
+    if (savedWebhook && provider === 'outlook') {
+      logger.info(`[${requestId}] Outlook provider detected. Creating Microsoft Graph subscription.`)
+      try {
+        await createOutlookWebhookSubscription(request, userId, savedWebhook, requestId)
+      } catch (err) {
+        logger.error(`[${requestId}] Error creating Outlook webhook`, err)
+        return NextResponse.json(
+          {
+            error: 'Failed to create Outlook webhook',
+            details: err instanceof Error ? err.message : 'Unknown error',
+          },
+          { status: 500 }
+        )
+      }
+    }
+
     const status = existingWebhooks.length > 0 ? 200 : 201
     return NextResponse.json({ webhook: savedWebhook }, { status })
   } catch (error: any) {
@@ -487,5 +503,90 @@ async function createTelegramWebhookSubscription(
         stack: error.stack,
       }
     )
+  }
+}
+
+// Enhanced logging for apps/sim/app/api/webhooks/route.ts - createOutlookWebhookSubscription function
+
+async function createOutlookWebhookSubscription(
+  request: NextRequest,
+  userId: string,
+  webhookData: any,
+  requestId: string
+) {
+  try {
+    const { path, providerConfig } = webhookData
+    const { selectedFolders } = providerConfig || {}
+    // Get OAuth token for outlook provider
+    const accessToken = await getOAuthToken(userId, 'outlook')
+    if (!accessToken) {
+      logger.error(`[${requestId}] FAILED: Could not retrieve Outlook access token for user ${userId}`)
+      return
+    }
+
+    const requestOrigin = new URL(request.url).origin
+    const effectiveOrigin = requestOrigin.includes('localhost')
+      ? env.NEXT_PUBLIC_APP_URL || requestOrigin
+      : requestOrigin
+
+    const notificationUrl = `${effectiveOrigin}/api/webhooks/trigger/${path}`
+    
+    // Create subscriptions for each selected folder
+    const subscriptions = []
+    const folders = selectedFolders || ['inbox']
+    
+    for (const folderId of folders) {
+      const resourcePath = folderId === 'inbox' 
+        ? '/me/mailFolders/inbox/messages'
+        : `/me/mailFolders/${folderId}/messages`
+
+      const subscriptionBody = {
+        changeType: 'created', // Only watch for new emails
+        notificationUrl: notificationUrl,
+        resource: resourcePath,
+        expirationDateTime: new Date(Date.now() + 4230 * 60 * 1000).toISOString(),
+        clientState: crypto.randomUUID()
+      }
+
+      const response = await fetch('https://graph.microsoft.com/v1.0/subscriptions', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${accessToken}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(subscriptionBody),
+      })
+
+      const responseBody = await response.json()
+      
+      if (!response.ok) {
+        logger.error(`[${requestId}] ❌ FAILED to create Outlook subscription for folder ${folderId}`, { 
+          status: response.status,
+          error: responseBody 
+        })
+        continue
+      }
+
+      subscriptions.push({
+        folderId,
+        subscriptionId: responseBody.id,
+        clientState: subscriptionBody.clientState,
+        expirationDateTime: responseBody.expirationDateTime,
+      })
+    }
+
+    // Store all subscription details in webhook config
+    const updatedConfig = {
+      ...providerConfig,
+      subscriptions,
+    }
+
+    await db
+      .update(webhook)
+      .set({ providerConfig: updatedConfig, updatedAt: new Date() })
+      .where(eq(webhook.id, webhookData.id))
+
+  } catch (error: any) {
+    throw error
   }
 }

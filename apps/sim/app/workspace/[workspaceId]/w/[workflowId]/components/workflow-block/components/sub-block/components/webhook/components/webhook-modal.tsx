@@ -16,6 +16,7 @@ import {
   GenericConfig,
   GithubConfig,
   GmailConfig,
+  OutlookConfig,
   MicrosoftTeamsConfig,
   SlackConfig,
   StripeConfig,
@@ -88,11 +89,18 @@ export function WebhookModal({
   const [telegramBotToken, setTelegramBotToken] = useState('')
   // Microsoft Teams-specific state
   const [microsoftTeamsHmacSecret, setMicrosoftTeamsHmacSecret] = useState('')
+  // Outlook-specific state
+  const [outlookResourceType, setOutlookResourceType] = useState('')
+  const [outlookChangeType, setOutlookChangeType] = useState('')
+  const [outlookClientState, setOutlookClientState] = useState('')
   // Airtable-specific state
   const [airtableWebhookSecret, _setAirtableWebhookSecret] = useState('')
   const [airtableBaseId, setAirtableBaseId] = useState('')
   const [airtableTableId, setAirtableTableId] = useState('')
   const [airtableIncludeCellValues, setAirtableIncludeCellValues] = useState(false)
+
+  // Add new state for Outlook folders (around line 92-95)
+  const [outlookSelectedFolders, setOutlookSelectedFolders] = useState<string[]>(['inbox'])
 
   // State for storing initial values to detect changes
   const [originalValues, setOriginalValues] = useState({
@@ -117,6 +125,7 @@ export function WebhookModal({
     labelFilterBehavior: 'INCLUDE',
     markAsRead: false,
     includeRawEmail: false,
+    outlookSelectedFolders: ['inbox'] as string[],
   })
 
   const [selectedLabels, setSelectedLabels] = useState<string[]>(['INBOX'])
@@ -278,6 +287,13 @@ export function WebhookModal({
                   ...prev,
                   microsoftTeamsHmacSecret: hmacSecret,
                 }))
+              } else if (webhookProvider === 'outlook') {
+                const selectedFolders = config.selectedFolders || ['inbox']
+                setOutlookSelectedFolders(selectedFolders)
+                setOriginalValues((prev) => ({
+                  ...prev,
+                  outlookSelectedFolders: selectedFolders,
+                }))
               }
             }
           }
@@ -324,7 +340,11 @@ export function WebhookModal({
           markAsRead !== originalValues.markAsRead ||
           includeRawEmail !== originalValues.includeRawEmail)) ||
       (webhookProvider === 'microsoftteams' &&
-        microsoftTeamsHmacSecret !== originalValues.microsoftTeamsHmacSecret)
+        microsoftTeamsHmacSecret !== originalValues.microsoftTeamsHmacSecret) ||
+      (webhookProvider === 'outlook' &&
+        (outlookSelectedFolders.length !== originalValues.outlookSelectedFolders.length ||
+          !outlookSelectedFolders.every((folder) => originalValues.outlookSelectedFolders.includes(folder)) ||
+          !originalValues.outlookSelectedFolders.every((folder) => outlookSelectedFolders.includes(folder))))
 
     setHasUnsavedChanges(hasChanges)
   }, [
@@ -349,6 +369,7 @@ export function WebhookModal({
     markAsRead,
     includeRawEmail,
     microsoftTeamsHmacSecret,
+    outlookSelectedFolders,
   ])
 
   // Validate required fields for current provider
@@ -379,6 +400,9 @@ export function WebhookModal({
       case 'microsoftteams':
         isValid = microsoftTeamsHmacSecret.trim() !== ''
         break
+      case 'outlook':
+        isValid = outlookSelectedFolders.length > 0
+        break
     }
     setIsCurrentConfigValid(isValid)
   }, [
@@ -390,6 +414,7 @@ export function WebhookModal({
     telegramBotToken,
     selectedLabels,
     microsoftTeamsHmacSecret,
+    outlookSelectedFolders,
   ])
 
   const formattedPath = useMemo(() => {
@@ -464,6 +489,10 @@ export function WebhookModal({
         return {
           hmacSecret: microsoftTeamsHmacSecret,
         }
+      case 'outlook':
+        return {
+          selectedFolders: outlookSelectedFolders,
+        }
       default:
         return {}
     }
@@ -518,6 +547,7 @@ export function WebhookModal({
             labelFilterBehavior,
             markAsRead,
             includeRawEmail,
+            outlookSelectedFolders,
           })
           setHasUnsavedChanges(false)
           setTestResult({
@@ -764,6 +794,18 @@ export function WebhookModal({
           <MicrosoftTeamsConfig
             hmacSecret={microsoftTeamsHmacSecret}
             setHmacSecret={setMicrosoftTeamsHmacSecret}
+            isLoadingToken={isLoadingToken}
+            testResult={testResult}
+            copied={copied}
+            copyToClipboard={copyToClipboard}
+            testWebhook={testWebhook}
+          />
+        )
+      case 'outlook':
+        return (
+          <OutlookConfig
+            selectedFolders={outlookSelectedFolders}
+            setSelectedFolders={setOutlookSelectedFolders}
             isLoadingToken={isLoadingToken}
             testResult={testResult}
             copied={copied}
