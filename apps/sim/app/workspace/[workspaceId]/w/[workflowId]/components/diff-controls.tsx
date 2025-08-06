@@ -6,6 +6,9 @@ import { useWorkflowDiffStore } from '@/stores/workflow-diff'
 import { useWorkflowRegistry } from '@/stores/workflows/registry/store'
 import { mergeSubblockState } from '@/stores/workflows/utils'
 import { useWorkflowStore } from '@/stores/workflows/workflow/store'
+import { notifyServerTool } from '@/lib/copilot/tools/notification-utils'
+import { SERVER_TOOL_IDS } from '@/lib/copilot/tools/server-tools/definitions'
+import { COPILOT_TOOL_IDS } from '@/stores/copilot/constants'
 
 const logger = createLogger('DiffControls')
 
@@ -19,8 +22,7 @@ export function DiffControls() {
     rejectChanges,
     diffMetadata,
   } = useWorkflowDiffStore()
-
-  const { updatePreviewToolCallState, clearPreviewYaml, currentChat, messages } = useCopilotStore()
+  const { setToolCallState, messages, updatePreviewToolCallState, clearPreviewYaml, currentChat } = useCopilotStore()
   const { activeWorkflowId } = useWorkflowRegistry()
 
   // Don't show anything if no diff is available or diff is not ready
@@ -187,8 +189,64 @@ export function DiffControls() {
     }
   }
 
-  const handleAccept = () => {
+  const handleAccept = async () => {
     logger.info('Accepting proposed changes (optimistic)')
+
+    // Find the most recent workflow tool call that has YAML payload from SSE stream
+    const lastMessageWithWorkflowTool = messages
+      .slice()
+      .reverse()
+      .find((msg) =>
+        msg.toolCalls?.some(
+          (tc) => 
+            (tc.name === COPILOT_TOOL_IDS.BUILD_WORKFLOW || tc.name === SERVER_TOOL_IDS.EDIT_WORKFLOW) &&
+            (tc.state === 'executing' || tc.state === 'ready_for_review') &&
+            tc.input && 
+            (tc.input.yamlContent || tc.input.data?.yamlContent)
+        )
+      )
+
+    const workflowToolCall = lastMessageWithWorkflowTool?.toolCalls?.find(
+      (tc) => 
+        (tc.name === COPILOT_TOOL_IDS.BUILD_WORKFLOW || tc.name === SERVER_TOOL_IDS.EDIT_WORKFLOW) &&
+        (tc.state === 'executing' || tc.state === 'ready_for_review') &&
+        tc.input && 
+        (tc.input.yamlContent || tc.input.data?.yamlContent)
+    )
+
+    if (workflowToolCall) {
+      try {
+        // For build_workflow (client tool): set final success state and notify server
+        // For edit_workflow (server tool): set accepted state and notify
+        if (workflowToolCall.name === COPILOT_TOOL_IDS.BUILD_WORKFLOW) {
+          // Client tool - set final success state and notify server to unblock no_op
+          setToolCallState(workflowToolCall, 'success')
+          await notifyServerTool(
+            workflowToolCall.id,
+            workflowToolCall.name,
+            'accepted'
+          )
+        } else {
+          // Server tool - set accepted state and notify
+          setToolCallState(workflowToolCall, 'accepted')
+          await notifyServerTool(
+            workflowToolCall.id,
+            workflowToolCall.name,
+            'accepted'
+          )
+        }
+        
+        logger.info('Updated tool call state for workflow acceptance', {
+          toolCallId: workflowToolCall.id,
+          toolName: workflowToolCall.name,
+        })
+      } catch (error) {
+        logger.error('Failed to update tool call state for workflow acceptance:', error)
+        // Continue with the acceptance process even if state update fails
+      }
+    } else {
+      logger.warn('No workflow tool call found to update')
+    }
 
     // Create checkpoint in the background (don't await to avoid blocking)
     createCheckpoint()
@@ -218,8 +276,54 @@ export function DiffControls() {
     logger.info('Optimistically applied changes, saving in background')
   }
 
-  const handleReject = () => {
-    logger.info('Rejecting proposed changes (optimistic)')
+  const handleReject = async () => {
+    logger.info('Rejecting proposed changes')
+
+    // Find the most recent workflow tool call that has YAML payload from SSE stream
+    const lastMessageWithWorkflowTool = messages
+      .slice()
+      .reverse()
+      .find((msg) =>
+        msg.toolCalls?.some(
+          (tc) => 
+            (tc.name === COPILOT_TOOL_IDS.BUILD_WORKFLOW || tc.name === SERVER_TOOL_IDS.EDIT_WORKFLOW) &&
+            (tc.state === 'executing' || tc.state === 'ready_for_review') &&
+            tc.input && 
+            (tc.input.yamlContent || tc.input.data?.yamlContent)
+        )
+      )
+
+    const workflowToolCall = lastMessageWithWorkflowTool?.toolCalls?.find(
+      (tc) => 
+        (tc.name === COPILOT_TOOL_IDS.BUILD_WORKFLOW || tc.name === SERVER_TOOL_IDS.EDIT_WORKFLOW) &&
+        (tc.state === 'executing' || tc.state === 'ready_for_review') &&
+        tc.input && 
+        (tc.input.yamlContent || tc.input.data?.yamlContent)
+    )
+
+    if (workflowToolCall) {
+      try {
+        // For both client and server tools: set rejected state and notify server
+        setToolCallState(workflowToolCall, 'rejected')
+        
+        // Always notify server for rejection (both client and server tools)
+        await notifyServerTool(
+          workflowToolCall.id,
+          workflowToolCall.name,
+          'rejected'
+        )
+        
+        logger.info('Notified server of workflow rejection', {
+          toolCallId: workflowToolCall.id,
+          toolName: workflowToolCall.name,
+        })
+      } catch (error) {
+        logger.error('Failed to notify server of workflow rejection:', error)
+        // Continue with the rejection process even if notification fails
+      }
+    } else {
+      logger.warn('No workflow tool call found to notify')
+    }
 
     // Clear preview YAML immediately
     clearPreviewYaml().catch((error) => {

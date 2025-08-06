@@ -809,6 +809,52 @@ const sseHandlers: Record<string, SSEHandler> = {
       // Update existing tool call with new arguments (for partial -> complete transition)
       existingToolCall.input = toolData.arguments || {}
 
+      // Check if this is build_workflow and we just got the complete yamlContent
+      if (existingToolCall.name === COPILOT_TOOL_IDS.BUILD_WORKFLOW && 
+          existingToolCall.state === 'executing' &&
+          toolData.arguments?.yamlContent &&
+          !existingToolCall.diffProcessing) {
+        
+        // Mark as processing to avoid duplicate processing
+        existingToolCall.diffProcessing = true
+        
+        logger.info('build_workflow received complete yamlContent, processing diff', {
+          toolCallId: existingToolCall.id,
+          yamlLength: toolData.arguments.yamlContent.length,
+        })
+
+        // Process the diff asynchronously
+        ;(async () => {
+          try {
+            const copilotStore = useCopilotStore.getState()
+            
+            // Set preview YAML and update diff store
+            await copilotStore.setPreviewYaml(toolData.arguments.yamlContent)
+            await copilotStore.updateDiffStore(toolData.arguments.yamlContent, 'build_workflow')
+            
+            // Transition to ready_for_review state
+            existingToolCall.state = 'ready_for_review'
+            existingToolCall.displayName = getToolDisplayNameByState(existingToolCall)
+            
+            logger.info('build_workflow diff ready for review', {
+              toolCallId: existingToolCall.id,
+            })
+            
+            // Update UI
+            updateContentBlockToolCall(context.contentBlocks, toolData.id, existingToolCall)
+            updateStreamingMessage(set, context)
+          } catch (error) {
+            logger.error('Failed to process build_workflow diff:', error)
+            existingToolCall.state = 'errored'
+            existingToolCall.error = error instanceof Error ? error.message : 'Failed to process workflow'
+            updateContentBlockToolCall(context.contentBlocks, toolData.id, existingToolCall)
+            updateStreamingMessage(set, context)
+          }
+        })()
+        
+        return
+      }
+
       // Update the content block as well
       updateContentBlockToolCall(context.contentBlocks, toolData.id, existingToolCall)
       updateStreamingMessage(set, context)
@@ -1028,7 +1074,7 @@ const sseHandlers: Record<string, SSEHandler> = {
 function getToolsWithReadyForReview(): Set<string> {
   const toolsWithReadyForReview = new Set<string>()
 
-  return new Set([COPILOT_TOOL_IDS.BUILD_WORKFLOW, COPILOT_TOOL_IDS.EDIT_WORKFLOW])
+  return new Set([COPILOT_TOOL_IDS.EDIT_WORKFLOW])
 }
 
 // Cache for ready_for_review tools

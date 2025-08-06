@@ -8,8 +8,6 @@ import { noOpTool } from './other/no-op'
 import { onlineSearchTool } from './other/online-search'
 import { getEnvironmentVariablesTool } from './user/get-environment-variables'
 import { setEnvironmentVariablesTool } from './user/set-environment-variables'
-import { buildWorkflowTool } from './workflow/build-workflow'
-import { editWorkflowTool } from './workflow/edit-workflow'
 import { getUserWorkflowTool } from './workflow/get-user-workflow'
 import { getWorkflowConsoleTool } from './workflow/get-workflow-console'
 
@@ -93,9 +91,7 @@ copilotToolRegistry.register(onlineSearchTool)
 copilotToolRegistry.register(getEnvironmentVariablesTool)
 copilotToolRegistry.register(setEnvironmentVariablesTool)
 copilotToolRegistry.register(getUserWorkflowTool)
-copilotToolRegistry.register(buildWorkflowTool)
 copilotToolRegistry.register(getWorkflowConsoleTool)
-copilotToolRegistry.register(editWorkflowTool)
 
 // Dynamically generated constants - single source of truth
 export const COPILOT_TOOL_IDS = copilotToolRegistry.getAvailableIds()
