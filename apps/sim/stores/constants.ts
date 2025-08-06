@@ -25,6 +25,7 @@ export const COPILOT_TOOL_DISPLAY_NAMES: Record<string, string> = {
   edit_workflow: 'Updating workflow',
   run_workflow: 'Executing workflow',
   search_online: 'Searching online',
+  google_sheets_read: 'Reading Google Sheets',
 } as const
 
 // Past tense versions for completed tool calls
@@ -43,6 +44,7 @@ export const COPILOT_TOOL_PAST_TENSE: Record<string, string> = {
   edit_workflow: 'Updated workflow',
   run_workflow: 'Executed workflow',
   search_online: 'Searched online',
+  google_sheets_read: 'Read Google Sheets',
 } as const
 
 // Error versions for failed tool calls
@@ -61,6 +63,7 @@ export const COPILOT_TOOL_ERROR_NAMES: Record<string, string> = {
   edit_workflow: 'Errored updating workflow',
   run_workflow: 'Errored running workflow',
   search_online: 'Errored searching online',
+  google_sheets_read: 'Errored reading Google Sheets',
 } as const
 
 export type CopilotToolId = keyof typeof COPILOT_TOOL_DISPLAY_NAMES

@@ -20,6 +20,7 @@ export const SERVER_TOOL_IDS = {
   SET_ENVIRONMENT_VARIABLES: 'set_environment_variables',
   GET_WORKFLOW_CONSOLE: 'get_workflow_console',
   SEARCH_ONLINE: 'search_online',
+  GOOGLE_SHEETS_READ: 'google_sheets_read',
 } as const
 
 export type ServerToolId = (typeof SERVER_TOOL_IDS)[keyof typeof SERVER_TOOL_IDS]
@@ -277,6 +278,24 @@ export const SERVER_TOOL_METADATA: Record<ServerToolId, ToolMetadata> = {
     schema: {
       name: SERVER_TOOL_IDS.SEARCH_ONLINE,
       description: 'Search online for information',
+    },
+    requiresInterrupt: false,
+  },
+
+  [SERVER_TOOL_IDS.GOOGLE_SHEETS_READ]: {
+    id: SERVER_TOOL_IDS.GOOGLE_SHEETS_READ,
+    displayConfig: {
+      states: {
+        executing: { displayName: 'Reading Google Sheets', icon: 'spinner' },
+        success: { displayName: 'Read Google Sheets', icon: 'file-spreadsheet' },
+        rejected: { displayName: 'Skipped Google Sheets read', icon: 'skip' },
+        errored: { displayName: 'Failed to read Google Sheets', icon: 'error' },
+        aborted: { displayName: 'Google Sheets read aborted', icon: 'x' },
+      },
+    },
+    schema: {
+      name: SERVER_TOOL_IDS.GOOGLE_SHEETS_READ,
+      description: 'Read data from Google Sheets spreadsheet',
     },
     requiresInterrupt: false,
   },
