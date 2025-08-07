@@ -12,6 +12,7 @@ import {
   generateLoopBlocks,
   generateParallelBlocks,
 } from '@/stores/workflows/workflow/utils'
+import { createBlockTypeDimensionsMapping } from '@/app/workspace/[workspaceId]/w/[workflowId]/utils'
 
 const logger = createLogger('YamlAutoLayoutAPI')
 
@@ -28,7 +29,7 @@ const AutoLayoutRequestSchema = z.object({
   }),
   options: z
     .object({
-      strategy: z.enum(['smart', 'hierarchical', 'layered', 'force-directed']).optional(),
+
       direction: z.enum(['horizontal', 'vertical', 'auto']).optional(),
       spacing: z
         .object({
@@ -59,7 +60,6 @@ export async function POST(request: NextRequest) {
       blockCount: Object.keys(workflowState.blocks).length,
       edgeCount: workflowState.edges.length,
       hasApiKey: !!SIM_AGENT_API_KEY,
-      strategy: options?.strategy || 'smart',
       simAgentUrl: SIM_AGENT_API_URL,
     })
 
@@ -90,11 +90,35 @@ export async function POST(request: NextRequest) {
       })
     }
 
-    logger.info(`[${requestId}] Calling sim-agent autolayout with strategy:`, {
-      strategy: options?.strategy || 'smart (default)',
+    logger.info(`[${requestId}] Calling sim-agent autolayout with options:`, {
       direction: options?.direction || 'auto (default)',
       spacing: options?.spacing,
       alignment: options?.alignment || 'center (default)',
+    })
+
+    // Generate block dimensions mapping for autolayout
+    const blockDimensions = createBlockTypeDimensionsMapping()
+
+    // Log the complete request being sent to autolayout
+    logger.info(`[${requestId}] Sending YAML autolayout request to sim-agent`, {
+      blockCount: Object.keys(workflowState.blocks).length,
+      edgeCount: workflowState.edges.length,
+      blockDimensionsCount: Object.keys(blockDimensions).length,
+      sampleBlockDimensions: Object.fromEntries(
+        Object.entries(blockDimensions).slice(0, 5) // Log first 5 block dimensions as sample
+      ),
+      requestOptions: {
+        direction: 'auto',
+        spacing: { horizontal: 500, vertical: 400, layer: 700 },
+        alignment: 'center',
+        padding: { x: 250, y: 250 },
+        ...options // Show any overrides
+      }
+    })
+
+    // Log full block dimensions mapping
+    logger.info(`[${requestId}] Complete block dimensions mapping for YAML autolayout`, {
+      blockDimensions,
     })
 
     // Call sim-agent API
@@ -112,7 +136,6 @@ export async function POST(request: NextRequest) {
           parallels: workflowState.parallels || {},
         },
         options: {
-          strategy: 'smart',
           direction: 'auto',
           spacing: {
             horizontal: 500,
@@ -127,7 +150,7 @@ export async function POST(request: NextRequest) {
           ...options, // Allow override of defaults
         },
         blockRegistry,
-
+        blockDimensions,
         utilities: {
           generateLoopBlocks: generateLoopBlocks.toString(),
           generateParallelBlocks: generateParallelBlocks.toString(),
@@ -178,12 +201,48 @@ export async function POST(request: NextRequest) {
 
     const result = await response.json()
 
+    // Log the complete autolayout response for analysis
+    logger.info(`[${requestId}] Complete YAML autolayout response:`, {
+      fullResult: result
+    })
+
     logger.info(`[${requestId}] Sim agent response summary:`, {
       success: result.success,
       hasBlocks: !!result.blocks,
       blockCount: result.blocks ? Object.keys(result.blocks).length : 0,
       responseKeys: Object.keys(result),
     })
+
+    // Log details about returned blocks if available
+    if (result.blocks) {
+      const containerBlocks = Object.entries(result.blocks).filter(([_, block]: [string, any]) => 
+        block.type === 'loop' || block.type === 'parallel'
+      )
+      
+      logger.info(`[${requestId}] YAML autolayout block analysis:`, {
+        totalBlocks: Object.keys(result.blocks).length,
+        containerCount: containerBlocks.length,
+        containerDetails: containerBlocks.map(([id, block]: [string, any]) => ({
+          id,
+          type: block.type,
+          position: block.position,
+          dimensions: {
+            width: block.data?.width || 'not set',
+            height: block.data?.height || 'not set'
+          },
+          dataKeys: block.data ? Object.keys(block.data) : []
+        })),
+        sampleRegularBlocks: Object.entries(result.blocks)
+          .filter(([_, block]: [string, any]) => block.type !== 'loop' && block.type !== 'parallel')
+          .slice(0, 3)
+          .map(([id, block]: [string, any]) => ({
+            id,
+            type: block.type,
+            position: block.position,
+            parentId: block.data?.parentId || 'no parent'
+          }))
+      })
+    }
 
     // Transform the response to match the expected format
     const transformedResponse = {

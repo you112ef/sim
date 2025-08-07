@@ -1,5 +1,6 @@
 import { createLogger } from '@/lib/logs/console/logger'
 import { getBlock } from '@/blocks'
+import { getAllBlocks } from '@/blocks/registry'
 
 const logger = createLogger('WorkflowUtils')
 
@@ -433,11 +434,13 @@ export const calculateLoopDimensions = (
  * @param getNodes Function to retrieve all nodes from ReactFlow
  * @param updateNodeDimensions Function to update the dimensions of a node
  * @param blocks Block states from workflow store
+ * @param skipAutolayoutBlocks Whether to skip resizing blocks that have autolayout dimensions
  */
 export const resizeLoopNodes = (
   getNodes: () => any[],
   updateNodeDimensions: (id: string, dimensions: { width: number; height: number }) => void,
-  blocks: Record<string, any>
+  blocks: Record<string, any>,
+  skipAutolayoutBlocks = false
 ) => {
   const containerNodes = getNodes()
     .filter((node) => isContainerType(node.type))
@@ -447,13 +450,59 @@ export const resizeLoopNodes = (
     }))
     .sort((a, b) => a.depth - b.depth)
 
+  if (containerNodes.length === 0) {
+    return
+  }
+
+  logger.info('Resizing container nodes', {
+    containerCount: containerNodes.length,
+    containerIds: containerNodes.map(n => n.id)
+  })
+
+  let updatedCount = 0
   containerNodes.forEach((node) => {
+    // Check if this block has been explicitly sized by autolayout
+    // Preserve autolayout dimensions permanently if they exist
+    const hasAutolayoutDimensions = node.data?.isFromAutolayout === true
+    
+    if (hasAutolayoutDimensions) {
+      logger.info('Preserving autolayout dimensions for container', {
+        nodeId: node.id,
+        dimensions: { width: node.data.width, height: node.data.height },
+        isFromAutolayout: true
+      })
+      return
+    }
+    
+    // Skip resizing if this block has large autolayout dimensions (likely from autolayout)
+    // This is a fallback check for backwards compatibility
+    if (skipAutolayoutBlocks && node.data?.width && node.data?.height) {
+      const hasLargeDimensions = node.data.width > 1000 || node.data.height > 1000
+      if (hasLargeDimensions) {
+        logger.info('Skipping resize for container with large autolayout dimensions', {
+          nodeId: node.id,
+          currentDimensions: { width: node.data.width, height: node.data.height }
+        })
+        return
+      }
+    }
+
     const dimensions = calculateLoopDimensions(node.id, getNodes, blocks)
 
     if (dimensions.width !== node.data?.width || dimensions.height !== node.data?.height) {
+      logger.info('Updating container dimensions', {
+        nodeId: node.id,
+        oldDimensions: { width: node.data?.width, height: node.data?.height },
+        newDimensions: dimensions,
+      })
       updateNodeDimensions(node.id, dimensions)
+      updatedCount++
     }
   })
+
+  if (updatedCount > 0) {
+    logger.info(`Resized ${updatedCount} container nodes`)
+  }
 }
 
 /**
@@ -630,6 +679,75 @@ export const analyzeWorkflowGraph = (
     terminalBlocks,
     orphanedBlocks,
   }
+}
+
+/**
+ * Create a mapping of block types to their default dimensions for autolayout
+ */
+export const createBlockTypeDimensionsMapping = (): Record<string, { width: number; height: number }> => {
+  const dimensionsMapping: Record<string, { width: number; height: number }> = {}
+
+  // Container blocks (loops and parallels) - larger sizes
+  const containerBlocks = ['loop', 'parallel', 'loopNode', 'parallelNode']
+  containerBlocks.forEach(blockType => {
+    dimensionsMapping[blockType] = {
+      width: DEFAULT_CONTAINER_WIDTH,
+      height: DEFAULT_CONTAINER_HEIGHT
+    }
+  })
+
+  // Get all regular blocks from registry
+  const blocks = getAllBlocks()
+  blocks.forEach(block => {
+    // Check if this block type typically needs more space based on subBlocks
+    const hasComplexInputs = block.subBlocks.some(subBlock => 
+      subBlock.type === 'long-input' || 
+      subBlock.type === 'code' ||
+      subBlock.layout === 'full' ||
+      (subBlock.type === 'dropdown' && subBlock.options && Array.isArray(subBlock.options) && subBlock.options.length > 6)
+    )
+    
+    // Blocks that typically need more horizontal space
+    const typicallyWideBlocks = [
+      'agent', 'function', 'condition', 'evaluator', 'router',
+      'google_sheets', 'airtable', 'notion', 'github', 'jira'
+    ]
+
+    // Blocks that typically need more vertical space
+    const typicallyTallBlocks = [
+      'agent', 'function', 'code', 'thinking', 'response'
+    ]
+
+    const isWideBlock = typicallyWideBlocks.includes(block.type) || hasComplexInputs
+    const isTallBlock = typicallyTallBlocks.includes(block.type) || hasComplexInputs
+
+    dimensionsMapping[block.type] = {
+      width: isWideBlock ? 450 : 350,
+      height: isTallBlock ? 200 : 150
+    }
+  })
+
+  // Special cases for specific blocks that have known dimension requirements
+  const specialCases = {
+    starter: { width: 350, height: 95 },
+    schedule: { width: 350, height: 120 },
+    webhook: { width: 350, height: 120 },
+    response: { width: 350, height: 180 },
+    thinking: { width: 350, height: 160 }
+  }
+
+  // Apply special cases
+  Object.entries(specialCases).forEach(([blockType, dimensions]) => {
+    dimensionsMapping[blockType] = dimensions
+  })
+
+  logger.info('Created block dimensions mapping', {
+    totalBlocks: Object.keys(dimensionsMapping).length,
+    containerBlocks: containerBlocks.length,
+    regularBlocks: blocks.length
+  })
+
+  return dimensionsMapping
 }
 
 export interface LayoutOptions {

@@ -7,7 +7,7 @@ import { createLogger } from '@/lib/logs/console/logger'
 import { getRedisClient } from '@/lib/redis'
 import { createErrorResponse } from '@/app/api/copilot/methods/utils'
 
-const logger = createLogger('CopilotMethodsAPI')
+const logger = createLogger('[METHODS] CopilotMethodsAPI')
 
 /**
  * Add a tool call to Redis with 'pending' status
@@ -285,12 +285,30 @@ export async function POST(req: NextRequest) {
     }
 
     const body = await req.json()
+    
+    // Log the raw payload received
+    logger.info(`[${requestId}] Raw payload received:`, {
+      payload: JSON.stringify(body, null, 2),
+      payloadKeys: Object.keys(body),
+      payloadSize: JSON.stringify(body).length,
+    })
+    
     const { methodId, params, toolCallId } = MethodExecutionSchema.parse(body)
 
+    // Log the parsed method details with full params
     logger.info(`[${requestId}] Method execution request: ${methodId}`, {
       methodId,
       toolCallId,
       hasParams: !!params && Object.keys(params).length > 0,
+      paramsCount: params ? Object.keys(params).length : 0,
+      paramKeys: params ? Object.keys(params) : [],
+    })
+    
+    // Log the full parameters in detail
+    logger.debug(`[${requestId}] Method parameters:`, {
+      methodId,
+      toolCallId,
+      params: JSON.stringify(params, null, 2),
     })
 
     // Check if tool exists in registry
@@ -386,6 +404,26 @@ export async function POST(req: NextRequest) {
       }
     }
 
+    // Log the final function call details before execution
+    logger.info(`[${requestId}] Executing tool function:`, {
+      functionName: methodId,
+      toolCallId,
+      finalParams: JSON.stringify(params, null, 2),
+      paramKeys: params ? Object.keys(params) : [],
+      paramCount: params ? Object.keys(params).length : 0,
+    })
+
+    // Log debug level with full argument details
+    logger.debug(`[${requestId}] Tool execution arguments:`, {
+      methodId,
+      toolCallId,
+      arguments: params,
+      argumentTypes: params ? Object.entries(params).reduce((acc, [key, value]) => {
+        acc[key] = Array.isArray(value) ? 'array' : typeof value;
+        return acc;
+      }, {} as Record<string, string>) : {},
+    })
+
     // Execute the tool directly via registry
     const result = await copilotToolRegistry.execute(methodId, params)
 
@@ -395,6 +433,16 @@ export async function POST(req: NextRequest) {
       success: result.success,
       hasData: !!result.data,
       hasError: !!result.error,
+      dataKeys: result.data ? Object.keys(result.data) : [],
+      errorMessage: result.error || null,
+    })
+    
+    // Log the full result at debug level
+    logger.debug(`[${requestId}] Tool execution full result:`, {
+      methodId,
+      toolCallId,
+      result: JSON.stringify(result, null, 2),
+      resultSize: JSON.stringify(result).length,
     })
 
     const duration = Date.now() - startTime
@@ -413,6 +461,12 @@ export async function POST(req: NextRequest) {
       logger.error(`[${requestId}] Request validation error:`, {
         duration,
         errors: error.errors,
+        errorDetails: error.errors.map(e => ({
+          path: e.path.join('.'),
+          message: e.message,
+          code: e.code,
+        })),
+        invalidFields: error.errors.map(e => e.path.join('.')),
       })
       return NextResponse.json(
         createErrorResponse(
@@ -422,9 +476,10 @@ export async function POST(req: NextRequest) {
       )
     }
 
-    logger.error(`[${requestId}] Unexpected error:`, {
+    logger.error(`[${requestId}] Unexpected error during method execution:`, {
       duration,
       error: error instanceof Error ? error.message : 'Unknown error',
+      errorType: error?.constructor?.name || 'Unknown',
       stack: error instanceof Error ? error.stack : undefined,
     })
 

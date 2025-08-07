@@ -6,7 +6,6 @@ const logger = createLogger('AutoLayoutUtils')
  * Auto layout options interface
  */
 export interface AutoLayoutOptions {
-  strategy?: 'smart' | 'hierarchical' | 'layered' | 'force-directed'
   direction?: 'horizontal' | 'vertical' | 'auto'
   spacing?: {
     horizontal?: number
@@ -24,7 +23,6 @@ export interface AutoLayoutOptions {
  * Default auto layout options
  */
 const DEFAULT_AUTO_LAYOUT_OPTIONS: AutoLayoutOptions = {
-  strategy: 'smart',
   direction: 'auto',
   spacing: {
     horizontal: 500,
@@ -64,7 +62,6 @@ export async function applyAutoLayoutToWorkflow(
 
     // Merge with default options and ensure all required properties are present
     const layoutOptions = {
-      strategy: options.strategy || DEFAULT_AUTO_LAYOUT_OPTIONS.strategy!,
       direction: options.direction || DEFAULT_AUTO_LAYOUT_OPTIONS.direction!,
       spacing: {
         horizontal: options.spacing?.horizontal || DEFAULT_AUTO_LAYOUT_OPTIONS.spacing!.horizontal!,
@@ -102,6 +99,14 @@ export async function applyAutoLayoutToWorkflow(
 
     const result = await response.json()
 
+    // Log the complete client-side autolayout response
+    logger.info('Client received autolayout response:', {
+      success: result.success,
+      hasData: !!result.data,
+      dataKeys: result.data ? Object.keys(result.data) : [],
+      fullResponse: result
+    })
+
     if (!result.success) {
       const errorMessage = result.error || 'Auto layout failed'
       logger.error('Auto layout failed:', {
@@ -113,18 +118,34 @@ export async function applyAutoLayoutToWorkflow(
       }
     }
 
-    logger.info('Successfully applied auto layout', {
+    const layoutedBlocks = result.data?.layoutedBlocks || blocks
+
+    // Log details about the layouted blocks
+    const containerBlocks = Object.entries(layoutedBlocks).filter(([_, block]: [string, any]) => 
+      block.type === 'loop' || block.type === 'parallel'
+    )
+
+    logger.info('Client-side autolayout analysis:', {
       workflowId,
       originalBlockCount: Object.keys(blocks).length,
-      layoutedBlockCount: result.data?.layoutedBlocks
-        ? Object.keys(result.data.layoutedBlocks).length
-        : 0,
+      layoutedBlockCount: Object.keys(layoutedBlocks).length,
+      containerCount: containerBlocks.length,
+      containerBlocks: containerBlocks.map(([id, block]: [string, any]) => ({
+        id,
+        type: block.type,
+        position: block.position,
+        dimensions: {
+          width: block.data?.width || 'not set',
+          height: block.data?.height || 'not set'
+        },
+        hasParentId: !!block.data?.parentId
+      }))
     })
 
     // Return the layouted blocks from the API response
     return {
       success: true,
-      layoutedBlocks: result.data?.layoutedBlocks || blocks,
+      layoutedBlocks,
     }
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : 'Unknown auto layout error'
@@ -190,7 +211,13 @@ export async function applyAutoLayoutAndUpdateStore(
 
     useWorkflowStore.setState(newWorkflowState)
 
-    logger.info('Successfully updated workflow store with auto layout', { workflowId })
+    logger.info('Successfully updated workflow store with auto layout', { 
+      workflowId,
+      blockCount: Object.keys(result.layoutedBlocks).length,
+      containerBlocks: Object.values(result.layoutedBlocks).filter((block: any) => 
+        block.type === 'loop' || block.type === 'parallel'
+      ).length
+    })
 
     // Persist the changes to the database optimistically
     try {

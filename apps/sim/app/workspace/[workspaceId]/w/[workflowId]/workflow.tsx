@@ -251,6 +251,7 @@ const WorkflowContent = React.memo(() => {
 
   // Function to resize all loop nodes with improved hierarchy handling
   const resizeLoopNodesWrapper = useCallback(() => {
+    // Resize loops to fit their children
     return resizeLoopNodes(getNodes, updateNodeDimensions, blocks)
   }, [getNodes, updateNodeDimensions, blocks])
 
@@ -647,7 +648,6 @@ const WorkflowContent = React.memo(() => {
           })
 
           // Resize the container node to fit the new block
-          // Immediate resize without delay
           resizeLoopNodesWrapper()
 
           // Auto-connect logic for blocks inside containers

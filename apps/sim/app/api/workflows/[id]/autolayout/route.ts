@@ -12,6 +12,7 @@ import { resolveOutputType } from '@/blocks/utils'
 import { db } from '@/db'
 import { workflow as workflowTable } from '@/db/schema'
 import { generateLoopBlocks, generateParallelBlocks } from '@/stores/workflows/workflow/utils'
+import { createBlockTypeDimensionsMapping } from '@/app/workspace/[workspaceId]/w/[workflowId]/utils'
 
 export const dynamic = 'force-dynamic'
 
@@ -24,10 +25,6 @@ if (!SIM_AGENT_API_KEY) {
 }
 
 const AutoLayoutRequestSchema = z.object({
-  strategy: z
-    .enum(['smart', 'hierarchical', 'layered', 'force-directed'])
-    .optional()
-    .default('smart'),
   direction: z.enum(['horizontal', 'vertical', 'auto']).optional().default('auto'),
   spacing: z
     .object({
@@ -73,7 +70,6 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
     const layoutOptions = AutoLayoutRequestSchema.parse(body)
 
     logger.info(`[${requestId}] Processing autolayout request for workflow ${workflowId}`, {
-      strategy: layoutOptions.strategy,
       direction: layoutOptions.direction,
       userId,
     })
@@ -143,7 +139,6 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
     }
 
     const autoLayoutOptions = {
-      strategy: layoutOptions.strategy,
       direction: layoutOptions.direction,
       spacing: {
         horizontal: layoutOptions.spacing?.horizontal || 500,
@@ -173,11 +168,32 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
       {} as Record<string, BlockConfig>
     )
 
+    // Generate block dimensions mapping for autolayout
+    const blockDimensions = createBlockTypeDimensionsMapping()
+
+    // Log the complete request being sent to autolayout
+    logger.info(`[${requestId}] Sending autolayout request to sim-agent`, {
+      workflowId,
+      blockCount: Object.keys(workflowState.blocks).length,
+      edgeCount: workflowState.edges.length,
+      options: autoLayoutOptions,
+      blockDimensionsCount: Object.keys(blockDimensions).length,
+      sampleBlockDimensions: Object.fromEntries(
+        Object.entries(blockDimensions).slice(0, 5) // Log first 5 block dimensions as sample
+      ),
+    })
+
+    // Log full block dimensions mapping
+    logger.info(`[${requestId}] Complete block dimensions mapping`, {
+      blockDimensions,
+    })
+
     const autoLayoutResult = await simAgentClient.makeRequest('/api/yaml/autolayout', {
       body: {
         workflowState,
         options: autoLayoutOptions,
         blockRegistry,
+        blockDimensions,
         utilities: {
           generateLoopBlocks: generateLoopBlocks.toString(),
           generateParallelBlocks: generateParallelBlocks.toString(),
@@ -196,6 +212,11 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
       hasWorkflowState: !!autoLayoutResult.data?.workflowState,
       hasBlocks: !!autoLayoutResult.data?.blocks,
       dataKeys: autoLayoutResult.data ? Object.keys(autoLayoutResult.data) : [],
+    })
+
+    // Log the complete response data for detailed analysis
+    logger.info(`[${requestId}] Complete autolayout response data:`, {
+      fullResponse: autoLayoutResult,
     })
 
     if (
@@ -242,12 +263,63 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
       )
     }
 
+    // Mark container blocks as being from autolayout so their dimensions are preserved
+    const processedBlocks = Object.entries(layoutedBlocks).reduce((acc, [id, block]: [string, any]) => {
+      const processedBlock = { ...block }
+      
+      // If this is a container block (loop or parallel) with dimensions, mark it as from autolayout
+      if ((block.type === 'loop' || block.type === 'parallel') && block.data?.width && block.data?.height) {
+        processedBlock.data = {
+          ...processedBlock.data,
+          isFromAutolayout: true
+        }
+        
+        logger.info(`[${requestId}] Marked container block as from autolayout:`, {
+          id,
+          type: block.type,
+          dimensions: { width: block.data.width, height: block.data.height }
+        })
+      }
+      
+      acc[id] = processedBlock
+      return acc
+    }, {} as Record<string, any>)
+
+    // Log detailed information about the layouted blocks
+    const containerBlocks = Object.entries(processedBlocks).filter(([_, block]: [string, any]) => 
+      block.type === 'loop' || block.type === 'parallel'
+    )
+    
+    logger.info(`[${requestId}] Processed autolayout blocks:`, {
+      totalBlocks: Object.keys(processedBlocks).length,
+      containerBlockCount: containerBlocks.length,
+      containerBlocks: containerBlocks.map(([id, block]: [string, any]) => ({
+        id,
+        type: block.type,
+        position: block.position,
+        dimensions: {
+          width: block.data?.width || 'not set',
+          height: block.data?.height || 'not set'
+        },
+        hasChildren: block.data?.parentId ? 'is child' : 'is parent',
+        isFromAutolayout: block.data?.isFromAutolayout || false
+      })),
+      sampleRegularBlocks: Object.entries(processedBlocks)
+        .filter(([_, block]: [string, any]) => block.type !== 'loop' && block.type !== 'parallel')
+        .slice(0, 3)
+        .map(([id, block]: [string, any]) => ({
+          id,
+          type: block.type,
+          position: block.position,
+          parentId: block.data?.parentId || 'no parent'
+        }))
+    })
+
     const elapsed = Date.now() - startTime
-    const blockCount = Object.keys(layoutedBlocks).length
+    const blockCount = Object.keys(processedBlocks).length
 
     logger.info(`[${requestId}] Autolayout completed successfully in ${elapsed}ms`, {
       blockCount,
-      strategy: layoutOptions.strategy,
       workflowId,
     })
 
@@ -256,11 +328,10 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
       success: true,
       message: `Autolayout applied successfully to ${blockCount} blocks`,
       data: {
-        strategy: layoutOptions.strategy,
         direction: layoutOptions.direction,
         blockCount,
         elapsed: `${elapsed}ms`,
-        layoutedBlocks: layoutedBlocks,
+        layoutedBlocks: processedBlocks,
       },
     })
   } catch (error) {
