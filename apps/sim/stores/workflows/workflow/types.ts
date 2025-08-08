@@ -49,6 +49,9 @@ export interface BlockData {
   // Container dimensions
   width?: number
   height?: number
+  
+  // Track if dimensions are from autolayout (should be preserved)
+  isFromAutolayout?: boolean
 
   // Loop-specific properties
   collection?: any // The items to iterate over in a loop

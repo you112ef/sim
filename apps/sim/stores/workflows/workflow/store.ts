@@ -105,6 +105,29 @@ export const useWorkflowStore = create<WorkflowStoreWithHistory>()(
         }
       ) => {
         const blockConfig = getBlock(type)
+        
+        // Clear isFromAutolayout flag on parent container when adding a child
+        const currentBlocks = get().blocks
+        let updatedBlocks = { ...currentBlocks }
+        
+        if (parentId && currentBlocks[parentId]) {
+          const parentBlock = currentBlocks[parentId]
+          if (parentBlock.data?.isFromAutolayout) {
+            updatedBlocks[parentId] = {
+              ...parentBlock,
+              data: {
+                ...parentBlock.data,
+                isFromAutolayout: false // Clear flag since new child added
+              }
+            }
+            logger.info('Cleared isFromAutolayout flag on parent when adding child', {
+              parentId,
+              childId: id,
+              childType: type
+            })
+          }
+        }
+        
         // For custom nodes like loop and parallel that don't use BlockConfig
         if (!blockConfig && (type === 'loop' || type === 'parallel')) {
           // Merge parentId and extent into data if provided
@@ -115,7 +138,7 @@ export const useWorkflowStore = create<WorkflowStoreWithHistory>()(
 
           const newState = {
             blocks: {
-              ...get().blocks,
+              ...updatedBlocks,
               [id]: {
                 id,
                 type,
@@ -165,7 +188,7 @@ export const useWorkflowStore = create<WorkflowStoreWithHistory>()(
 
         const newState = {
           blocks: {
-            ...get().blocks,
+            ...updatedBlocks,
             [id]: {
               id,
               type,
@@ -193,14 +216,44 @@ export const useWorkflowStore = create<WorkflowStoreWithHistory>()(
       },
 
       updateBlockPosition: (id: string, position: Position) => {
+        const currentBlocks = get().blocks
+        const block = currentBlocks[id]
+        
+        if (!block) {
+          logger.warn(`Cannot update position: Block ${id} not found`)
+          return
+        }
+        
+        // If the block has a parent, clear the isFromAutolayout flag on the parent
+        // since the container needs to resize to fit the new child position
+        const parentId = block.data?.parentId
+        let updatedBlocks = { ...currentBlocks }
+        
+        if (parentId && currentBlocks[parentId]) {
+          const parentBlock = currentBlocks[parentId]
+          if (parentBlock.data?.isFromAutolayout) {
+            updatedBlocks[parentId] = {
+              ...parentBlock,
+              data: {
+                ...parentBlock.data,
+                isFromAutolayout: false // Clear flag since child moved
+              }
+            }
+            logger.info('Cleared isFromAutolayout flag on parent due to child movement', {
+              parentId,
+              childId: id
+            })
+          }
+        }
+        
+        // Update the block position
+        updatedBlocks[id] = {
+          ...block,
+          position,
+        }
+        
         set((state) => ({
-          blocks: {
-            ...state.blocks,
-            [id]: {
-              ...state.blocks[id],
-              position,
-            },
-          },
+          blocks: updatedBlocks,
           edges: [...state.edges],
         }))
         get().updateLastSaved()
@@ -257,6 +310,9 @@ export const useWorkflowStore = create<WorkflowStoreWithHistory>()(
           return
         }
 
+        // Get the old parent ID before updating
+        const oldParentId = block.data?.parentId
+
         // Store current absolute position
         const absolutePosition = { ...block.position }
 
@@ -275,15 +331,55 @@ export const useWorkflowStore = create<WorkflowStoreWithHistory>()(
           newData.extent = undefined
         }
 
+        // Clear isFromAutolayout flag on affected containers when their contents change
+        const currentBlocks = get().blocks
+        const updatedBlocks = { ...currentBlocks }
+        
+        // Clear the flag on the old parent container (block was removed from it)
+        if (oldParentId && currentBlocks[oldParentId]) {
+          const oldParentBlock = currentBlocks[oldParentId]
+          if (oldParentBlock.data?.isFromAutolayout) {
+            updatedBlocks[oldParentId] = {
+              ...oldParentBlock,
+              data: {
+                ...oldParentBlock.data,
+                isFromAutolayout: false // Clear the flag since contents changed
+              }
+            }
+            logger.info('Cleared isFromAutolayout flag on old parent container', {
+              containerId: oldParentId,
+              reason: 'child block removed'
+            })
+          }
+        }
+        
+        // Clear the flag on the new parent container (block was added to it)
+        if (parentId && currentBlocks[parentId]) {
+          const newParentBlock = currentBlocks[parentId]
+          if (newParentBlock.data?.isFromAutolayout) {
+            updatedBlocks[parentId] = {
+              ...newParentBlock,
+              data: {
+                ...newParentBlock.data,
+                isFromAutolayout: false // Clear the flag since contents changed
+              }
+            }
+            logger.info('Cleared isFromAutolayout flag on new parent container', {
+              containerId: parentId,
+              reason: 'child block added'
+            })
+          }
+        }
+
+        // Update the block with new parent
+        updatedBlocks[id] = {
+          ...block,
+          position: absolutePosition,
+          data: newData,
+        }
+
         const newState = {
-          blocks: {
-            ...get().blocks,
-            [id]: {
-              ...block,
-              position: absolutePosition,
-              data: newData,
-            },
-          },
+          blocks: updatedBlocks,
           edges: [...get().edges],
           loops: { ...get().loops },
           parallels: { ...get().parallels },
@@ -310,6 +406,10 @@ export const useWorkflowStore = create<WorkflowStoreWithHistory>()(
         // First, clean up any subblock values for this block
         const subBlockStore = useSubBlockStore.getState()
         const activeWorkflowId = useWorkflowRegistry.getState().activeWorkflowId
+        
+        // Get the block being removed to check if it has a parent
+        const blockToRemove = get().blocks[id]
+        const parentIdOfRemovedBlock = blockToRemove?.data?.parentId
 
         const newState = {
           blocks: { ...get().blocks },
@@ -334,6 +434,24 @@ export const useWorkflowStore = create<WorkflowStoreWithHistory>()(
 
         // Start recursive search from the target block
         findAllDescendants(id)
+        
+        // Clear isFromAutolayout flag on parent container if we're removing its children
+        if (parentIdOfRemovedBlock && newState.blocks[parentIdOfRemovedBlock]) {
+          const parentBlock = newState.blocks[parentIdOfRemovedBlock]
+          if (parentBlock.data?.isFromAutolayout) {
+            newState.blocks[parentIdOfRemovedBlock] = {
+              ...parentBlock,
+              data: {
+                ...parentBlock.data,
+                isFromAutolayout: false // Clear flag since child was removed
+              }
+            }
+            logger.info('Cleared isFromAutolayout flag on parent when removing child', {
+              parentId: parentIdOfRemovedBlock,
+              removedBlockId: id
+            })
+          }
+        }
 
         logger.info('Found blocks to remove:', {
           targetId: id,
