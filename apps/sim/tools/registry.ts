@@ -5,6 +5,7 @@ import {
   airtableListRecordsTool,
   airtableUpdateRecordTool,
 } from '@/tools/airtable'
+import { apifyAsyncRunTool, apifySyncGetTool, apifySyncRunTool } from '@/tools/apify'
 import { arxivGetAuthorPapersTool, arxivGetPaperTool, arxivSearchTool } from '@/tools/arxiv'
 import { browserUseRunTaskTool } from '@/tools/browser_use'
 import { clayPopulateTool } from '@/tools/clay'
@@ -157,6 +158,9 @@ import { youtubeSearchTool } from '@/tools/youtube'
 
 // Registry of all available tools
 export const tools: Record<string, ToolConfig> = {
+  apify_sync_run: apifySyncRunTool,
+  apify_sync_get: apifySyncGetTool,
+  apify_async_run: apifyAsyncRunTool,
   arxiv_search: arxivSearchTool,
   arxiv_get_paper: arxivGetPaperTool,
   arxiv_get_author_papers: arxivGetAuthorPapersTool,

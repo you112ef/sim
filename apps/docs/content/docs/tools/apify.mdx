@@ -1,0 +1,117 @@
+---
+title: Apify
+description: Run web scraping and automation actors from Apify platform
+---
+
+import { BlockInfoCard } from "@/components/ui/block-info-card"
+
+<BlockInfoCard 
+  type="apify"
+  color="#000000"
+  icon={true}
+  iconSvg={`<svg className="block-icon"  viewBox='0 0 1080 1080' xmlns='http://www.w3.org/2000/svg'>
+      <path
+        d='M189.7,149c-75.3,10.7-127.1,79.6-116.5,154.1l81,576.8L493,106.4L189.7,149z'
+        fill='#97D700'
+      />
+      <path
+        d='M1008,629.2l-32-443.2c-5.7-75.3-71-131.4-145.6-126.4c-2.8,0-6.4,0.7-9.2,0.7L690.4,78.7l287.7,645.7
+        C999.4,698.1,1010.1,664,1008,629.2z'
+        fill='#71C5E8'
+      />
+      <path
+        d='M277,1019.9c23.4,2.8,46.9-0.7,68.2-9.9l493.7-208.8L604.5,274L277,1019.9z'
+        fill='#FF9013'
+      />
+    </svg>`}
+/>
+
+## Usage Instructions
+
+Execute Apify Actors for web scraping, data extraction, and browser automation. Choose between synchronous runs (quick results) or asynchronous runs (for longer tasks with polling).
+
+
+
+## Tools
+
+### `apify_sync_run`
+
+Run an Apify Actor synchronously and return its output (300s timeout)
+
+#### Input
+
+| Parameter | Type | Required | Description |
+| --------- | ---- | -------- | ----------- |
+| `actorId` | string | Yes | Apify Actor ID or name \(e.g., web-scraper or apify/web-scraper\) |
+| `apiKey` | string | Yes | Apify API token for authentication |
+| `input` | object | No | Input data to pass to the actor \(JSON object\) |
+| `timeout` | number | No | Timeout in seconds \(max 300 for sync runs\) |
+| `maxItems` | number | No | Maximum number of results to return |
+
+#### Output
+
+| Parameter | Type | Description |
+| --------- | ---- | ----------- |
+| `data` | json | The output data from the Actor run |
+| `runId` | string | The ID of the Actor run |
+| `actorId` | string | The ID of the Actor that was run |
+| `status` | string | Final status of the Actor run |
+| `stats` | json | Runtime statistics \(memory, CPU usage, etc.\) |
+| `usage` | json | Resource usage details \(compute units, data transfers, etc.\) |
+
+### `apify_sync_get`
+
+Run an Apify Actor synchronously without input and return its output (300s timeout)
+
+#### Input
+
+| Parameter | Type | Required | Description |
+| --------- | ---- | -------- | ----------- |
+| `actorId` | string | Yes | Apify Actor ID or name \(e.g., web-scraper or apify/web-scraper\) |
+| `apiKey` | string | Yes | Apify API token for authentication |
+| `timeout` | number | No | Timeout in seconds \(max 300 for sync runs\) |
+| `maxItems` | number | No | Maximum number of results to return |
+
+#### Output
+
+| Parameter | Type | Description |
+| --------- | ---- | ----------- |
+| `data` | json | The output data from the Actor run |
+| `runId` | string | The ID of the Actor run |
+| `actorId` | string | The ID of the Actor that was run |
+| `status` | string | Final status of the Actor run |
+| `stats` | json | Runtime statistics \(memory, CPU usage, etc.\) |
+| `usage` | json | Resource usage details \(compute units, data transfers, etc.\) |
+
+### `apify_async_run`
+
+Run an Apify Actor asynchronously and poll for completion (30min max)
+
+#### Input
+
+| Parameter | Type | Required | Description |
+| --------- | ---- | -------- | ----------- |
+| `actorId` | string | Yes | Apify Actor ID or name \(e.g., web-scraper or apify/web-scraper\) |
+| `apiKey` | string | Yes | Apify API token for authentication |
+| `input` | object | No | Input data to pass to the actor \(JSON object\) |
+| `timeout` | number | No | Timeout in seconds for the actor run |
+| `maxItems` | number | No | Maximum number of results to return |
+
+#### Output
+
+| Parameter | Type | Description |
+| --------- | ---- | ----------- |
+| `data` | json | The output data from the Actor run |
+| `runId` | string | The ID of the Actor run |
+| `actorId` | string | The ID of the Actor that was run |
+| `status` | string | Final status of the Actor run |
+| `defaultDatasetId` | string | ID of the default dataset containing results |
+| `stats` | json | Runtime statistics \(memory, CPU usage, etc.\) |
+| `usage` | json | Resource usage details \(compute units, data transfers, etc.\) |
+
+
+
+## Notes
+
+- Category: `tools`
+- Type: `apify`

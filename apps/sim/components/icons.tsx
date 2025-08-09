@@ -3344,3 +3344,23 @@ export function MicrosoftPlannerIcon(props: SVGProps<SVGSVGElement>) {
     </svg>
   )
 }
+
+export function ApifyIcon(props: SVGProps<SVGSVGElement>) {
+  return (
+    <svg {...props} viewBox='0 0 1080 1080' xmlns='http://www.w3.org/2000/svg'>
+      <path
+        d='M189.7,149c-75.3,10.7-127.1,79.6-116.5,154.1l81,576.8L493,106.4L189.7,149z'
+        fill='#97D700'
+      />
+      <path
+        d='M1008,629.2l-32-443.2c-5.7-75.3-71-131.4-145.6-126.4c-2.8,0-6.4,0.7-9.2,0.7L690.4,78.7l287.7,645.7
+        C999.4,698.1,1010.1,664,1008,629.2z'
+        fill='#71C5E8'
+      />
+      <path
+        d='M277,1019.9c23.4,2.8,46.9-0.7,68.2-9.9l493.7-208.8L604.5,274L277,1019.9z'
+        fill='#FF9013'
+      />
+    </svg>
+  )
+}

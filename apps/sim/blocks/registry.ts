@@ -6,6 +6,7 @@
 import { AgentBlock } from '@/blocks/blocks/agent'
 import { AirtableBlock } from '@/blocks/blocks/airtable'
 import { ApiBlock } from '@/blocks/blocks/api'
+import { ApifyBlock } from '@/blocks/blocks/apify'
 import { ArxivBlock } from '@/blocks/blocks/arxiv'
 import { BrowserUseBlock } from '@/blocks/blocks/browser_use'
 import { ClayBlock } from '@/blocks/blocks/clay'
@@ -80,6 +81,7 @@ export const registry: Record<string, BlockConfig> = {
   agent: AgentBlock,
   airtable: AirtableBlock,
   api: ApiBlock,
+  apify: ApifyBlock,
   arxiv: ArxivBlock,
   browser_use: BrowserUseBlock,
   clay: ClayBlock,
