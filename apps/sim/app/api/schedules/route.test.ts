@@ -143,9 +143,9 @@ describe('Schedule Configuration API Route', () => {
   })
 
   /**
-   * Test creating a new schedule
+   * Test creating a new schedule (block-based mode)
    */
-  it('should create a new schedule successfully', async () => {
+  it('should create a new schedule successfully (block-based)', async () => {
     // Create a mock request with schedule data
     const req = createMockRequest('POST', {
       workflowId: 'workflow-id',
@@ -185,6 +185,38 @@ describe('Schedule Configuration API Route', () => {
     // We can't verify the utility functions were called directly
     // since we're mocking them at the module level
     // Instead, we just verify that the response has the expected properties
+  })
+
+  /**
+   * Test creating a new schedule (standalone mode)
+   */
+  it('should create a new schedule successfully (standalone mode)', async () => {
+    // Create a mock request with standalone schedule data
+    const req = createMockRequest('POST', {
+      workflowId: 'workflow-id',
+      scheduleConfig: {
+        scheduleType: 'minutes',
+        minutesInterval: '5',
+        timezone: 'UTC',
+      },
+      mode: 'standalone',
+    })
+
+    // Import the route handler after mocks are set up
+    const { POST } = await import('@/app/api/schedules/route')
+
+    // Call the handler
+    const response = await POST(req)
+
+    // Verify response
+    expect(response).toBeDefined()
+    expect(response.status).toBe(200)
+
+    // Validate response data
+    const responseData = await response.json()
+    expect(responseData).toHaveProperty('message', 'Schedule updated')
+    expect(responseData).toHaveProperty('cronExpression', '0 9 * * *') // Mocked value
+    expect(responseData).toHaveProperty('nextRunAt')
   })
 
   /**
@@ -335,11 +367,10 @@ describe('Schedule Configuration API Route', () => {
    * Test invalid data handling
    */
   it('should validate input data', async () => {
-    // Create a mock request with invalid data
+    // Create a mock request with invalid workflowId type to trigger Zod validation
     const req = createMockRequest('POST', {
-      // Missing required fields
-      workflowId: 'workflow-id',
-      // Missing state
+      workflowId: 123, // Invalid type - should be string
+      state: { blocks: {}, edges: [], loops: {} },
     })
 
     // Import the route handler after mocks are set up

@@ -1,5 +1,5 @@
 import crypto from 'crypto'
-import { and, eq } from 'drizzle-orm'
+import { and, eq, isNull } from 'drizzle-orm'
 import { type NextRequest, NextResponse } from 'next/server'
 import { z } from 'zod'
 import { getSession } from '@/lib/auth'
@@ -23,11 +23,28 @@ export const dynamic = 'force-dynamic'
 const ScheduleRequestSchema = z.object({
   workflowId: z.string(),
   blockId: z.string().optional(),
-  state: z.object({
-    blocks: z.record(z.any()),
-    edges: z.array(z.any()),
-    loops: z.record(z.any()),
-  }),
+  state: z
+    .object({
+      blocks: z.record(z.any()),
+      edges: z.array(z.any()),
+      loops: z.record(z.any()),
+    })
+    .optional(),
+  scheduleConfig: z
+    .object({
+      scheduleType: z.string(),
+      minutesInterval: z.string().optional(),
+      hourlyMinute: z.string().optional(),
+      dailyTime: z.string().optional(),
+      weeklyDay: z.string().optional(),
+      weeklyDayTime: z.string().optional(),
+      monthlyDay: z.string().optional(),
+      monthlyTime: z.string().optional(),
+      cronExpression: z.string().optional(),
+      timezone: z.string().optional(),
+    })
+    .optional(),
+  mode: z.enum(['block', 'standalone']).optional(),
 })
 
 // Track recent requests to reduce redundant logging
@@ -71,11 +88,6 @@ export async function GET(req: NextRequest) {
   const url = new URL(req.url)
   const workflowId = url.searchParams.get('workflowId')
   const blockId = url.searchParams.get('blockId')
-  const mode = url.searchParams.get('mode')
-
-  if (mode && mode !== 'schedule') {
-    return NextResponse.json({ schedule: null })
-  }
 
   try {
     const session = await getSession()
@@ -129,6 +141,9 @@ export async function GET(req: NextRequest) {
     const conditions = [eq(workflowSchedule.workflowId, workflowId)]
     if (blockId) {
       conditions.push(eq(workflowSchedule.blockId, blockId))
+    } else {
+      // If no blockId provided, look for workflow-level schedules (null blockId)
+      conditions.push(isNull(workflowSchedule.blockId))
     }
 
     const schedule = await db
@@ -177,9 +192,11 @@ export async function POST(req: NextRequest) {
     }
 
     const body = await req.json()
-    const { workflowId, blockId, state } = ScheduleRequestSchema.parse(body)
+    const { workflowId, blockId, state, scheduleConfig, mode } = ScheduleRequestSchema.parse(body)
 
-    logger.info(`[${requestId}] Processing schedule update for workflow ${workflowId}`)
+    logger.info(
+      `[${requestId}] Processing schedule update for workflow ${workflowId}, mode: ${mode}`
+    )
 
     // Check if user has permission to modify this workflow
     const [workflowRecord] = await db
@@ -213,18 +230,43 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Not authorized to modify this workflow' }, { status: 403 })
     }
 
-    // Find the target block - prioritize the specific blockId if provided
+    // Find the target block - handle both block-based and standalone modes
     let targetBlock: BlockState | undefined
-    if (blockId) {
-      // If blockId is provided, find that specific block
-      targetBlock = Object.values(state.blocks).find((block: any) => block.id === blockId) as
-        | BlockState
-        | undefined
-    } else {
-      // Fallback: find either starter block or schedule trigger block
-      targetBlock = Object.values(state.blocks).find(
-        (block: any) => block.type === 'starter' || block.type === 'schedule'
-      ) as BlockState | undefined
+
+    if (mode === 'standalone' && scheduleConfig) {
+      // For standalone mode, create a synthetic block from scheduleConfig
+      targetBlock = {
+        id: 'standalone-schedule',
+        type: 'schedule',
+        subBlocks: {
+          scheduleType: { value: scheduleConfig.scheduleType },
+          minutesInterval: { value: scheduleConfig.minutesInterval },
+          hourlyMinute: { value: scheduleConfig.hourlyMinute },
+          dailyTime: { value: scheduleConfig.dailyTime },
+          weeklyDay: { value: scheduleConfig.weeklyDay },
+          weeklyDayTime: { value: scheduleConfig.weeklyDayTime },
+          monthlyDay: { value: scheduleConfig.monthlyDay },
+          monthlyTime: { value: scheduleConfig.monthlyTime },
+          cronExpression: { value: scheduleConfig.cronExpression },
+          timezone: { value: scheduleConfig.timezone || 'UTC' },
+        },
+        position: { x: 0, y: 0 },
+        width: 0,
+        height: 0,
+      } as BlockState
+    } else if (state) {
+      // Original block-based mode
+      if (blockId) {
+        // If blockId is provided, find that specific block
+        targetBlock = Object.values(state.blocks).find((block: any) => block.id === blockId) as
+          | BlockState
+          | undefined
+      } else {
+        // Fallback: find either starter block or schedule trigger block
+        targetBlock = Object.values(state.blocks).find(
+          (block: any) => block.type === 'starter' || block.type === 'schedule'
+        ) as BlockState | undefined
+      }
     }
 
     if (!targetBlock) {
@@ -270,7 +312,9 @@ export async function POST(req: NextRequest) {
       )
       // Build delete conditions
       const deleteConditions = [eq(workflowSchedule.workflowId, workflowId)]
-      if (blockId) {
+      if (mode === 'standalone') {
+        deleteConditions.push(isNull(workflowSchedule.blockId))
+      } else if (blockId) {
         deleteConditions.push(eq(workflowSchedule.blockId, blockId))
       }
 
@@ -331,10 +375,12 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Failed to generate schedule' }, { status: 400 })
     }
 
+    const finalBlockId = mode === 'standalone' ? null : blockId
+
     const values = {
       id: crypto.randomUUID(),
       workflowId,
-      blockId,
+      blockId: finalBlockId,
       cronExpression,
       triggerType: 'schedule',
       createdAt: new Date(),
@@ -346,7 +392,7 @@ export async function POST(req: NextRequest) {
     }
 
     const setValues = {
-      blockId,
+      blockId: finalBlockId,
       cronExpression,
       updatedAt: new Date(),
       nextRunAt,
@@ -355,13 +401,23 @@ export async function POST(req: NextRequest) {
       failedCount: 0, // Reset failure count on reconfiguration
     }
 
-    await db
-      .insert(workflowSchedule)
-      .values(values)
-      .onConflictDoUpdate({
-        target: [workflowSchedule.workflowId, workflowSchedule.blockId],
-        set: setValues,
-      })
+    if (finalBlockId) {
+      // Block-specific schedule - use composite key
+      await db
+        .insert(workflowSchedule)
+        .values(values)
+        .onConflictDoUpdate({
+          target: [workflowSchedule.workflowId, workflowSchedule.blockId],
+          set: setValues,
+        })
+    } else {
+      // Workflow-level schedule - first delete any existing null blockId schedules, then insert
+      await db
+        .delete(workflowSchedule)
+        .where(and(eq(workflowSchedule.workflowId, workflowId), isNull(workflowSchedule.blockId)))
+
+      await db.insert(workflowSchedule).values(values)
+    }
 
     logger.info(`[${requestId}] Schedule updated for workflow ${workflowId}`, {
       nextRunAt: nextRunAt?.toISOString(),

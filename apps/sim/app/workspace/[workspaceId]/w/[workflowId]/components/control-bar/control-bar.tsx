@@ -39,6 +39,7 @@ import { useUserPermissionsContext } from '@/app/workspace/[workspaceId]/provide
 import {
   DeploymentControls,
   ExportControls,
+  ScheduleControl,
   TemplateModal,
 } from '@/app/workspace/[workspaceId]/w/[workflowId]/components/control-bar/components'
 import { useWorkflowExecution } from '@/app/workspace/[workspaceId]/w/[workflowId]/hooks/use-workflow-execution'
@@ -504,7 +505,7 @@ export function ControlBar({ hasValidationErrors = false }: ControlBarProps) {
             <Button
               variant='outline'
               onClick={handleDuplicateWorkflow}
-              className='h-12 w-12 rounded-[11px] border bg-card text-card-foreground shadow-xs hover:bg-secondary'
+              className='h-12 w-12 rounded-[11px] border-[hsl(var(--card-border))] bg-[hsl(var(--card-background))] text-[hsl(var(--card-text))] shadow-xs transition-all duration-200 hover:border-[#701FFC] hover:bg-[#701FFC] hover:text-white'
             >
               <Copy className='h-5 w-5' />
               <span className='sr-only'>Duplicate Workflow</span>
@@ -572,7 +573,7 @@ export function ControlBar({ hasValidationErrors = false }: ControlBarProps) {
             <Button
               variant='outline'
               onClick={handleAutoLayoutClick}
-              className='h-12 w-12 rounded-[11px] border bg-card text-card-foreground shadow-xs hover:bg-secondary'
+              className='h-12 w-12 rounded-[11px] border-[hsl(var(--card-border))] bg-[hsl(var(--card-background))] text-[hsl(var(--card-text))] shadow-xs transition-all duration-200 hover:border-[#701FFC] hover:bg-[#701FFC] hover:text-white'
               disabled={isAutoLayouting}
             >
               {isAutoLayouting ? (
@@ -727,7 +728,7 @@ export function ControlBar({ hasValidationErrors = false }: ControlBarProps) {
             <Button
               variant='outline'
               onClick={() => setIsTemplateModalOpen(true)}
-              className='h-12 w-12 rounded-[11px] border bg-card text-card-foreground shadow-xs hover:bg-secondary'
+              className='h-12 w-12 rounded-[11px] border-[hsl(var(--card-border))] bg-[hsl(var(--card-background))] text-[hsl(var(--card-text))] shadow-xs transition-all duration-200 hover:border-[#701FFC] hover:bg-[#701FFC] hover:text-white'
             >
               <Store className='h-5 w-5' />
               <span className='sr-only'>Publish Template</span>
@@ -759,7 +760,7 @@ export function ControlBar({ hasValidationErrors = false }: ControlBarProps) {
     }
 
     const buttonClass = cn(
-      'h-12 w-12 rounded-[11px] border bg-card text-card-foreground shadow-xs hover:bg-secondary',
+      'h-12 w-12 rounded-[11px] border-[hsl(var(--card-border))] bg-[hsl(var(--card-background))] text-[hsl(var(--card-text))] shadow-xs hover:border-[#701FFC] hover:bg-[#701FFC] hover:text-white transition-all duration-200',
       isDebugging && 'text-amber-500'
     )
 
@@ -980,7 +981,7 @@ export function ControlBar({ hasValidationErrors = false }: ControlBarProps) {
           <Button
             variant='outline'
             onClick={() => setIsExpanded(!isExpanded)}
-            className='h-12 w-12 rounded-[11px] border bg-card text-card-foreground shadow-xs hover:bg-secondary'
+            className='h-12 w-12 rounded-[11px] border-[hsl(var(--card-border))] bg-[hsl(var(--card-background))] text-[hsl(var(--card-text))] shadow-xs transition-all duration-200 hover:border-[#701FFC] hover:bg-[#701FFC] hover:text-white'
           >
             <ChevronLeft
               className={cn(
@@ -1006,6 +1007,7 @@ export function ControlBar({ hasValidationErrors = false }: ControlBarProps) {
       {isDev && renderDuplicateButton()}
       {renderDeleteButton()}
       {!isDebugging && renderDebugModeToggle()}
+      <ScheduleControl userPermissions={userPermissions} />
       {renderPublishButton()}
       {renderDeployButton()}
       {isDebugging ? renderDebugControlsBar() : renderRunButton()}

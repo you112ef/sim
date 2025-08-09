@@ -46,21 +46,25 @@ function calculateNextRunTime(
   schedule: typeof workflowSchedule.$inferSelect,
   blocks: Record<string, BlockState>
 ): Date {
-  // Look for either starter block or schedule trigger block
+  // For control bar schedules (blockId = null), always use the stored cron expression
+  // For block-based schedules, try to use block config but fallback to cron expression
+  if (!schedule.blockId || schedule.cronExpression) {
+    if (schedule.cronExpression) {
+      const cron = new Cron(schedule.cronExpression)
+      const nextDate = cron.nextRun()
+      if (!nextDate) throw new Error('Invalid cron expression or no future occurrences')
+      return nextDate
+    }
+  }
+
+  // Fallback for block-based schedules: use block configuration
   const scheduleBlock = Object.values(blocks).find(
     (block) => block.type === 'starter' || block.type === 'schedule'
   )
   if (!scheduleBlock) throw new Error('No starter or schedule block found')
+
   const scheduleType = getSubBlockValue(scheduleBlock, 'scheduleType')
   const scheduleValues = getScheduleTimeValues(scheduleBlock)
-
-  if (schedule.cronExpression) {
-    const cron = new Cron(schedule.cronExpression)
-    const nextDate = cron.nextRun()
-    if (!nextDate) throw new Error('Invalid cron expression or no future occurrences')
-    return nextDate
-  }
-
   const lastRanAt = schedule.lastRanAt ? new Date(schedule.lastRanAt) : null
   return calculateNextTime(scheduleType, scheduleValues, lastRanAt)
 }

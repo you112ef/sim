@@ -77,7 +77,7 @@ export function ExportControls({ disabled = false }: ExportControlsProps) {
           <Button
             variant='outline'
             onClick={handleExportYaml}
-            className='h-12 w-12 rounded-[11px] border bg-card text-card-foreground shadow-xs hover:bg-secondary'
+            className='h-12 w-12 rounded-[11px] border-[hsl(var(--card-border))] bg-[hsl(var(--card-background))] text-[hsl(var(--card-text))] shadow-xs transition-all duration-200 hover:border-[#701FFC] hover:bg-[#701FFC] hover:text-white'
           >
             <Download className='h-5 w-5' />
             <span className='sr-only'>Export as YAML</span>

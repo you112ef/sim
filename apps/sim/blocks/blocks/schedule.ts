@@ -10,6 +10,7 @@ export const ScheduleBlock: BlockConfig = {
   category: 'triggers',
   bgColor: '#7B68EE',
   icon: ScheduleIcon,
+  hideFromToolbar: true, // Hide from sidebar - schedule config moved to control bar
 
   subBlocks: [
     // Schedule configuration status display
