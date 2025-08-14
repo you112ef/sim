@@ -1699,6 +1699,13 @@ export class Executor {
                 break
               }
             }
+
+            // Prefer plain result for function blocks even when a path (e.g. "content") is selected
+            if (typeof (output as any)?.result !== 'undefined') {
+              formatted = String((output as any).result)
+            } else if (val && typeof val === 'object' && 'result' in val && (val as any).result !== undefined) {
+              formatted = String((val as any).result)
+            }
           } else if (typeof (output as any)?.content === 'string') {
             val = (output as any).content
           } else if (typeof (output as any)?.result !== 'undefined') {
@@ -1709,11 +1716,13 @@ export class Executor {
           }
 
           // For function blocks in chat, always prefer displaying the 'result' field as plain text
-          // regardless of additional metadata (stdout, content, tokens, etc.).
-          if (typeof (output as any)?.result !== 'undefined' && !path) {
-            formatted = String((output as any).result)
-          } else {
-            formatted = typeof val === 'string' ? val : JSON.stringify(val ?? output, null, 2)
+          // regardless of additional metadata (stdout, content, tokens, etc.). Also apply when a path is present.
+          if (!formatted) {
+            if (typeof (output as any)?.result !== 'undefined' && !path) {
+              formatted = String((output as any).result)
+            } else {
+              formatted = typeof val === 'string' ? val : JSON.stringify(val ?? output, null, 2)
+            }
           }
 
           const syntheticStream = new ReadableStream({
