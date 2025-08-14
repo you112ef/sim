@@ -1701,9 +1701,20 @@ export class Executor {
             }
           } else if (typeof (output as any)?.content === 'string') {
             val = (output as any).content
+          } else if (typeof (output as any)?.result !== 'undefined') {
+            // Default fallback for function blocks: use result if available
+            val = (output as any).result
+          } else if (typeof (output as any)?.stdout === 'string' && (output as any).stdout) {
+            val = (output as any).stdout
           }
 
-          formatted = typeof val === 'string' ? val : JSON.stringify(val ?? output, null, 2)
+          // For function blocks in chat, always prefer displaying the 'result' field as plain text
+          // regardless of additional metadata (stdout, content, tokens, etc.).
+          if (typeof (output as any)?.result !== 'undefined' && !path) {
+            formatted = String((output as any).result)
+          } else {
+            formatted = typeof val === 'string' ? val : JSON.stringify(val ?? output, null, 2)
+          }
 
           const syntheticStream = new ReadableStream({
             start(controller) {

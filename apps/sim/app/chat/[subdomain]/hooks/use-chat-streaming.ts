@@ -120,6 +120,11 @@ export function useChatStreaming() {
               const json = JSON.parse(line.substring(6))
               const { blockId, chunk: contentChunk, event: eventType } = json
 
+              // Ignore pure start markers if any ever slip through
+              if (eventType === 'start') {
+                continue
+              }
+
               if (eventType === 'final' && json.data) {
                 // The backend has already processed and combined all outputs
                 // If we didn't stream any per-block messages, create a single message

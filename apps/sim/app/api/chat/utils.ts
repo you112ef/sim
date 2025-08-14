@@ -726,9 +726,16 @@ export async function executeWorkflowForChat(
               // Add newline separation between different outputs for final logs aggregation
               const separator = processedOutputs.size > 0 ? '\n\n' : ''
 
-              // Format the output exactly like the chat panel
-              const formattedOutput =
-                typeof outputValue === 'string' ? outputValue : JSON.stringify(outputValue, null, 2)
+              // For function blocks, always prefer the `result` field when present
+              let formattedOutput: string
+              if ((log as any).blockType === 'function' && (outputValue as any)?.result !== undefined) {
+                formattedOutput = String((outputValue as any).result)
+              } else {
+                formattedOutput =
+                  typeof outputValue === 'string'
+                    ? outputValue
+                    : JSON.stringify(outputValue, null, 2)
+              }
 
               // Update the log content for non-streaming outputs
               log.output.content = separator + formattedOutput
@@ -752,10 +759,14 @@ export async function executeWorkflowForChat(
                     )
                   }
 
-                  // Emit the function block output as a streaming chunk
+                  // Emit only the function result when available
+                  const functionText =
+                    (outputValue as any)?.result !== undefined
+                      ? String((outputValue as any).result)
+                      : formattedOutput
                   controller.enqueue(
                     encoder.encode(
-                      `data: ${JSON.stringify({ blockId: blockIdForOutput, chunk: formattedOutput })}\n\n`
+                      `data: ${JSON.stringify({ blockId: blockIdForOutput, chunk: functionText })}\n\n`
                     )
                   )
 
@@ -763,7 +774,7 @@ export async function executeWorkflowForChat(
                   streamedBlocks.add(blockIdForOutput)
                   streamedContent.set(
                     blockIdForOutput,
-                    (streamedContent.get(blockIdForOutput) || '') + formattedOutput
+                    (streamedContent.get(blockIdForOutput) || '') + functionText
                   )
 
                   // Signal end of this non-streaming block section
