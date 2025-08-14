@@ -29,6 +29,12 @@ import type {
   StreamingExecution,
 } from '@/executor/types'
 import { streamingResponseFormatProcessor } from '@/executor/utils'
+import {
+  extractBlockIdFromOutputId as extractBlockIdFromOutputIdRF,
+  extractPathFromOutputId as extractPathFromOutputIdRF,
+  parseOutputContentSafely as parseOutputContentSafelyRF,
+} from '@/lib/response-format'
+// BlockType imported once at top
 import type { SerializedBlock, SerializedWorkflow } from '@/serializer/types'
 import { useExecutionStore } from '@/stores/execution/store'
 import { useConsoleStore } from '@/stores/panel/console/store'
@@ -277,6 +283,18 @@ export class Executor {
 
                   // Apply response format processing to the client stream if needed
                   const blockId = (streamingExec.execution as any).blockId
+                  const blockType = (streamingExec.execution as any).blockType as string | undefined
+
+                  // Stream order hint: emit a zero-length start event for each selected block
+                  // to allow the client to create a message placeholder in execution order.
+                  const blockIsSelected = (context.selectedOutputIds || []).some((outputId) => {
+                    if (outputId === blockId) return true
+                    const underscoreIdx = outputId.indexOf('_')
+                    const dotIdx = outputId.indexOf('.')
+                    if (underscoreIdx !== -1) return outputId.substring(0, underscoreIdx) === blockId
+                    if (dotIdx !== -1) return outputId.substring(0, dotIdx) === blockId
+                    return false
+                  })
 
                   // Get response format from initial block states (passed from useWorkflowExecution)
                   // The initialBlockStates contain the subblock values including responseFormat
@@ -293,18 +311,35 @@ export class Executor {
                     responseFormat
                   )
 
+                  // If this block is not selected for output, drop the client stream entirely
+                  const blockIsSelectedDup = (context.selectedOutputIds || []).some((outputId) => {
+                    if (outputId === blockId) return true
+                    const underscoreIdx = outputId.indexOf('_')
+                    const dotIdx = outputId.indexOf('.')
+                    if (underscoreIdx !== -1) return outputId.substring(0, underscoreIdx) === blockId
+                    if (dotIdx !== -1) return outputId.substring(0, dotIdx) === blockId
+                    return false
+                  })
+
+                  if (!blockIsSelectedDup) {
+                    // Consume and discard the client stream to free resources
+                    processedClientStream.getReader().releaseLock()
+                  }
+
                   const clientStreamingExec = { ...streamingExec, stream: processedClientStream }
 
-                  try {
-                    // Handle client stream with proper error handling
-                    await context.onStream(clientStreamingExec)
-                  } catch (streamError: any) {
+                   try {
+                    // Handle client stream only if block is selected, and emit a start marker first
+                    if (blockIsSelected) {
+                      await context.onStream(clientStreamingExec)
+                    }
+                   } catch (streamError: any) {
                     logger.error('Error in onStream callback:', streamError)
                     // Continue execution even if stream callback fails
                   }
 
                   // Process executor stream with proper cleanup
-                  const reader = streamForExecutor.getReader()
+                   const reader = streamForExecutor.getReader()
                   const decoder = new TextDecoder()
                   let fullContent = ''
 
@@ -1618,6 +1653,87 @@ export class Executor {
       blockLog.endedAt = new Date().toISOString()
 
       context.blockLogs.push(blockLog)
+
+      // Emit synthetic streaming for selected non-streaming function blocks to preserve
+      // execution-ordered streaming in chat deployments.
+      try {
+        const isFunctionBlock = block.metadata?.id === BlockType.FUNCTION
+        const isStreamingEnabled = Boolean(context.stream)
+        const hasOnStream = typeof context.onStream === 'function'
+        const isSelected = (context.selectedOutputIds || []).some((outputId) => {
+          if (outputId === block.id) return true
+          const underscoreIdx = outputId.indexOf('_')
+          const dotIdx = outputId.indexOf('.')
+          if (underscoreIdx !== -1) return outputId.substring(0, underscoreIdx) === block.id
+          if (dotIdx !== -1) return outputId.substring(0, dotIdx) === block.id
+          return false
+        })
+
+        if (isFunctionBlock && isStreamingEnabled && hasOnStream && isSelected) {
+          // Derive formatted text using selected path if provided
+          const selectedIds = (context.selectedOutputIds || []).filter(
+            (id) => extractBlockIdFromOutputIdRF(id) === block.id
+          )
+
+          const choosePath = (ids: string[]): string | undefined => {
+            for (const id of ids) {
+              const hasPath = id.includes('_') || id.includes('.')
+              if (hasPath) return extractPathFromOutputIdRF(id, block.id)
+            }
+            return undefined
+          }
+
+          let formatted = ''
+          const path = choosePath(selectedIds)
+          let val: any = output
+
+          if (path) {
+            // If content is a string JSON, parse it first
+            val = parseOutputContentSafelyRF({ content: (output as any)?.content ?? output })
+            const parts = path.split('.')
+            for (const p of parts) {
+              if (val && typeof val === 'object' && p in val) {
+                val = val[p]
+              } else {
+                val = undefined
+                break
+              }
+            }
+          } else if (typeof (output as any)?.content === 'string') {
+            val = (output as any).content
+          }
+
+          formatted = typeof val === 'string' ? val : JSON.stringify(val ?? output, null, 2)
+
+          const syntheticStream = new ReadableStream({
+            start(controller) {
+              const enc = new TextEncoder()
+              controller.enqueue(enc.encode(formatted))
+              controller.close()
+            },
+          })
+
+          const se: StreamingExecution = {
+            stream: syntheticStream,
+            execution: {
+              success: true,
+              output: { content: formatted },
+              logs: [],
+              metadata: { duration: 0, startTime: new Date().toISOString() },
+              // Extra fields used by streaming path
+              // @ts-expect-error - enrich execution for streaming metadata
+              blockId: block.id,
+              blockType: BlockType.FUNCTION,
+              isStreaming: true,
+            },
+          }
+
+          // Emit only the formatted content; avoid JSON wrappers in the client
+          await context.onStream?.(se)
+        }
+      } catch (emitError) {
+        logger.warn('Failed to emit synthetic function streaming:', emitError)
+      }
 
       // Skip console logging for infrastructure blocks like loops and parallels
       if (block.metadata?.id !== BlockType.LOOP && block.metadata?.id !== BlockType.PARALLEL) {

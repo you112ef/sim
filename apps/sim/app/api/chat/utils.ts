@@ -723,22 +723,88 @@ export async function executeWorkflowForChat(
             }
 
             if (outputValue !== undefined) {
-              // Add newline separation between different outputs
+              // Add newline separation between different outputs for final logs aggregation
               const separator = processedOutputs.size > 0 ? '\n\n' : ''
 
               // Format the output exactly like the chat panel
               const formattedOutput =
                 typeof outputValue === 'string' ? outputValue : JSON.stringify(outputValue, null, 2)
 
-              // Update the log content
-              if (!log.output.content) {
-                log.output.content = separator + formattedOutput
-              } else {
-                log.output.content = separator + formattedOutput
-              }
+              // Update the log content for non-streaming outputs
+              log.output.content = separator + formattedOutput
               processedOutputs.add(log.blockId)
+
+              // Stream non-streaming function block outputs as chunks so the client sees them
+              // as a separate section, matching multi-agent behavior. Only apply to function blocks.
+              // Also only emit if this block was actually selected as an output.
+              const isSelected = selectedOutputIds.some((id) => {
+                const idBlock = id.includes('_') ? id.split('_')[0] : id.split('.')[0]
+                return idBlock === blockIdForOutput
+              })
+              if ((log as any).blockType === 'function' && isSelected) {
+                try {
+                  // Only emit separator into the stream if at least one block has already streamed
+                  if (streamedBlocks.size > 0) {
+                    controller.enqueue(
+                      encoder.encode(
+                        `data: ${JSON.stringify({ blockId: blockIdForOutput, chunk: '\n\n' })}\n\n`
+                      )
+                    )
+                  }
+
+                  // Emit the function block output as a streaming chunk
+                  controller.enqueue(
+                    encoder.encode(
+                      `data: ${JSON.stringify({ blockId: blockIdForOutput, chunk: formattedOutput })}\n\n`
+                    )
+                  )
+
+                  // Track in streamed sets for consistent separation behavior
+                  streamedBlocks.add(blockIdForOutput)
+                  streamedContent.set(
+                    blockIdForOutput,
+                    (streamedContent.get(blockIdForOutput) || '') + formattedOutput
+                  )
+
+                  // Signal end of this non-streaming block section
+                  controller.enqueue(
+                    encoder.encode(
+                      `data: ${JSON.stringify({ blockId: blockIdForOutput, event: 'end' })}\n\n`
+                    )
+                  )
+                } catch (e) {
+                  logger.warn(
+                    `[${requestId}] Failed to stream non-streaming output for function block ${blockIdForOutput}`,
+                    e
+                  )
+                }
+              }
             }
           }
+        }
+
+        // Reorder logs to reflect the actual streaming order for final aggregation
+        try {
+          const streamOrder = Array.from(streamedBlocks)
+          const selectedBlockIndex = new Map<string, number>()
+          selectedOutputIds.forEach((outputId, idx) => {
+            const bId = extractBlockIdFromOutputId(outputId)
+            if (!selectedBlockIndex.has(bId)) selectedBlockIndex.set(bId, idx)
+          })
+
+          const getOrder = (blockId: string): number => {
+            const sIdx = streamOrder.indexOf(blockId)
+            if (sIdx !== -1) return sIdx
+            const selIdx = selectedBlockIndex.get(blockId)
+            if (selIdx !== undefined) return streamOrder.length + selIdx
+            return Number.MAX_SAFE_INTEGER
+          }
+
+          executionResult.logs = [...executionResult.logs].sort((a, b) => {
+            return getOrder(a.blockId) - getOrder(b.blockId)
+          })
+        } catch (e) {
+          logger.warn(`[${requestId}] Failed to reorder logs by streaming order`, e)
         }
 
         // Process all logs for streaming tokenization

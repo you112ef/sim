@@ -27,8 +27,8 @@ export interface StreamingOptions {
 export function useChatStreaming() {
   const [isStreamingResponse, setIsStreamingResponse] = useState(false)
   const abortControllerRef = useRef<AbortController | null>(null)
-  const accumulatedTextRef = useRef<string>('')
-  const lastStreamedPositionRef = useRef<number>(0)
+  const accumulatedTextRef = useRef<Record<string, string>>({}) // per-block accumulation
+  const lastStreamedPositionRef = useRef<Record<string, number>>({})
   const audioStreamingActiveRef = useRef<boolean>(false)
   const lastDisplayedPositionRef = useRef<number>(0) // Track displayed text in synced mode
 
@@ -38,32 +38,28 @@ export function useChatStreaming() {
       abortControllerRef.current.abort()
       abortControllerRef.current = null
 
-      // Add a message indicating the response was stopped
+      // Add a message indicating the response was stopped (mark the latest assistant message)
       setMessages((prev) => {
-        const lastMessage = prev[prev.length - 1]
-
-        // Only modify if the last message is from the assistant (as expected)
-        if (lastMessage && lastMessage.type === 'assistant') {
-          // Append a note that the response was stopped
-          const updatedContent =
-            lastMessage.content +
-            (lastMessage.content
-              ? '\n\n_Response stopped by user._'
-              : '_Response stopped by user._')
-
-          return [
-            ...prev.slice(0, -1),
-            { ...lastMessage, content: updatedContent, isStreaming: false },
-          ]
+        for (let i = prev.length - 1; i >= 0; i--) {
+          const msg = prev[i]
+          if (msg.type === 'assistant' && msg.isStreaming) {
+            const updatedContent =
+              msg.content +
+              (msg.content ? '\n\n_Response stopped by user._' : '_Response stopped by user._')
+            return [
+              ...prev.slice(0, i),
+              { ...msg, content: updatedContent, isStreaming: false },
+              ...prev.slice(i + 1),
+            ]
+          }
         }
-
         return prev
       })
 
       // Reset streaming state immediately
       setIsStreamingResponse(false)
-      accumulatedTextRef.current = ''
-      lastStreamedPositionRef.current = 0
+      accumulatedTextRef.current = {}
+      lastStreamedPositionRef.current = {}
       lastDisplayedPositionRef.current = 0
       audioStreamingActiveRef.current = false
     }
@@ -95,22 +91,10 @@ export function useChatStreaming() {
     }
 
     const decoder = new TextDecoder()
-    let accumulatedText = ''
     let lastAudioPosition = 0
 
-    // Track which blocks have streamed content (like chat panel)
+    // Track which blocks have streamed content as separate messages
     const messageIdMap = new Map<string, string>()
-    const messageId = crypto.randomUUID()
-    setMessages((prev) => [
-      ...prev,
-      {
-        id: messageId,
-        content: '',
-        type: 'assistant',
-        timestamp: new Date(),
-        isStreaming: true,
-      },
-    ])
 
     setIsLoading(false)
 
@@ -124,21 +108,6 @@ export function useChatStreaming() {
         const { done, value } = await reader.read()
 
         if (done) {
-          // Stream any remaining text for TTS
-          if (
-            shouldPlayAudio &&
-            streamingOptions?.audioStreamHandler &&
-            accumulatedText.length > lastAudioPosition
-          ) {
-            const remainingText = accumulatedText.substring(lastAudioPosition).trim()
-            if (remainingText) {
-              try {
-                await streamingOptions.audioStreamHandler(remainingText)
-              } catch (error) {
-                logger.error('TTS error for remaining text:', error)
-              }
-            }
-          }
           break
         }
 
@@ -153,58 +122,70 @@ export function useChatStreaming() {
 
               if (eventType === 'final' && json.data) {
                 // The backend has already processed and combined all outputs
-                // We just need to extract the combined content and use it
+                // If we didn't stream any per-block messages, create a single message
                 const result = json.data as ExecutionResult
-
-                // Collect all content from logs that have output.content (backend processed)
-                let combinedContent = ''
-                if (result.logs) {
-                  const contentParts: string[] = []
-
-                  // Get content from all logs that have processed content
-                  result.logs.forEach((log) => {
-                    if (log.output?.content && typeof log.output.content === 'string') {
-                      // The backend already includes proper separators, so just collect the content
-                      contentParts.push(log.output.content)
-                    }
-                  })
-
-                  // Join without additional separators since backend already handles this
-                  combinedContent = contentParts.join('')
+                if (messageIdMap.size === 0) {
+                  let combinedContent = ''
+                  if (result.logs) {
+                    const contentParts: string[] = []
+                    result.logs.forEach((log) => {
+                      if (log.output?.content && typeof log.output.content === 'string') {
+                        contentParts.push(log.output.content)
+                      }
+                    })
+                    combinedContent = contentParts.join('')
+                  }
+                  const finalId = crypto.randomUUID()
+                  setMessages((prev) => [
+                    ...prev,
+                    {
+                      id: finalId,
+                      content: combinedContent,
+                      type: 'assistant',
+                      timestamp: new Date(),
+                      isStreaming: false,
+                    },
+                  ])
                 }
-
-                // Update the existing streaming message with the final combined content
-                setMessages((prev) =>
-                  prev.map((msg) =>
-                    msg.id === messageId
-                      ? {
-                          ...msg,
-                          content: combinedContent || accumulatedText, // Use combined content or fallback to streamed
-                          isStreaming: false,
-                        }
-                      : msg
-                  )
-                )
-
-                return
+                continue
               }
 
               if (blockId && contentChunk) {
-                // Track that this block has streamed content (like chat panel)
+                // Create a new message for this block on first chunk
                 if (!messageIdMap.has(blockId)) {
-                  messageIdMap.set(blockId, messageId)
-                }
+                  const newId = crypto.randomUUID()
+                  messageIdMap.set(blockId, newId)
+                  accumulatedTextRef.current[blockId] = ''
+                  lastStreamedPositionRef.current[blockId] = 0
 
-                accumulatedText += contentChunk
-                setMessages((prev) =>
-                  prev.map((msg) =>
-                    msg.id === messageId ? { ...msg, content: accumulatedText } : msg
+                  // Ignore pure separator chunks at start
+                  const initialChunk = contentChunk === '\n\n' ? '' : contentChunk
+                  accumulatedTextRef.current[blockId] += initialChunk
+
+                  setMessages((prev) => [
+                    ...prev,
+                    {
+                      id: newId,
+                      content: initialChunk,
+                      type: 'assistant',
+                      timestamp: new Date(),
+                      isStreaming: true,
+                    },
+                  ])
+                } else {
+                  const msgId = messageIdMap.get(blockId)!
+                  accumulatedTextRef.current[blockId] += contentChunk
+                  setMessages((prev) =>
+                    prev.map((msg) =>
+                      msg.id === msgId ? { ...msg, content: accumulatedTextRef.current[blockId] } : msg
+                    )
                   )
-                )
+                }
 
                 // Real-time TTS for voice mode
                 if (shouldPlayAudio && streamingOptions?.audioStreamHandler) {
-                  const newText = accumulatedText.substring(lastAudioPosition)
+                  const acc = accumulatedTextRef.current[blockId] || ''
+                  const newText = acc.substring(lastAudioPosition)
                   const sentenceEndings = ['. ', '! ', '? ', '.\n', '!\n', '?\n', '.', '!', '?']
                   let sentenceEnd = -1
 
@@ -229,9 +210,12 @@ export function useChatStreaming() {
                   }
                 }
               } else if (blockId && eventType === 'end') {
-                setMessages((prev) =>
-                  prev.map((msg) => (msg.id === messageId ? { ...msg, isStreaming: false } : msg))
-                )
+                const msgId = messageIdMap.get(blockId)
+                if (msgId) {
+                  setMessages((prev) =>
+                    prev.map((msg) => (msg.id === msgId ? { ...msg, isStreaming: false } : msg))
+                  )
+                }
               }
             } catch (parseError) {
               logger.error('Error parsing stream data:', parseError)
@@ -241,8 +225,9 @@ export function useChatStreaming() {
       }
     } catch (error) {
       logger.error('Error processing stream:', error)
+      // Mark the latest streaming assistant messages as complete
       setMessages((prev) =>
-        prev.map((msg) => (msg.id === messageId ? { ...msg, isStreaming: false } : msg))
+        prev.map((msg) => (msg.type === 'assistant' && msg.isStreaming ? { ...msg, isStreaming: false } : msg))
       )
     } finally {
       setIsStreamingResponse(false)

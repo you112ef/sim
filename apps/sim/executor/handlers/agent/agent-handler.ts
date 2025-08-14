@@ -215,10 +215,16 @@ export class AgentBlockHandler implements BlockHandler {
     const isBlockSelectedForOutput =
       context.selectedOutputIds?.some((outputId) => {
         if (outputId === block.id) return true
-        const firstUnderscoreIndex = outputId.indexOf('_')
-        return (
-          firstUnderscoreIndex !== -1 && outputId.substring(0, firstUnderscoreIndex) === block.id
-        )
+        // Support both underscore and dot notations: blockId_path and blockId.path
+        const underscoreIdx = outputId.indexOf('_')
+        const dotIdx = outputId.indexOf('.')
+        if (underscoreIdx !== -1) {
+          return outputId.substring(0, underscoreIdx) === block.id
+        }
+        if (dotIdx !== -1) {
+          return outputId.substring(0, dotIdx) === block.id
+        }
+        return false
       }) ?? false
 
     const hasOutgoingConnections = context.edges?.some((edge) => edge.source === block.id) ?? false
