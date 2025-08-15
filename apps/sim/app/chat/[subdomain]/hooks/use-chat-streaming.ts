@@ -184,7 +184,9 @@ export function useChatStreaming() {
                   accumulatedTextRef.current[blockId] += contentChunk
                   setMessages((prev) =>
                     prev.map((msg) =>
-                      msg.id === msgId ? { ...msg, content: accumulatedTextRef.current[blockId] } : msg
+                      msg.id === msgId
+                        ? { ...msg, content: accumulatedTextRef.current[blockId] }
+                        : msg
                     )
                   )
                 }
@@ -234,7 +236,9 @@ export function useChatStreaming() {
       logger.error('Error processing stream:', error)
       // Mark the latest streaming assistant messages as complete
       setMessages((prev) =>
-        prev.map((msg) => (msg.type === 'assistant' && msg.isStreaming ? { ...msg, isStreaming: false } : msg))
+        prev.map((msg) =>
+          msg.type === 'assistant' && msg.isStreaming ? { ...msg, isStreaming: false } : msg
+        )
       )
     } finally {
       setIsStreamingResponse(false)

@@ -1,5 +1,10 @@
 import { BlockPathCalculator } from '@/lib/block-path-calculator'
 import { createLogger } from '@/lib/logs/console/logger'
+import {
+  extractBlockIdFromOutputId as extractBlockIdFromOutputIdRF,
+  extractPathFromOutputId as extractPathFromOutputIdRF,
+  parseOutputContentSafely as parseOutputContentSafelyRF,
+} from '@/lib/response-format'
 import type { BlockOutput } from '@/blocks/types'
 import { BlockType } from '@/executor/consts'
 import {
@@ -29,11 +34,6 @@ import type {
   StreamingExecution,
 } from '@/executor/types'
 import { streamingResponseFormatProcessor } from '@/executor/utils'
-import {
-  extractBlockIdFromOutputId as extractBlockIdFromOutputIdRF,
-  extractPathFromOutputId as extractPathFromOutputIdRF,
-  parseOutputContentSafely as parseOutputContentSafelyRF,
-} from '@/lib/response-format'
 // BlockType imported once at top
 import type { SerializedBlock, SerializedWorkflow } from '@/serializer/types'
 import { useExecutionStore } from '@/stores/execution/store'
@@ -291,7 +291,8 @@ export class Executor {
                     if (outputId === blockId) return true
                     const underscoreIdx = outputId.indexOf('_')
                     const dotIdx = outputId.indexOf('.')
-                    if (underscoreIdx !== -1) return outputId.substring(0, underscoreIdx) === blockId
+                    if (underscoreIdx !== -1)
+                      return outputId.substring(0, underscoreIdx) === blockId
                     if (dotIdx !== -1) return outputId.substring(0, dotIdx) === blockId
                     return false
                   })
@@ -316,7 +317,8 @@ export class Executor {
                     if (outputId === blockId) return true
                     const underscoreIdx = outputId.indexOf('_')
                     const dotIdx = outputId.indexOf('.')
-                    if (underscoreIdx !== -1) return outputId.substring(0, underscoreIdx) === blockId
+                    if (underscoreIdx !== -1)
+                      return outputId.substring(0, underscoreIdx) === blockId
                     if (dotIdx !== -1) return outputId.substring(0, dotIdx) === blockId
                     return false
                   })
@@ -328,18 +330,18 @@ export class Executor {
 
                   const clientStreamingExec = { ...streamingExec, stream: processedClientStream }
 
-                   try {
+                  try {
                     // Handle client stream only if block is selected, and emit a start marker first
                     if (blockIsSelected) {
                       await context.onStream(clientStreamingExec)
                     }
-                   } catch (streamError: any) {
+                  } catch (streamError: any) {
                     logger.error('Error in onStream callback:', streamError)
                     // Continue execution even if stream callback fails
                   }
 
                   // Process executor stream with proper cleanup
-                   const reader = streamForExecutor.getReader()
+                  const reader = streamForExecutor.getReader()
                   const decoder = new TextDecoder()
                   let fullContent = ''
 
@@ -1700,11 +1702,18 @@ export class Executor {
               }
             }
 
-            // Prefer plain result for function blocks even when a path (e.g. "content") is selected
+            // Prefer result for function blocks even when a path (e.g. "content") is selected
             if (typeof (output as any)?.result !== 'undefined') {
-              formatted = String((output as any).result)
-            } else if (val && typeof val === 'object' && 'result' in val && (val as any).result !== undefined) {
-              formatted = String((val as any).result)
+              const res = (output as any).result
+              formatted = typeof res === 'string' ? res : JSON.stringify(res, null, 2)
+            } else if (
+              val &&
+              typeof val === 'object' &&
+              'result' in val &&
+              (val as any).result !== undefined
+            ) {
+              const res = (val as any).result
+              formatted = typeof res === 'string' ? res : JSON.stringify(res, null, 2)
             }
           } else if (typeof (output as any)?.content === 'string') {
             val = (output as any).content
@@ -1719,7 +1728,8 @@ export class Executor {
           // regardless of additional metadata (stdout, content, tokens, etc.). Also apply when a path is present.
           if (!formatted) {
             if (typeof (output as any)?.result !== 'undefined' && !path) {
-              formatted = String((output as any).result)
+              const res = (output as any).result
+              formatted = typeof res === 'string' ? res : JSON.stringify(res, null, 2)
             } else {
               formatted = typeof val === 'string' ? val : JSON.stringify(val ?? output, null, 2)
             }

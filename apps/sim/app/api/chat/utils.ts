@@ -726,10 +726,16 @@ export async function executeWorkflowForChat(
               // Add newline separation between different outputs for final logs aggregation
               const separator = processedOutputs.size > 0 ? '\n\n' : ''
 
-              // For function blocks, always prefer the `result` field when present
+              // Prefer the most meaningful value for display:
+              // - function blocks: use result directly (stringify non-strings)
+              // - everything else: stringify objects/arrays safely
               let formattedOutput: string
-              if ((log as any).blockType === 'function' && (outputValue as any)?.result !== undefined) {
-                formattedOutput = String((outputValue as any).result)
+              if (
+                (log as any).blockType === 'function' &&
+                (outputValue as any)?.result !== undefined
+              ) {
+                const res = (outputValue as any).result
+                formattedOutput = typeof res === 'string' ? res : JSON.stringify(res, null, 2)
               } else {
                 formattedOutput =
                   typeof outputValue === 'string'
@@ -747,7 +753,10 @@ export async function executeWorkflowForChat(
                 const idBlock = id.includes('_') ? id.split('_')[0] : id.split('.')[0]
                 return idBlock === blockIdForOutput
               })
-              if (((log as any).blockType === 'function' || (log as any).blockType === 'workflow') && isSelected) {
+              if (
+                ((log as any).blockType === 'function' || (log as any).blockType === 'workflow') &&
+                isSelected
+              ) {
                 try {
                   // Only emit separator into the stream if at least one block has already streamed
                   if (streamedBlocks.size > 0) {
@@ -761,9 +770,11 @@ export async function executeWorkflowForChat(
                   // Emit only the most relevant text for the selected block
                   const textToEmit =
                     (log as any).blockType === 'function'
-                      ? ( (outputValue as any)?.result !== undefined
-                          ? String((outputValue as any).result)
-                          : formattedOutput )
+                      ? (outputValue as any)?.result !== undefined
+                        ? typeof (outputValue as any).result === 'string'
+                          ? (outputValue as any).result
+                          : JSON.stringify((outputValue as any).result, null, 2)
+                        : formattedOutput
                       : formattedOutput
                   controller.enqueue(
                     encoder.encode(
