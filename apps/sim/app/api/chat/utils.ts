@@ -741,14 +741,13 @@ export async function executeWorkflowForChat(
               log.output.content = separator + formattedOutput
               processedOutputs.add(log.blockId)
 
-              // Stream non-streaming function block outputs as chunks so the client sees them
-              // as a separate section, matching multi-agent behavior. Only apply to function blocks.
-              // Also only emit if this block was actually selected as an output.
+              // Stream non-streaming function and workflow block outputs as chunks so the client sees them
+              // as separate sections, matching multi-agent behavior. Only apply when the block was selected.
               const isSelected = selectedOutputIds.some((id) => {
                 const idBlock = id.includes('_') ? id.split('_')[0] : id.split('.')[0]
                 return idBlock === blockIdForOutput
               })
-              if ((log as any).blockType === 'function' && isSelected) {
+              if (((log as any).blockType === 'function' || (log as any).blockType === 'workflow') && isSelected) {
                 try {
                   // Only emit separator into the stream if at least one block has already streamed
                   if (streamedBlocks.size > 0) {
@@ -759,14 +758,16 @@ export async function executeWorkflowForChat(
                     )
                   }
 
-                  // Emit only the function result when available
-                  const functionText =
-                    (outputValue as any)?.result !== undefined
-                      ? String((outputValue as any).result)
+                  // Emit only the most relevant text for the selected block
+                  const textToEmit =
+                    (log as any).blockType === 'function'
+                      ? ( (outputValue as any)?.result !== undefined
+                          ? String((outputValue as any).result)
+                          : formattedOutput )
                       : formattedOutput
                   controller.enqueue(
                     encoder.encode(
-                      `data: ${JSON.stringify({ blockId: blockIdForOutput, chunk: functionText })}\n\n`
+                      `data: ${JSON.stringify({ blockId: blockIdForOutput, chunk: textToEmit })}\n\n`
                     )
                   )
 
@@ -774,7 +775,7 @@ export async function executeWorkflowForChat(
                   streamedBlocks.add(blockIdForOutput)
                   streamedContent.set(
                     blockIdForOutput,
-                    (streamedContent.get(blockIdForOutput) || '') + functionText
+                    (streamedContent.get(blockIdForOutput) || '') + textToEmit
                   )
 
                   // Signal end of this non-streaming block section
