@@ -60,9 +60,9 @@ export const ClientChatMessage = memo(
 
     // For assistant messages (on the left)
     return (
-      <div className='px-4 pt-5 pb-2' data-message-id={message.id}>
+      <div className={`px-4 ${message.hideContent ? 'pt-0 pb-2' : 'pt-5 pb-2'}`} data-message-id={message.id}>
         <div className='mx-auto max-w-3xl'>
-          <div className='flex flex-col space-y-3'>
+          <div className={`flex flex-col ${message.hideContent ? 'space-y-0' : 'space-y-3'}`}>
             {/* Direct content rendering - tool calls are now handled via SSE events */}
             {!message.hideContent && (
               <div>

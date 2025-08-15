@@ -672,7 +672,7 @@ export class AgentBlockHandler implements BlockHandler {
     }
 
     if (response instanceof ReadableStream) {
-      return this.createMinimalStreamingExecution(response)
+      return this.createMinimalStreamingExecution(response, block)
     }
 
     return this.processRegularResponse(response, responseFormat)
@@ -702,7 +702,10 @@ export class AgentBlockHandler implements BlockHandler {
     return streamingExec
   }
 
-  private createMinimalStreamingExecution(stream: ReadableStream): StreamingExecution {
+  private createMinimalStreamingExecution(
+    stream: ReadableStream,
+    block?: SerializedBlock
+  ): StreamingExecution {
     return {
       stream,
       execution: {
@@ -713,7 +716,18 @@ export class AgentBlockHandler implements BlockHandler {
           duration: 0,
           startTime: new Date().toISOString(),
         },
-      },
+        // Enrich with block metadata so the executor can route streaming correctly
+        ...(block
+          ? {
+              // These fields are consumed only by the streaming path
+              // and are safe to include here for routing purposes
+              blockId: block.id as unknown as undefined,
+              blockType: block.metadata?.id as unknown as undefined,
+              blockName: block.metadata?.name as unknown as undefined,
+              isStreaming: true as unknown as undefined,
+            }
+          : { isStreaming: true as unknown as undefined }),
+      } as any,
     }
   }
 
