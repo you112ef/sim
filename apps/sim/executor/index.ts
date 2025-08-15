@@ -1650,66 +1650,6 @@ export class Executor {
 
       context.blockLogs.push(blockLog)
 
-      // Emit synthetic streaming for selected non-streaming function blocks to preserve
-      // execution-ordered streaming in chat deployments.
-      try {
-        const isFunctionBlock = block.metadata?.id === BlockType.FUNCTION
-        const isStreamingEnabled = Boolean(context.stream)
-        const hasOnStream = typeof context.onStream === 'function'
-        const isSelected = (context.selectedOutputIds || []).some((outputId) => {
-          if (outputId === block.id) return true
-          const underscoreIdx = outputId.indexOf('_')
-          const dotIdx = outputId.indexOf('.')
-          if (underscoreIdx !== -1) return outputId.substring(0, underscoreIdx) === block.id
-          if (dotIdx !== -1) return outputId.substring(0, dotIdx) === block.id
-          return false
-        })
-
-        if (isFunctionBlock && isStreamingEnabled && hasOnStream && isSelected) {
-          // Minimal, predictable formatting for function blocks
-          const out = output as any
-          let formatted: string
-          if (typeof out?.result !== 'undefined') {
-            formatted =
-              typeof out.result === 'string' ? out.result : JSON.stringify(out.result, null, 2)
-          } else if (typeof out?.content === 'string') {
-            formatted = out.content
-          } else if (typeof out?.stdout === 'string' && out.stdout) {
-            formatted = out.stdout
-          } else {
-            formatted = typeof out === 'string' ? out : JSON.stringify(out ?? {}, null, 2)
-          }
-
-          const syntheticStream = new ReadableStream({
-            start(controller) {
-              const enc = new TextEncoder()
-              controller.enqueue(enc.encode(formatted))
-              controller.close()
-            },
-          })
-
-          const se: StreamingExecution = {
-            stream: syntheticStream,
-            execution: {
-              success: true,
-              output: { content: formatted },
-              logs: [],
-              metadata: { duration: 0, startTime: new Date().toISOString() },
-              // Extra fields used by streaming path
-              // @ts-expect-error - enrich execution for streaming metadata
-              blockId: block.id,
-              blockType: BlockType.FUNCTION,
-              isStreaming: true,
-            },
-          }
-
-          // Emit only the formatted content; avoid JSON wrappers in the client
-          await context.onStream?.(se)
-        }
-      } catch (emitError) {
-        logger.warn('Failed to emit synthetic function streaming:', emitError)
-      }
-
       // Skip console logging for infrastructure blocks like loops and parallels
       if (block.metadata?.id !== BlockType.LOOP && block.metadata?.id !== BlockType.PARALLEL) {
         // Determine iteration context for this block
