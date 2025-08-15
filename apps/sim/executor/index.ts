@@ -1,10 +1,5 @@
 import { BlockPathCalculator } from '@/lib/block-path-calculator'
 import { createLogger } from '@/lib/logs/console/logger'
-import {
-  extractBlockIdFromOutputId as extractBlockIdFromOutputIdRF,
-  extractPathFromOutputId as extractPathFromOutputIdRF,
-  parseOutputContentSafely as parseOutputContentSafelyRF,
-} from '@/lib/response-format'
 import type { BlockOutput } from '@/blocks/types'
 import { BlockType } from '@/executor/consts'
 import {
@@ -283,7 +278,6 @@ export class Executor {
 
                   // Apply response format processing to the client stream if needed
                   const blockId = (streamingExec.execution as any).blockId
-                  const blockType = (streamingExec.execution as any).blockType as string | undefined
 
                   // Stream order hint: emit a zero-length start event for each selected block
                   // to allow the client to create a message placeholder in execution order.
@@ -1672,67 +1666,18 @@ export class Executor {
         })
 
         if (isFunctionBlock && isStreamingEnabled && hasOnStream && isSelected) {
-          // Derive formatted text using selected path if provided
-          const selectedIds = (context.selectedOutputIds || []).filter(
-            (id) => extractBlockIdFromOutputIdRF(id) === block.id
-          )
-
-          const choosePath = (ids: string[]): string | undefined => {
-            for (const id of ids) {
-              const hasPath = id.includes('_') || id.includes('.')
-              if (hasPath) return extractPathFromOutputIdRF(id, block.id)
-            }
-            return undefined
-          }
-
-          let formatted = ''
-          const path = choosePath(selectedIds)
-          let val: any = output
-
-          if (path) {
-            // If content is a string JSON, parse it first
-            val = parseOutputContentSafelyRF({ content: (output as any)?.content ?? output })
-            const parts = path.split('.')
-            for (const p of parts) {
-              if (val && typeof val === 'object' && p in val) {
-                val = val[p]
-              } else {
-                val = undefined
-                break
-              }
-            }
-
-            // Prefer result for function blocks even when a path (e.g. "content") is selected
-            if (typeof (output as any)?.result !== 'undefined') {
-              const res = (output as any).result
-              formatted = typeof res === 'string' ? res : JSON.stringify(res, null, 2)
-            } else if (
-              val &&
-              typeof val === 'object' &&
-              'result' in val &&
-              (val as any).result !== undefined
-            ) {
-              const res = (val as any).result
-              formatted = typeof res === 'string' ? res : JSON.stringify(res, null, 2)
-            }
-          } else if (typeof (output as any)?.content === 'string') {
-            val = (output as any).content
-          } else if (typeof (output as any)?.result !== 'undefined') {
-            // Default fallback for function blocks: use result if available
-            val = (output as any).result
-          } else if (typeof (output as any)?.stdout === 'string' && (output as any).stdout) {
-            val = (output as any).stdout
-          }
-
-          // For function blocks in chat, always prefer displaying the 'result' field as plain text
-          // regardless of additional metadata (stdout, content, tokens, etc.). Also apply when a path is present.
-          if (!formatted) {
-            if (typeof (output as any)?.result !== 'undefined' && !path) {
-              const res = (output as any).result
-              formatted = typeof res === 'string' ? res : JSON.stringify(res, null, 2)
-            } else {
-              formatted = typeof val === 'string' ? val : JSON.stringify(val ?? output, null, 2)
-            }
+          // Minimal, predictable formatting for function blocks
+          const out = output as any
+          let formatted: string
+          if (typeof out?.result !== 'undefined') {
+            formatted =
+              typeof out.result === 'string' ? out.result : JSON.stringify(out.result, null, 2)
+          } else if (typeof out?.content === 'string') {
+            formatted = out.content
+          } else if (typeof out?.stdout === 'string' && out.stdout) {
+            formatted = out.stdout
+          } else {
+            formatted = typeof out === 'string' ? out : JSON.stringify(out ?? {}, null, 2)
           }
 
           const syntheticStream = new ReadableStream({

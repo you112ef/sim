@@ -747,16 +747,14 @@ export async function executeWorkflowForChat(
               log.output.content = separator + formattedOutput
               processedOutputs.add(log.blockId)
 
-              // Stream non-streaming function and workflow block outputs as chunks so the client sees them
-              // as separate sections, matching multi-agent behavior. Only apply when the block was selected.
+              // Stream non-streaming workflow block outputs as chunks so the client sees them
+              // as a separate section, matching multi-agent behavior. Function synthetic streaming is
+              // handled inside the executor; avoid duplicating here.
               const isSelected = selectedOutputIds.some((id) => {
                 const idBlock = id.includes('_') ? id.split('_')[0] : id.split('.')[0]
                 return idBlock === blockIdForOutput
               })
-              if (
-                ((log as any).blockType === 'function' || (log as any).blockType === 'workflow') &&
-                isSelected
-              ) {
+              if ((log as any).blockType === 'workflow' && isSelected) {
                 try {
                   // Only emit separator into the stream if at least one block has already streamed
                   if (streamedBlocks.size > 0) {
@@ -768,14 +766,7 @@ export async function executeWorkflowForChat(
                   }
 
                   // Emit only the most relevant text for the selected block
-                  const textToEmit =
-                    (log as any).blockType === 'function'
-                      ? (outputValue as any)?.result !== undefined
-                        ? typeof (outputValue as any).result === 'string'
-                          ? (outputValue as any).result
-                          : JSON.stringify((outputValue as any).result, null, 2)
-                        : formattedOutput
-                      : formattedOutput
+                  const textToEmit = formattedOutput
                   controller.enqueue(
                     encoder.encode(
                       `data: ${JSON.stringify({ blockId: blockIdForOutput, chunk: textToEmit })}\n\n`
