@@ -95,6 +95,7 @@ export function useChatStreaming() {
 
     // Track which blocks have streamed content as separate messages
     const messageIdMap = new Map<string, string>()
+    const aggregatedCopyId = crypto.randomUUID()
 
     setIsLoading(false)
 
@@ -140,11 +141,11 @@ export function useChatStreaming() {
                     })
                     combinedContent = contentParts.join('')
                   }
-                  const finalId = crypto.randomUUID()
+                  // Append a single consolidated assistant message with copy enabled
                   setMessages((prev) => [
                     ...prev,
                     {
-                      id: finalId,
+                      id: aggregatedCopyId,
                       content: combinedContent,
                       type: 'assistant',
                       timestamp: new Date(),
@@ -175,6 +176,7 @@ export function useChatStreaming() {
                       type: 'assistant',
                       timestamp: new Date(),
                       isStreaming: true,
+                      suppressCopy: true,
                     },
                   ])
                 } else {
@@ -246,6 +248,36 @@ export function useChatStreaming() {
 
       if (shouldPlayAudio) {
         streamingOptions?.onAudioEnd?.()
+      }
+
+      // After streaming completes, append a single consolidated copy message when per-block
+      // messages were streamed.
+      try {
+        const hadPerBlockMessages = messageIdMap.size > 0
+        if (hadPerBlockMessages) {
+          // Preserve stream order using messageIdMap insertion order
+          const orderedBlockIds: string[] = []
+          for (const [bId] of messageIdMap) orderedBlockIds.push(bId)
+          const parts: string[] = []
+          orderedBlockIds.forEach((bId, idx) => {
+            const text = accumulatedTextRef.current[bId] || ''
+            if (text) parts.push(idx > 0 ? `\n\n${text}` : text)
+          })
+          const combined = parts.join('')
+          setMessages((prev) => [
+            ...prev,
+            {
+              id: aggregatedCopyId,
+              content: combined,
+              type: 'assistant',
+              timestamp: new Date(),
+              isStreaming: false,
+              hideContent: true,
+            },
+          ])
+        }
+      } catch (e) {
+        logger.error('Failed to append consolidated copy message:', e)
       }
     }
   }

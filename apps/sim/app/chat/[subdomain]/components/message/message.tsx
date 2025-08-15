@@ -13,6 +13,8 @@ export interface ChatMessage {
   timestamp: Date
   isInitialMessage?: boolean
   isStreaming?: boolean
+  suppressCopy?: boolean
+  hideContent?: boolean
 }
 
 function EnhancedMarkdownRenderer({ content }: { content: string }) {
@@ -62,18 +64,23 @@ export const ClientChatMessage = memo(
         <div className='mx-auto max-w-3xl'>
           <div className='flex flex-col space-y-3'>
             {/* Direct content rendering - tool calls are now handled via SSE events */}
-            <div>
-              <div className='break-words text-base'>
-                {isJsonObject ? (
-                  <pre className='text-gray-800 dark:text-gray-100'>
-                    {JSON.stringify(cleanTextContent, null, 2)}
-                  </pre>
-                ) : (
-                  <EnhancedMarkdownRenderer content={cleanTextContent as string} />
-                )}
+            {!message.hideContent && (
+              <div>
+                <div className='break-words text-base'>
+                  {isJsonObject ? (
+                    <pre className='text-gray-800 dark:text-gray-100'>
+                      {JSON.stringify(cleanTextContent, null, 2)}
+                    </pre>
+                  ) : (
+                    <EnhancedMarkdownRenderer content={cleanTextContent as string} />
+                  )}
+                </div>
               </div>
-            </div>
-            {message.type === 'assistant' && !isJsonObject && !message.isInitialMessage && (
+            )}
+            {message.type === 'assistant' &&
+              !isJsonObject &&
+              !message.isInitialMessage &&
+              !message.suppressCopy && (
               <div className='flex items-center justify-start space-x-2'>
                 {/* Copy Button - Only show when not streaming */}
                 {!message.isStreaming && (
