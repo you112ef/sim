@@ -747,14 +747,13 @@ export async function executeWorkflowForChat(
               log.output.content = separator + formattedOutput
               processedOutputs.add(log.blockId)
 
-              // Stream non-streaming workflow block outputs as chunks so the client sees them
-              // as a separate section, matching multi-agent behavior. Function synthetic streaming is
-              // handled inside the executor; avoid duplicating here.
+              // Stream non-streaming selected block outputs as chunks so the client sees them
+              // as a separate section, matching multi-agent behavior.
               const isSelected = selectedOutputIds.some((id) => {
                 const idBlock = id.includes('_') ? id.split('_')[0] : id.split('.')[0]
                 return idBlock === blockIdForOutput
               })
-              if ((log as any).blockType === 'workflow' && isSelected) {
+              if (isSelected) {
                 try {
                   // Only emit separator into the stream if at least one block has already streamed
                   if (streamedBlocks.size > 0) {
@@ -788,7 +787,7 @@ export async function executeWorkflowForChat(
                   )
                 } catch (e) {
                   logger.warn(
-                    `[${requestId}] Failed to stream non-streaming output for function block ${blockIdForOutput}`,
+                    `[${requestId}] Failed to stream non-streaming output for selected block ${blockIdForOutput}`,
                     e
                   )
                 }
