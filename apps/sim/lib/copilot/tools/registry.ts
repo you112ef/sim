@@ -8,9 +8,22 @@
  * It also provides metadata for server-side tools for display purposes
  */
 
+import { BuildWorkflowClientTool } from '@/lib/copilot/tools/client-tools/build-workflow'
+import { EditWorkflowClientTool } from '@/lib/copilot/tools/client-tools/edit-workflow'
 import { GDriveRequestAccessTool } from '@/lib/copilot/tools/client-tools/gdrive-request-access'
+import { GetBlocksAndToolsClientTool } from '@/lib/copilot/tools/client-tools/get-blocks-and-tools'
+import { GetBlocksMetadataClientTool } from '@/lib/copilot/tools/client-tools/get-blocks-metadata'
+import { GetEnvironmentVariablesClientTool } from '@/lib/copilot/tools/client-tools/get-environment-variables'
+import { GetOAuthCredentialsClientTool } from '@/lib/copilot/tools/client-tools/get-oauth-credentials'
 import { GetUserWorkflowTool } from '@/lib/copilot/tools/client-tools/get-user-workflow'
+import { GetWorkflowConsoleClientTool } from '@/lib/copilot/tools/client-tools/get-workflow-console'
+import { ListGDriveFilesClientTool } from '@/lib/copilot/tools/client-tools/list-gdrive-files'
+import { MakeApiRequestClientTool } from '@/lib/copilot/tools/client-tools/make-api-request'
+import { OnlineSearchClientTool } from '@/lib/copilot/tools/client-tools/online-search'
+import { ReadGDriveFileClientTool } from '@/lib/copilot/tools/client-tools/read-gdrive-file'
 import { RunWorkflowTool } from '@/lib/copilot/tools/client-tools/run-workflow'
+import { SearchDocumentationClientTool } from '@/lib/copilot/tools/client-tools/search-documentation'
+import { SetEnvironmentVariablesClientTool } from '@/lib/copilot/tools/client-tools/set-environment-variables'
 import { SERVER_TOOL_METADATA } from '@/lib/copilot/tools/server-tools/definitions'
 import type { Tool, ToolMetadata } from '@/lib/copilot/tools/types'
 
@@ -116,6 +129,19 @@ export class ToolRegistry {
     this.register(new RunWorkflowTool())
     this.register(new GetUserWorkflowTool())
     this.register(new GDriveRequestAccessTool())
+    this.register(new GetBlocksAndToolsClientTool())
+    this.register(new GetEnvironmentVariablesClientTool())
+    this.register(new GetOAuthCredentialsClientTool())
+    this.register(new GetBlocksMetadataClientTool())
+    this.register(new SearchDocumentationClientTool())
+    this.register(new OnlineSearchClientTool())
+    this.register(new ListGDriveFilesClientTool())
+    this.register(new ReadGDriveFileClientTool())
+    this.register(new GetWorkflowConsoleClientTool())
+    this.register(new MakeApiRequestClientTool())
+    this.register(new SetEnvironmentVariablesClientTool())
+    this.register(new BuildWorkflowClientTool())
+    this.register(new EditWorkflowClientTool())
   }
 }
 

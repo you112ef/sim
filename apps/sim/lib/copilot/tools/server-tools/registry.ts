@@ -6,9 +6,11 @@ import { getBlocksMetadataTool } from './blocks/get-blocks-metadata'
 import { searchDocsTool } from './docs/search-docs'
 import { listGDriveFilesTool } from './gdrive/list-gdrive-files'
 import { readGDriveFileTool } from './gdrive/read-gdrive-file'
+import { gdriveRequestAccessServerTool } from './other/gdrive-request-access'
 import { makeApiRequestTool } from './other/make-api-request'
 import { noOpTool } from './other/no-op'
 import { onlineSearchTool } from './other/online-search'
+import { runWorkflowServerTool } from './other/run-workflow'
 import { getEnvironmentVariablesTool } from './user/get-environment-variables'
 import { getOAuthCredentialsTool } from './user/get-oauth-credentials'
 import { setEnvironmentVariablesTool } from './user/set-environment-variables'
@@ -104,6 +106,8 @@ copilotToolRegistry.register(editWorkflowTool)
 copilotToolRegistry.register(listGDriveFilesTool)
 copilotToolRegistry.register(readGDriveFileTool)
 copilotToolRegistry.register(makeApiRequestTool)
+copilotToolRegistry.register(gdriveRequestAccessServerTool)
+copilotToolRegistry.register(runWorkflowServerTool)
 
 // Dynamically generated constants - single source of truth
 export const COPILOT_TOOL_IDS = copilotToolRegistry.getAvailableIds()

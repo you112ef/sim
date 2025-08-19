@@ -632,6 +632,16 @@ function createToolCall(id: string, name: string, input: any = {}): any {
 
   setToolCallState(toolCall, initialState, { preserveTerminalStates: false })
 
+  // Debug logging for search_documentation
+  if (name === 'search_documentation') {
+    logger.info('DEBUG: search_documentation tool check', {
+      requiresInterrupt,
+      hasToolInRegistry: !!toolRegistry.getTool(name),
+      registryTools: toolRegistry.getToolIds(),
+      willAutoExecute: !requiresInterrupt && !!toolRegistry.getTool(name),
+    })
+  }
+
   // Auto-execute client tools that don't require interrupt
   if (!requiresInterrupt && toolRegistry.getTool(name)) {
     logger.info('Auto-executing client tool:', name, toolCall.id)
@@ -686,6 +696,15 @@ function finalizeToolCall(
 
   if (success) {
     toolCall.result = result
+
+    // Do not override if tool is already in a terminal failure state
+    if (
+      toolCall.state === 'errored' ||
+      toolCall.state === 'rejected' ||
+      toolCall.state === 'background'
+    ) {
+      return
+    }
 
     // For tools with ready_for_review and interrupt tools, check if they're already in a terminal state in the store
     if (toolSupportsReadyForReview(toolCall.name) || toolRequiresInterrupt(toolCall.name)) {
@@ -927,7 +946,18 @@ const sseHandlers: Record<string, SSEHandler> = {
           : result
 
       // NEW LOGIC: Use centralized state management
-      setToolCallState(toolCall, 'success', { result: parsedResult })
+      if (
+        toolCall.state === 'errored' ||
+        toolCall.state === 'rejected' ||
+        toolCall.state === 'background'
+      ) {
+        logger.info('Ignoring success tool_result due to existing terminal state', {
+          toolCallId,
+          state: toolCall.state,
+        })
+      } else {
+        setToolCallState(toolCall, 'success', { result: parsedResult })
+      }
 
       // Check if this is the plan tool and extract todos
       if (toolCall.name === 'plan' && parsedResult?.todoList) {
@@ -1153,6 +1183,23 @@ const sseHandlers: Record<string, SSEHandler> = {
   tool_call: (data, context, get, set) => {
     const toolData = data.data
     if (!toolData) return
+
+    // Ignore partial tool_call deltas; wait for complete payload to avoid executing with empty args
+    if (toolData.partial === true) {
+      logger.info('tool_call partial received, deferring until complete', {
+        toolId: toolData.id,
+        toolName: toolData.name,
+      })
+      return
+    }
+
+    // Debug logging for all tools
+    logger.info('tool_call event received', {
+      toolId: toolData.id,
+      toolName: toolData.name,
+      hasArguments: !!toolData.arguments,
+      isSearchDoc: toolData.name === 'search_documentation',
+    })
 
     // Check if tool call already exists
     const existingToolCall = context.toolCalls.find((tc) => tc.id === toolData.id)
@@ -1506,7 +1553,8 @@ function preserveToolTerminalState(newToolCall: any, existingToolCall: any): any
     !existingToolCall ||
     (existingToolCall.state !== 'accepted' &&
       existingToolCall.state !== 'rejected' &&
-      existingToolCall.state !== 'background')
+      existingToolCall.state !== 'background' &&
+      existingToolCall.state !== 'errored')
   ) {
     return newToolCall
   }
@@ -1523,6 +1571,7 @@ function preserveToolTerminalState(newToolCall: any, existingToolCall: any): any
     ...newToolCall,
     state: existingToolCall.state,
     displayName: existingToolCall.displayName,
+    error: existingToolCall.error ?? newToolCall.error,
   }
 }
 
@@ -2648,13 +2697,26 @@ export const useCopilotStore = create<CopilotStore>()(
         const lastMessageWithPreview = messages
           .slice()
           .reverse()
-          .find((msg) =>
-            msg.toolCalls?.some(
-              (tc) =>
-                (tc.name === COPILOT_TOOL_IDS.BUILD_WORKFLOW ||
-                  tc.name === COPILOT_TOOL_IDS.EDIT_WORKFLOW) &&
-                (tc.state === 'ready_for_review' || tc.state === 'completed')
-            )
+          .find(
+            (msg) =>
+              // Check either toolCalls array or contentBlocks for a workflow tool in a terminal-ish state
+              msg.toolCalls?.some(
+                (tc) =>
+                  (tc.name === COPILOT_TOOL_IDS.BUILD_WORKFLOW ||
+                    tc.name === COPILOT_TOOL_IDS.EDIT_WORKFLOW) &&
+                  (tc.state === 'ready_for_review' ||
+                    tc.state === 'completed' ||
+                    tc.state === 'success')
+              ) ||
+              msg.contentBlocks?.some(
+                (block) =>
+                  block.type === 'tool_call' &&
+                  ((block as any).toolCall?.name === COPILOT_TOOL_IDS.BUILD_WORKFLOW ||
+                    (block as any).toolCall?.name === COPILOT_TOOL_IDS.EDIT_WORKFLOW) &&
+                  ((block as any).toolCall?.state === 'ready_for_review' ||
+                    (block as any).toolCall?.state === 'completed' ||
+                    (block as any).toolCall?.state === 'success')
+              )
           )
 
         if (!lastMessageWithPreview) {
@@ -2662,12 +2724,26 @@ export const useCopilotStore = create<CopilotStore>()(
           return
         }
 
-        const lastWorkflowToolCall = lastMessageWithPreview.toolCalls?.find(
-          (tc) =>
-            (tc.name === COPILOT_TOOL_IDS.BUILD_WORKFLOW ||
-              tc.name === COPILOT_TOOL_IDS.EDIT_WORKFLOW) &&
-            (tc.state === 'ready_for_review' || tc.state === 'completed')
-        )
+        const lastWorkflowToolCall =
+          lastMessageWithPreview.toolCalls?.find(
+            (tc) =>
+              (tc.name === COPILOT_TOOL_IDS.BUILD_WORKFLOW ||
+                tc.name === COPILOT_TOOL_IDS.EDIT_WORKFLOW) &&
+              (tc.state === 'ready_for_review' ||
+                tc.state === 'completed' ||
+                tc.state === 'success')
+          ) ??
+          (lastMessageWithPreview.contentBlocks || [])
+            .filter((block: any) => block.type === 'tool_call')
+            .map((block: any) => block.toolCall)
+            .find(
+              (tc: any) =>
+                (tc?.name === COPILOT_TOOL_IDS.BUILD_WORKFLOW ||
+                  tc?.name === COPILOT_TOOL_IDS.EDIT_WORKFLOW) &&
+                (tc?.state === 'ready_for_review' ||
+                  tc?.state === 'completed' ||
+                  tc?.state === 'success')
+            )
 
         if (!lastWorkflowToolCall) {
           logger.error('No workflow tool call found in message')

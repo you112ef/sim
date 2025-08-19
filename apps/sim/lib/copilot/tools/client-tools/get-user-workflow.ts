@@ -3,6 +3,7 @@
  */
 
 import { BaseTool } from '@/lib/copilot/tools/base-tool'
+import { postToMethods } from '@/lib/copilot/tools/client-tools/client-utils'
 import type {
   CopilotToolCall,
   ToolExecuteResult,
@@ -10,6 +11,7 @@ import type {
   ToolMetadata,
 } from '@/lib/copilot/tools/types'
 import { createLogger } from '@/lib/logs/console/logger'
+import { Serializer } from '@/serializer'
 import { useWorkflowDiffStore } from '@/stores/workflow-diff/store'
 import { useWorkflowRegistry } from '@/stores/workflows/registry/store'
 import { mergeSubblockState } from '@/stores/workflows/utils'
@@ -81,7 +83,7 @@ export class GetUserWorkflowTool extends BaseTool {
   }
 
   /**
-   * Execute the tool - fetch the workflow from stores and write to Redis
+   * Execute the tool - fetch the workflow from stores and call the server method
    */
   async execute(
     toolCall: CopilotToolCall,
@@ -89,10 +91,7 @@ export class GetUserWorkflowTool extends BaseTool {
   ): Promise<ToolExecuteResult> {
     const logger = createLogger('GetUserWorkflowTool')
 
-    logger.info('Starting client tool execution', {
-      toolCallId: toolCall.id,
-      toolName: toolCall.name,
-    })
+    logger.info('Starting client tool execution', { toolCallId: toolCall.id })
 
     try {
       // Parse parameters
@@ -113,26 +112,17 @@ export class GetUserWorkflowTool extends BaseTool {
         workflowId = activeWorkflowId
       }
 
-      logger.info('Fetching user workflow from stores', {
-        workflowId,
-        includeMetadata: params.includeMetadata,
-      })
-
-      // Try to get workflow from diff/preview store first, then main store
       let workflowState: any = null
 
-      // Check diff store first
       const diffStore = useWorkflowDiffStore.getState()
       if (diffStore.diffWorkflow && Object.keys(diffStore.diffWorkflow.blocks || {}).length > 0) {
         workflowState = diffStore.diffWorkflow
         logger.info('Using workflow from diff/preview store', { workflowId })
       } else {
-        // Get the actual workflow state from the workflow store
         const workflowStore = useWorkflowStore.getState()
         const fullWorkflowState = workflowStore.getWorkflowState()
 
         if (!fullWorkflowState || !fullWorkflowState.blocks) {
-          // Fallback to workflow registry metadata if no workflow state
           const workflowRegistry = useWorkflowRegistry.getState()
           const workflow = workflowRegistry.workflows[workflowId]
 
@@ -144,18 +134,13 @@ export class GetUserWorkflowTool extends BaseTool {
             }
           }
 
-          logger.warn('No workflow state found, using workflow metadata only', { workflowId })
+          logger.warn('No workflow state found, using workflow metadata only')
           workflowState = workflow
         } else {
           workflowState = fullWorkflowState
-          logger.info('Using workflow state from workflow store', {
-            workflowId,
-            blockCount: Object.keys(fullWorkflowState.blocks || {}).length,
-          })
         }
       }
 
-      // Ensure workflow state has all required properties with proper defaults
       if (workflowState) {
         if (!workflowState.loops) {
           workflowState.loops = {}
@@ -171,7 +156,6 @@ export class GetUserWorkflowTool extends BaseTool {
         }
       }
 
-      // Merge latest subblock values from the subblock store so subblock edits are reflected
       try {
         if (workflowState?.blocks) {
           workflowState = {
@@ -184,25 +168,11 @@ export class GetUserWorkflowTool extends BaseTool {
           })
         }
       } catch (mergeError) {
-        logger.warn('Failed to merge subblock values; proceeding with raw workflow state', {
-          workflowId,
-          error: mergeError instanceof Error ? mergeError.message : String(mergeError),
-        })
+        logger.warn('Failed to merge subblock values; proceeding with raw workflow state')
       }
 
-      logger.info('Validating workflow state', {
-        workflowId,
-        hasWorkflowState: !!workflowState,
-        hasBlocks: !!workflowState?.blocks,
-        workflowStateType: typeof workflowState,
-      })
-
       if (!workflowState || !workflowState.blocks) {
-        logger.error('Workflow state validation failed', {
-          workflowId,
-          workflowState: workflowState,
-          hasBlocks: !!workflowState?.blocks,
-        })
+        logger.error('Workflow state validation failed')
         options?.onStateChange?.('errored')
         return {
           success: false,
@@ -210,70 +180,69 @@ export class GetUserWorkflowTool extends BaseTool {
         }
       }
 
-      // Include metadata if requested and available
-      if (params.includeMetadata && workflowState.metadata) {
-        // Metadata is already included in the workflow state
-      }
-
-      logger.info('Successfully fetched user workflow from stores', {
-        workflowId,
-        blockCount: Object.keys(workflowState.blocks || {}).length,
-        fromDiffStore:
-          !!diffStore.diffWorkflow && Object.keys(diffStore.diffWorkflow.blocks || {}).length > 0,
-      })
-
-      logger.info('About to stringify workflow state', {
-        workflowId,
-        workflowStateKeys: Object.keys(workflowState),
-      })
-
-      // Convert workflow state to JSON string
       let workflowJson: string
       try {
         workflowJson = JSON.stringify(workflowState, null, 2)
-        logger.info('Successfully stringified workflow state', {
-          workflowId,
-          jsonLength: workflowJson.length,
-        })
       } catch (stringifyError) {
-        logger.error('Error stringifying workflow state', {
-          workflowId,
-          error: stringifyError,
-        })
         options?.onStateChange?.('errored')
         return {
           success: false,
-          error: `Failed to convert workflow to JSON: ${stringifyError instanceof Error ? stringifyError.message : 'Unknown error'}`,
+          error: `Failed to convert workflow to JSON: ${
+            stringifyError instanceof Error ? stringifyError.message : 'Unknown error'
+          }`,
         }
       }
-      logger.info('About to notify server with workflow data', {
-        workflowId,
-        toolCallId: toolCall.id,
-        dataLength: workflowJson.length,
-      })
 
-      // Notify server of success with structured data containing userWorkflow
-      const structuredData = JSON.stringify({
-        userWorkflow: workflowJson,
-      })
+      // Post to server via shared utility
+      const result = await postToMethods(
+        'get_user_workflow',
+        { confirmationMessage: workflowJson, fullData: { userWorkflow: workflowJson } },
+        { toolCallId: toolCall.id, toolId: toolCall.id },
+        options
+      )
 
-      logger.info('Calling notify with structured data', {
-        toolCallId: toolCall.id,
-        structuredDataLength: structuredData.length,
-      })
+      if (!result.success) return result
 
-      await this.notify(toolCall.id, 'success', structuredData)
+      try {
+        const diffStore = useWorkflowDiffStore.getState()
+        const serverData = result.data
+        let yamlContent: string | null = null
+        if (serverData && typeof serverData === 'object' && (serverData as any).yamlContent) {
+          yamlContent = (serverData as any).yamlContent
+        } else if (typeof serverData === 'string') {
+          const trimmed = serverData.trim()
+          if (trimmed.startsWith('{') || trimmed.startsWith('[')) {
+            try {
+              const parsed = JSON.parse(serverData)
+              if (parsed && typeof parsed === 'object' && parsed.blocks && parsed.edges) {
+                const serializer = new Serializer()
+                const serialized = serializer.serializeWorkflow(
+                  parsed.blocks,
+                  parsed.edges,
+                  parsed.loops || {},
+                  parsed.parallels || {},
+                  false
+                )
+                if (typeof serialized === 'string') yamlContent = serialized
+              }
+            } catch {}
+          } else {
+            yamlContent = serverData
+          }
+        }
 
-      logger.info('Successfully notified server of success', {
-        toolCallId: toolCall.id,
-      })
-
-      options?.onStateChange?.('success')
-
-      return {
-        success: true,
-        data: workflowJson, // Return the same data that goes to Redis
+        if (yamlContent) {
+          await diffStore.setProposedChanges(yamlContent)
+        } else {
+          logger.warn('No yamlContent found/derived in server result to trigger diff')
+        }
+      } catch (e) {
+        logger.error('Failed to update diff store from get_user_workflow result', {
+          error: e instanceof Error ? e.message : String(e),
+        })
       }
+
+      return result
     } catch (error: any) {
       logger.error('Error in client tool execution:', {
         toolCallId: toolCall.id,
@@ -281,19 +250,6 @@ export class GetUserWorkflowTool extends BaseTool {
         stack: error instanceof Error ? error.stack : undefined,
         message: error instanceof Error ? error.message : String(error),
       })
-
-      try {
-        // Notify server of error
-        await this.notify(toolCall.id, 'errored', error.message || 'Failed to fetch workflow')
-        logger.info('Successfully notified server of error', {
-          toolCallId: toolCall.id,
-        })
-      } catch (notifyError) {
-        logger.error('Failed to notify server of error:', {
-          toolCallId: toolCall.id,
-          notifyError: notifyError,
-        })
-      }
 
       options?.onStateChange?.('errored')
 

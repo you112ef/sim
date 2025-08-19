@@ -12,6 +12,7 @@ import {
 } from '@/lib/copilot/auth'
 import { getCopilotModel } from '@/lib/copilot/config'
 import { TITLE_GENERATION_SYSTEM_PROMPT, TITLE_GENERATION_USER_PROMPT } from '@/lib/copilot/prompts'
+import { getBlocksAndToolsTool } from '@/lib/copilot/tools/server-tools/blocks/get-blocks-and-tools'
 import { env } from '@/lib/env'
 import { createLogger } from '@/lib/logs/console/logger'
 import { SIM_AGENT_API_URL_DEFAULT } from '@/lib/sim-agent'
@@ -409,6 +410,26 @@ export async function POST(req: NextRequest) {
       [...messages].reverse().find((m) => m?.role === 'user') || messages[messages.length - 1]
     const messagesForAgent = effectiveConversationId ? [latestUserMessage] : messages
 
+    // Prepare optional prefetch results
+    let prefetchResults: Record<string, any> | undefined
+    if (effectivePrefetch === true) {
+      try {
+        const prefetchResp = await getBlocksAndToolsTool.execute({})
+        if (prefetchResp.success) {
+          prefetchResults = { get_blocks_and_tools: prefetchResp.data }
+          logger.info(`[${tracker.requestId}] Prepared prefetchResults for streaming payload`, {
+            hasBlocksAndTools: !!prefetchResp.data,
+          })
+        } else {
+          logger.warn(`[${tracker.requestId}] Failed to prefetch get_blocks_and_tools`, {
+            error: prefetchResp.error,
+          })
+        }
+      } catch (e) {
+        logger.error(`[${tracker.requestId}] Error while preparing prefetchResults`, e)
+      }
+    }
+
     const requestPayload = {
       messages: messagesForAgent,
       workflowId,
@@ -422,6 +443,7 @@ export async function POST(req: NextRequest) {
       ...(typeof effectivePrefetch === 'boolean' ? { prefetch: effectivePrefetch } : {}),
       ...(session?.user?.name && { userName: session.user.name }),
       ...(requestOrigin ? { origin: requestOrigin } : {}),
+      ...(prefetchResults ? { prefetchResults } : {}),
     }
 
     // Log the payload being sent to the streaming endpoint
@@ -438,10 +460,6 @@ export async function POST(req: NextRequest) {
         messagesCount: requestPayload.messages.length,
         ...(requestOrigin ? { origin: requestOrigin } : {}),
       })
-      // Full payload as JSON string
-      logger.info(
-        `[${tracker.requestId}] Full streaming payload: ${JSON.stringify(requestPayload)}`
-      )
     } catch (e) {
       logger.warn(`[${tracker.requestId}] Failed to log payload preview for streaming endpoint`, e)
     }
@@ -621,6 +639,15 @@ export async function POST(req: NextRequest) {
                           toolCalls.push(event.data)
                           if (event.data?.id) {
                             announcedToolCallIds.add(event.data.id)
+                          }
+                          if (event.data?.name === 'get_user_workflow') {
+                            logger.info(
+                              `[${tracker.requestId}] get_user_workflow tool call received in stream; client will execute locally and post to /api/copilot/methods`,
+                              {
+                                toolCallId: event.data?.id,
+                                hasArgs: !!event.data?.arguments,
+                              }
+                            )
                           }
                         }
                         break
