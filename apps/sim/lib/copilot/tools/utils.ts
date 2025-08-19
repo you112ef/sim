@@ -10,6 +10,7 @@ import {
   Brain,
   Check,
   CheckCircle,
+  CircleSlash,
   Code,
   Database,
   Edit,
@@ -25,7 +26,6 @@ import {
   ListTodo,
   Loader2,
   type LucideIcon,
-  Minus,
   Network,
   Play,
   Search,
@@ -53,7 +53,7 @@ const ICON_MAP: Record<string, LucideIcon> = {
   spinner: Loader2, // Standard spinner icon
   check: Check,
   checkCircle: CheckCircle,
-  skip: Minus,
+  skip: CircleSlash,
   error: XCircle,
   background: Eye,
   play: Play,
@@ -86,6 +86,7 @@ const ICON_MAP: Record<string, LucideIcon> = {
   gitbranch: GitBranch, // Git branching icon showing workflow paths
   brain: Brain, // Brain icon for reasoning/AI thinking
   listTodo: ListTodo, // List with checkboxes for planning/todos
+  'circle-slash': CircleSlash,
 
   // Default
   default: Lightbulb,

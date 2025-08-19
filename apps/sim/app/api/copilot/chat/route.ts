@@ -13,6 +13,8 @@ import {
 import { getCopilotModel } from '@/lib/copilot/config'
 import { TITLE_GENERATION_SYSTEM_PROMPT, TITLE_GENERATION_USER_PROMPT } from '@/lib/copilot/prompts'
 import { getBlocksAndToolsTool } from '@/lib/copilot/tools/server-tools/blocks/get-blocks-and-tools'
+import { getEnvironmentVariablesTool } from '@/lib/copilot/tools/server-tools/user/get-environment-variables'
+import { getOAuthCredentialsTool } from '@/lib/copilot/tools/server-tools/user/get-oauth-credentials'
 import { env } from '@/lib/env'
 import { createLogger } from '@/lib/logs/console/logger'
 import { SIM_AGENT_API_URL_DEFAULT } from '@/lib/sim-agent'
@@ -90,6 +92,7 @@ const ChatMessageSchema = z.object({
   fileAttachments: z.array(FileAttachmentSchema).optional(),
   provider: z.string().optional().default('openai'),
   conversationId: z.string().optional(),
+  userWorkflow: z.string().optional(),
 })
 
 /**
@@ -207,6 +210,7 @@ export async function POST(req: NextRequest) {
       fileAttachments,
       provider,
       conversationId,
+      userWorkflow,
     } = ChatMessageSchema.parse(body)
 
     // Derive request origin for downstream service
@@ -244,6 +248,7 @@ export async function POST(req: NextRequest) {
       depth,
       prefetch,
       origin: requestOrigin,
+      hasUserWorkflow: !!userWorkflow,
     })
 
     // Handle chat context
@@ -414,17 +419,54 @@ export async function POST(req: NextRequest) {
     let prefetchResults: Record<string, any> | undefined
     if (effectivePrefetch === true) {
       try {
-        const prefetchResp = await getBlocksAndToolsTool.execute({})
-        if (prefetchResp.success) {
-          prefetchResults = { get_blocks_and_tools: prefetchResp.data }
-          logger.info(`[${tracker.requestId}] Prepared prefetchResults for streaming payload`, {
-            hasBlocksAndTools: !!prefetchResp.data,
-          })
+        const [blocksAndToolsResp, envVarsResp, oauthResp] = await Promise.all([
+          getBlocksAndToolsTool.execute({}),
+          getEnvironmentVariablesTool.execute({ userId: authenticatedUserId, workflowId }),
+          getOAuthCredentialsTool.execute({ userId: authenticatedUserId }),
+        ])
+
+        prefetchResults = {}
+
+        if (blocksAndToolsResp.success) {
+          prefetchResults.get_blocks_and_tools = blocksAndToolsResp.data
         } else {
           logger.warn(`[${tracker.requestId}] Failed to prefetch get_blocks_and_tools`, {
-            error: prefetchResp.error,
+            error: blocksAndToolsResp.error,
           })
         }
+
+        if (envVarsResp.success) {
+          prefetchResults.get_environment_variables = envVarsResp.data
+        } else {
+          logger.warn(`[${tracker.requestId}] Failed to prefetch get_environment_variables`, {
+            error: envVarsResp.error,
+          })
+        }
+
+        if (oauthResp.success) {
+          prefetchResults.get_oauth_credentials = oauthResp.data
+        } else {
+          logger.warn(`[${tracker.requestId}] Failed to prefetch get_oauth_credentials`, {
+            error: oauthResp.error,
+          })
+        }
+
+        if (userWorkflow && typeof userWorkflow === 'string' && userWorkflow.trim().length > 0) {
+          prefetchResults.get_user_workflow = userWorkflow
+          const uwLength = userWorkflow.length
+          const uwPreview = userWorkflow.substring(0, 10000)
+          logger.info(`[${tracker.requestId}] Included client-provided userWorkflow in prefetch`, {
+            length: uwLength,
+            preview: `${uwPreview}${uwLength > 10000 ? '...' : ''}`,
+          })
+        }
+
+        logger.info(`[${tracker.requestId}] Prepared prefetchResults for streaming payload`, {
+          hasBlocksAndTools: !!prefetchResults.get_blocks_and_tools,
+          hasEnvVars: !!prefetchResults.get_environment_variables,
+          hasOAuthCreds: !!prefetchResults.get_oauth_credentials,
+          hasUserWorkflow: !!prefetchResults.get_user_workflow,
+        })
       } catch (e) {
         logger.error(`[${tracker.requestId}] Error while preparing prefetchResults`, e)
       }

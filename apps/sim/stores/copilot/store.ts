@@ -451,6 +451,18 @@ function processWorkflowToolResult(toolCall: any, result: any, get: () => Copilo
   // For build_workflow tool, also extract workflowState if available
   const workflowState = result?.workflowState || result?.data?.workflowState
 
+  // If this is a client-handled tool that will update the diff store itself, skip here
+  if (toolCall.name === 'edit_workflow' || toolCall.name === 'build_workflow') {
+    if (yamlContent) {
+      logger.info(
+        `Skipping CopilotStore diff update for ${toolCall.name} (client tool will handle).`
+      )
+      // Still set preview YAML for user visibility
+      get().setPreviewYaml(yamlContent)
+    }
+    return
+  }
+
   if (yamlContent) {
     logger.info(`Setting preview YAML from ${toolCall.name} tool`, {
       yamlLength: yamlContent.length,
@@ -463,7 +475,8 @@ function processWorkflowToolResult(toolCall: any, result: any, get: () => Copilo
     if (toolCall.name === 'build_workflow' && workflowState) {
       logger.info('Using workflowState directly for build_workflow tool')
       get().updateDiffStoreWithWorkflowState(workflowState, toolCall.name)
-    } else {
+    } else if (toolCall.name !== 'edit_workflow') {
+      // Only update diff store here for non-client-handled tools
       get().updateDiffStore(yamlContent, toolCall.name)
     }
   } else {
@@ -2296,6 +2309,20 @@ export const useCopilotStore = create<CopilotStore>()(
             stream,
             fileAttachments: options.fileAttachments,
             abortSignal: abortController.signal,
+            // In normal mode (prefetch enabled), include userWorkflow for server prefetch
+            ...(get().agentPrefetch
+              ? (() => {
+                  try {
+                    const {
+                      buildUserWorkflowJson,
+                    } = require('@/lib/copilot/tools/client-tools/workflow-helpers')
+                    return { userWorkflow: buildUserWorkflowJson(workflowId) }
+                  } catch (e) {
+                    logger.warn('Failed to build userWorkflow for prefetch; continuing without it')
+                    return {}
+                  }
+                })()
+              : {}),
           })
 
           if (result.success && result.stream) {
@@ -3473,10 +3500,11 @@ export const useCopilotStore = create<CopilotStore>()(
 
           // Direct assignment to the diff store for build_workflow
           logger.info('Using direct workflowState assignment for build tool')
+          const prev = useWorkflowDiffStore.getState()
           useWorkflowDiffStore.setState({
             diffWorkflow: workflowState,
             isDiffReady: true,
-            isShowingDiff: false, // Let user decide when to show diff
+            isShowingDiff: prev.isShowingDiff,
           })
 
           // Check diff store state after update
