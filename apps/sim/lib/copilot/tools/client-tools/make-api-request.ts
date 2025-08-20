@@ -1,12 +1,12 @@
 /**
- * Make API Request - Client-side wrapper that posts to methods route (requires interrupt)
+ * Make API Request - Client-side tool using unified execute route (requires interrupt)
  */
 
 import { BaseTool } from '@/lib/copilot/tools/base-tool'
 import {
   getProvidedParams,
   normalizeToolCallArguments,
-  postToMethods,
+  postToExecuteAndComplete,
 } from '@/lib/copilot/tools/client-tools/client-utils'
 import type {
   CopilotToolCall,
@@ -78,8 +78,8 @@ export class MakeApiRequestClientTool extends BaseTool {
         ...(body ? { body } : {}),
       }
 
-      return await postToMethods(
-        'make_api_request',
+      return await postToExecuteAndComplete(
+        MakeApiRequestClientTool.id,
         paramsToSend,
         { toolCallId: toolCall.id, toolId: toolCall.id },
         options

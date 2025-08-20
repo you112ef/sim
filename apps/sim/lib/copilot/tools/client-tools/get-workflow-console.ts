@@ -1,5 +1,5 @@
 /**
- * Get Workflow Console - Client-side wrapper that posts to methods route
+ * Get Workflow Console - Client-side tool using unified execute route
  */
 
 import { BaseTool } from '@/lib/copilot/tools/base-tool'
@@ -84,33 +84,64 @@ export class GetWorkflowConsoleClientTool extends BaseTool {
       if (typeof limit === 'number') paramsToSend.limit = limit
       if (typeof includeDetails === 'boolean') paramsToSend.includeDetails = includeDetails
 
-      const body = {
-        methodId: 'get_workflow_console',
-        params: paramsToSend,
-        toolCallId: toolCall.id,
-        toolId: toolCall.id,
-      }
-
-      const response = await fetch('/api/copilot/methods', {
+      const response = await fetch('/api/copilot/tools/execute', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
-        body: JSON.stringify(body),
+        body: JSON.stringify({ methodId: GetWorkflowConsoleClientTool.id, params: paramsToSend }),
       })
-      if (!response.ok) {
-        const e = await response.json().catch(() => ({}))
+
+      const result = await response.json().catch(() => ({}))
+      if (!response.ok || !result?.success) {
+        const errorMessage = result?.error || 'Failed to get console'
+        try {
+          await fetch('/api/copilot/tools/complete', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            credentials: 'include',
+            body: JSON.stringify({
+              toolId: toolCall.id,
+              methodId: GetWorkflowConsoleClientTool.id,
+              success: false,
+              error: errorMessage,
+            }),
+          })
+        } catch {}
         options?.onStateChange?.('errored')
-        return { success: false, error: e?.error || 'Failed to get console' }
+        return { success: false, error: errorMessage }
       }
-      const result = await response.json()
-      if (!result.success) {
-        options?.onStateChange?.('errored')
-        return { success: false, error: result.error || 'Server method failed' }
-      }
+
       options?.onStateChange?.('success')
+      try {
+        await fetch('/api/copilot/tools/complete', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          credentials: 'include',
+          body: JSON.stringify({
+            toolId: toolCall.id,
+            methodId: GetWorkflowConsoleClientTool.id,
+            success: true,
+            data: result.data,
+          }),
+        })
+      } catch {}
+
       return { success: true, data: result.data }
     } catch (error: any) {
       options?.onStateChange?.('errored')
+      try {
+        await fetch('/api/copilot/tools/complete', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          credentials: 'include',
+          body: JSON.stringify({
+            toolId: toolCall.id,
+            methodId: GetWorkflowConsoleClientTool.id,
+            success: false,
+            error: error?.message || 'Unexpected error',
+          }),
+        })
+      } catch {}
       return { success: false, error: error?.message || 'Unexpected error' }
     }
   }

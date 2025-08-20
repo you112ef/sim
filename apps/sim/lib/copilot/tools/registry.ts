@@ -24,7 +24,14 @@ import { ReadGDriveFileClientTool } from '@/lib/copilot/tools/client-tools/read-
 import { RunWorkflowTool } from '@/lib/copilot/tools/client-tools/run-workflow'
 import { SearchDocumentationClientTool } from '@/lib/copilot/tools/client-tools/search-documentation'
 import { SetEnvironmentVariablesClientTool } from '@/lib/copilot/tools/client-tools/set-environment-variables'
-import { SERVER_TOOL_METADATA } from '@/lib/copilot/tools/server-tools/definitions'
+import { PlanClientTool } from '@/lib/copilot/tools/client-tools/plan'
+import { ReasonClientTool } from '@/lib/copilot/tools/client-tools/reason'
+import {
+  GetBlockBestPracticesTool,
+  GetBuildWorkflowExamplesTool,
+  GetEditWorkflowExamplesTool,
+  GetYamlStructureTool,
+} from '@/lib/copilot/tools/client-tools/display-only'
 import type { Tool, ToolMetadata } from '@/lib/copilot/tools/types'
 
 /**
@@ -103,22 +110,8 @@ export class ToolRegistry {
    * Check if a tool requires interrupt
    */
   requiresInterrupt(toolId: string): boolean {
-    // Check client tools first
     const tool = this.getTool(toolId)
-    if (tool) {
-      return tool.metadata.requiresInterrupt ?? false
-    }
-
-    // Check server tools
-    const serverToolMetadata = SERVER_TOOL_METADATA[toolId as keyof typeof SERVER_TOOL_METADATA]
-    return serverToolMetadata?.requiresInterrupt ?? false
-  }
-
-  /**
-   * Get server tool metadata by ID
-   */
-  getServerToolMetadata(toolId: string): ToolMetadata | undefined {
-    return SERVER_TOOL_METADATA[toolId as keyof typeof SERVER_TOOL_METADATA]
+    return tool?.metadata.requiresInterrupt ?? false
   }
 
   /**
@@ -142,6 +135,14 @@ export class ToolRegistry {
     this.register(new SetEnvironmentVariablesClientTool())
     this.register(new BuildWorkflowClientTool())
     this.register(new EditWorkflowClientTool())
+
+    // Register display-only tools
+    this.register(new PlanClientTool())
+    this.register(new ReasonClientTool())
+    this.register(new (GetYamlStructureTool as any)())
+    this.register(new (GetBuildWorkflowExamplesTool as any)())
+    this.register(new (GetEditWorkflowExamplesTool as any)())
+    this.register(new (GetBlockBestPracticesTool as any)())
   }
 }
 

@@ -10,8 +10,6 @@ import {
   createRequestTracker,
   createUnauthorizedResponse,
 } from '@/lib/copilot/auth'
-import { getCopilotModel } from '@/lib/copilot/config'
-import { TITLE_GENERATION_SYSTEM_PROMPT, TITLE_GENERATION_USER_PROMPT } from '@/lib/copilot/prompts'
 import { getBlocksAndToolsTool } from '@/lib/copilot/tools/server-tools/blocks/get-blocks-and-tools'
 import { getEnvironmentVariablesTool } from '@/lib/copilot/tools/server-tools/user/get-environment-variables'
 import { getOAuthCredentialsTool } from '@/lib/copilot/tools/server-tools/user/get-oauth-credentials'
@@ -27,6 +25,13 @@ import { executeProviderRequest } from '@/providers'
 import { createAnthropicFileContent, isSupportedFileType } from './file-utils'
 
 const logger = createLogger('CopilotChatAPI')
+
+// Inlined minimal defaults (replacing legacy config/prompts)
+const DEFAULT_CHAT_MODEL = 'claude-3-haiku-20240307'
+const TITLE_GENERATION_SYSTEM_PROMPT =
+  'You are a helpful assistant that generates concise, descriptive titles for chat conversations. Create a title that captures the main topic or question being discussed. Keep it under 50 characters and make it specific and clear.'
+const TITLE_GENERATION_USER_PROMPT = (userMessage: string) =>
+  `Generate a concise title for a conversation that starts with this user message: "${userMessage}"\n\nReturn only the title text, nothing else.`
 
 // Sim Agent API configuration
 const SIM_AGENT_API_URL = env.SIM_AGENT_API_URL || SIM_AGENT_API_URL_DEFAULT
@@ -100,7 +105,9 @@ const ChatMessageSchema = z.object({
  */
 async function generateChatTitle(userMessage: string): Promise<string> {
   try {
-    const { provider, model } = getCopilotModel('title')
+    // Use Anthropic Haiku by default for title generation
+    const provider = 'anthropic'
+    const model = DEFAULT_CHAT_MODEL
 
     // Get the appropriate API key for the provider
     let apiKey: string | undefined
@@ -116,7 +123,7 @@ async function generateChatTitle(userMessage: string): Promise<string> {
       }
     }
 
-    const response = await executeProviderRequest(provider, {
+    const response = await executeProviderRequest(provider as any, {
       model,
       systemPrompt: TITLE_GENERATION_SYSTEM_PROMPT,
       context: TITLE_GENERATION_USER_PROMPT(userMessage),
@@ -270,14 +277,13 @@ export async function POST(req: NextRequest) {
       }
     } else if (createNewChat && workflowId) {
       // Create new chat
-      const { provider, model } = getCopilotModel('chat')
       const [newChat] = await db
         .insert(copilotChats)
         .values({
           userId: authenticatedUserId,
           workflowId,
           title: null,
-          model,
+          model: DEFAULT_CHAT_MODEL,
           messages: [],
         })
         .returning()
@@ -688,7 +694,7 @@ export async function POST(req: NextRequest) {
                           }
                           if (event.data?.name === 'get_user_workflow') {
                             logger.info(
-                              `[${tracker.requestId}] get_user_workflow tool call received in stream; client will execute locally and post to /api/copilot/methods`,
+                              `[${tracker.requestId}] get_user_workflow tool call received in stream; client will execute locally and post to /api/copilot/tools/execute`,
                               {
                                 toolCallId: event.data?.id,
                                 hasArgs: !!event.data?.arguments,

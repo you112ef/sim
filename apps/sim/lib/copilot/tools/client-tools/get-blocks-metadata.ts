@@ -1,12 +1,12 @@
 /**
- * Get Blocks Metadata - Client-side wrapper that posts to methods route
+ * Get Blocks Metadata - Client-side tool using unified execute route
  */
 
 import { BaseTool } from '@/lib/copilot/tools/base-tool'
 import {
   getProvidedParams,
   normalizeToolCallArguments,
-  postToMethods,
+  postToExecuteAndComplete,
 } from '@/lib/copilot/tools/client-tools/client-utils'
 import type {
   CopilotToolCall,
@@ -121,8 +121,8 @@ export class GetBlocksMetadataClientTool extends BaseTool {
         blockIds: Array.isArray(blockIds) ? blockIds : [],
       }
 
-      return await postToMethods(
-        'get_blocks_metadata',
+      return await postToExecuteAndComplete(
+        GetBlocksMetadataClientTool.id,
         paramsToSend,
         { toolCallId: toolCall.id, toolId: toolCall.id },
         options

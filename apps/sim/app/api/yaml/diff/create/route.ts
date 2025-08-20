@@ -112,30 +112,34 @@ export async function POST(request: NextRequest) {
       {} as Record<string, BlockConfig>
     )
 
-    // Call sim-agent API
-    const response = await fetch(`${SIM_AGENT_API_URL}/api/yaml/diff/create`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        yamlContent,
-        diffAnalysis,
-        blockRegistry,
-        currentWorkflowState, // Pass current state for comparison
-
-        utilities: {
-          generateLoopBlocks: generateLoopBlocks.toString(),
-          generateParallelBlocks: generateParallelBlocks.toString(),
-          resolveOutputType: resolveOutputType.toString(),
-          convertLoopBlockToLoop: convertLoopBlockToLoop.toString(),
-          convertParallelBlockToParallel: convertParallelBlockToParallel.toString(),
-          findChildNodes: findChildNodes.toString(),
-          findAllDescendantNodes: findAllDescendantNodes.toString(),
+    async function callSimAgentDiff(payload: any): Promise<Response> {
+      return fetch(`${SIM_AGENT_API_URL}/api/yaml/diff/create`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
         },
-        options,
-      }),
-    })
+        body: JSON.stringify(payload),
+      })
+    }
+
+    const basePayload = {
+      yamlContent,
+      diffAnalysis,
+      blockRegistry,
+      currentWorkflowState, // Pass current state for comparison
+      utilities: {
+        generateLoopBlocks: generateLoopBlocks.toString(),
+        generateParallelBlocks: generateParallelBlocks.toString(),
+        resolveOutputType: resolveOutputType.toString(),
+        convertLoopBlockToLoop: convertLoopBlockToLoop.toString(),
+        convertParallelBlockToParallel: convertParallelBlockToParallel.toString(),
+        findChildNodes: findChildNodes.toString(),
+        findAllDescendantNodes: findAllDescendantNodes.toString(),
+      },
+      options,
+    }
+
+    let response = await callSimAgentDiff(basePayload)
 
     if (!response.ok) {
       const errorText = await response.text()
@@ -143,10 +147,42 @@ export async function POST(request: NextRequest) {
         status: response.status,
         error: errorText,
       })
-      return NextResponse.json(
-        { success: false, errors: [`Sim agent API error: ${response.statusText}`] },
-        { status: response.status }
-      )
+
+      // Graceful edge handling: if error indicates a non-existent block reference in an edge,
+      // strip invalid edges from currentWorkflowState and retry once
+      const nonExistentEdgeRef = /references non-existent block '([^']+)'/i.test(errorText)
+      if (nonExistentEdgeRef && currentWorkflowState && Array.isArray(currentWorkflowState.edges)) {
+        try {
+          const missingIds = [...errorText.matchAll(/references non-existent block '([^']+)'/gi)].map(
+            (m) => m[1]
+          )
+          const existingIds = new Set(Object.keys(currentWorkflowState.blocks || {}))
+          // Remove edges whose source or target is missing from current blocks or includes missing IDs
+          const originalEdgeCount = currentWorkflowState.edges.length
+          currentWorkflowState.edges = currentWorkflowState.edges.filter((e: any) => {
+            const srcOk = e?.source && existingIds.has(e.source)
+            const tgtOk = e?.target && existingIds.has(e.target)
+            const hitsMissing = missingIds.includes(String(e?.source)) || missingIds.includes(String(e?.target))
+            return srcOk && tgtOk && !hitsMissing
+          })
+          logger.warn(`[${requestId}] Stripped invalid edges`, {
+            originalEdgeCount,
+            newEdgeCount: currentWorkflowState.edges.length,
+          })
+
+          // Retry once with sanitized edges
+          response = await callSimAgentDiff({ ...basePayload, currentWorkflowState })
+        } catch (e) {
+          logger.warn(`[${requestId}] Failed to sanitize edges before retry`, e)
+        }
+      }
+
+      if (!response.ok) {
+        return NextResponse.json(
+          { success: false, errors: [`Sim agent API error: ${response.statusText}`] },
+          { status: response.status }
+        )
+      }
     }
 
     const result = await response.json()

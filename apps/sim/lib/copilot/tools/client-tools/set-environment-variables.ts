@@ -1,5 +1,5 @@
 /**
- * Set Environment Variables - Client-side wrapper that posts to methods route (requires interrupt)
+ * Set Environment Variables - Client-side tool using unified execute route (requires interrupt)
  */
 
 import { BaseTool } from '@/lib/copilot/tools/base-tool'
@@ -10,6 +10,7 @@ import type {
   ToolMetadata,
 } from '@/lib/copilot/tools/types'
 import { createLogger } from '@/lib/logs/console/logger'
+import { postToExecuteAndComplete } from '@/lib/copilot/tools/client-tools/client-utils'
 
 export class SetEnvironmentVariablesClientTool extends BaseTool {
   static readonly id = 'set_environment_variables'
@@ -65,31 +66,16 @@ export class SetEnvironmentVariablesClientTool extends BaseTool {
         return { success: false, error: 'variables is required' }
       }
 
-      const requestBody = {
-        methodId: 'set_environment_variables',
-        params: { variables, ...(workflowId ? { workflowId } : {}) },
-        toolCallId: toolCall.id,
-        toolId: toolCall.id,
-      }
+      const params = { variables, ...(workflowId ? { workflowId } : {}) }
 
-      const response = await fetch('/api/copilot/methods', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
-        body: JSON.stringify(requestBody),
-      })
-      if (!response.ok) {
-        const e = await response.json().catch(() => ({}))
-        options?.onStateChange?.('errored')
-        return { success: false, error: e?.error || 'Failed to set environment variables' }
-      }
-      const result = await response.json()
-      if (!result.success) {
-        options?.onStateChange?.('errored')
-        return { success: false, error: result.error || 'Server method failed' }
-      }
-      options?.onStateChange?.('success')
-      return { success: true, data: result.data }
+      const result = await postToExecuteAndComplete(
+        SetEnvironmentVariablesClientTool.id,
+        params,
+        { toolId: toolCall.id },
+        options
+      )
+
+      return result
     } catch (error: any) {
       options?.onStateChange?.('errored')
       return { success: false, error: error?.message || 'Unexpected error' }

@@ -32,7 +32,7 @@ export function getProvidedParams(toolCall: CopilotToolCall): any {
   return toolCall.parameters || toolCall.input || extended.arguments || {}
 }
 
-export async function postToMethods(
+export async function postToExecuteAndComplete(
   methodId: string,
   params: Record<string, any>,
   toolIdentifiers: { toolCallId?: string | null; toolId?: string | null },
@@ -41,44 +41,74 @@ export async function postToMethods(
   try {
     options?.onStateChange?.('executing')
 
-    const requestBody = {
-      methodId,
-      params,
-      toolCallId: toolIdentifiers.toolCallId ?? null,
-      toolId: toolIdentifiers.toolId ?? toolIdentifiers.toolCallId ?? null,
-    }
-
-    const response = await fetch('/api/copilot/methods', {
+    const response = await fetch('/api/copilot/tools/execute', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       credentials: 'include',
-      body: JSON.stringify(requestBody),
+      body: JSON.stringify({ methodId, params }),
     })
 
-    logger.info('Methods route response received', { status: response.status })
+    logger.info('Execute route response received', { status: response.status })
 
-    if (!response.ok) {
-      const errorData = await response.json().catch(() => ({}))
+    const result = await response.json().catch(() => ({}))
+
+    if (!response.ok || !result?.success) {
+      const errorMessage = result?.error || 'Failed to execute server method'
+      try {
+        await fetch('/api/copilot/tools/complete', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          credentials: 'include',
+          body: JSON.stringify({
+            toolId: toolIdentifiers.toolId ?? toolIdentifiers.toolCallId ?? null,
+            methodId,
+            success: false,
+            error: errorMessage,
+          }),
+        })
+      } catch {}
       options?.onStateChange?.('errored')
       return {
         success: false,
-        error: (errorData as any)?.error || 'Failed to execute server method',
+        error: errorMessage,
       }
     }
 
-    const result = await response.json()
-    if (!result?.success) {
-      options?.onStateChange?.('errored')
-      return { success: false, error: result?.error || 'Server method execution failed' }
-    }
-
     options?.onStateChange?.('success')
+
+    try {
+      await fetch('/api/copilot/tools/complete', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({
+          toolId: toolIdentifiers.toolId ?? toolIdentifiers.toolCallId ?? null,
+          methodId,
+          success: true,
+          data: result.data,
+        }),
+      })
+    } catch {}
+
     return { success: true, data: result.data }
   } catch (error: any) {
     options?.onStateChange?.('errored')
+    try {
+      await fetch('/api/copilot/tools/complete', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({
+          toolId: toolIdentifiers.toolId ?? toolIdentifiers.toolCallId ?? null,
+          methodId,
+          success: false,
+          error: error?.message || 'Unexpected error while calling execute route',
+        }),
+      })
+    } catch {}
     return {
       success: false,
-      error: error?.message || 'Unexpected error while calling methods route',
+      error: error?.message || 'Unexpected error while calling execute route',
     }
   }
 }

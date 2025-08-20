@@ -1,5 +1,4 @@
 import { sql } from 'drizzle-orm'
-import { getCopilotConfig } from '@/lib/copilot/config'
 import { createLogger } from '@/lib/logs/console/logger'
 import { db } from '@/db'
 import { docsEmbeddings } from '@/db/schema'
@@ -61,6 +60,9 @@ class SearchDocsTool extends BaseCopilotTool<DocsSearchParams, DocsSearchResult>
 // Export the tool instance
 export const searchDocsTool = new SearchDocsTool()
 
+// Default similarity threshold used when none provided
+const DEFAULT_SIMILARITY_THRESHOLD = 0.3
+
 // Implementation function
 async function searchDocs(params: DocsSearchParams): Promise<DocsSearchResult> {
   logger.info('=== searchDocs FUNCTION START ===', {
@@ -105,17 +107,12 @@ async function searchDocs(params: DocsSearchParams): Promise<DocsSearchResult> {
   })
 
   try {
-    logger.info('Getting copilot config for RAG settings')
-    const config = getCopilotConfig()
-    const similarityThreshold = threshold ?? config.rag.similarityThreshold
+    // Use provided threshold or default
+    const similarityThreshold = threshold ?? DEFAULT_SIMILARITY_THRESHOLD
 
     logger.info('Configuration loaded', {
       similarityThreshold,
-      configThreshold: config.rag.similarityThreshold,
       usingCustomThreshold: threshold !== undefined,
-      ragConfig: {
-        similarityThreshold: config.rag.similarityThreshold,
-      },
     })
 
     // Generate embedding for the query

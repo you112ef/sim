@@ -1,5 +1,5 @@
 /**
- * Read Google Drive File - Client-side wrapper that posts to methods route
+ * Read Google Drive File - Client-side tool using unified execute route
  */
 
 import { BaseTool } from '@/lib/copilot/tools/base-tool'
@@ -10,6 +10,7 @@ import type {
   ToolMetadata,
 } from '@/lib/copilot/tools/types'
 import { createLogger } from '@/lib/logs/console/logger'
+import { postToExecuteAndComplete } from '@/lib/copilot/tools/client-tools/client-utils'
 
 export class ReadGDriveFileClientTool extends BaseTool {
   static readonly id = 'read_gdrive_file'
@@ -79,33 +80,12 @@ export class ReadGDriveFileClientTool extends BaseTool {
       const paramsToSend: any = { userId, fileId, type }
       if (typeof range === 'string' && range.trim()) paramsToSend.range = range.trim()
 
-      const body = {
-        methodId: 'read_gdrive_file',
-        params: paramsToSend,
-        toolCallId: toolCall.id,
-        toolId: toolCall.id,
-      }
-
-      const response = await fetch('/api/copilot/methods', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
-        body: JSON.stringify(body),
-      })
-      if (!response.ok) {
-        const e = await response.json().catch(() => ({}))
-        options?.onStateChange?.('errored')
-        return { success: false, error: e?.error || 'Failed to read file' }
-      }
-
-      const result = await response.json()
-      if (!result.success) {
-        options?.onStateChange?.('errored')
-        return { success: false, error: result.error || 'Server method failed' }
-      }
-
-      options?.onStateChange?.('success')
-      return { success: true, data: result.data }
+      return await postToExecuteAndComplete(
+        ReadGDriveFileClientTool.id,
+        paramsToSend,
+        { toolCallId: toolCall.id, toolId: toolCall.id },
+        options
+      )
     } catch (error: any) {
       options?.onStateChange?.('errored')
       return { success: false, error: error?.message || 'Unexpected error' }

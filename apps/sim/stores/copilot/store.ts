@@ -30,12 +30,6 @@ function toolSupportsReadyForReview(toolName: string): boolean {
     return clientTool.metadata.displayConfig.states.ready_for_review !== undefined
   }
 
-  // Check server tools
-  const serverToolMetadata = toolRegistry.getServerToolMetadata(toolName)
-  if (serverToolMetadata) {
-    return serverToolMetadata.displayConfig.states.ready_for_review !== undefined
-  }
-
   return false
 }
 
@@ -344,27 +338,6 @@ function getToolDisplayNameByState(toolCall: any): string {
     return clientTool.getDisplayName(toolCall)
   }
 
-  // For server tools, use server tool metadata
-  const serverToolMetadata = toolRegistry.getServerToolMetadata(toolName)
-  if (serverToolMetadata) {
-    // Check if there's a dynamic display name function
-    if (serverToolMetadata.displayConfig.getDynamicDisplayName) {
-      const dynamicName = serverToolMetadata.displayConfig.getDynamicDisplayName(
-        state,
-        toolCall.input || toolCall.parameters || {}
-      )
-      if (dynamicName) return dynamicName
-    }
-
-    // Use state-specific display config
-    const stateConfig =
-      serverToolMetadata.displayConfig.states[
-        state as keyof typeof serverToolMetadata.displayConfig.states
-      ]
-    if (stateConfig) {
-      return stateConfig.displayName
-    }
-  }
 
   // Fallback to tool name if no specific display logic found
   return toolName

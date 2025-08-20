@@ -1,5 +1,5 @@
 /**
- * Get OAuth Credentials - Client-side wrapper that posts to methods route
+ * Get OAuth Credentials - Client-side tool using unified execute route
  */
 
 import { BaseTool } from '@/lib/copilot/tools/base-tool'
@@ -10,6 +10,7 @@ import type {
   ToolMetadata,
 } from '@/lib/copilot/tools/types'
 import { createLogger } from '@/lib/logs/console/logger'
+import { postToExecuteAndComplete } from '@/lib/copilot/tools/client-tools/client-utils'
 
 export class GetOAuthCredentialsClientTool extends BaseTool {
   static readonly id = 'get_oauth_credentials'
@@ -51,36 +52,14 @@ export class GetOAuthCredentialsClientTool extends BaseTool {
       const provided = (toolCall.parameters || toolCall.input || {}) as Record<string, any>
       const userId: string | undefined = provided.userId
 
-      const response = await fetch('/api/copilot/methods', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
-        body: JSON.stringify({
-          methodId: 'get_oauth_credentials',
-          params: { ...(userId ? { userId } : {}) },
-          toolId: toolCall.id,
-        }),
-      })
+      const result = await postToExecuteAndComplete(
+        GetOAuthCredentialsClientTool.id,
+        { ...(userId ? { userId } : {}) },
+        { toolId: toolCall.id },
+        options
+      )
 
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}))
-        options?.onStateChange?.('errored')
-        return { success: false, error: errorData?.error || 'Failed to execute server method' }
-      }
-
-      const result = await response.json()
-      logger.info('Methods route parsed JSON', {
-        success: result?.success,
-        hasData: !!result?.data,
-      })
-
-      if (!result.success) {
-        options?.onStateChange?.('errored')
-        return { success: false, error: result.error || 'Server method execution failed' }
-      }
-
-      options?.onStateChange?.('success')
-      return { success: true, data: result.data }
+      return result
     } catch (error: any) {
       logger.error('Error in client tool execution:', {
         toolCallId: toolCall.id,

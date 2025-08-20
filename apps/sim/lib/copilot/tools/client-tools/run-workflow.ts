@@ -177,20 +177,26 @@ export class RunWorkflowTool extends BaseTool {
         message: string
       ) => {
         const body = {
-          methodId: 'run_workflow',
-          params: {
-            source: 'run_workflow',
-            status,
-            message,
-            workflowId: params.workflowId || activeWorkflowId,
-            description: params.description,
-            startedAt: executionStartTime,
-            finishedAt: new Date().toISOString(),
-          },
-          toolCallId: toolCall.id,
           toolId: toolCall.id,
+          methodId: 'no_op',
+          success: status === 'success',
+          ...(status === 'success'
+            ? {
+                data: {
+                  source: 'run_workflow',
+                  status,
+                  message,
+                  workflowId: params.workflowId || activeWorkflowId,
+                  description: params.description,
+                  startedAt: executionStartTime,
+                  finishedAt: new Date().toISOString(),
+                },
+              }
+            : {
+                error: message,
+              }),
         }
-        await fetch('/api/copilot/methods', {
+        await fetch('/api/copilot/tools/complete', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           credentials: 'include',
@@ -247,20 +253,15 @@ export class RunWorkflowTool extends BaseTool {
       const targetState = failedDependency === true ? 'rejected' : 'errored'
 
       // Post completion to methods route
-      await fetch('/api/copilot/methods', {
+      await fetch('/api/copilot/tools/complete', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
         body: JSON.stringify({
-          methodId: 'run_workflow',
-          params: {
-            source: 'run_workflow',
-            status: targetState,
-            message: `Workflow execution failed: ${errorMessage}`,
-            finishedAt: new Date().toISOString(),
-          },
-          toolCallId: toolCall.id,
           toolId: toolCall.id,
+          methodId: 'no_op',
+          success: false,
+          error: `Workflow execution failed: ${errorMessage}`,
         }),
       })
 

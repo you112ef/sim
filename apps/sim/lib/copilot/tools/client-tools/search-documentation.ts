@@ -1,5 +1,5 @@
 /**
- * Search Documentation - Client-side wrapper that posts to methods route
+ * Search Documentation - Client-side wrapper that calls the unified execute API route
  */
 
 import { BaseTool } from '@/lib/copilot/tools/base-tool'
@@ -75,18 +75,6 @@ export class SearchDocumentationClientTool extends BaseTool {
         })
       }
 
-      // Log the raw tool call to understand what we're receiving
-      try {
-        logger.info('Received tool call', {
-          toolCallId: toolCall.id,
-          hasParameters: !!toolCall.parameters,
-          hasInput: !!toolCall.input,
-          hasArguments: !!extendedToolCall.arguments,
-        })
-      } catch (logError) {
-        logger.error('Error logging raw tool call:', logError)
-      }
-
       // Handle different possible sources of parameters
       // Priority: parameters > input > arguments (all should be the same now)
       const provided = toolCall.parameters || toolCall.input || extendedToolCall.arguments || {}
@@ -124,42 +112,58 @@ export class SearchDocumentationClientTool extends BaseTool {
         ...(threshold !== undefined && { threshold }),
       }
 
-      const requestBody = {
-        methodId: 'search_documentation',
-        params: paramsToSend,
-        toolCallId: toolCall.id,
-        toolId: toolCall.id,
-      }
+      logger.info('Sending request to unified execute route', {
+        url: '/api/copilot/tools/execute',
+      })
 
-      logger.info('Sending request to methods route', { url: '/api/copilot/methods' })
-
-      const response = await fetch('/api/copilot/methods', {
+      const response = await fetch('/api/copilot/tools/execute', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
-        body: JSON.stringify(requestBody),
+        body: JSON.stringify({ methodId: SearchDocumentationClientTool.id, params: paramsToSend }),
       })
 
-      logger.info('Methods route response received', { status: response.status })
+      logger.info('Execute route response received', { status: response.status })
 
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}))
-        logger.error('Methods route error', {
-          status: response.status,
-          error: errorData,
-        })
+      const result = await response.json().catch(() => ({}))
+
+      if (!response.ok || !result?.success) {
+        const errorMessage = result?.error || 'Failed to search documentation'
+        try {
+          // Proxy completion via server
+          await fetch('/api/copilot/tools/complete', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            credentials: 'include',
+            body: JSON.stringify({
+              toolId: toolCall.id,
+              methodId: SearchDocumentationClientTool.id,
+              success: false,
+              error: errorMessage,
+            }),
+          })
+        } catch {}
         options?.onStateChange?.('errored')
-        return { success: false, error: errorData?.error || 'Failed to search documentation' }
-      }
-
-      const result = await response.json()
-
-      if (!result.success) {
-        options?.onStateChange?.('errored')
-        return { success: false, error: result.error || 'Documentation search failed' }
+        return { success: false, error: errorMessage }
       }
 
       options?.onStateChange?.('success')
+
+      try {
+        // Proxy completion via server
+        await fetch('/api/copilot/tools/complete', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          credentials: 'include',
+          body: JSON.stringify({
+            toolId: toolCall.id,
+            methodId: SearchDocumentationClientTool.id,
+            success: true,
+            data: result.data,
+          }),
+        })
+      } catch {}
+
       return { success: true, data: result.data }
     } catch (error: any) {
       logger.error('Error in client tool execution:', {
@@ -168,6 +172,19 @@ export class SearchDocumentationClientTool extends BaseTool {
         message: error instanceof Error ? error.message : String(error),
         stack: error instanceof Error ? error.stack : undefined,
       })
+      try {
+        await fetch('/api/copilot/tools/complete', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          credentials: 'include',
+          body: JSON.stringify({
+            toolId: toolCall.id,
+            methodId: SearchDocumentationClientTool.id,
+            success: false,
+            error: error?.message || 'Failed to search documentation',
+          }),
+        })
+      } catch {}
       options?.onStateChange?.('errored')
       return { success: false, error: error.message || 'Failed to search documentation' }
     }

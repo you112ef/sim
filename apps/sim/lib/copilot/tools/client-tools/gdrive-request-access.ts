@@ -6,6 +6,7 @@ import type {
   ToolMetadata,
 } from '@/lib/copilot/tools/types'
 import { createLogger } from '@/lib/logs/console/logger'
+import { postToExecuteAndComplete } from '@/lib/copilot/tools/client-tools/client-utils'
 
 export class GDriveRequestAccessTool extends BaseTool {
   static readonly id = 'gdrive_request_access'
@@ -63,38 +64,13 @@ export class GDriveRequestAccessTool extends BaseTool {
     try {
       options?.onStateChange?.('executing')
 
-      // Mirror pattern used by other client tools: call methods route
-      const body = {
-        methodId: 'gdrive_request_access',
-        params: {},
-        toolCallId: toolCall.id,
-        toolId: toolCall.id,
-      }
-
-      const response = await fetch('/api/copilot/methods', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
-        body: JSON.stringify(body),
-      })
-
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}))
-        options?.onStateChange?.('errored')
-        return {
-          success: false,
-          error: errorData?.error || 'Failed to request Google Drive access',
-        }
-      }
-
-      const result = await response.json()
-      if (!result?.success) {
-        options?.onStateChange?.('errored')
-        return { success: false, error: result?.error || 'Request access method failed' }
-      }
-
-      options?.onStateChange?.('success')
-      return { success: true, data: result.data }
+      // Execute server-side request access (no params)
+      return await postToExecuteAndComplete(
+        GDriveRequestAccessTool.id,
+        {},
+        { toolCallId: toolCall.id, toolId: toolCall.id },
+        options
+      )
     } catch (error: any) {
       logger.error('Client tool error', { toolCallId: toolCall.id, message: error?.message })
       options?.onStateChange?.('errored')

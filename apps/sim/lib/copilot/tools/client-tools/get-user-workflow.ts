@@ -3,7 +3,6 @@
  */
 
 import { BaseTool } from '@/lib/copilot/tools/base-tool'
-import { postToMethods } from '@/lib/copilot/tools/client-tools/client-utils'
 import { buildUserWorkflowJson } from '@/lib/copilot/tools/client-tools/workflow-helpers'
 import type {
   CopilotToolCall,
@@ -81,7 +80,7 @@ export class GetUserWorkflowTool extends BaseTool {
   }
 
   /**
-   * Execute the tool - fetch the workflow from stores and call the server method
+   * Execute the tool - fetch the workflow from stores and notify the agent via completion proxy
    */
   async execute(
     toolCall: CopilotToolCall,
@@ -99,22 +98,28 @@ export class GetUserWorkflowTool extends BaseTool {
       // Build workflow JSON using shared helper
       const workflowJson = buildUserWorkflowJson(params.workflowId)
 
-      // Post to server via shared utility
-      const result = await postToMethods(
-        'get_user_workflow',
-        { confirmationMessage: workflowJson, fullData: { userWorkflow: workflowJson } },
-        { toolCallId: toolCall.id, toolId: toolCall.id },
-        options
-      )
+      // Post completion via server proxy (no execute needed for client-only tool)
+      try {
+        await fetch('/api/copilot/tools/complete', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          credentials: 'include',
+          body: JSON.stringify({
+            toolId: toolCall.id,
+            methodId: GetUserWorkflowTool.id,
+            success: true,
+            data: workflowJson,
+          }),
+        })
+      } catch {}
 
-      if (!result.success) return result
-
+      // Try to update diff preview from available data
       try {
         const diffStore = useWorkflowDiffStore.getState()
-        const serverData = result.data
+        const serverData: any = workflowJson
         let yamlContent: string | null = null
-        if (serverData && typeof serverData === 'object' && (serverData as any).yamlContent) {
-          yamlContent = (serverData as any).yamlContent
+        if (serverData && typeof serverData === 'object' && serverData.yamlContent) {
+          yamlContent = serverData.yamlContent
         } else if (typeof serverData === 'string') {
           const trimmed = serverData.trim()
           if (trimmed.startsWith('{') || trimmed.startsWith('[')) {
@@ -140,7 +145,7 @@ export class GetUserWorkflowTool extends BaseTool {
         if (yamlContent) {
           await diffStore.setProposedChanges(yamlContent)
         } else {
-          logger.warn('No yamlContent found/derived in server result to trigger diff')
+          logger.warn('No yamlContent found/derived in workflowJson to trigger diff')
         }
       } catch (e) {
         logger.error('Failed to update diff store from get_user_workflow result', {
@@ -148,7 +153,8 @@ export class GetUserWorkflowTool extends BaseTool {
         })
       }
 
-      return result
+      options?.onStateChange?.('success')
+      return { success: true, data: { userWorkflow: workflowJson } }
     } catch (error: any) {
       logger.error('Error in client tool execution:', {
         toolCallId: toolCall.id,

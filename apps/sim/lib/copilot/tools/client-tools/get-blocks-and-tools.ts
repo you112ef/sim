@@ -1,11 +1,11 @@
 /**
- * Get Blocks and Tools - Client-side wrapper that posts to methods route
+ * Get Blocks and Tools - Client-side tool using unified execute route
  */
 
 import { BaseTool } from '@/lib/copilot/tools/base-tool'
 import {
   normalizeToolCallArguments,
-  postToMethods,
+  postToExecuteAndComplete,
 } from '@/lib/copilot/tools/client-tools/client-utils'
 import type {
   CopilotToolCall,
@@ -50,8 +50,8 @@ export class GetBlocksAndToolsClientTool extends BaseTool {
     try {
       normalizeToolCallArguments(toolCall)
 
-      return await postToMethods(
-        'get_blocks_and_tools',
+      return await postToExecuteAndComplete(
+        GetBlocksAndToolsClientTool.id,
         {},
         { toolCallId: toolCall.id, toolId: toolCall.id },
         options

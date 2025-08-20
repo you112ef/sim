@@ -1,5 +1,5 @@
 /**
- * Get Environment Variables - Client-side wrapper that posts to methods route
+ * Get Environment Variables - Client-side tool using unified execute route
  */
 
 import { BaseTool } from '@/lib/copilot/tools/base-tool'
@@ -11,6 +11,7 @@ import type {
 } from '@/lib/copilot/tools/types'
 import { createLogger } from '@/lib/logs/console/logger'
 import { useWorkflowRegistry } from '@/stores/workflows/registry/store'
+import { postToExecuteAndComplete } from '@/lib/copilot/tools/client-tools/client-utils'
 
 export class GetEnvironmentVariablesClientTool extends BaseTool {
   static readonly id = 'get_environment_variables'
@@ -57,38 +58,16 @@ export class GetEnvironmentVariablesClientTool extends BaseTool {
         workflowId = activeWorkflowId || undefined
       }
 
-      const response = await fetch('/api/copilot/methods', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
-        body: JSON.stringify({
-          methodId: 'get_environment_variables',
-          params: { ...(workflowId ? { workflowId } : {}) },
-          toolId: toolCall.id,
-        }),
-      })
+      const params = { ...(workflowId ? { workflowId } : {}) }
 
-      logger.info('Methods route response received', { status: response.status })
+      const result = await postToExecuteAndComplete(
+        GetEnvironmentVariablesClientTool.id,
+        params,
+        { toolId: toolCall.id },
+        options
+      )
 
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}))
-        options?.onStateChange?.('errored')
-        return { success: false, error: errorData?.error || 'Failed to execute server method' }
-      }
-
-      const result = await response.json()
-      logger.info('Methods route parsed JSON', {
-        success: result?.success,
-        hasData: !!result?.data,
-      })
-
-      if (!result.success) {
-        options?.onStateChange?.('errored')
-        return { success: false, error: result.error || 'Server method execution failed' }
-      }
-
-      options?.onStateChange?.('success')
-      return { success: true, data: result.data }
+      return result
     } catch (error: any) {
       logger.error('Error in client tool execution:', {
         toolCallId: toolCall.id,

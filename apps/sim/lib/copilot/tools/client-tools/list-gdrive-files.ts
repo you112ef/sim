@@ -1,12 +1,12 @@
 /**
- * List Google Drive Files - Client-side wrapper that posts to methods route
+ * List Google Drive Files - Client-side tool using unified execute route
  */
 
 import { BaseTool } from '@/lib/copilot/tools/base-tool'
 import {
   getProvidedParams,
   normalizeToolCallArguments,
-  postToMethods,
+  postToExecuteAndComplete,
 } from '@/lib/copilot/tools/client-tools/client-utils'
 import type {
   CopilotToolCall,
@@ -68,8 +68,8 @@ export class ListGDriveFilesClientTool extends BaseTool {
         paramsToSend.search_query = search_query.trim()
       if (typeof num_results === 'number') paramsToSend.num_results = num_results
 
-      return await postToMethods(
-        'list_gdrive_files',
+      return await postToExecuteAndComplete(
+        ListGDriveFilesClientTool.id,
         paramsToSend,
         { toolCallId: toolCall.id, toolId: toolCall.id },
         options

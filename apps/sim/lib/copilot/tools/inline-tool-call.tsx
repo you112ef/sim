@@ -105,15 +105,15 @@ async function rejectTool(
   try {
     // Also trigger the agent completion via methods route using no_op
     const confirmationMessage = `User skipped tool: ${toolCall.name}`
-    await fetch('/api/copilot/methods', {
+    await fetch('/api/copilot/tools/complete', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       credentials: 'include',
       body: JSON.stringify({
-        methodId: 'no_op',
-        params: { confirmationMessage },
-        toolCallId: toolCall.id,
         toolId: toolCall.id,
+        methodId: 'no_op',
+        success: true,
+        data: { confirmationMessage },
       }),
     })
   } catch (error) {
@@ -133,24 +133,6 @@ function getToolDisplayNameByState(toolCall: CopilotToolCall): string {
     return clientTool.getDisplayName(toolCall)
   }
 
-  // For server tools, use server tool metadata
-  const serverToolMetadata = toolRegistry.getServerToolMetadata(toolName)
-  if (serverToolMetadata) {
-    // Check if there's a dynamic display name function
-    if (serverToolMetadata.displayConfig.getDynamicDisplayName) {
-      const dynamicName = serverToolMetadata.displayConfig.getDynamicDisplayName(
-        state,
-        toolCall.input || toolCall.parameters || {}
-      )
-      if (dynamicName) return dynamicName
-    }
-
-    // Use state-specific display config
-    const stateConfig = serverToolMetadata.displayConfig.states[state]
-    if (stateConfig) {
-      return stateConfig.displayName
-    }
-  }
 
   // Fallback to tool name if no specific display logic found
   return toolName
