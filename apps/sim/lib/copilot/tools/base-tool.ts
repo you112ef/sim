@@ -118,7 +118,7 @@ export abstract class BaseTool implements Tool {
               toolId: toolCall.id,
               methodId: 'no_op',
               success: true,
-              data: { confirmationMessage: `User skipped tool: ${toolCall.name}` },
+              data: { status: 'rejected', message: `User skipped tool: ${toolCall.name}` },
             }),
           })
         } catch {

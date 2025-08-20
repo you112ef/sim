@@ -79,6 +79,25 @@ export function ToolConfirmation({
           }
           throw error
         }
+
+        // Ensure we also notify the agent via completion proxy when skipping a server tool
+        if (action === 'skip') {
+          try {
+            await fetch('/api/copilot/tools/complete', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              credentials: 'include',
+              body: JSON.stringify({
+                toolId: toolCall.id,
+                methodId: 'no_op',
+                success: true,
+                data: { status: 'rejected', message: `User skipped tool: ${toolCall.name}` },
+              }),
+            })
+          } catch (e) {
+            console.error('Failed to notify agent of skip via complete-tool:', e)
+          }
+        }
       }
     } finally {
       setIsProcessing(false)

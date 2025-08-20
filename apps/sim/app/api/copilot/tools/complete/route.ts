@@ -27,6 +27,18 @@ export async function POST(req: NextRequest) {
     const body = await req.json()
     const { toolId, methodId, success, data, error } = Schema.parse(body)
 
+    const isSetEnv = methodId === 'set_environment_variables'
+    if (isSetEnv) {
+      logger.info(`[${requestId}] [SEV] complete-route:received`, {
+        toolId,
+        methodId,
+        success,
+        hasData: data !== undefined,
+        hasError: !!error,
+        stack: new Error().stack,
+      })
+    }
+
     logger.info(`[${requestId}] Forwarding tool completion to sim-agent`, {
       toolId,
       methodId,
@@ -41,6 +53,15 @@ export async function POST(req: NextRequest) {
     })
 
     const duration = Date.now() - start
+
+    if (isSetEnv) {
+      logger.info(`[${requestId}] [SEV] complete-route:sim-agent-response`, {
+        status: resp.status,
+        success: resp.success,
+        duration,
+      })
+    }
+
     logger.info(`[${requestId}] Sim-agent completion response`, {
       status: resp.status,
       success: resp.success,
