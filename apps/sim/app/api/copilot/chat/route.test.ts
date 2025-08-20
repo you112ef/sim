@@ -200,30 +200,33 @@ describe('Copilot Chat API Route', () => {
         messages: [],
       })
 
-      // Verify sim agent was called and includes prefetchResults
-      expect(global.fetch).toHaveBeenCalled()
-      const fetchArgs = (global.fetch as any).mock.calls[0]
-      expect(fetchArgs[0]).toBe('http://localhost:8000/api/chat-completion-streaming')
-      const payload = JSON.parse(fetchArgs[1].body)
-      expect(payload).toEqual(
+      // Verify sim agent was called
+      expect(global.fetch).toHaveBeenCalledWith(
+        'http://localhost:8000/api/chat-completion-streaming',
         expect.objectContaining({
-          messages: [
-            {
-              role: 'user',
-              content: 'Hello',
-            },
-          ],
-          workflowId: 'workflow-123',
-          userId: 'user-123',
-          stream: true,
-          streamToolCalls: true,
-          mode: 'agent',
-          provider: 'openai',
-          depth: 0,
-          origin: 'http://localhost:3000',
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'x-api-key': 'test-sim-agent-key',
+          },
+          body: JSON.stringify({
+            messages: [
+              {
+                role: 'user',
+                content: 'Hello',
+              },
+            ],
+            workflowId: 'workflow-123',
+            userId: 'user-123',
+            stream: true,
+            streamToolCalls: true,
+            mode: 'agent',
+            provider: 'openai',
+            depth: 0,
+            origin: 'http://localhost:3000',
+          }),
         })
       )
-      expect(payload.prefetchResults).toBeDefined()
     })
 
     it('should load existing chat and include conversation history', async () => {
@@ -267,28 +270,27 @@ describe('Copilot Chat API Route', () => {
 
       expect(response.status).toBe(200)
 
-      // Verify conversation history was included and prefetchResults present
-      const fetchArgs = (global.fetch as any).mock.calls[0]
-      expect(fetchArgs[0]).toBe('http://localhost:8000/api/chat-completion-streaming')
-      const payload = JSON.parse(fetchArgs[1].body)
-      expect(payload.messages).toEqual([
-        { role: 'user', content: 'Previous message' },
-        { role: 'assistant', content: 'Previous response' },
-        { role: 'user', content: 'New message' },
-      ])
-      expect(payload).toEqual(
+      // Verify conversation history was included
+      expect(global.fetch).toHaveBeenCalledWith(
+        'http://localhost:8000/api/chat-completion-streaming',
         expect.objectContaining({
-          workflowId: 'workflow-123',
-          userId: 'user-123',
-          stream: true,
-          streamToolCalls: true,
-          mode: 'agent',
-          provider: 'openai',
-          depth: 0,
-          origin: 'http://localhost:3000',
+          body: JSON.stringify({
+            messages: [
+              { role: 'user', content: 'Previous message' },
+              { role: 'assistant', content: 'Previous response' },
+              { role: 'user', content: 'New message' },
+            ],
+            workflowId: 'workflow-123',
+            userId: 'user-123',
+            stream: true,
+            streamToolCalls: true,
+            mode: 'agent',
+            provider: 'openai',
+            depth: 0,
+            origin: 'http://localhost:3000',
+          }),
         })
       )
-      expect(payload.prefetchResults).toBeDefined()
     })
 
     it('should include implicit feedback in messages', async () => {
@@ -325,27 +327,26 @@ describe('Copilot Chat API Route', () => {
       const { POST } = await import('@/app/api/copilot/chat/route')
       await POST(req)
 
-      // Verify implicit feedback was included as system message and prefetchResults present
-      const fetchArgs = (global.fetch as any).mock.calls[0]
-      expect(fetchArgs[0]).toBe('http://localhost:8000/api/chat-completion-streaming')
-      const payload = JSON.parse(fetchArgs[1].body)
-      expect(payload.messages).toEqual([
-        { role: 'system', content: 'User seems confused about the workflow' },
-        { role: 'user', content: 'Hello' },
-      ])
-      expect(payload).toEqual(
+      // Verify implicit feedback was included as system message
+      expect(global.fetch).toHaveBeenCalledWith(
+        'http://localhost:8000/api/chat-completion-streaming',
         expect.objectContaining({
-          workflowId: 'workflow-123',
-          userId: 'user-123',
-          stream: true,
-          streamToolCalls: true,
-          mode: 'agent',
-          provider: 'openai',
-          depth: 0,
-          origin: 'http://localhost:3000',
+          body: JSON.stringify({
+            messages: [
+              { role: 'system', content: 'User seems confused about the workflow' },
+              { role: 'user', content: 'Hello' },
+            ],
+            workflowId: 'workflow-123',
+            userId: 'user-123',
+            stream: true,
+            streamToolCalls: true,
+            mode: 'agent',
+            provider: 'openai',
+            depth: 0,
+            origin: 'http://localhost:3000',
+          }),
         })
       )
-      expect(payload.prefetchResults).toBeDefined()
     })
 
     it('should handle sim agent API errors', async () => {
@@ -426,23 +427,22 @@ describe('Copilot Chat API Route', () => {
       const { POST } = await import('@/app/api/copilot/chat/route')
       await POST(req)
 
-      const fetchArgs = (global.fetch as any).mock.calls[0]
-      expect(fetchArgs[0]).toBe('http://localhost:8000/api/chat-completion-streaming')
-      const payload = JSON.parse(fetchArgs[1].body)
-      expect(payload).toEqual(
+      expect(global.fetch).toHaveBeenCalledWith(
+        'http://localhost:8000/api/chat-completion-streaming',
         expect.objectContaining({
-          messages: [{ role: 'user', content: 'What is this workflow?' }],
-          workflowId: 'workflow-123',
-          userId: 'user-123',
-          stream: true,
-          streamToolCalls: true,
-          mode: 'ask',
-          provider: 'openai',
-          depth: 0,
-          origin: 'http://localhost:3000',
+          body: JSON.stringify({
+            messages: [{ role: 'user', content: 'What is this workflow?' }],
+            workflowId: 'workflow-123',
+            userId: 'user-123',
+            stream: true,
+            streamToolCalls: true,
+            mode: 'ask',
+            provider: 'openai',
+            depth: 0,
+            origin: 'http://localhost:3000',
+          }),
         })
       )
-      expect(payload.prefetchResults).toBeDefined()
     })
   })
 
@@ -479,19 +479,67 @@ describe('Copilot Chat API Route', () => {
       const authMocks = mockAuth()
       authMocks.setAuthenticated()
 
-      // Mock returned chats
-      const chats = [
+      // Mock database response (what comes from DB)
+      const mockDbChats = [
         {
           id: 'chat-1',
-          title: 'Chat 1',
+          title: 'First Chat',
           model: 'claude-3-haiku-20240307',
-          messages: [{ role: 'user', content: 'Hello' }],
-          createdAt: new Date(),
-          updatedAt: new Date(),
+          messages: [
+            { role: 'user', content: 'Message 1' },
+            { role: 'assistant', content: 'Response 1' },
+            { role: 'user', content: 'Message 2' },
+            { role: 'assistant', content: 'Response 2' },
+          ],
+          createdAt: new Date('2024-01-01'),
+          updatedAt: new Date('2024-01-02'),
+        },
+        {
+          id: 'chat-2',
+          title: 'Second Chat',
+          model: 'claude-3-haiku-20240307',
+          messages: [
+            { role: 'user', content: 'Message 1' },
+            { role: 'assistant', content: 'Response 1' },
+          ],
+          createdAt: new Date('2024-01-03'),
+          updatedAt: new Date('2024-01-04'),
         },
       ]
 
-      mockOrderBy.mockResolvedValue(chats)
+      // Expected transformed response (what the route returns)
+      const expectedChats = [
+        {
+          id: 'chat-1',
+          title: 'First Chat',
+          model: 'claude-3-haiku-20240307',
+          messages: [
+            { role: 'user', content: 'Message 1' },
+            { role: 'assistant', content: 'Response 1' },
+            { role: 'user', content: 'Message 2' },
+            { role: 'assistant', content: 'Response 2' },
+          ],
+          messageCount: 4,
+          previewYaml: null,
+          createdAt: new Date('2024-01-01'),
+          updatedAt: new Date('2024-01-02'),
+        },
+        {
+          id: 'chat-2',
+          title: 'Second Chat',
+          model: 'claude-3-haiku-20240307',
+          messages: [
+            { role: 'user', content: 'Message 1' },
+            { role: 'assistant', content: 'Response 1' },
+          ],
+          messageCount: 2,
+          previewYaml: null,
+          createdAt: new Date('2024-01-03'),
+          updatedAt: new Date('2024-01-04'),
+        },
+      ]
+
+      mockOrderBy.mockResolvedValue(mockDbChats)
 
       const req = new NextRequest('http://localhost:3000/api/copilot/chat?workflowId=workflow-123')
 
@@ -500,24 +548,52 @@ describe('Copilot Chat API Route', () => {
 
       expect(response.status).toBe(200)
       const responseData = await response.json()
-      expect(responseData.success).toBe(true)
-      expect(Array.isArray(responseData.chats)).toBe(true)
-      expect(responseData.chats.length).toBe(1)
-      expect(responseData.chats[0]).toEqual(
-        expect.objectContaining({
-          id: 'chat-1',
-          title: 'Chat 1',
-          model: 'claude-3-haiku-20240307',
-          messageCount: 1,
-        })
-      )
+      expect(responseData).toEqual({
+        success: true,
+        chats: [
+          {
+            id: 'chat-1',
+            title: 'First Chat',
+            model: 'claude-3-haiku-20240307',
+            messages: [
+              { role: 'user', content: 'Message 1' },
+              { role: 'assistant', content: 'Response 1' },
+              { role: 'user', content: 'Message 2' },
+              { role: 'assistant', content: 'Response 2' },
+            ],
+            messageCount: 4,
+            previewYaml: null,
+            createdAt: '2024-01-01T00:00:00.000Z',
+            updatedAt: '2024-01-02T00:00:00.000Z',
+          },
+          {
+            id: 'chat-2',
+            title: 'Second Chat',
+            model: 'claude-3-haiku-20240307',
+            messages: [
+              { role: 'user', content: 'Message 1' },
+              { role: 'assistant', content: 'Response 1' },
+            ],
+            messageCount: 2,
+            previewYaml: null,
+            createdAt: '2024-01-03T00:00:00.000Z',
+            updatedAt: '2024-01-04T00:00:00.000Z',
+          },
+        ],
+      })
+
+      // Verify database query was made correctly
+      expect(mockSelect).toHaveBeenCalled()
+      expect(mockWhere).toHaveBeenCalled()
+      expect(mockOrderBy).toHaveBeenCalled()
     })
 
     it('should handle database errors when fetching chats', async () => {
       const authMocks = mockAuth()
       authMocks.setAuthenticated()
 
-      mockOrderBy.mockRejectedValue(new Error('Database error'))
+      // Mock database error
+      mockOrderBy.mockRejectedValue(new Error('Database query failed'))
 
       const req = new NextRequest('http://localhost:3000/api/copilot/chat?workflowId=workflow-123')
 
@@ -542,9 +618,10 @@ describe('Copilot Chat API Route', () => {
 
       expect(response.status).toBe(200)
       const responseData = await response.json()
-      expect(responseData.success).toBe(true)
-      expect(Array.isArray(responseData.chats)).toBe(true)
-      expect(responseData.chats.length).toBe(0)
+      expect(responseData).toEqual({
+        success: true,
+        chats: [],
+      })
     })
   })
 })

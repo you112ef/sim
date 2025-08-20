@@ -113,7 +113,7 @@ async function rejectTool(
         toolId: toolCall.id,
         methodId: 'no_op',
         success: true,
-        data: { status: 'rejected', message: confirmationMessage },
+        data: { confirmationMessage },
       }),
     })
   } catch (error) {

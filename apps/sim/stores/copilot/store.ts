@@ -2281,18 +2281,20 @@ export const useCopilotStore = create<CopilotStore>()(
             stream,
             fileAttachments: options.fileAttachments,
             abortSignal: abortController.signal,
-            // Always include userWorkflow so server can prefetch regardless of flag
-            ...(() => {
-              try {
-                const {
-                  buildUserWorkflowJson,
-                } = require('@/lib/copilot/tools/client-tools/workflow-helpers')
-                return { userWorkflow: buildUserWorkflowJson(workflowId) }
-              } catch (e) {
-                logger.warn('Failed to build userWorkflow; continuing without it')
-                return {}
-              }
-            })(),
+            // In normal mode (prefetch enabled), include userWorkflow for server prefetch
+            ...(get().agentPrefetch
+              ? (() => {
+                  try {
+                    const {
+                      buildUserWorkflowJson,
+                    } = require('@/lib/copilot/tools/client-tools/workflow-helpers')
+                    return { userWorkflow: buildUserWorkflowJson(workflowId) }
+                  } catch (e) {
+                    logger.warn('Failed to build userWorkflow for prefetch; continuing without it')
+                    return {}
+                  }
+                })()
+              : {}),
           })
 
           if (result.success && result.stream) {
