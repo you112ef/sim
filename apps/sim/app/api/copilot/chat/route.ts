@@ -466,11 +466,7 @@ export async function POST(req: NextRequest) {
       ...(prefetchResults ? { prefetchResults } : {}),
     }
 
-    // Log the payload being sent to the streaming endpoint
-    try {
-    } catch (e) {
-      logger.warn(`[${tracker.requestId}] Failed to log payload preview for streaming endpoint`, e)
-    }
+    // Log the payload being sent to the streaming endpoint (disabled to reduce noise)
 
     const simAgentResponse = await fetch(`${SIM_AGENT_API_URL}/api/chat-completion-streaming`, {
       method: 'POST',
@@ -653,7 +649,9 @@ export async function POST(req: NextRequest) {
                             announcedToolCallIds.add(event.data.id)
                           }
                           if (event.data?.name === 'get_user_workflow') {
-                            logger.info(`[${tracker.requestId}] get_user_workflow tool call received in stream; client will execute locally and post to /api/copilot/tools/execute`)
+                            logger.info(
+                              `[${tracker.requestId}] get_user_workflow tool call received in stream; client will execute locally and post to /api/copilot/tools/execute`
+                            )
                           }
                         }
                         break

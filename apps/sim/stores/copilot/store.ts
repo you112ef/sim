@@ -2284,7 +2284,9 @@ export const useCopilotStore = create<CopilotStore>()(
             // Always include userWorkflow so server can prefetch regardless of flag
             ...(() => {
               try {
-                const { buildUserWorkflowJson } = require('@/lib/copilot/tools/client-tools/workflow-helpers')
+                const {
+                  buildUserWorkflowJson,
+                } = require('@/lib/copilot/tools/client-tools/workflow-helpers')
                 return { userWorkflow: buildUserWorkflowJson(workflowId) }
               } catch (e) {
                 logger.warn('Failed to build userWorkflow; continuing without it')
