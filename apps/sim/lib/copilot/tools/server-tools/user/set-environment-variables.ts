@@ -47,12 +47,24 @@ async function setEnvironmentVariables(
   // Forward the request to the existing environment variables endpoint
   const envUrl = `${env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/api/environment/variables`
 
+  // SEV diagnostics
+  logger.info('[SEV] server-tool:setEnvironmentVariables:forwarding', {
+    envUrl,
+    variableCount: Object.keys(variables).length,
+    hasWorkflowId: !!workflowId,
+  })
+
   const response = await fetch(envUrl, {
     method: 'PUT',
     headers: {
       'Content-Type': 'application/json',
     },
     body: JSON.stringify({ variables, workflowId }),
+  })
+
+  logger.info('[SEV] server-tool:setEnvironmentVariables:response', {
+    status: response.status,
+    ok: response.ok,
   })
 
   if (!response.ok) {

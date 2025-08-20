@@ -241,23 +241,6 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    logger.info(`[${tracker.requestId}] Processing copilot chat request`, {
-      userId: authenticatedUserId,
-      workflowId,
-      chatId,
-      mode,
-      stream,
-      createNewChat,
-      messageLength: message.length,
-      hasImplicitFeedback: !!implicitFeedback,
-      provider: provider || 'openai',
-      hasConversationId: !!conversationId,
-      depth,
-      prefetch,
-      origin: requestOrigin,
-      hasUserWorkflow: !!userWorkflow,
-    })
-
     // Handle chat context
     let currentChat: any = null
     let conversationHistory: any[] = []
@@ -321,9 +304,6 @@ export async function POST(req: NextRequest) {
           const fileContent = createAnthropicFileContent(fileBuffer, attachment.media_type)
           if (fileContent) {
             processedFileContents.push(fileContent)
-            logger.info(
-              `[${tracker.requestId}] Processed file: ${attachment.filename} (${attachment.media_type})`
-            )
           }
         } catch (error) {
           logger.error(
@@ -421,61 +401,53 @@ export async function POST(req: NextRequest) {
       [...messages].reverse().find((m) => m?.role === 'user') || messages[messages.length - 1]
     const messagesForAgent = effectiveConversationId ? [latestUserMessage] : messages
 
-    // Prepare optional prefetch results
+    // Always prepare prefetch results for sim agent
     let prefetchResults: Record<string, any> | undefined
-    if (effectivePrefetch === true) {
-      try {
-        const [blocksAndToolsResp, envVarsResp, oauthResp] = await Promise.all([
-          getBlocksAndToolsTool.execute({}),
-          getEnvironmentVariablesTool.execute({ userId: authenticatedUserId, workflowId }),
-          getOAuthCredentialsTool.execute({ userId: authenticatedUserId }),
-        ])
+    try {
+      const [blocksAndToolsResp, envVarsResp, oauthResp] = await Promise.all([
+        getBlocksAndToolsTool.execute({}),
+        getEnvironmentVariablesTool.execute({ userId: authenticatedUserId, workflowId }),
+        getOAuthCredentialsTool.execute({ userId: authenticatedUserId }),
+      ])
 
-        prefetchResults = {}
+      prefetchResults = {}
 
-        if (blocksAndToolsResp.success) {
-          prefetchResults.get_blocks_and_tools = blocksAndToolsResp.data
-        } else {
-          logger.warn(`[${tracker.requestId}] Failed to prefetch get_blocks_and_tools`, {
-            error: blocksAndToolsResp.error,
-          })
-        }
-
-        if (envVarsResp.success) {
-          prefetchResults.get_environment_variables = envVarsResp.data
-        } else {
-          logger.warn(`[${tracker.requestId}] Failed to prefetch get_environment_variables`, {
-            error: envVarsResp.error,
-          })
-        }
-
-        if (oauthResp.success) {
-          prefetchResults.get_oauth_credentials = oauthResp.data
-        } else {
-          logger.warn(`[${tracker.requestId}] Failed to prefetch get_oauth_credentials`, {
-            error: oauthResp.error,
-          })
-        }
-
-        if (userWorkflow && typeof userWorkflow === 'string' && userWorkflow.trim().length > 0) {
-          prefetchResults.get_user_workflow = userWorkflow
-          const uwLength = userWorkflow.length
-          const uwPreview = userWorkflow.substring(0, 10000)
-          logger.info(`[${tracker.requestId}] Included client-provided userWorkflow in prefetch`, {
-            length: uwLength,
-            preview: `${uwPreview}${uwLength > 10000 ? '...' : ''}`,
-          })
-        }
-
-        logger.info(`[${tracker.requestId}] Prepared prefetchResults for streaming payload`, {
-          hasBlocksAndTools: !!prefetchResults.get_blocks_and_tools,
-          hasEnvVars: !!prefetchResults.get_environment_variables,
-          hasOAuthCreds: !!prefetchResults.get_oauth_credentials,
-          hasUserWorkflow: !!prefetchResults.get_user_workflow,
+      if (blocksAndToolsResp.success) {
+        prefetchResults.get_blocks_and_tools = blocksAndToolsResp.data
+      } else {
+        logger.warn(`[${tracker.requestId}] Failed to prefetch get_blocks_and_tools`, {
+          error: blocksAndToolsResp.error,
         })
-      } catch (e) {
-        logger.error(`[${tracker.requestId}] Error while preparing prefetchResults`, e)
       }
+
+      if (envVarsResp.success) {
+        prefetchResults.get_environment_variables = envVarsResp.data
+      } else {
+        logger.warn(`[${tracker.requestId}] Failed to prefetch get_environment_variables`, {
+          error: envVarsResp.error,
+        })
+      }
+
+      if (oauthResp.success) {
+        prefetchResults.get_oauth_credentials = oauthResp.data
+      } else {
+        logger.warn(`[${tracker.requestId}] Failed to prefetch get_oauth_credentials`, {
+          error: oauthResp.error,
+        })
+      }
+
+      if (userWorkflow && typeof userWorkflow === 'string' && userWorkflow.trim().length > 0) {
+        prefetchResults.get_user_workflow = userWorkflow
+      }
+
+      logger.info(`[${tracker.requestId}] Prepared prefetchResults for streaming payload`, {
+        hasBlocksAndTools: !!prefetchResults.get_blocks_and_tools,
+        hasEnvVars: !!prefetchResults.get_environment_variables,
+        hasOAuthCreds: !!prefetchResults.get_oauth_credentials,
+        hasUserWorkflow: !!prefetchResults.get_user_workflow,
+      })
+    } catch (e) {
+      logger.error(`[${tracker.requestId}] Error while preparing prefetchResults`, e)
     }
 
     const requestPayload = {
@@ -494,23 +466,7 @@ export async function POST(req: NextRequest) {
       ...(prefetchResults ? { prefetchResults } : {}),
     }
 
-    // Log the payload being sent to the streaming endpoint
-    try {
-      logger.info(`[${tracker.requestId}] Sending payload to sim agent streaming endpoint`, {
-        url: `${SIM_AGENT_API_URL}/api/chat-completion-streaming`,
-        provider: providerToUse,
-        mode,
-        stream,
-        workflowId,
-        hasConversationId: !!effectiveConversationId,
-        depth: typeof effectiveDepth === 'number' ? effectiveDepth : undefined,
-        prefetch: typeof effectivePrefetch === 'boolean' ? effectivePrefetch : undefined,
-        messagesCount: requestPayload.messages.length,
-        ...(requestOrigin ? { origin: requestOrigin } : {}),
-      })
-    } catch (e) {
-      logger.warn(`[${tracker.requestId}] Failed to log payload preview for streaming endpoint`, e)
-    }
+    // Log the payload being sent to the streaming endpoint (disabled to reduce noise)
 
     const simAgentResponse = await fetch(`${SIM_AGENT_API_URL}/api/chat-completion-streaming`, {
       method: 'POST',
@@ -694,11 +650,7 @@ export async function POST(req: NextRequest) {
                           }
                           if (event.data?.name === 'get_user_workflow') {
                             logger.info(
-                              `[${tracker.requestId}] get_user_workflow tool call received in stream; client will execute locally and post to /api/copilot/tools/execute`,
-                              {
-                                toolCallId: event.data?.id,
-                                hasArgs: !!event.data?.arguments,
-                              }
+                              `[${tracker.requestId}] get_user_workflow tool call received in stream; client will execute locally and post to /api/copilot/tools/execute`
                             )
                           }
                         }
@@ -721,13 +673,7 @@ export async function POST(req: NextRequest) {
                         break
 
                       case 'tool_result':
-                        logger.info(`[${tracker.requestId}] Tool result received:`, {
-                          toolCallId: event.toolCallId,
-                          toolName: event.toolName,
-                          success: event.success,
-                          result: `${JSON.stringify(event.result).substring(0, 200)}...`,
-                          resultSize: JSON.stringify(event.result).length,
-                        })
+                        logger.info(`[${tracker.requestId}] Tool result received:`)
                         if (event.toolCallId) {
                           completedToolExecutionIds.add(event.toolCallId)
                         }
@@ -840,12 +786,7 @@ export async function POST(req: NextRequest) {
             }
 
             // Log final streaming summary
-            logger.info(`[${tracker.requestId}] Streaming complete summary:`, {
-              totalContentLength: assistantContent.length,
-              toolCallsCount: toolCalls.length,
-              hasContent: assistantContent.length > 0,
-              toolNames: toolCalls.map((tc) => tc?.name).filter(Boolean),
-            })
+            logger.info(`[${tracker.requestId}] Streaming complete summary:`)
 
             // Save messages to database after streaming completes (including aborted messages)
             if (currentChat) {
@@ -884,12 +825,7 @@ export async function POST(req: NextRequest) {
                 })
                 .where(eq(copilotChats.id, actualChatId!))
 
-              logger.info(`[${tracker.requestId}] Updated chat ${actualChatId} with new messages`, {
-                messageCount: updatedMessages.length,
-                savedUserMessage: true,
-                savedAssistantMessage: assistantContent.trim().length > 0,
-                updatedConversationId: responseId || null,
-              })
+              logger.info(`[${tracker.requestId}] Updated chat ${actualChatId} with new messages`)
             }
           } catch (error) {
             logger.error(`[${tracker.requestId}] Error processing stream:`, error)
@@ -909,39 +845,19 @@ export async function POST(req: NextRequest) {
         },
       })
 
-      logger.info(`[${tracker.requestId}] Returning streaming response to client`, {
-        duration: tracker.getDuration(),
-        chatId: actualChatId,
-        headers: {
-          'Content-Type': 'text/event-stream',
-          'Cache-Control': 'no-cache',
-          Connection: 'keep-alive',
-        },
-      })
+      logger.info(`[${tracker.requestId}] Returning streaming response to client`)
 
       return response
     }
 
     // For non-streaming responses
     const responseData = await simAgentResponse.json()
-    logger.info(`[${tracker.requestId}] Non-streaming response from sim agent:`, {
-      hasContent: !!responseData.content,
-      contentLength: responseData.content?.length || 0,
-      model: responseData.model,
-      provider: responseData.provider,
-      toolCallsCount: responseData.toolCalls?.length || 0,
-      hasTokens: !!responseData.tokens,
-    })
+    logger.info(`[${tracker.requestId}] Non-streaming response from sim agent:`)
 
     // Log tool calls if present
     if (responseData.toolCalls?.length > 0) {
       responseData.toolCalls.forEach((toolCall: any) => {
-        logger.info(`[${tracker.requestId}] Tool call in response:`, {
-          id: toolCall.id,
-          name: toolCall.name,
-          success: toolCall.success,
-          result: `${JSON.stringify(toolCall.result).substring(0, 200)}...`,
-        })
+        logger.info(`[${tracker.requestId}] Tool call in response:`)
       })
     }
 

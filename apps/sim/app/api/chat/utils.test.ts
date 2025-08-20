@@ -65,7 +65,7 @@ describe('Chat API Utils', () => {
   })
 
   describe('Auth token utils', () => {
-    it.concurrent('should encrypt and validate auth tokens', async () => {
+    it('should encrypt and validate auth tokens', async () => {
       const { encryptAuthToken, validateAuthToken } = await import('@/app/api/chat/utils')
 
       const subdomainId = 'test-subdomain-id'
@@ -82,7 +82,7 @@ describe('Chat API Utils', () => {
       expect(isInvalidSubdomain).toBe(false)
     })
 
-    it.concurrent('should reject expired tokens', async () => {
+    it('should reject expired tokens', async () => {
       const { validateAuthToken } = await import('@/app/api/chat/utils')
 
       const subdomainId = 'test-subdomain-id'

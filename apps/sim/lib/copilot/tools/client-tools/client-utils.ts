@@ -39,6 +39,16 @@ export async function postToExecuteAndComplete(
   options?: ToolExecutionOptions
 ): Promise<ToolExecuteResult> {
   try {
+    const isSetEnv = methodId === 'set_environment_variables'
+    if (isSetEnv) {
+      logger.info('[SEV] postToExecuteAndComplete:start', {
+        methodId,
+        paramsKeys: Object.keys(params || {}),
+        toolIdentifiers,
+        stack: new Error().stack,
+      })
+    }
+
     options?.onStateChange?.('executing')
 
     const response = await fetch('/api/copilot/tools/execute', {
@@ -48,12 +58,26 @@ export async function postToExecuteAndComplete(
       body: JSON.stringify({ methodId, params }),
     })
 
+    if (isSetEnv) {
+      logger.info('[SEV] postToExecuteAndComplete:execute-response', {
+        methodId,
+        status: response.status,
+      })
+    }
+
     logger.info('Execute route response received', { status: response.status })
 
     const result = await response.json().catch(() => ({}))
 
     if (!response.ok || !result?.success) {
       const errorMessage = result?.error || 'Failed to execute server method'
+      if (isSetEnv) {
+        logger.info('[SEV] postToExecuteAndComplete:complete-start (error path)', {
+          methodId,
+          toolId: toolIdentifiers.toolId ?? toolIdentifiers.toolCallId ?? null,
+          errorMessage,
+        })
+      }
       try {
         await fetch('/api/copilot/tools/complete', {
           method: 'POST',
@@ -66,7 +90,19 @@ export async function postToExecuteAndComplete(
             error: errorMessage,
           }),
         })
-      } catch {}
+        if (isSetEnv) {
+          logger.info('[SEV] postToExecuteAndComplete:complete-finished (error path)', {
+            methodId,
+          })
+        }
+      } catch (e) {
+        if (isSetEnv) {
+          logger.info('[SEV] postToExecuteAndComplete:complete-failed (error path)', {
+            methodId,
+            error: e instanceof Error ? e.message : String(e),
+          })
+        }
+      }
       options?.onStateChange?.('errored')
       return {
         success: false,
@@ -75,6 +111,13 @@ export async function postToExecuteAndComplete(
     }
 
     options?.onStateChange?.('success')
+
+    if (isSetEnv) {
+      logger.info('[SEV] postToExecuteAndComplete:complete-start (success path)', {
+        methodId,
+        toolId: toolIdentifiers.toolId ?? toolIdentifiers.toolCallId ?? null,
+      })
+    }
 
     try {
       await fetch('/api/copilot/tools/complete', {
@@ -88,10 +131,28 @@ export async function postToExecuteAndComplete(
           data: result.data,
         }),
       })
-    } catch {}
+      if (isSetEnv) {
+        logger.info('[SEV] postToExecuteAndComplete:complete-finished (success path)', {
+          methodId,
+        })
+      }
+    } catch (e) {
+      if (isSetEnv) {
+        logger.info('[SEV] postToExecuteAndComplete:complete-failed (success path)', {
+          methodId,
+          error: e instanceof Error ? e.message : String(e),
+        })
+      }
+    }
 
     return { success: true, data: result.data }
   } catch (error: any) {
+    if (methodId === 'set_environment_variables') {
+      logger.info('[SEV] postToExecuteAndComplete:catch', {
+        methodId,
+        error: error?.message || 'Unknown',
+      })
+    }
     options?.onStateChange?.('errored')
     try {
       await fetch('/api/copilot/tools/complete', {
@@ -105,7 +166,19 @@ export async function postToExecuteAndComplete(
           error: error?.message || 'Unexpected error while calling execute route',
         }),
       })
-    } catch {}
+      if (methodId === 'set_environment_variables') {
+        logger.info('[SEV] postToExecuteAndComplete:complete-finished (catch path)', {
+          methodId,
+        })
+      }
+    } catch (e) {
+      if (methodId === 'set_environment_variables') {
+        logger.info('[SEV] postToExecuteAndComplete:complete-failed (catch path)', {
+          methodId,
+          error: e instanceof Error ? e.message : String(e),
+        })
+      }
+    }
     return {
       success: false,
       error: error?.message || 'Unexpected error while calling execute route',
