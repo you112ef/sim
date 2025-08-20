@@ -338,7 +338,6 @@ function getToolDisplayNameByState(toolCall: any): string {
     return clientTool.getDisplayName(toolCall)
   }
 
-
   // Fallback to tool name if no specific display logic found
   return toolName
 }

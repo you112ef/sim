@@ -153,16 +153,17 @@ export async function POST(request: NextRequest) {
       const nonExistentEdgeRef = /references non-existent block '([^']+)'/i.test(errorText)
       if (nonExistentEdgeRef && currentWorkflowState && Array.isArray(currentWorkflowState.edges)) {
         try {
-          const missingIds = [...errorText.matchAll(/references non-existent block '([^']+)'/gi)].map(
-            (m) => m[1]
-          )
+          const missingIds = [
+            ...errorText.matchAll(/references non-existent block '([^']+)'/gi),
+          ].map((m) => m[1])
           const existingIds = new Set(Object.keys(currentWorkflowState.blocks || {}))
           // Remove edges whose source or target is missing from current blocks or includes missing IDs
           const originalEdgeCount = currentWorkflowState.edges.length
           currentWorkflowState.edges = currentWorkflowState.edges.filter((e: any) => {
             const srcOk = e?.source && existingIds.has(e.source)
             const tgtOk = e?.target && existingIds.has(e.target)
-            const hitsMissing = missingIds.includes(String(e?.source)) || missingIds.includes(String(e?.target))
+            const hitsMissing =
+              missingIds.includes(String(e?.source)) || missingIds.includes(String(e?.target))
             return srcOk && tgtOk && !hitsMissing
           })
           logger.warn(`[${requestId}] Stripped invalid edges`, {

@@ -1,5 +1,10 @@
 import { BaseTool } from '@/lib/copilot/tools/base-tool'
-import type { CopilotToolCall, ToolExecuteResult, ToolExecutionOptions, ToolMetadata } from '@/lib/copilot/tools/types'
+import type {
+  CopilotToolCall,
+  ToolExecuteResult,
+  ToolExecutionOptions,
+  ToolMetadata,
+} from '@/lib/copilot/tools/types'
 
 export class ReasonClientTool extends BaseTool {
   static readonly id = 'reason'
@@ -19,8 +24,11 @@ export class ReasonClientTool extends BaseTool {
     requiresInterrupt: false,
   }
 
-  async execute(toolCall: CopilotToolCall, options?: ToolExecutionOptions): Promise<ToolExecuteResult> {
+  async execute(
+    toolCall: CopilotToolCall,
+    options?: ToolExecutionOptions
+  ): Promise<ToolExecuteResult> {
     options?.onStateChange?.('success')
     return { success: true, data: toolCall.parameters || toolCall.input || {} }
   }
-} 
+}

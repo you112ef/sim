@@ -3,6 +3,7 @@
  */
 
 import { BaseTool } from '@/lib/copilot/tools/base-tool'
+import { postToExecuteAndComplete } from '@/lib/copilot/tools/client-tools/client-utils'
 import type {
   CopilotToolCall,
   ToolExecuteResult,
@@ -11,7 +12,6 @@ import type {
 } from '@/lib/copilot/tools/types'
 import { createLogger } from '@/lib/logs/console/logger'
 import { useWorkflowRegistry } from '@/stores/workflows/registry/store'
-import { postToExecuteAndComplete } from '@/lib/copilot/tools/client-tools/client-utils'
 
 export class GetEnvironmentVariablesClientTool extends BaseTool {
   static readonly id = 'get_environment_variables'

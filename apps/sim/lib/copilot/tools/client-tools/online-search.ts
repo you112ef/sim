@@ -3,6 +3,7 @@
  */
 
 import { BaseTool } from '@/lib/copilot/tools/base-tool'
+import { postToExecuteAndComplete } from '@/lib/copilot/tools/client-tools/client-utils'
 import type {
   CopilotToolCall,
   ToolExecuteResult,
@@ -10,7 +11,6 @@ import type {
   ToolMetadata,
 } from '@/lib/copilot/tools/types'
 import { createLogger } from '@/lib/logs/console/logger'
-import { postToExecuteAndComplete } from '@/lib/copilot/tools/client-tools/client-utils'
 
 export class OnlineSearchClientTool extends BaseTool {
   static readonly id = 'search_online'

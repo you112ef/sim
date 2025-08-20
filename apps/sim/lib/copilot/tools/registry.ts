@@ -9,6 +9,12 @@
  */
 
 import { BuildWorkflowClientTool } from '@/lib/copilot/tools/client-tools/build-workflow'
+import {
+  GetBlockBestPracticesTool,
+  GetBuildWorkflowExamplesTool,
+  GetEditWorkflowExamplesTool,
+  GetYamlStructureTool,
+} from '@/lib/copilot/tools/client-tools/display-only'
 import { EditWorkflowClientTool } from '@/lib/copilot/tools/client-tools/edit-workflow'
 import { GDriveRequestAccessTool } from '@/lib/copilot/tools/client-tools/gdrive-request-access'
 import { GetBlocksAndToolsClientTool } from '@/lib/copilot/tools/client-tools/get-blocks-and-tools'
@@ -20,18 +26,12 @@ import { GetWorkflowConsoleClientTool } from '@/lib/copilot/tools/client-tools/g
 import { ListGDriveFilesClientTool } from '@/lib/copilot/tools/client-tools/list-gdrive-files'
 import { MakeApiRequestClientTool } from '@/lib/copilot/tools/client-tools/make-api-request'
 import { OnlineSearchClientTool } from '@/lib/copilot/tools/client-tools/online-search'
+import { PlanClientTool } from '@/lib/copilot/tools/client-tools/plan'
 import { ReadGDriveFileClientTool } from '@/lib/copilot/tools/client-tools/read-gdrive-file'
+import { ReasonClientTool } from '@/lib/copilot/tools/client-tools/reason'
 import { RunWorkflowTool } from '@/lib/copilot/tools/client-tools/run-workflow'
 import { SearchDocumentationClientTool } from '@/lib/copilot/tools/client-tools/search-documentation'
 import { SetEnvironmentVariablesClientTool } from '@/lib/copilot/tools/client-tools/set-environment-variables'
-import { PlanClientTool } from '@/lib/copilot/tools/client-tools/plan'
-import { ReasonClientTool } from '@/lib/copilot/tools/client-tools/reason'
-import {
-  GetBlockBestPracticesTool,
-  GetBuildWorkflowExamplesTool,
-  GetEditWorkflowExamplesTool,
-  GetYamlStructureTool,
-} from '@/lib/copilot/tools/client-tools/display-only'
 import type { Tool, ToolMetadata } from '@/lib/copilot/tools/types'
 
 /**
