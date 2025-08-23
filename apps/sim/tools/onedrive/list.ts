@@ -1,12 +1,9 @@
-import { createLogger } from '@/lib/logs/console/logger'
 import type {
   MicrosoftGraphDriveItem,
   OneDriveListResponse,
   OneDriveToolParams,
 } from '@/tools/onedrive/types'
 import type { ToolConfig } from '@/tools/types'
-
-const logger = createLogger('OneDriveListTool')
 
 export const listTool: ToolConfig<OneDriveToolParams, OneDriveListResponse> = {
   id: 'onedrive_list',
@@ -93,14 +90,7 @@ export const listTool: ToolConfig<OneDriveToolParams, OneDriveListResponse> = {
         url.searchParams.append('$top', params.pageSize.toString())
       }
 
-      const finalUrl = url.toString()
-      logger.info('OneDrive list URL built', {
-        hasFolderId: !!folderId,
-        hasManualFolderId: !!params.manualFolderId,
-        hasFolderSelector: !!params.folderSelector,
-        finalUrl,
-      })
-      return finalUrl
+      return url.toString()
     },
     method: 'GET',
     headers: (params) => ({
