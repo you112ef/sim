@@ -1,9 +1,6 @@
 import { MicrosoftOneDriveIcon } from '@/components/icons'
-import { createLogger } from '@/lib/logs/console/logger'
 import type { BlockConfig } from '@/blocks/types'
 import type { OneDriveResponse } from '@/tools/onedrive/types'
-
-const logger = createLogger('OneDriveBlock')
 
 export const OneDriveBlock: BlockConfig<OneDriveResponse> = {
   type: 'onedrive',
