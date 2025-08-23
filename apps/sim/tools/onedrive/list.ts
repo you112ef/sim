@@ -1,9 +1,12 @@
+import { createLogger } from '@/lib/logs/console/logger'
 import type {
   MicrosoftGraphDriveItem,
   OneDriveListResponse,
   OneDriveToolParams,
 } from '@/tools/onedrive/types'
 import type { ToolConfig } from '@/tools/types'
+
+const logger = createLogger('OneDriveListTool')
 
 export const listTool: ToolConfig<OneDriveToolParams, OneDriveListResponse> = {
   id: 'onedrive_list',
@@ -37,6 +40,12 @@ export const listTool: ToolConfig<OneDriveToolParams, OneDriveListResponse> = {
       visibility: 'user-only',
       description: 'Select the folder to list files from',
     },
+    manualFolderId: {
+      type: 'string',
+      required: false,
+      visibility: 'hidden',
+      description: 'The manually entered folder ID (advanced mode)',
+    },
     folderId: {
       type: 'string',
       required: false,
@@ -60,9 +69,10 @@ export const listTool: ToolConfig<OneDriveToolParams, OneDriveListResponse> = {
   request: {
     url: (params) => {
       // Use specific folder if provided, otherwise use root
-      const folderId = params.folderId || params.folderSelector
-      const baseUrl = folderId
-        ? `https://graph.microsoft.com/v1.0/me/drive/items/${folderId}/children`
+      const folderId = params.folderId || params.manualFolderId || params.folderSelector
+      const encodedFolderId = folderId ? encodeURIComponent(folderId) : ''
+      const baseUrl = encodedFolderId
+        ? `https://graph.microsoft.com/v1.0/me/drive/items/${encodedFolderId}/children`
         : 'https://graph.microsoft.com/v1.0/me/drive/root/children'
 
       const url = new URL(baseUrl)
@@ -83,8 +93,14 @@ export const listTool: ToolConfig<OneDriveToolParams, OneDriveListResponse> = {
         url.searchParams.append('$top', params.pageSize.toString())
       }
 
-      // Remove the $skip logic entirely. Instead, use the full nextLink URL if provided
-      return url.toString()
+      const finalUrl = url.toString()
+      logger.info('OneDrive list URL built', {
+        hasFolderId: !!folderId,
+        hasManualFolderId: !!params.manualFolderId,
+        hasFolderSelector: !!params.folderSelector,
+        finalUrl,
+      })
+      return finalUrl
     },
     method: 'GET',
     headers: (params) => ({
