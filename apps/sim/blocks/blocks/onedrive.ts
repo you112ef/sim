@@ -200,13 +200,12 @@ export const OneDriveBlock: BlockConfig<OneDriveResponse> = {
       params: (params) => {
         const { credential, folderSelector, manualFolderId, mimeType, ...rest } = params
 
-        // If user provided a manual folder ID, use it; otherwise fall back to selected folder
-        const effectiveFolderId = (manualFolderId || folderSelector || '').trim()
-
         return {
           ...rest,
           accessToken: credential,
-          folderId: effectiveFolderId,
+          // Pass both; tools will prioritize manualFolderId over folderSelector
+          folderSelector,
+          manualFolderId,
           pageSize: rest.pageSize ? Number.parseInt(rest.pageSize as string, 10) : undefined,
           mimeType: mimeType,
         }

@@ -43,12 +43,6 @@ export const listTool: ToolConfig<OneDriveToolParams, OneDriveListResponse> = {
       visibility: 'hidden',
       description: 'The manually entered folder ID (advanced mode)',
     },
-    folderId: {
-      type: 'string',
-      required: false,
-      visibility: 'hidden',
-      description: 'The ID of the folder to list files from (internal use)',
-    },
     query: {
       type: 'string',
       required: false,
@@ -66,7 +60,7 @@ export const listTool: ToolConfig<OneDriveToolParams, OneDriveListResponse> = {
   request: {
     url: (params) => {
       // Use specific folder if provided, otherwise use root
-      const folderId = params.folderId || params.manualFolderId || params.folderSelector
+      const folderId = params.manualFolderId || params.folderSelector
       const encodedFolderId = folderId ? encodeURIComponent(folderId) : ''
       const baseUrl = encodedFolderId
         ? `https://graph.microsoft.com/v1.0/me/drive/items/${encodedFolderId}/children`

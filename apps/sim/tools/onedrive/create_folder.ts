@@ -38,18 +38,12 @@ export const createFolderTool: ToolConfig<OneDriveToolParams, OneDriveUploadResp
       visibility: 'hidden',
       description: 'Manually entered parent folder ID (advanced mode)',
     },
-    folderId: {
-      type: 'string',
-      required: false,
-      visibility: 'hidden',
-      description: 'ID of the parent folder (internal use)',
-    },
   },
 
   request: {
     url: (params) => {
       // Use specific parent folder URL if parentId is provided
-      const parentFolderId = params.folderId || params.manualFolderId || params.folderSelector
+      const parentFolderId = params.manualFolderId || params.folderSelector
       if (parentFolderId) {
         return `https://graph.microsoft.com/v1.0/me/drive/items/${encodeURIComponent(parentFolderId)}/children`
       }
