@@ -4,7 +4,7 @@ import { type NextRequest, NextResponse } from 'next/server'
 import { env } from '@/lib/env'
 import { createLogger } from '@/lib/logs/console/logger'
 import { db } from '@/db'
-import { copilotApiKeys, userStats } from '@/db/schema'
+import { copilotApiKeys, userStats, enterpriseCopilotApiKeys } from '@/db/schema'
 
 const logger = createLogger('CopilotApiKeysValidate')
 
@@ -30,6 +30,17 @@ export async function POST(req: NextRequest) {
     }
 
     const lookup = computeLookup(apiKey, env.AGENT_API_DB_ENCRYPTION_KEY)
+
+    // First, allow enterprise-level keys (no user association/limits yet)
+    const enterpriseRows = await db
+      .select({ id: enterpriseCopilotApiKeys.id })
+      .from(enterpriseCopilotApiKeys)
+      .where(eq(enterpriseCopilotApiKeys.apiKeyLookup, lookup))
+      .limit(1)
+
+    if (enterpriseRows.length > 0) {
+      return new NextResponse(null, { status: 200 })
+    }
 
     // Find matching API key and its user
     const rows = await db

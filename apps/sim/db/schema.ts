@@ -1188,3 +1188,23 @@ export const copilotApiKeys = pgTable(
     ),
   })
 )
+
+export const enterpriseCopilotApiKeys = pgTable(
+  'enterprise_copilot_api_keys',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    name: text('name').notNull(),
+    apiKeyEncrypted: text('api_key_encrypted').notNull(),
+    apiKeyLookup: text('api_key_lookup').notNull(),
+  },
+  (table) => ({
+    apiKeyEncryptedHashIdx: index('enterprise_copilot_api_keys_api_key_encrypted_hash_idx').using(
+      'hash',
+      table.apiKeyEncrypted
+    ),
+    apiKeyLookupHashIdx: index('enterprise_copilot_api_keys_lookup_hash_idx').using(
+      'hash',
+      table.apiKeyLookup
+    ),
+  })
+)
