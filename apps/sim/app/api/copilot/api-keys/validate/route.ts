@@ -1,9 +1,9 @@
 import { eq } from 'drizzle-orm'
 import { type NextRequest, NextResponse } from 'next/server'
+import { checkInternalApiKey } from '@/lib/copilot/utils'
 import { createLogger } from '@/lib/logs/console/logger'
 import { db } from '@/db'
 import { userStats } from '@/db/schema'
-import { checkInternalApiKey } from '@/lib/copilot/utils'
 
 const logger = createLogger('CopilotApiKeysValidate')
 

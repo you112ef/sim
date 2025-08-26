@@ -1,7 +1,7 @@
 import { type NextRequest, NextResponse } from 'next/server'
 import { getSession } from '@/lib/auth'
-import { createLogger } from '@/lib/logs/console/logger'
 import { env } from '@/lib/env'
+import { createLogger } from '@/lib/logs/console/logger'
 import { SIM_AGENT_API_URL_DEFAULT } from '@/lib/sim-agent'
 
 const logger = createLogger('CopilotApiKeysGenerate')
@@ -26,7 +26,10 @@ export async function POST(req: NextRequest) {
     if (!res.ok) {
       const errorBody = await res.text().catch(() => '')
       logger.error('Sim Agent generate key error', { status: res.status, error: errorBody })
-      return NextResponse.json({ error: 'Failed to generate copilot API key' }, { status: res.status || 500 })
+      return NextResponse.json(
+        { error: 'Failed to generate copilot API key' },
+        { status: res.status || 500 }
+      )
     }
 
     const data = (await res.json().catch(() => null)) as { apiKey?: string } | null
@@ -36,7 +39,10 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Invalid response from Sim Agent' }, { status: 500 })
     }
 
-    return NextResponse.json({ success: true, key: { id: 'new', apiKey: data.apiKey } }, { status: 201 })
+    return NextResponse.json(
+      { success: true, key: { id: 'new', apiKey: data.apiKey } },
+      { status: 201 }
+    )
   } catch (error) {
     logger.error('Failed to proxy generate copilot API key', { error })
     return NextResponse.json({ error: 'Failed to generate copilot API key' }, { status: 500 })
