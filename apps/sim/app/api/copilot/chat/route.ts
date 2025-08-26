@@ -22,6 +22,7 @@ import { db } from '@/db'
 import { copilotChats } from '@/db/schema'
 import { executeProviderRequest } from '@/providers'
 import { createAnthropicFileContent, isSupportedFileType } from './file-utils'
+import type { CopilotProviderConfig } from '@/lib/copilot/types'
 
 const logger = createLogger('CopilotChatAPI')
 
@@ -399,8 +400,29 @@ export async function POST(req: NextRequest) {
       })
     }
 
+    const defaults = getCopilotModel('chat')
+    const providerToUse = (env.COPILOT_PROVIDER as any) || defaults.provider
+    const modelToUse = env.COPILOT_MODEL || defaults.model
+
+    let providerConfig: CopilotProviderConfig;
+
+    if (providerToUse === 'azure-openai') {
+      providerConfig = {
+        provider: 'azure-openai',
+        model: modelToUse,
+        apiKey: env.AZURE_OPENAI_API_KEY,
+        apiVersion: env.AZURE_OPENAI_API_VERSION,
+        endpoint: env.AZURE_OPENAI_ENDPOINT,
+      }
+    } else {
+      providerConfig = {
+        provider: providerToUse,
+        model: modelToUse,
+        apiKey: env.COPILOT_API_KEY,
+      }
+    }
+
     // Determine provider and conversationId to use for this request
-    const providerToUse = provider || 'openai'
     const effectiveConversationId =
       (currentChat?.conversationId as string | undefined) || conversationId
 
@@ -416,7 +438,7 @@ export async function POST(req: NextRequest) {
       stream: stream,
       streamToolCalls: true,
       mode: mode,
-      provider: providerToUse,
+      provider: providerConfig,
       ...(effectiveConversationId ? { conversationId: effectiveConversationId } : {}),
       ...(typeof effectiveDepth === 'number' ? { depth: effectiveDepth } : {}),
       ...(typeof effectivePrefetch === 'boolean' ? { prefetch: effectivePrefetch } : {}),
