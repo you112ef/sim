@@ -37,9 +37,14 @@ import { getTool } from '@/tools/utils'
 import { getTrigger, getTriggersByProvider } from '@/triggers'
 import { useDebugSnapshotStore } from '@/stores/execution/debug-snapshots/store'
 
+// Token render cache (LRU-style)
+const TOKEN_CACHE_MAX = 500
+const tokenRenderCache: Map<string, React.ReactNode> = new Map()
+
 export function DebugPanel() {
   const {
     isDebugging,
+    isExecuting,
     pendingBlocks,
     debugContext,
     executor,
@@ -48,6 +53,7 @@ export function DebugPanel() {
     setPanelFocusedBlockId,
     panelFocusedBlockId,
     setExecutingBlockIds,
+    setIsExecuting,
     setDebugContext,
     setPendingBlocks,
     breakpointId,
@@ -55,6 +61,7 @@ export function DebugPanel() {
     startPositionIds,
     toggleStartPosition,
   } = useExecutionStore()
+  const executingIds = useExecutionStore((s) => s.executingBlockIds)
   const { activeWorkflowId, workflows } = useWorkflowRegistry()
   const { handleStepDebug, handleResumeDebug, handleCancelDebug, handleRunWorkflow } =
     useWorkflowExecution()
@@ -66,6 +73,7 @@ export function DebugPanel() {
   const [revealedEnvVars, setRevealedEnvVars] = useState<Set<string>>(new Set())
   const hasStartedRef = useRef(false)
   const lastFocusedIdRef = useRef<string | null>(null)
+  const [isInitPending, setIsInitPending] = useState(false)
 
   // Track bottom variables tab and row highlighting for navigation from tokens
   const [bottomTab, setBottomTab] = useState<'reference' | 'workflow' | 'environment'>('reference')
@@ -75,6 +83,21 @@ export function DebugPanel() {
   const [highlightedEnvVar, setHighlightedEnvVar] = useState<string | null>(null)
   const refVarRowRefs = useRef<Map<string, HTMLTableRowElement>>(new Map())
   const [highlightedRefVar, setHighlightedRefVar] = useState<string | null>(null)
+
+  // Helper to force re-trigger highlight even when clicking the same key
+  const flashHighlight = (
+    setter: (updater: any) => void,
+    key: string,
+    durationMs: number
+  ) => {
+    try {
+      setter((prev: any) => (prev === key ? null : prev))
+      requestAnimationFrame(() => {
+        setter(key)
+        window.setTimeout(() => setter((prev: any) => (prev === key ? null : prev)), durationMs)
+      })
+    } catch {}
+  }
 
   // Graph helpers for start position constraints
   const edgesList = currentWorkflow.edges || []
@@ -349,7 +372,14 @@ export function DebugPanel() {
   }
 
   const handleBackstep = () => {
-    const prev = useDebugSnapshotStore.getState().stepBack()
+    const snapshotStore = useDebugSnapshotStore.getState()
+    let prev = snapshotStore.stepBack()
+    if (!prev) {
+      const hist = snapshotStore.history
+      if (hist && hist.length === 1) {
+        prev = hist[0]
+      }
+    }
     if (!prev || !debugContext) return
     try {
       const newCtx = { ...debugContext }
@@ -365,9 +395,12 @@ export function DebugPanel() {
       newCtx.blockStates = rebuilt as any
       if (prev.envVarValues) newCtx.environmentVariables = prev.envVarValues
       if (prev.workflowVariables) newCtx.workflowVariables = prev.workflowVariables
+      // Determine pending set; if stepping back to base, use starterId
+      const pending = prev.pendingBlocks && prev.pendingBlocks.length > 0 ? prev.pendingBlocks : (starterId ? [starterId] : [])
+
       // Recompute active execution path from pending
       const path = new Set<string>()
-      const q: string[] = [...prev.pendingBlocks]
+      const q: string[] = [...pending]
       const seen = new Set<string>()
       while (q.length) {
         const n = q.shift() as string
@@ -377,36 +410,143 @@ export function DebugPanel() {
         const next = forwardAdj[n] || []
         for (const m of next) if (!seen.has(m)) q.push(m)
       }
-      // Clear previous-pending-and-downstream nodes to refresh outputs
-      const toClear = new Set<string>()
-      const qc: string[] = [...prev.pendingBlocks]
-      const seenC = new Set<string>()
-      while (qc.length) {
-        const n = qc.shift() as string
-        if (seenC.has(n)) continue
-        seenC.add(n)
-        toClear.add(n)
-        const next = forwardAdj[n] || []
-        for (const m of next) if (!seenC.has(m)) qc.push(m)
-      }
-      toClear.forEach((id) => {
-        const prevState = rebuilt.get(id)
-        rebuilt.set(id, { output: {}, executed: false, executionTime: 0 } as any)
-      })
-      const adjustedExecuted = new Set<string>(Array.from(newCtx.executedBlocks || new Set()).filter((id) => !toClear.has(id)))
-      newCtx.executedBlocks = adjustedExecuted
-      newCtx.blockStates = rebuilt as any
-
       newCtx.activeExecutionPath = path
       setDebugContext(newCtx)
-      setPendingBlocks(prev.pendingBlocks)
-      setPanelFocusedBlockId(prev.pendingBlocks[0] || null)
+      setPendingBlocks(pending)
+      setPanelFocusedBlockId(pending[0] || null)
     } catch {}
+  }
+
+  const handleStopExecutionOnly = () => {
+    try {
+      useExecutionStore.getState().executor?.cancel()
+    } catch {}
+
+    // Prefer stopping at the currently executing blocks and making them current
+    const execIdsArr = Array.from(useExecutionStore.getState().executingBlockIds || new Set<string>())
+
+    if (debugContext && execIdsArr.length > 0) {
+      try {
+        const newCtx = { ...debugContext }
+        const rebuilt = new Map<string, any>(debugContext.blockStates as any)
+
+        // Clear executing-and-downstream so next run is fresh
+        const toClear = new Set<string>()
+        const qc: string[] = [...execIdsArr]
+        const seenC = new Set<string>()
+        while (qc.length) {
+          const n = qc.shift() as string
+          if (seenC.has(n)) continue
+          seenC.add(n)
+          toClear.add(n)
+          const next = forwardAdj[n] || []
+          for (const m of next) if (!seenC.has(m)) qc.push(m)
+        }
+        toClear.forEach((id) => {
+          rebuilt.set(id, { output: {}, executed: false, executionTime: 0 } as any)
+        })
+        const adjustedExecuted = new Set<string>(
+          Array.from(newCtx.executedBlocks || new Set()).filter((id) => !toClear.has(id))
+        )
+        newCtx.executedBlocks = adjustedExecuted
+        newCtx.blockStates = rebuilt as any
+
+        // Recompute execution path from executing blocks
+        const path = new Set<string>()
+        const q: string[] = [...execIdsArr]
+        const seen = new Set<string>()
+        while (q.length) {
+          const n = q.shift() as string
+          if (seen.has(n)) continue
+          seen.add(n)
+          path.add(n)
+          const next = forwardAdj[n] || []
+          for (const m of next) if (!seen.has(m)) q.push(m)
+        }
+        newCtx.activeExecutionPath = path
+
+        setDebugContext(newCtx)
+        setPendingBlocks(execIdsArr)
+        setPanelFocusedBlockId(execIdsArr[0] || null)
+      } catch {}
+    } else {
+      // Revert to last snapshot before current executing block
+      const snapshotStore = useDebugSnapshotStore.getState()
+      const hist = snapshotStore.history
+      const prev = hist && hist.length > 0 ? hist[hist.length - 1] : null
+
+      if (debugContext && prev) {
+        try {
+          const newCtx = { ...debugContext }
+          // Rebuild block states from previous snapshot
+          const rebuilt = new Map<string, any>()
+          prev.blockSnapshots.forEach((snap, id) => {
+            rebuilt.set(id, {
+              output: snap.output,
+              executed: snap.executed,
+              executionTime: snap.executionTime ?? 0,
+            })
+          })
+          newCtx.blockStates = rebuilt as any
+          if (prev.envVarValues) newCtx.environmentVariables = prev.envVarValues
+          if (prev.workflowVariables) newCtx.workflowVariables = prev.workflowVariables
+
+          const pending = prev.pendingBlocks && prev.pendingBlocks.length > 0 ? prev.pendingBlocks : (starterId ? [starterId] : [])
+
+          // Clear pending-and-downstream so next run is fresh
+          const toClear = new Set<string>()
+          const qc: string[] = [...pending]
+          const seenC = new Set<string>()
+          while (qc.length) {
+            const n = qc.shift() as string
+            if (seenC.has(n)) continue
+            seenC.add(n)
+            toClear.add(n)
+            const next = forwardAdj[n] || []
+            for (const m of next) if (!seenC.has(m)) qc.push(m)
+          }
+          toClear.forEach((id) => {
+            rebuilt.set(id, { output: {}, executed: false, executionTime: 0 } as any)
+          })
+          const adjustedExecuted = new Set<string>(Array.from(newCtx.executedBlocks || new Set()).filter((id) => !toClear.has(id)))
+          newCtx.executedBlocks = adjustedExecuted
+          newCtx.blockStates = rebuilt as any
+
+          // Recompute execution path from pending
+          const path = new Set<string>()
+          const q: string[] = [...pending]
+          const seen = new Set<string>()
+          while (q.length) {
+            const n = q.shift() as string
+            if (seen.has(n)) continue
+            seen.add(n)
+            path.add(n)
+            const next = forwardAdj[n] || []
+            for (const m of next) if (!seen.has(m)) q.push(m)
+          }
+          newCtx.activeExecutionPath = path
+
+          setDebugContext(newCtx)
+          setPendingBlocks(pending)
+          setPanelFocusedBlockId(pending[0] || null)
+        } catch {}
+      }
+    }
+
+    setIsExecuting(false)
+    setExecutingBlockIds(new Set())
+    setActiveBlocks(new Set())
+    // Keep panel open
   }
 
   // Helper to format strings with clickable var/env tokens
   const renderWithTokens = (text: string, options?: { truncateAt?: number }) => {
     const truncateAt = options?.truncateAt
+    const cacheKey = `${truncateAt ?? -1}|${text}`
+    if (tokenRenderCache.has(cacheKey)) {
+      return tokenRenderCache.get(cacheKey) as React.ReactNode
+    }
+
     let displayText = text
     let truncated = false
     if (typeof truncateAt === 'number' && text.length > truncateAt) {
@@ -460,9 +600,17 @@ export function DebugPanel() {
     }
 
     if (matches.length === 0) {
-      return (
+      const node = (
         <span className='break-words font-mono text-[11px] text-foreground/70'>{displayText}</span>
       )
+      if (tokenRenderCache.size >= TOKEN_CACHE_MAX) {
+        const iter = tokenRenderCache.keys().next()
+        if (!iter.done) {
+          tokenRenderCache.delete(iter.value as string)
+        }
+      }
+      tokenRenderCache.set(cacheKey, node)
+      return node
     }
 
     // Sort by start index
@@ -478,8 +626,7 @@ export function DebugPanel() {
         requestAnimationFrame(() => {
           const row = envVarRowRefs.current.get(rawName)
           if (row) row.scrollIntoView({ behavior: 'smooth', block: 'center' })
-          setHighlightedEnvVar(rawName)
-          setTimeout(() => setHighlightedEnvVar((prev) => (prev === rawName ? null : prev)), 2500)
+          flashHighlight(setHighlightedEnvVar, rawName, 2500)
         })
       } else {
         if (kind === 'var') {
@@ -488,11 +635,7 @@ export function DebugPanel() {
           requestAnimationFrame(() => {
             const row = workflowVarRowRefs.current.get(normalized)
             if (row) row.scrollIntoView({ behavior: 'smooth', block: 'center' })
-            setHighlightedWorkflowVar(normalized)
-            setTimeout(
-              () => setHighlightedWorkflowVar((prev) => (prev === normalized ? null : prev)),
-              2500
-            )
+            flashHighlight(setHighlightedWorkflowVar, normalized, 2500)
           })
         } else {
           // Reference variable token
@@ -502,8 +645,7 @@ export function DebugPanel() {
           requestAnimationFrame(() => {
             const row = refVarRowRefs.current.get(refKey)
             if (row) row.scrollIntoView({ behavior: 'smooth', block: 'center' })
-            setHighlightedRefVar(refKey)
-            setTimeout(() => setHighlightedRefVar((prev) => (prev === refKey ? null : prev)), 4000)
+            flashHighlight(setHighlightedRefVar, refKey, 4000)
           })
         }
       }
@@ -551,7 +693,15 @@ export function DebugPanel() {
       )
     }
 
-    return <span className='break-words'>{parts}</span>
+    const node = <span className='break-words'>{parts}</span>
+    if (tokenRenderCache.size >= TOKEN_CACHE_MAX) {
+      const iter = tokenRenderCache.keys().next()
+      if (!iter.done) {
+        tokenRenderCache.delete(iter.value as string)
+      }
+    }
+    tokenRenderCache.set(cacheKey, node)
+    return node
   }
 
   // Helper to toggle field expansion
@@ -1551,6 +1701,13 @@ export function DebugPanel() {
     }
   }, [isDebugging, setPanelFocusedBlockId])
 
+  // Clear init pending when debug context and initial pending arrive
+  useEffect(() => {
+    if (hasStartedRef.current && debugContext && Array.isArray(pendingBlocks)) {
+      setIsInitPending(false)
+    }
+  }, [debugContext, pendingBlocks])
+
   if (!isDebugging) {
     return (
       <div className='flex h-full flex-col items-center justify-center px-6'>
@@ -1571,10 +1728,12 @@ export function DebugPanel() {
   const handleStep = async () => {
     if (!hasStartedRef.current && !debugContext) {
       hasStartedRef.current = true
+      setIsInitPending(true)
       if (isChatMode) {
         const text = chatMessage.trim()
         if (!text) {
           hasStartedRef.current = false
+          setIsInitPending(false)
           return
         }
         await handleRunWorkflow({ input: text, conversationId: crypto.randomUUID() }, true)
@@ -1592,7 +1751,6 @@ export function DebugPanel() {
     // Do not toggle debug mode off; just reset execution/debug state
     hasStartedRef.current = false
     lastFocusedIdRef.current = null
-    setBreakpointId(null)
     setExecutingBlockIds(new Set())
     setActiveBlocks(new Set())
     setPendingBlocks([])
@@ -1611,10 +1769,12 @@ export function DebugPanel() {
     // If not started yet, initialize the executor (same as first Step)
     if (!useExecutionStore.getState().debugContext && !hasStartedRef.current) {
       hasStartedRef.current = true
+      setIsInitPending(true)
       if (isChatMode) {
         const text = chatMessage.trim()
         if (!text) {
           hasStartedRef.current = false
+          setIsInitPending(false)
           return
         }
         await handleRunWorkflow({ input: text, conversationId: crypto.randomUUID() }, true)
@@ -1743,7 +1903,8 @@ export function DebugPanel() {
                   variant='ghost'
                   onClick={handleRevertToStartPos}
                   aria-label='Revert to Start Pos'
-                  className='h-8 w-8 rounded-md bg-purple-500/10 text-purple-600 hover:bg-purple-600 hover:text-white'
+                  className='h-8 w-8 rounded-md bg-purple-500/10 text-purple-600 hover:bg-purple-600 hover:text-white disabled:opacity-40'
+                  disabled={isInitPending || executingIds.size > 0}
                 >
                   <Undo2 className='h-4 w-4' />
                 </Button>
@@ -1759,7 +1920,8 @@ export function DebugPanel() {
                   variant='ghost'
                   onClick={handleBackstep}
                   aria-label='Backstep'
-                  className='h-8 w-8 rounded-md bg-slate-500/10 text-slate-600 hover:bg-slate-600 hover:text-white'
+                  className='h-8 w-8 rounded-md bg-slate-500/10 text-slate-600 hover:bg-slate-600 hover:text-white disabled:opacity-40'
+                  disabled={isInitPending || executingIds.size > 0}
                 >
                   <StepBack className='h-4 w-4' />
                 </Button>
@@ -1778,7 +1940,8 @@ export function DebugPanel() {
                   variant='ghost'
                   onClick={handleStep}
                   aria-label='Step'
-                  className='h-8 w-8 rounded-md bg-blue-500/10 text-blue-600 hover:bg-blue-600 hover:text-white'
+                  className='h-8 w-8 rounded-md bg-blue-500/10 text-blue-600 hover:bg-blue-600 hover:text-white disabled:opacity-40'
+                  disabled={isInitPending || executingIds.size > 0}
                 >
                   <Play className='h-4 w-4' />
                 </Button>
@@ -1793,9 +1956,7 @@ export function DebugPanel() {
                   size='icon'
                   variant='ghost'
                   onClick={handleResumeUntilBreakpoint}
-                  disabled={
-                    isChatMode ? !hasStartedRef.current && chatMessage.trim() === '' : false
-                  }
+                  disabled={(isInitPending || executingIds.size > 0) || (isChatMode ? !hasStartedRef.current && chatMessage.trim() === '' : false)}
                   aria-label='Resume'
                   className='h-8 w-8 rounded-md bg-indigo-500/10 text-indigo-600 hover:bg-indigo-600 hover:text-white disabled:opacity-40'
                 >
@@ -1805,7 +1966,7 @@ export function DebugPanel() {
               <TooltipContent>
                 {breakpointId ? 'Continue until breakpoint' : 'Continue execution'}
               </TooltipContent>
-                          </Tooltip>
+            </Tooltip>
 
             {/* Divider */}
             <div className='mx-1 h-4 w-px bg-border/50' />
@@ -1818,7 +1979,8 @@ export function DebugPanel() {
                   variant='ghost'
                   onClick={handleRestart}
                   aria-label='Restart'
-                  className='h-8 w-8 rounded-md bg-amber-500/10 text-amber-600 hover:bg-amber-600 hover:text-white'
+                  className='h-8 w-8 rounded-md bg-amber-500/10 text-amber-600 hover:bg-amber-600 hover:text-white disabled:opacity-40'
+                  disabled={isInitPending || executingIds.size > 0}
                 >
                   <RotateCcw className='h-4 w-4' />
                 </Button>
@@ -1832,7 +1994,7 @@ export function DebugPanel() {
                 <Button
                   size='icon'
                   variant='ghost'
-                  onClick={handleCancelDebug}
+                  onClick={handleStopExecutionOnly}
                   aria-label='Stop'
                   className='h-8 w-8 rounded-md bg-red-500/10 text-red-600 hover:bg-red-600 hover:text-white'
                 >
@@ -2239,23 +2401,32 @@ export function DebugPanel() {
                   </span>
                 </TabsTrigger>
               </TabsList>
-              <div
-                className='flex cursor-pointer items-center gap-2 text-xs'
-                onClick={() => setScopedVariables(!scopedVariables)}
-              >
-                <Checkbox
-                  checked={scopedVariables}
-                  onCheckedChange={(checked) => setScopedVariables(checked as boolean)}
-                  className='h-3.5 w-3.5'
-                  id='scoped-variables-checkbox'
-                />
-                <label
-                  htmlFor='scoped-variables-checkbox'
-                  className='cursor-pointer text-muted-foreground'
-                >
-                  Scoped
-                </label>
-              </div>
+              <TooltipProvider>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <div
+                      className='flex cursor-pointer items-center gap-2 text-xs'
+                      onClick={() => setScopedVariables(!scopedVariables)}
+                    >
+                      <Checkbox
+                        checked={scopedVariables}
+                        onCheckedChange={(checked) => setScopedVariables(checked as boolean)}
+                        className='h-3.5 w-3.5'
+                        id='scoped-variables-checkbox'
+                      />
+                      <label
+                        htmlFor='scoped-variables-checkbox'
+                        className='cursor-pointer text-muted-foreground'
+                      >
+                        Scoped
+                      </label>
+                    </div>
+                  </TooltipTrigger>
+                  <TooltipContent>
+                    Only shows relevant references
+                  </TooltipContent>
+                </Tooltip>
+              </TooltipProvider>
             </div>
 
             <TabsContent value='reference' className='m-0 flex-1 overflow-auto'>
