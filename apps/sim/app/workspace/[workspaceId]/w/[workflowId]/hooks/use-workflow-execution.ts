@@ -157,9 +157,12 @@ export function useWorkflowExecution() {
       // Update debug context and pending blocks
       if (result.metadata?.context) {
         setDebugContext(result.metadata.context)
-        // Capture snapshot for revert
+        // Capture snapshot for revert/backstep
         try {
           useDebugSnapshotStore.getState().captureFromContext(result.metadata.context as any)
+          useDebugSnapshotStore
+            .getState()
+            .pushFromContext(result.metadata.context as any, result.metadata?.pendingBlocks || [])
         } catch {}
       }
       if (result.metadata?.pendingBlocks) {
@@ -482,6 +485,9 @@ export function useWorkflowExecution() {
           try {
             if (result.metadata?.context) {
               useDebugSnapshotStore.getState().captureFromContext(result.metadata.context as any)
+              useDebugSnapshotStore
+                .getState()
+                .pushFromContext(result.metadata.context as any, result.metadata?.pendingBlocks || [])
             }
           } catch {}
           if (result.metadata.pendingBlocks) {

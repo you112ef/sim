@@ -13,6 +13,7 @@ import {
   X,
   Flag,
   Undo2,
+  StepBack,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Checkbox } from '@/components/ui/checkbox'
@@ -324,6 +325,42 @@ export function DebugPanel() {
       setDebugContext(newCtx)
       // Also update panel focus to first pending for clarity
       setPanelFocusedBlockId(pendingSelection[0] || null)
+    } catch {}
+  }
+
+  const handleBackstep = () => {
+    const prev = useDebugSnapshotStore.getState().stepBack()
+    if (!prev || !debugContext) return
+    try {
+      const newCtx = { ...debugContext }
+      // Rebuild block states from previous snapshot
+      const rebuilt = new Map<string, any>()
+      prev.blockSnapshots.forEach((snap, id) => {
+        rebuilt.set(id, {
+          output: snap.output,
+          executed: snap.executed,
+          executionTime: snap.executionTime ?? 0,
+        })
+      })
+      newCtx.blockStates = rebuilt as any
+      if (prev.envVarValues) newCtx.environmentVariables = prev.envVarValues
+      if (prev.workflowVariables) newCtx.workflowVariables = prev.workflowVariables
+      // Recompute active execution path from pending
+      const path = new Set<string>()
+      const q: string[] = [...prev.pendingBlocks]
+      const seen = new Set<string>()
+      while (q.length) {
+        const n = q.shift() as string
+        if (seen.has(n)) continue
+        seen.add(n)
+        path.add(n)
+        const next = forwardAdj[n] || []
+        for (const m of next) if (!seen.has(m)) q.push(m)
+      }
+      newCtx.activeExecutionPath = path
+      setDebugContext(newCtx)
+      setPendingBlocks(prev.pendingBlocks)
+      setPanelFocusedBlockId(prev.pendingBlocks[0] || null)
     } catch {}
   }
 
@@ -1658,6 +1695,39 @@ export function DebugPanel() {
         )}
         <div className='flex items-center gap-2'>
           <TooltipProvider>
+            {/* Revert to Start Pos - leftmost */}
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  size='icon'
+                  variant='ghost'
+                  onClick={handleRevertToStartPos}
+                  aria-label='Revert to Start Pos'
+                  className='h-8 w-8 rounded-md bg-purple-500/10 text-purple-600 hover:bg-purple-500/20'
+                >
+                  <Undo2 className='h-4 w-4' />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>Revert to Start Position</TooltipContent>
+            </Tooltip>
+
+            {/* Backstep */}
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  size='icon'
+                  variant='ghost'
+                  onClick={handleBackstep}
+                  aria-label='Backstep'
+                  className='h-8 w-8 rounded-md bg-slate-500/10 text-slate-600 hover:bg-slate-500/20'
+                >
+                  <StepBack className='h-4 w-4' />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>Step back</TooltipContent>
+            </Tooltip>
+
+            {/* Step */}
             <Tooltip>
               <TooltipTrigger asChild>
                 <Button
@@ -1673,6 +1743,7 @@ export function DebugPanel() {
               <TooltipContent>Execute next step</TooltipContent>
             </Tooltip>
 
+            {/* Resume */}
             <Tooltip>
               <TooltipTrigger asChild>
                 <Button
@@ -1693,21 +1764,7 @@ export function DebugPanel() {
               </TooltipContent>
             </Tooltip>
 
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Button
-                  size='icon'
-                  variant='ghost'
-                  onClick={handleRevertToStartPos}
-                  aria-label='Revert to Start Pos'
-                  className='h-8 w-8 rounded-md bg-purple-500/10 text-purple-600 hover:bg-purple-500/20'
-                >
-                  <Undo2 className='h-4 w-4' />
-                </Button>
-              </TooltipTrigger>
-              <TooltipContent>Revert to Start Position</TooltipContent>
-            </Tooltip>
-
+            {/* Restart */}
             <Tooltip>
               <TooltipTrigger asChild>
                 <Button
@@ -1723,6 +1780,7 @@ export function DebugPanel() {
               <TooltipContent>Restart from the beginning</TooltipContent>
             </Tooltip>
 
+            {/* Stop */}
             <Tooltip>
               <TooltipTrigger asChild>
                 <Button
