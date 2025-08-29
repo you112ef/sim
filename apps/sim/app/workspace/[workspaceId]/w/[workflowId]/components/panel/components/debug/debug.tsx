@@ -36,6 +36,8 @@ import { mergeSubblockState } from '@/stores/workflows/utils'
 import { useWorkflowStore } from '@/stores/workflows/workflow/store'
 import { getTool } from '@/tools/utils'
 import { getTrigger, getTriggersByProvider } from '@/triggers'
+import { useParams } from 'next/navigation'
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 
 // Token render cache (LRU-style)
 const TOKEN_CACHE_MAX = 500
@@ -74,6 +76,20 @@ export function DebugPanel() {
   const hasStartedRef = useRef(false)
   const lastFocusedIdRef = useRef<string | null>(null)
   const [isInitPending, setIsInitPending] = useState(false)
+  const params = useParams()
+  const workspaceId = (params as any)?.workspaceId as string | undefined
+  const workflowId = (params as any)?.workflowId as string | undefined
+  const [executions, setExecutions] = useState<
+    Array<{
+      id: string
+      executionId?: string
+      createdAt: string
+      trigger?: string
+      status: 'info' | 'error'
+    }>
+  >([])
+  const [isLoadingExecutions, setIsLoadingExecutions] = useState(false)
+  const [selectedExecutionKey, setSelectedExecutionKey] = useState<string | undefined>(undefined)
 
   // Track bottom variables tab and row highlighting for navigation from tokens
   const [bottomTab, setBottomTab] = useState<'reference' | 'workflow' | 'environment'>('reference')
@@ -93,6 +109,19 @@ export function DebugPanel() {
         window.setTimeout(() => setter((prev: any) => (prev === key ? null : prev)), durationMs)
       })
     } catch {}
+  }
+
+  // Compact timestamp formatter (e.g., 8/29, 12:41 PM)
+  const formatShortDateTime = (iso: string) => {
+    const d = new Date(iso)
+    if (Number.isNaN(d.getTime())) return iso
+    return new Intl.DateTimeFormat(undefined, {
+      month: 'numeric',
+      day: 'numeric',
+      hour: 'numeric',
+      minute: '2-digit',
+      hour12: true,
+    }).format(d)
   }
 
   // Graph helpers for start position constraints
@@ -1721,6 +1750,45 @@ export function DebugPanel() {
     }
   }, [debugContext, pendingBlocks])
 
+  // Load recent executions for this workflow
+  useEffect(() => {
+    if (!workspaceId || !workflowId) return
+    let canceled = false
+    const load = async () => {
+      try {
+        setIsLoadingExecutions(true)
+        const url = `/api/logs?workspaceId=${encodeURIComponent(
+          workspaceId
+        )}&workflowIds=${encodeURIComponent(workflowId)}&details=full&limit=50&offset=0`
+        const res = await fetch(url)
+        const json = await res.json()
+        if (canceled) return
+        const items = Array.isArray(json?.data)
+          ? (json.data as any[]).map((log) => ({
+              id: String(log.id),
+              executionId: log.executionId as string | undefined,
+              createdAt: String(log.createdAt),
+              trigger: log.trigger as string | undefined,
+              status: ((String(log.level || '').toLowerCase() === 'error'
+                ? 'error'
+                : 'info') as 'info' | 'error'),
+            }))
+          : []
+        setExecutions(items)
+        if (!selectedExecutionKey && items.length > 0) {
+          setSelectedExecutionKey(items[0].id)
+        }
+      } catch {
+      } finally {
+        if (!canceled) setIsLoadingExecutions(false)
+      }
+    }
+    load()
+    return () => {
+      canceled = true
+    }
+  }, [workspaceId, workflowId])
+
   if (!isDebugging) {
     return (
       <div className='flex h-full flex-col items-center justify-center px-6'>
@@ -2021,6 +2089,38 @@ export function DebugPanel() {
               <TooltipContent>Stop debugging</TooltipContent>
             </Tooltip>
           </TooltipProvider>
+
+          {/* Executions Dropdown */}
+          <div className='ml-auto flex items-center'>
+            <Select value={selectedExecutionKey} onValueChange={(v) => setSelectedExecutionKey(v)}>
+              <SelectTrigger className='h-8 w-[220px] text-[11px] leading-4'>
+                <SelectValue
+                  placeholder={
+                    isLoadingExecutions
+                      ? 'Loading executions...'
+                      : executions.length > 0
+                        ? 'Select execution'
+                        : 'No executions'
+                  }
+                />
+              </SelectTrigger>
+              <SelectContent>
+                {executions.map((e) => (
+                  <SelectItem key={e.id} value={e.id} className='py-1 text-[11px]'>
+                    <div className='flex w-full items-center gap-1.5 whitespace-nowrap'>
+                      {e.status === 'error' ? (
+                        <X className='h-3 w-3 text-red-600' />
+                      ) : (
+                        <Check className='h-3 w-3 text-emerald-600' />
+                      )}
+                      <span>· {e.trigger || 'unknown'}</span>
+                      <span className='ml-1'>· {formatShortDateTime(e.createdAt)}</span>
+                    </div>
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
         </div>
       </div>
 
@@ -2146,8 +2246,7 @@ export function DebugPanel() {
                   // Check logs
                   const errorLog = debugContext?.blockLogs?.find(
                     (log) =>
-                      (log.blockId === id || resolveOriginalBlockId(log.blockId) === id) &&
-                      !log.success
+                      (log.blockId === id || resolveOriginalBlockId(log.blockId) === id) && !log.success
                   )
                   if (errorLog?.error) {
                     return (
