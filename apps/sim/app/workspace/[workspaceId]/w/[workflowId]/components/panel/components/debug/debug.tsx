@@ -316,6 +316,26 @@ export function DebugPanel() {
       // Pending selection: prefer global ready layer if available; else minimal chain-based ready
       const pendingSelection = globalReady.length > 0 ? globalReady : initialPending
 
+      // Clear pending-and-downstream nodes so outputs refresh on next runs
+      const toClear = new Set<string>()
+      const qc: string[] = [...pendingSelection]
+      const seenC = new Set<string>()
+      while (qc.length) {
+        const n = qc.shift() as string
+        if (seenC.has(n)) continue
+        seenC.add(n)
+        toClear.add(n)
+        const next = forwardAdj[n] || []
+        for (const m of next) if (!seenC.has(m)) qc.push(m)
+      }
+      toClear.forEach((id) => {
+        const prev = rebuilt.get(id)
+        rebuilt.set(id, { output: {}, executed: false, executionTime: 0 } as any)
+      })
+      // Remove cleared from executed set
+      const adjustedExecuted = new Set<string>(Array.from(newCtx.executedBlocks || new Set()).filter((id) => !toClear.has(id)))
+      newCtx.executedBlocks = adjustedExecuted
+
       // Apply rebuilt block states and clear parallel mapping current id
       newCtx.blockStates = rebuilt as any
       newCtx.currentVirtualBlockId = undefined
@@ -357,6 +377,26 @@ export function DebugPanel() {
         const next = forwardAdj[n] || []
         for (const m of next) if (!seen.has(m)) q.push(m)
       }
+      // Clear previous-pending-and-downstream nodes to refresh outputs
+      const toClear = new Set<string>()
+      const qc: string[] = [...prev.pendingBlocks]
+      const seenC = new Set<string>()
+      while (qc.length) {
+        const n = qc.shift() as string
+        if (seenC.has(n)) continue
+        seenC.add(n)
+        toClear.add(n)
+        const next = forwardAdj[n] || []
+        for (const m of next) if (!seenC.has(m)) qc.push(m)
+      }
+      toClear.forEach((id) => {
+        const prevState = rebuilt.get(id)
+        rebuilt.set(id, { output: {}, executed: false, executionTime: 0 } as any)
+      })
+      const adjustedExecuted = new Set<string>(Array.from(newCtx.executedBlocks || new Set()).filter((id) => !toClear.has(id)))
+      newCtx.executedBlocks = adjustedExecuted
+      newCtx.blockStates = rebuilt as any
+
       newCtx.activeExecutionPath = path
       setDebugContext(newCtx)
       setPendingBlocks(prev.pendingBlocks)
@@ -1703,7 +1743,7 @@ export function DebugPanel() {
                   variant='ghost'
                   onClick={handleRevertToStartPos}
                   aria-label='Revert to Start Pos'
-                  className='h-8 w-8 rounded-md bg-purple-500/10 text-purple-600 hover:bg-purple-500/20'
+                  className='h-8 w-8 rounded-md bg-purple-500/10 text-purple-600 hover:bg-purple-600 hover:text-white'
                 >
                   <Undo2 className='h-4 w-4' />
                 </Button>
@@ -1719,13 +1759,16 @@ export function DebugPanel() {
                   variant='ghost'
                   onClick={handleBackstep}
                   aria-label='Backstep'
-                  className='h-8 w-8 rounded-md bg-slate-500/10 text-slate-600 hover:bg-slate-500/20'
+                  className='h-8 w-8 rounded-md bg-slate-500/10 text-slate-600 hover:bg-slate-600 hover:text-white'
                 >
                   <StepBack className='h-4 w-4' />
                 </Button>
               </TooltipTrigger>
               <TooltipContent>Step back</TooltipContent>
             </Tooltip>
+
+            {/* Divider */}
+            <div className='mx-1 h-4 w-px bg-border/50' />
 
             {/* Step */}
             <Tooltip>
@@ -1735,7 +1778,7 @@ export function DebugPanel() {
                   variant='ghost'
                   onClick={handleStep}
                   aria-label='Step'
-                  className='h-8 w-8 rounded-md bg-blue-500/10 text-blue-600 hover:bg-blue-500/20'
+                  className='h-8 w-8 rounded-md bg-blue-500/10 text-blue-600 hover:bg-blue-600 hover:text-white'
                 >
                   <Play className='h-4 w-4' />
                 </Button>
@@ -1754,7 +1797,7 @@ export function DebugPanel() {
                     isChatMode ? !hasStartedRef.current && chatMessage.trim() === '' : false
                   }
                   aria-label='Resume'
-                  className='h-8 w-8 rounded-md bg-indigo-500/10 text-indigo-600 hover:bg-indigo-500/20 disabled:opacity-40'
+                  className='h-8 w-8 rounded-md bg-indigo-500/10 text-indigo-600 hover:bg-indigo-600 hover:text-white disabled:opacity-40'
                 >
                   <FastForward className='h-4 w-4' />
                 </Button>
@@ -1762,7 +1805,10 @@ export function DebugPanel() {
               <TooltipContent>
                 {breakpointId ? 'Continue until breakpoint' : 'Continue execution'}
               </TooltipContent>
-            </Tooltip>
+                          </Tooltip>
+
+            {/* Divider */}
+            <div className='mx-1 h-4 w-px bg-border/50' />
 
             {/* Restart */}
             <Tooltip>
@@ -1772,7 +1818,7 @@ export function DebugPanel() {
                   variant='ghost'
                   onClick={handleRestart}
                   aria-label='Restart'
-                  className='h-8 w-8 rounded-md bg-amber-500/10 text-amber-600 hover:bg-amber-500/20'
+                  className='h-8 w-8 rounded-md bg-amber-500/10 text-amber-600 hover:bg-amber-600 hover:text-white'
                 >
                   <RotateCcw className='h-4 w-4' />
                 </Button>
@@ -1788,7 +1834,7 @@ export function DebugPanel() {
                   variant='ghost'
                   onClick={handleCancelDebug}
                   aria-label='Stop'
-                  className='h-8 w-8 rounded-md bg-red-500/10 text-red-600 hover:bg-red-500/20'
+                  className='h-8 w-8 rounded-md bg-red-500/10 text-red-600 hover:bg-red-600 hover:text-white'
                 >
                   <Square className='h-4 w-4' />
                 </Button>
