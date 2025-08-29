@@ -65,15 +65,12 @@ export const useExecutionStore = create<ExecutionState & ExecutionActions>()((se
   setExecutingBlockIds: (ids) => set({ executingBlockIds: new Set(ids) }),
   setBreakpointId: (id) => set({ breakpointId: id }),
 
-  setStartPositions: (ids) => set({ startPositionIds: new Set(ids) }),
+  setStartPositions: (ids) => set({ startPositionIds: new Set(Array.from(ids).slice(0, 1)) }),
   toggleStartPosition: (id) => {
     set((state) => {
-      const next = new Set(state.startPositionIds)
-      if (next.has(id)) {
-        next.delete(id)
-      } else {
-        next.add(id)
-      }
+      const isActive = state.startPositionIds.has(id)
+      // Enforce single selection
+      const next = isActive ? new Set<string>() : new Set<string>([id])
       return { startPositionIds: next }
     })
   },

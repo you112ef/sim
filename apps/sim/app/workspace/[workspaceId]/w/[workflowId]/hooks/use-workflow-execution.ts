@@ -17,7 +17,7 @@ import { useGeneralStore } from '@/stores/settings/general/store'
 import { useWorkflowRegistry } from '@/stores/workflows/registry/store'
 import { mergeSubblockState } from '@/stores/workflows/utils'
 import { useCurrentWorkflow } from './use-current-workflow'
-import { BlockPathCalculator } from '@/lib/block-path-calculator'
+import { useDebugSnapshotStore } from '@/stores/execution/debug-snapshots/store'
 
 const logger = createLogger('useWorkflowExecution')
 
@@ -157,6 +157,10 @@ export function useWorkflowExecution() {
       // Update debug context and pending blocks
       if (result.metadata?.context) {
         setDebugContext(result.metadata.context)
+        // Capture snapshot for revert
+        try {
+          useDebugSnapshotStore.getState().captureFromContext(result.metadata.context as any)
+        } catch {}
       }
       if (result.metadata?.pendingBlocks) {
         setPendingBlocks(result.metadata.pendingBlocks)
@@ -475,14 +479,13 @@ export function useWorkflowExecution() {
         const result = await executeWorkflow(workflowInput, undefined, executionId, enableDebug)
         if (result && 'metadata' in result && result.metadata?.isDebugSession) {
           setDebugContext(result.metadata.context || null)
-          if (result.metadata.pendingBlocks) {
-            // If start positions are set, override pending blocks with those
-            if (startPositionIds && startPositionIds.size > 0) {
-              const next = Array.from(startPositionIds)
-              setPendingBlocks(next)
-            } else {
-              setPendingBlocks(result.metadata.pendingBlocks)
+          try {
+            if (result.metadata?.context) {
+              useDebugSnapshotStore.getState().captureFromContext(result.metadata.context as any)
             }
+          } catch {}
+          if (result.metadata.pendingBlocks) {
+            setPendingBlocks(result.metadata.pendingBlocks)
           }
         } else if (result && 'success' in result) {
           setExecutionResult(result)
@@ -693,15 +696,8 @@ export function useWorkflowExecution() {
     // Execute workflow
     const execResult = await newExecutor.execute(activeWorkflowId || '')
 
-    // If we have start positions for debug, update context/pending accordingly
-    if (
-      debugRequested === true &&
-      execResult &&
-      'metadata' in execResult &&
-      (execResult as any).metadata?.isDebugSession &&
-      startPositionIds &&
-      startPositionIds.size > 0
-    ) {
+    // If we have start positions for debug, update context/pending accordingly (only on explicit user revert, not on restart)
+    if (false) {
       try {
         const ctx = (execResult as any).metadata.context
         // Build forward adjacency from serialized connections
@@ -730,6 +726,9 @@ export function useWorkflowExecution() {
         setPendingBlocks(Array.from(startPositionIds))
         ;(execResult as any).metadata.pendingBlocks = Array.from(startPositionIds)
         setDebugContext(ctx)
+        try {
+          useDebugSnapshotStore.getState().captureFromContext(ctx as any)
+        } catch {}
       } catch (e) {
         logger.warn('Failed to apply start positions', e)
       }
