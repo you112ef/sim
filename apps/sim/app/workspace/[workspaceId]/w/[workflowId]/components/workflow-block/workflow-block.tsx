@@ -692,17 +692,19 @@ export function WorkflowBlock({ id, data }: NodeProps<WorkflowBlockProps>) {
           </div>
         )}
 
-        {/* Show breakpoint indicator */}
-        {isDebugModeEnabled && breakpointId === id && (
-          <div className='-bottom-6 -translate-x-1/2 absolute left-1/2 z-10 transform rounded-b-md bg-orange-500 px-2 py-0.5 text-white text-xs'>
-            Breakpoint
-          </div>
-        )}
-
-        {/* Show start position indicator */}
-        {isDebugModeEnabled && startPositionIds.has(id) && (
-          <div className='-bottom-6 -translate-x-1/2 absolute left-1/2 z-10 transform rounded-b-md bg-purple-600 px-2 py-0.5 text-white text-xs'>
-            Start Position
+        {/* Bottom indicators: breakpoint and start position side by side */}
+        {isDebugModeEnabled && (breakpointId === id || startPositionIds.has(id)) && (
+          <div className='-bottom-6 -translate-x-1/2 absolute left-1/2 z-10 flex transform items-end gap-2'>
+            {breakpointId === id && (
+              <div className='rounded-b-md bg-orange-500 px-2 py-0.5 text-white text-xs'>
+                Breakpoint
+              </div>
+            )}
+            {startPositionIds.has(id) && (
+              <div className='rounded-b-md bg-purple-600 px-2 py-0.5 text-white text-xs'>
+                Start Position
+              </div>
+            )}
           </div>
         )}
 
