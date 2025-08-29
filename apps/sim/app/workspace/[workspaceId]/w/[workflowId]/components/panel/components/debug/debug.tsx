@@ -38,6 +38,8 @@ import { getTool } from '@/tools/utils'
 import { getTrigger, getTriggersByProvider } from '@/triggers'
 import { useParams } from 'next/navigation'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
+import { useDebugCanvasStore } from '@/stores/execution/debug-canvas/store'
+import type { WorkflowState } from '@/stores/workflows/workflow/types'
 
 // Token render cache (LRU-style)
 const TOKEN_CACHE_MAX = 500
@@ -1788,6 +1790,33 @@ export function DebugPanel() {
       canceled = true
     }
   }, [workspaceId, workflowId])
+
+  // Load selected execution's workflow into debug canvas
+  useEffect(() => {
+    if (!selectedExecutionKey) return
+    const selected = executions.find((e) => e.id === selectedExecutionKey)
+    const execId = selected?.executionId
+    if (!execId) return
+
+    let canceled = false
+    const load = async () => {
+      try {
+        const response = await fetch(`/api/logs/${encodeURIComponent(execId)}/frozen-canvas`)
+        const json = await response.json()
+        if (canceled) return
+        const state = json?.data?.workflowState as WorkflowState | undefined
+        if (state) {
+          useDebugCanvasStore.getState().activate(state)
+        }
+      } catch (err) {
+        // Silently ignore load errors
+      }
+    }
+    load()
+    return () => {
+      canceled = true
+    }
+  }, [selectedExecutionKey, executions])
 
   if (!isDebugging) {
     return (

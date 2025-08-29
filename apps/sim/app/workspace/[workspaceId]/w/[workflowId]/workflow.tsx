@@ -1635,6 +1635,8 @@ const WorkflowContent = React.memo(() => {
     )
   }
 
+  const isReadOnly = currentWorkflow.isDebugCanvasMode === true ? true : !effectivePermissions.canEdit
+
   return (
     <div className='flex h-screen w-full flex-col overflow-hidden'>
       <div className='relative h-full w-full flex-1 transition-all duration-200'>
@@ -1650,11 +1652,11 @@ const WorkflowContent = React.memo(() => {
           edges={edgesWithSelection}
           onNodesChange={onNodesChange}
           onEdgesChange={onEdgesChange}
-          onConnect={effectivePermissions.canEdit ? onConnect : undefined}
+          onConnect={isReadOnly ? undefined : onConnect}
           nodeTypes={nodeTypes}
           edgeTypes={edgeTypes}
-          onDrop={effectivePermissions.canEdit ? onDrop : undefined}
-          onDragOver={effectivePermissions.canEdit ? onDragOver : undefined}
+          onDrop={isReadOnly ? undefined : onDrop}
+          onDragOver={isReadOnly ? undefined : onDragOver}
           fitView
           minZoom={0.1}
           maxZoom={1.3}
@@ -1674,22 +1676,22 @@ const WorkflowContent = React.memo(() => {
           onEdgeClick={onEdgeClick}
           elementsSelectable={true}
           selectNodesOnDrag={false}
-          nodesConnectable={effectivePermissions.canEdit}
-          nodesDraggable={effectivePermissions.canEdit}
+          nodesConnectable={!isReadOnly}
+          nodesDraggable={!isReadOnly}
           draggable={false}
           noWheelClassName='allow-scroll'
           edgesFocusable={true}
-          edgesUpdatable={effectivePermissions.canEdit}
+          edgesUpdatable={!isReadOnly}
           className='workflow-container h-full'
-          onNodeDrag={effectivePermissions.canEdit ? onNodeDrag : undefined}
-          onNodeDragStop={effectivePermissions.canEdit ? onNodeDragStop : undefined}
-          onNodeDragStart={effectivePermissions.canEdit ? onNodeDragStart : undefined}
+          onNodeDrag={isReadOnly ? undefined : onNodeDrag}
+          onNodeDragStop={isReadOnly ? undefined : onNodeDragStop}
+          onNodeDragStart={isReadOnly ? undefined : onNodeDragStart}
           snapToGrid={false}
           snapGrid={[20, 20]}
           elevateEdgesOnSelect={true}
           elevateNodesOnSelect={true}
-          autoPanOnConnect={effectivePermissions.canEdit}
-          autoPanOnNodeDrag={effectivePermissions.canEdit}
+          autoPanOnConnect={!isReadOnly}
+          autoPanOnNodeDrag={!isReadOnly}
         >
           <Background
             color='hsl(var(--workflow-dots))'

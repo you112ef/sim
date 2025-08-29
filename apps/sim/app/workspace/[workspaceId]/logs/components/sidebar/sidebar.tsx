@@ -16,6 +16,7 @@ import { TraceSpansDisplay } from '@/app/workspace/[workspaceId]/logs/components
 import { formatDate } from '@/app/workspace/[workspaceId]/logs/utils/format-date'
 import { formatCost } from '@/providers/utils'
 import type { WorkflowLog } from '@/stores/logs/filters/types'
+import { useRouter } from 'next/navigation'
 
 interface LogSidebarProps {
   log: WorkflowLog | null
@@ -529,15 +530,32 @@ export function Sidebar({
                     <h3 className='mb-1 font-medium text-muted-foreground text-xs'>
                       Workflow State
                     </h3>
-                    <Button
-                      variant='outline'
-                      size='sm'
-                      onClick={() => setIsFrozenCanvasOpen(true)}
-                      className='w-full justify-start gap-2'
-                    >
-                      <Eye className='h-4 w-4' />
-                      View Snapshot
-                    </Button>
+                    <div className='flex w-full gap-2'>
+                      <Button
+                        variant='outline'
+                        size='sm'
+                        onClick={() => setIsFrozenCanvasOpen(true)}
+                        className='flex-1 justify-start gap-2'
+                      >
+                        <Eye className='h-4 w-4' />
+                        View Snapshot
+                      </Button>
+                      <Button
+                        variant='secondary'
+                        size='sm'
+                        onClick={() => {
+                          try {
+                            const router = useRouter()
+                            const href = `/workspace/${encodeURIComponent(String(log.workflowId || ''))}/w/${encodeURIComponent(String(log.workflowId || ''))}`
+                            router.push(href)
+                          } catch {}
+                        }}
+                        className='flex-1 justify-start gap-2'
+                      >
+                        <Eye className='h-4 w-4' />
+                        Open Live Debug
+                      </Button>
+                    </div>
                     <p className='mt-1 text-muted-foreground text-xs'>
                       See the exact workflow state and block inputs/outputs at execution time
                     </p>

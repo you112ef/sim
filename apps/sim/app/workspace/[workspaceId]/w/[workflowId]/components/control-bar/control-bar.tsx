@@ -43,6 +43,7 @@ import {
   useKeyboardShortcuts,
 } from '@/app/workspace/[workspaceId]/w/hooks/use-keyboard-shortcuts'
 import { useExecutionStore } from '@/stores/execution/store'
+import { useDebugCanvasStore } from '@/stores/execution/debug-canvas/store'
 import { useFolderStore } from '@/stores/folders/store'
 import { usePanelStore } from '@/stores/panel/store'
 import { useGeneralStore } from '@/stores/settings/general/store'
@@ -817,6 +818,7 @@ export function ControlBar({ hasValidationErrors = false }: ControlBarProps) {
 
     if (isDebugging) {
       // Stop debugging
+      try { useDebugCanvasStore.getState().clear() } catch {}
       handleCancelDebug()
     } else {
       // Check if there are executable blocks before starting debug mode
@@ -851,6 +853,8 @@ export function ControlBar({ hasValidationErrors = false }: ControlBarProps) {
         if (starterId) {
           execStore.setActiveBlocks(new Set([starterId]))
         }
+        // Ensure debug canvas starts in a clean state
+        try { useDebugCanvasStore.getState().clear() } catch {}
       }
     }
   }, [
