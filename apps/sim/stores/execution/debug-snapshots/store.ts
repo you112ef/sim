@@ -43,40 +43,53 @@ function buildBlockSnapshots(ctx: ExecutionContext): Map<string, BlockSnapshot> 
   return next
 }
 
-export const useDebugSnapshotStore = create<DebugSnapshotState & DebugSnapshotActions>()((set, get) => ({
-  blockSnapshots: new Map<string, BlockSnapshot>(),
-  envVarValues: undefined,
-  workflowVariables: undefined,
-  history: [],
+export const useDebugSnapshotStore = create<DebugSnapshotState & DebugSnapshotActions>()(
+  (set, get) => ({
+    blockSnapshots: new Map<string, BlockSnapshot>(),
+    envVarValues: undefined,
+    workflowVariables: undefined,
+    history: [],
 
-  captureFromContext: (ctx: ExecutionContext) => {
-    const next = buildBlockSnapshots(ctx)
-    set({
-      blockSnapshots: next,
-      envVarValues: ctx.environmentVariables || undefined,
-      workflowVariables: ctx.workflowVariables || undefined,
-    })
-  },
+    captureFromContext: (ctx: ExecutionContext) => {
+      const next = buildBlockSnapshots(ctx)
+      set({
+        blockSnapshots: next,
+        envVarValues: ctx.environmentVariables || undefined,
+        workflowVariables: ctx.workflowVariables || undefined,
+      })
+    },
 
-  pushFromContext: (ctx: ExecutionContext, pendingBlocks: string[]) => {
-    const entry: SnapshotEntry = {
-      blockSnapshots: buildBlockSnapshots(ctx),
-      envVarValues: ctx.environmentVariables || undefined,
-      workflowVariables: ctx.workflowVariables || undefined,
-      pendingBlocks: [...pendingBlocks],
-      createdAt: Date.now(),
-    }
-    set((state) => ({ history: [...state.history, entry] }))
-  },
+    pushFromContext: (ctx: ExecutionContext, pendingBlocks: string[]) => {
+      const entry: SnapshotEntry = {
+        blockSnapshots: buildBlockSnapshots(ctx),
+        envVarValues: ctx.environmentVariables || undefined,
+        workflowVariables: ctx.workflowVariables || undefined,
+        pendingBlocks: [...pendingBlocks],
+        createdAt: Date.now(),
+      }
+      set((state) => ({ history: [...state.history, entry] }))
+    },
 
-  stepBack: () => {
-    const { history } = get()
-    if (history.length <= 1) return null
-    const nextHistory = history.slice(0, -1)
-    const prev = nextHistory[nextHistory.length - 1]
-    set({ history: nextHistory, blockSnapshots: prev.blockSnapshots, envVarValues: prev.envVarValues, workflowVariables: prev.workflowVariables })
-    return prev
-  },
+    stepBack: () => {
+      const { history } = get()
+      if (history.length <= 1) return null
+      const nextHistory = history.slice(0, -1)
+      const prev = nextHistory[nextHistory.length - 1]
+      set({
+        history: nextHistory,
+        blockSnapshots: prev.blockSnapshots,
+        envVarValues: prev.envVarValues,
+        workflowVariables: prev.workflowVariables,
+      })
+      return prev
+    },
 
-  clear: () => set({ blockSnapshots: new Map(), envVarValues: undefined, workflowVariables: undefined, history: [] }),
-})) 
+    clear: () =>
+      set({
+        blockSnapshots: new Map(),
+        envVarValues: undefined,
+        workflowVariables: undefined,
+        history: [],
+      }),
+  })
+)

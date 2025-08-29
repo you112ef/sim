@@ -9,6 +9,7 @@ import { Executor } from '@/executor'
 import type { BlockLog, ExecutionResult, StreamingExecution } from '@/executor/types'
 import { Serializer } from '@/serializer'
 import type { SerializedWorkflow } from '@/serializer/types'
+import { useDebugSnapshotStore } from '@/stores/execution/debug-snapshots/store'
 import { useExecutionStore } from '@/stores/execution/store'
 import { useConsoleStore } from '@/stores/panel/console/store'
 import { useVariablesStore } from '@/stores/panel/variables/store'
@@ -17,7 +18,6 @@ import { useGeneralStore } from '@/stores/settings/general/store'
 import { useWorkflowRegistry } from '@/stores/workflows/registry/store'
 import { mergeSubblockState } from '@/stores/workflows/utils'
 import { useCurrentWorkflow } from './use-current-workflow'
-import { useDebugSnapshotStore } from '@/stores/execution/debug-snapshots/store'
 
 const logger = createLogger('useWorkflowExecution')
 
@@ -487,7 +487,10 @@ export function useWorkflowExecution() {
               useDebugSnapshotStore.getState().captureFromContext(result.metadata.context as any)
               useDebugSnapshotStore
                 .getState()
-                .pushFromContext(result.metadata.context as any, result.metadata?.pendingBlocks || [])
+                .pushFromContext(
+                  result.metadata.context as any,
+                  result.metadata?.pendingBlocks || []
+                )
             }
           } catch {}
           if (result.metadata.pendingBlocks) {
@@ -701,44 +704,6 @@ export function useWorkflowExecution() {
 
     // Execute workflow
     const execResult = await newExecutor.execute(activeWorkflowId || '')
-
-    // If we have start positions for debug, update context/pending accordingly (only on explicit user revert, not on restart)
-    if (false) {
-      try {
-        const ctx = (execResult as any).metadata.context
-        // Build forward adjacency from serialized connections
-        const forwardAdj: Record<string, string[]> = {}
-        for (const c of workflow.connections as Array<{ source: string; target: string }>) {
-          if (!forwardAdj[c.source]) forwardAdj[c.source] = []
-          forwardAdj[c.source].push(c.target)
-        }
-        // Add all downstream nodes from each start to active execution path
-        const addDownstream = (startId: string) => {
-          const visited = new Set<string>()
-          const q: string[] = [startId]
-          while (q.length) {
-            const n = q.shift() as string
-            if (visited.has(n)) continue
-            visited.add(n)
-            ctx.activeExecutionPath.add(n)
-            const next = forwardAdj[n] || []
-            for (const m of next) if (!visited.has(m)) q.push(m)
-          }
-        }
-        for (const startId of Array.from(startPositionIds)) {
-          addDownstream(startId)
-        }
-        // Pending blocks should be exactly the chosen start positions
-        setPendingBlocks(Array.from(startPositionIds))
-        ;(execResult as any).metadata.pendingBlocks = Array.from(startPositionIds)
-        setDebugContext(ctx)
-        try {
-          useDebugSnapshotStore.getState().captureFromContext(ctx as any)
-        } catch {}
-      } catch (e) {
-        logger.warn('Failed to apply start positions', e)
-      }
-    }
 
     return execResult
   }

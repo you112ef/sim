@@ -1,19 +1,19 @@
 'use client'
 
-import { useEffect, useMemo, useRef, useState, useCallback } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import {
   AlertCircle,
   Check,
   Circle,
   CircleDot,
   FastForward,
+  Flag,
   Play,
   RotateCcw,
   Square,
-  X,
-  Flag,
-  Undo2,
   StepBack,
+  Undo2,
+  X,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Checkbox } from '@/components/ui/checkbox'
@@ -26,6 +26,7 @@ import { cn } from '@/lib/utils'
 import { useCurrentWorkflow } from '@/app/workspace/[workspaceId]/w/[workflowId]/hooks/use-current-workflow'
 import { useWorkflowExecution } from '@/app/workspace/[workspaceId]/w/[workflowId]/hooks/use-workflow-execution'
 import { getBlock } from '@/blocks'
+import { useDebugSnapshotStore } from '@/stores/execution/debug-snapshots/store'
 import { useExecutionStore } from '@/stores/execution/store'
 import { useVariablesStore } from '@/stores/panel/variables/store'
 import { useEnvironmentStore } from '@/stores/settings/environment/store'
@@ -35,7 +36,6 @@ import { mergeSubblockState } from '@/stores/workflows/utils'
 import { useWorkflowStore } from '@/stores/workflows/workflow/store'
 import { getTool } from '@/tools/utils'
 import { getTrigger, getTriggersByProvider } from '@/triggers'
-import { useDebugSnapshotStore } from '@/stores/execution/debug-snapshots/store'
 
 // Token render cache (LRU-style)
 const TOKEN_CACHE_MAX = 500
@@ -85,11 +85,7 @@ export function DebugPanel() {
   const [highlightedRefVar, setHighlightedRefVar] = useState<string | null>(null)
 
   // Helper to force re-trigger highlight even when clicking the same key
-  const flashHighlight = (
-    setter: (updater: any) => void,
-    key: string,
-    durationMs: number
-  ) => {
+  const flashHighlight = (setter: (updater: any) => void, key: string, durationMs: number) => {
     try {
       setter((prev: any) => (prev === key ? null : prev))
       requestAnimationFrame(() => {
@@ -138,7 +134,7 @@ export function DebugPanel() {
       // Require exactly one start position to revert deterministically
       return
     }
-    
+
     // Build a fresh context based on last snapshot, resolving everything except downstream of start positions
     try {
       const newCtx = { ...debugContext }
@@ -233,7 +229,7 @@ export function DebugPanel() {
         if (!reverseAdj[t]) reverseAdj[t] = []
         reverseAdj[t].push(s)
       }
-      const isExecuted = (id: string) => (rebuilt.get(id)?.executed ? true : false)
+      const isExecuted = (id: string) => !!rebuilt.get(id)?.executed
       const memoReady = new Map<string, Set<string>>()
       const visiting = new Set<string>()
       const collectReadyLayerFor = (id: string): Set<string> => {
@@ -296,7 +292,7 @@ export function DebugPanel() {
       }
       // Determine target depth from initialPending (fallback to min depth of startIds)
       const idsForDepth = initialPending.length > 0 ? initialPending : startIds
-      let targetDepth = Infinity
+      let targetDepth = Number.POSITIVE_INFINITY
       for (const nid of idsForDepth) {
         const d = depthMap.get(nid)
         if (d !== undefined && d < targetDepth) targetDepth = d
@@ -308,7 +304,8 @@ export function DebugPanel() {
       rebuilt.forEach((_state, id) => {
         const d = depthMap.get(id)
         const snap = snapshot.blockSnapshots.get(id)
-        const shouldBeExecuted = !!snap?.executed && (d === undefined ? false : d < (targetDepth as number))
+        const shouldBeExecuted =
+          !!snap?.executed && (d === undefined ? false : d < (targetDepth as number))
         const prev = rebuilt.get(id)
         rebuilt.set(id, {
           output: prev?.output ?? snap?.output ?? {},
@@ -331,7 +328,7 @@ export function DebugPanel() {
       depthMap.forEach((d, id) => {
         if (d === (targetDepth as number)) {
           const parents = reverseAdj[id] || []
-          const allParentsExec = parents.every((p) => (rebuilt.get(p)?.executed ? true : false))
+          const allParentsExec = parents.every((p) => !!rebuilt.get(p)?.executed)
           if (allParentsExec) globalReady.push(id)
         }
       })
@@ -356,7 +353,9 @@ export function DebugPanel() {
         rebuilt.set(id, { output: {}, executed: false, executionTime: 0 } as any)
       })
       // Remove cleared from executed set
-      const adjustedExecuted = new Set<string>(Array.from(newCtx.executedBlocks || new Set()).filter((id) => !toClear.has(id)))
+      const adjustedExecuted = new Set<string>(
+        Array.from(newCtx.executedBlocks || new Set()).filter((id) => !toClear.has(id))
+      )
       newCtx.executedBlocks = adjustedExecuted
 
       // Apply rebuilt block states and clear parallel mapping current id
@@ -396,7 +395,12 @@ export function DebugPanel() {
       if (prev.envVarValues) newCtx.environmentVariables = prev.envVarValues
       if (prev.workflowVariables) newCtx.workflowVariables = prev.workflowVariables
       // Determine pending set; if stepping back to base, use starterId
-      const pending = prev.pendingBlocks && prev.pendingBlocks.length > 0 ? prev.pendingBlocks : (starterId ? [starterId] : [])
+      const pending =
+        prev.pendingBlocks && prev.pendingBlocks.length > 0
+          ? prev.pendingBlocks
+          : starterId
+            ? [starterId]
+            : []
 
       // Recompute active execution path from pending
       const path = new Set<string>()
@@ -423,7 +427,9 @@ export function DebugPanel() {
     } catch {}
 
     // Prefer stopping at the currently executing blocks and making them current
-    const execIdsArr = Array.from(useExecutionStore.getState().executingBlockIds || new Set<string>())
+    const execIdsArr = Array.from(
+      useExecutionStore.getState().executingBlockIds || new Set<string>()
+    )
 
     if (debugContext && execIdsArr.length > 0) {
       try {
@@ -491,7 +497,12 @@ export function DebugPanel() {
           if (prev.envVarValues) newCtx.environmentVariables = prev.envVarValues
           if (prev.workflowVariables) newCtx.workflowVariables = prev.workflowVariables
 
-          const pending = prev.pendingBlocks && prev.pendingBlocks.length > 0 ? prev.pendingBlocks : (starterId ? [starterId] : [])
+          const pending =
+            prev.pendingBlocks && prev.pendingBlocks.length > 0
+              ? prev.pendingBlocks
+              : starterId
+                ? [starterId]
+                : []
 
           // Clear pending-and-downstream so next run is fresh
           const toClear = new Set<string>()
@@ -508,7 +519,9 @@ export function DebugPanel() {
           toClear.forEach((id) => {
             rebuilt.set(id, { output: {}, executed: false, executionTime: 0 } as any)
           })
-          const adjustedExecuted = new Set<string>(Array.from(newCtx.executedBlocks || new Set()).filter((id) => !toClear.has(id)))
+          const adjustedExecuted = new Set<string>(
+            Array.from(newCtx.executedBlocks || new Set()).filter((id) => !toClear.has(id))
+          )
           newCtx.executedBlocks = adjustedExecuted
           newCtx.blockStates = rebuilt as any
 
@@ -1956,7 +1969,11 @@ export function DebugPanel() {
                   size='icon'
                   variant='ghost'
                   onClick={handleResumeUntilBreakpoint}
-                  disabled={(isInitPending || executingIds.size > 0) || (isChatMode ? !hasStartedRef.current && chatMessage.trim() === '' : false)}
+                  disabled={
+                    isInitPending ||
+                    executingIds.size > 0 ||
+                    (isChatMode ? !hasStartedRef.current && chatMessage.trim() === '' : false)
+                  }
                   aria-label='Resume'
                   className='h-8 w-8 rounded-md bg-indigo-500/10 text-indigo-600 hover:bg-indigo-600 hover:text-white disabled:opacity-40'
                 >
@@ -2129,7 +2146,8 @@ export function DebugPanel() {
                   // Check logs
                   const errorLog = debugContext?.blockLogs?.find(
                     (log) =>
-                      (log.blockId === id || resolveOriginalBlockId(log.blockId) === id) && !log.success
+                      (log.blockId === id || resolveOriginalBlockId(log.blockId) === id) &&
+                      !log.success
                   )
                   if (errorLog?.error) {
                     return (
@@ -2422,9 +2440,7 @@ export function DebugPanel() {
                       </label>
                     </div>
                   </TooltipTrigger>
-                  <TooltipContent>
-                    Only shows relevant references
-                  </TooltipContent>
+                  <TooltipContent>Only shows relevant references</TooltipContent>
                 </Tooltip>
               </TooltipProvider>
             </div>
