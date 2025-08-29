@@ -4,6 +4,8 @@ description: Search with Exa AI
 ---
 
 import { BlockInfoCard } from "@/components/ui/block-info-card"
+import { Accordion, Accordions } from "fumadocs-ui/components/accordion"
+
 
 <BlockInfoCard 
   type="exa"
@@ -211,188 +213,191 @@ For research-intensive workflows, implement progressive refinement patterns wher
 ## FAQ
 
 {/* MANUAL-CONTENT-START:faq */}
-### How do I search the web using the Exa block in my Sim.ai workflow?
+<Accordions type="single">
+  <Accordion title="How do I search the web using the Exa block in my Sim.ai workflow?">
 
-To search the web with Exa, add an **Exa block** to your workflow and configure the `exa_search` operation with these inputs:
+    To search the web with Exa, add an **Exa block** to your workflow and configure the `exa_search` operation with these inputs:
 
-#### Required Inputs
+    #### Required Inputs
 
-| Input | Description | Example |
-|-------|-------------|---------|
-| `query` | Your search query | `<start.searchTerm>` or `"latest AI developments"` |
-| `apiKey` | Your Exa AI API key | `<start.exaApiKey>` or environment variable |
+    | Input | Description | Example |
+    |-------|-------------|---------|
+    | `query` | Your search query | `<start.searchTerm>` or `"latest AI developments"` |
+    | `apiKey` | Your Exa AI API key | `<start.exaApiKey>` or environment variable |
 
-#### Optional Parameters
+    #### Optional Parameters
 
-| Input | Default | Description |
-|-------|---------|-------------|
-| `numResults` | 10 | Number of results (max 25) |
-| `useAutoprompt` | false | Improve query with AI |
-| `type` | auto | Search type: neural, keyword, auto, or fast |
+    | Input | Default | Description |
+    |-------|---------|-------------|
+    | `numResults` | 10 | Number of results (max 25) |
+    | `useAutoprompt` | false | Improve query with AI |
+    | `type` | auto | Search type: neural, keyword, auto, or fast |
 
-The block outputs search results in `<exa1.results>` containing titles, URLs, and text snippets.
+    The block outputs search results in `<exa1.results>` containing titles, URLs, and text snippets.
+  </Accordion>
+  <Accordion title="How do I retrieve the full content of webpages found in my Exa search?">
 
-### How do I retrieve the full content of webpages found in my Exa search?
+    To get full webpage content, use the `exa_get_contents` operation by connecting URLs from your search results:
 
-To get full webpage content, use the `exa_get_contents` operation by connecting URLs from your search results:
+    #### Configuration Example
+    ```json
+    {
+      "urls": "<exa1.results[0].url>,<exa1.results[1].url>",
+      "text": true,
+      "summaryQuery": "<start.summaryQuery>",
+      "apiKey": "<start.exaApiKey>"
+    }
+    ```
 
-#### Configuration Example
-```json
-{
-  "urls": "<exa1.results[0].url>,<exa1.results[1].url>",
-  "text": true,
-  "summaryQuery": "<start.summaryQuery>",
-  "apiKey": "<start.exaApiKey>"
-}
-```
+    #### Available Outputs
 
-#### Available Outputs
+    | Output Tag | Type | Description |
+    |------------|------|-------------|
+    | `<exa1.results>` | Array | Retrieved content with title, text, and summaries |
 
-| Output Tag | Type | Description |
-|------------|------|-------------|
-| `<exa1.results>` | Array | Retrieved content with title, text, and summaries |
+    You can reference individual results using `<exa1.results[0].text>` for the first result's content.
+  </Accordion>
+  <Accordion title="What is the correct way to connect Exa search results to an Agent block for analysis?">
 
-You can reference individual results using `<exa1.results[0].text>` for the first result's content.
+    To process Exa search results with an AI agent:
 
-### What is the correct way to connect Exa search results to an Agent block for analysis?
+    1. **Connect search results** to the Agent's `userPrompt` or `systemPrompt`
+    2. **Use specific result fields** for targeted analysis
 
-To process Exa search results with an AI agent:
+    #### Example Workflow Pattern
+    ```
+    Start → Exa (search) → Agent → Response
+    ```
 
-1. **Connect search results** to the Agent's `userPrompt` or `systemPrompt`
-2. **Use specific result fields** for targeted analysis
+    #### Agent Configuration
+    ```json
+    {
+      "userPrompt": "Analyze these search results: <exa1.results>",
+      "systemPrompt": "You are analyzing web search results about: <start.topic>"
+    }
+    ```
 
-#### Example Workflow Pattern
-```
-Start → Exa (search) → Agent → Response
-```
+    This allows the agent to process and synthesize information from multiple web sources.
+  </Accordion>
+  <Accordion title="How do I find websites similar to a specific URL using the Exa block?">
 
-#### Agent Configuration
-```json
-{
-  "userPrompt": "Analyze these search results: <exa1.results>",
-  "systemPrompt": "You are analyzing web search results about: <start.topic>"
-}
-```
+    Use the `exa_find_similar_links` operation to discover related websites:
 
-This allows the agent to process and synthesize information from multiple web sources.
+    #### Required Configuration
 
-### How do I find websites similar to a specific URL using the Exa block?
+    | Input | Description | Example |
+    |-------|-------------|---------|
+    | `url` | Target URL to find similar sites | `<start.targetUrl>` or `"https://example.com"` |
+    | `apiKey` | Your Exa AI API key | `<start.exaApiKey>` |
 
-Use the `exa_find_similar_links` operation to discover related websites:
+    #### Optional Parameters
+    - `numResults`: Number of similar links (default: 10, max: 25)
+    - `text`: Include full text content of similar pages
 
-#### Required Configuration
+    #### Output Usage
+    Access similar links with `<exa1.similarLinks>` and individual results using `<exa1.similarLinks[0].url>`.
+  </Accordion>
+  <Accordion title="How do I get AI-powered answers with citations using the Exa block?">
 
-| Input | Description | Example |
-|-------|-------------|---------|
-| `url` | Target URL to find similar sites | `<start.targetUrl>` or `"https://example.com"` |
-| `apiKey` | Your Exa AI API key | `<start.exaApiKey>` |
+    The `exa_answer` operation provides direct answers to questions with web citations:
 
-#### Optional Parameters
-- `numResults`: Number of similar links (default: 10, max: 25)
-- `text`: Include full text content of similar pages
+    #### Setup Configuration
+    ```json
+    {
+      "query": "<start.question>",
+      "text": true,
+      "apiKey": "<start.exaApiKey>"
+    }
+    ```
 
-#### Output Usage
-Access similar links with `<exa1.similarLinks>` and individual results using `<exa1.similarLinks[0].url>`.
+    #### Available Outputs
 
-### How do I get AI-powered answers with citations using the Exa block?
+    | Output Tag | Type | Description |
+    |------------|------|-------------|
+    | `<exa1.answer>` | String | AI-generated answer to your question |
+    | `<exa1.citations>` | Array | Sources and citations supporting the answer |
 
-The `exa_answer` operation provides direct answers to questions with web citations:
+    Connect `<exa1.answer>` to downstream blocks for further processing or combine with `<exa1.citations>` for complete responses.
+  </Accordion>
+  <Accordion title="Why is my Exa block returning empty results or failing?">
 
-#### Setup Configuration
-```json
-{
-  "query": "<start.question>",
-  "text": true,
-  "apiKey": "<start.exaApiKey>"
-}
-```
+    Troubleshoot common Exa block issues with this checklist:
 
-#### Available Outputs
+    #### Authentication Issues
+    - **Invalid API Key**: Verify `<start.exaApiKey>` contains a valid Exa AI API key
+    - **Key Format**: Ensure no extra spaces or characters in the API key field
 
-| Output Tag | Type | Description |
-|------------|------|-------------|
-| `<exa1.answer>` | String | AI-generated answer to your question |
-| `<exa1.citations>` | Array | Sources and citations supporting the answer |
+    #### Query Problems
+    - **Empty Query**: Ensure `query` field is populated with actual search terms
+    - **Query Too Broad**: Try more specific search terms for better results
+    - **Special Characters**: Avoid problematic characters that might break the search
 
-Connect `<exa1.answer>` to downstream blocks for further processing or combine with `<exa1.citations>` for complete responses.
+    #### Configuration Errors
+    - **Invalid URLs**: For `exa_get_contents`, ensure URLs are properly formatted
+    - **Result Limits**: Keep `numResults` between 1-25 for optimal performance
+    - **Network Issues**: Check workflow logs for API connectivity problems
+  </Accordion>
+  <Accordion title="How do I create a comprehensive research workflow using multiple Exa operations?">
 
-### Why is my Exa block returning empty results or failing?
+    Combine different Exa operations for thorough research automation:
 
-Troubleshoot common Exa block issues with this checklist:
+    #### Multi-Stage Research Pattern
+    ```
+    Start → Exa (search) → Exa (get_contents) → Exa (find_similar) → Agent → Output
+    ```
 
-#### Authentication Issues
-- **Invalid API Key**: Verify `<start.exaApiKey>` contains a valid Exa AI API key
-- **Key Format**: Ensure no extra spaces or characters in the API key field
+    #### Stage 1: Initial Search
+    ```json
+    {
+      "operation": "exa_search",
+      "query": "<start.researchTopic>",
+      "numResults": 10
+    }
+    ```
 
-#### Query Problems
-- **Empty Query**: Ensure `query` field is populated with actual search terms
-- **Query Too Broad**: Try more specific search terms for better results
-- **Special Characters**: Avoid problematic characters that might break the search
+    #### Stage 2: Content Retrieval
+    ```json
+    {
+      "operation": "exa_get_contents",
+      "urls": "<exa1.results[0].url>,<exa1.results[1].url>",
+      "summaryQuery": "<start.researchTopic>"
+    }
+    ```
 
-#### Configuration Errors
-- **Invalid URLs**: For `exa_get_contents`, ensure URLs are properly formatted
-- **Result Limits**: Keep `numResults` between 1-25 for optimal performance
-- **Network Issues**: Check workflow logs for API connectivity problems
+    #### Stage 3: Similar Sources
+    ```json
+    {
+      "operation": "exa_find_similar_links",
+      "url": "<exa1.results[0].url>",
+      "numResults": 5
+    }
+    ```
 
-### How do I create a comprehensive research workflow using multiple Exa operations?
+    This pattern enables comprehensive research by combining search results, full content, and related sources for thorough analysis.
+  </Accordion>
+  <Accordion title="How do I use the Exa research operation for generating detailed reports?">
 
-Combine different Exa operations for thorough research automation:
+    The `exa_research` operation provides comprehensive research capabilities:
 
-#### Multi-Stage Research Pattern
-```
-Start → Exa (search) → Exa (get_contents) → Exa (find_similar) → Agent → Output
-```
+    #### Configuration
+    ```json
+    {
+      "query": "<start.researchQuery>",
+      "includeText": true,
+      "apiKey": "<start.exaApiKey>"
+    }
+    ```
 
-#### Stage 1: Initial Search
-```json
-{
-  "operation": "exa_search",
-  "query": "<start.researchTopic>",
-  "numResults": 10
-}
-```
+    #### Output Integration
+    Connect `<exa1.research>` to Agent blocks for report generation:
+    ```json
+    {
+      "userPrompt": "Create a detailed report based on this research: <exa1.research>",
+      "systemPrompt": "You are a research analyst creating comprehensive reports"
+    }
+    ```
 
-#### Stage 2: Content Retrieval
-```json
-{
-  "operation": "exa_get_contents",
-  "urls": "<exa1.results[0].url>,<exa1.results[1].url>",
-  "summaryQuery": "<start.researchTopic>"
-}
-```
-
-#### Stage 3: Similar Sources
-```json
-{
-  "operation": "exa_find_similar_links",
-  "url": "<exa1.results[0].url>",
-  "numResults": 5
-}
-```
-
-This pattern enables comprehensive research by combining search results, full content, and related sources for thorough analysis.
-
-### How do I use the Exa research operation for generating detailed reports?
-
-The `exa_research` operation provides comprehensive research capabilities:
-
-#### Configuration
-```json
-{
-  "query": "<start.researchQuery>",
-  "includeText": true,
-  "apiKey": "<start.exaApiKey>"
-}
-```
-
-#### Output Integration
-Connect `<exa1.research>` to Agent blocks for report generation:
-```json
-{
-  "userPrompt": "Create a detailed report based on this research: <exa1.research>",
-  "systemPrompt": "You are a research analyst creating comprehensive reports"
-}
-```
-
-The research output contains findings with citations and summaries, perfect for automated report generation workflows.
+    The research output contains findings with citations and summaries, perfect for automated report generation workflows.
+  </Accordion>
+</Accordions>
 {/* MANUAL-CONTENT-END */}

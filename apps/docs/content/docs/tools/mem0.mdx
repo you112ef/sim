@@ -4,6 +4,8 @@ description: Agent memory management
 ---
 
 import { BlockInfoCard } from "@/components/ui/block-info-card"
+import { Accordion, Accordions } from "fumadocs-ui/components/accordion"
+
 
 <BlockInfoCard 
   type="mem0"
@@ -167,162 +169,165 @@ Monitor memory operation latency and implement timeout handling for API calls. U
 ## FAQ
 
 {/* MANUAL-CONTENT-START:faq */}
-### How do I add memories to Mem0 from my workflow for persistent agent context?
+<Accordions type="single">
+  <Accordion title="How do I add memories to Mem0 from my workflow for persistent agent context?">
 
-To add memories to Mem0 for persistent storage across workflow executions, add a **Mem0 block** configured for the `mem0_add_memories` operation:
+    To add memories to Mem0 for persistent storage across workflow executions, add a **Mem0 block** configured for the `mem0_add_memories` operation:
 
-#### Required Inputs
+    #### Required Inputs
 
-| Input | Description | Example Connection |
-|-------|-------------|-------------------|
-| `userId` | Unique identifier for the user | `<start.userId>` or `<webhook.body.user_id>` |
-| `messages` | Array of conversation messages | `<agent1.messages>` or manual JSON array |
-| `apiKey` | Your Mem0 API authentication key | Environment variable or `<start.mem0ApiKey>` |
+    | Input | Description | Example Connection |
+    |-------|-------------|-------------------|
+    | `userId` | Unique identifier for the user | `<start.userId>` or `<webhook.body.user_id>` |
+    | `messages` | Array of conversation messages | `<agent1.messages>` or manual JSON array |
+    | `apiKey` | Your Mem0 API authentication key | Environment variable or `<start.mem0ApiKey>` |
 
-#### Example Messages Format
-```json
-[
-  {"role": "user", "content": "What's my favorite color?"},
-  {"role": "assistant", "content": "Your favorite color is blue."}
-]
-```
+    #### Example Messages Format
+    ```json
+    [
+      {"role": "user", "content": "What's my favorite color?"},
+      {"role": "assistant", "content": "Your favorite color is blue."}
+    ]
+    ```
 
-The block outputs `<mem01.ids>` containing the created memory IDs and `<mem01.memories>` with the full memory objects.
+    The block outputs `<mem01.ids>` containing the created memory IDs and `<mem01.memories>` with the full memory objects.
+  </Accordion>
+  <Accordion title="How do I search for relevant memories using semantic search in my workflow?">
 
-### How do I search for relevant memories using semantic search in my workflow?
+    To search existing memories using Mem0's semantic search capabilities:
 
-To search existing memories using Mem0's semantic search capabilities:
+    1. **Configure the Mem0 block** for `mem0_search_memories` operation
+    2. **Connect the required inputs**:
 
-1. **Configure the Mem0 block** for `mem0_search_memories` operation
-2. **Connect the required inputs**:
+    #### Search Configuration
 
-#### Search Configuration
+    | Input | Description | Connection Example |
+    |-------|-------------|-------------------|
+    | `userId` | User whose memories to search | `<start.userId>` |
+    | `query` | Natural language search query | `<agent1.content>` or `<start.searchQuery>` |
+    | `limit` | Maximum results to return | Static number like `10` |
+    | `apiKey` | Your Mem0 API key | Environment variable |
 
-| Input | Description | Connection Example |
-|-------|-------------|-------------------|
-| `userId` | User whose memories to search | `<start.userId>` |
-| `query` | Natural language search query | `<agent1.content>` or `<start.searchQuery>` |
-| `limit` | Maximum results to return | Static number like `10` |
-| `apiKey` | Your Mem0 API key | Environment variable |
+    The search returns `<mem01.searchResults>` with memory data and relevance scores, plus `<mem01.ids>` containing just the memory IDs for further processing.
+  </Accordion>
+  <Accordion title="What is the correct way to reference Mem0 block outputs in downstream blocks?">
 
-The search returns `<mem01.searchResults>` with memory data and relevance scores, plus `<mem01.ids>` containing just the memory IDs for further processing.
+    Every Mem0 block exposes structured outputs that can be referenced using connection tags:
 
-### What is the correct way to reference Mem0 block outputs in downstream blocks?
+    #### Available Output Tags
 
-Every Mem0 block exposes structured outputs that can be referenced using connection tags:
+    | Output Tag | Type | Description |
+    |------------|------|-------------|
+    | `<mem01.ids>` | Array | Memory identifiers for created/found memories |
+    | `<mem01.memories>` | Array | Complete memory objects with full data |
+    | `<mem01.searchResults>` | Array | Search results with memory data and relevance scores |
 
-#### Available Output Tags
+    #### Usage Examples
+    - **Feed search results to Agent**: Connect `<mem01.searchResults>` to an Agent's context input
+    - **Chain memory operations**: Use `<mem01.ids>` to retrieve specific memories in a follow-up block
+    - **Conditional processing**: Reference `<mem01.memories>` in Function blocks for data transformation
+  </Accordion>
+  <Accordion title="How do I connect an Agent block with Mem0 for persistent conversation memory?">
 
-| Output Tag | Type | Description |
-|------------|------|-------------|
-| `<mem01.ids>` | Array | Memory identifiers for created/found memories |
-| `<mem01.memories>` | Array | Complete memory objects with full data |
-| `<mem01.searchResults>` | Array | Search results with memory data and relevance scores |
+    To create AI agents with persistent memory across conversations:
 
-#### Usage Examples
-- **Feed search results to Agent**: Connect `<mem01.searchResults>` to an Agent's context input
-- **Chain memory operations**: Use `<mem01.ids>` to retrieve specific memories in a follow-up block
-- **Conditional processing**: Reference `<mem01.memories>` in Function blocks for data transformation
+    #### Pattern 1: Search → Agent → Add Memory
+    ```
+    Webhook → Mem0 (search) → Agent → Mem0 (add) → Response
+    ```
 
-### How do I connect an Agent block with Mem0 for persistent conversation memory?
+    1. **Search existing memories**: Use `<start.userId>` and `<start.message>` to find relevant context
+    2. **Enhance agent context**: Connect `<mem01.searchResults>` to the Agent's system prompt or context
+    3. **Store new conversation**: Connect Agent outputs to a second Mem0 block for persistence
 
-To create AI agents with persistent memory across conversations:
+    #### Pattern 2: Retrieve → Agent Workflow
+    ```json
+    {
+      "userId": "<webhook.body.user_id>",
+      "query": "<webhook.body.message>",
+      "limit": 5
+    }
+    ```
 
-#### Pattern 1: Search → Agent → Add Memory
-```
-Webhook → Mem0 (search) → Agent → Mem0 (add) → Response
-```
+    Connect the search results to your Agent: `<mem01.searchResults>` → Agent `context` input.
+  </Accordion>
+  <Accordion title="How do I retrieve specific memories by date range or memory ID in my workflow?">
 
-1. **Search existing memories**: Use `<start.userId>` and `<start.message>` to find relevant context
-2. **Enhance agent context**: Connect `<mem01.searchResults>` to the Agent's system prompt or context
-3. **Store new conversation**: Connect Agent outputs to a second Mem0 block for persistence
+    To retrieve memories using the `mem0_get_memories` operation with filtering:
 
-#### Pattern 2: Retrieve → Agent Workflow
-```json
-{
-  "userId": "<webhook.body.user_id>",
-  "query": "<webhook.body.message>",
-  "limit": 5
-}
-```
+    #### Retrieval Options
 
-Connect the search results to your Agent: `<mem01.searchResults>` → Agent `context` input.
+    | Filter Type | Input Configuration | Example |
+    |-------------|-------------------|---------|
+    | **By Memory ID** | Set `memoryId` field | `<start.specificMemoryId>` |
+    | **By Date Range** | Set `startDate` and `endDate` | `"2024-01-01"` to `"2024-12-31"` |
+    | **Recent Memories** | Set `limit` only | `10` for last 10 memories |
+    | **All User Memories** | Just `userId` | No additional filters |
 
-### How do I retrieve specific memories by date range or memory ID in my workflow?
+    #### Example Configuration
+    ```json
+    {
+      "userId": "<start.userId>",
+      "startDate": "2024-01-01",
+      "endDate": "2024-01-31",
+      "limit": 20
+    }
+    ```
 
-To retrieve memories using the `mem0_get_memories` operation with filtering:
+    The operation returns `<mem01.memories>` containing the filtered memory objects and `<mem01.ids>` with their identifiers.
+  </Accordion>
+  <Accordion title="Why are my Mem0 operations failing or not returning expected results?">
 
-#### Retrieval Options
+    Troubleshoot common Mem0 integration issues with this diagnostic checklist:
 
-| Filter Type | Input Configuration | Example |
-|-------------|-------------------|---------|
-| **By Memory ID** | Set `memoryId` field | `<start.specificMemoryId>` |
-| **By Date Range** | Set `startDate` and `endDate` | `"2024-01-01"` to `"2024-12-31"` |
-| **Recent Memories** | Set `limit` only | `10` for last 10 memories |
-| **All User Memories** | Just `userId` | No additional filters |
+    #### Authentication & API Issues
 
-#### Example Configuration
-```json
-{
-  "userId": "<start.userId>",
-  "startDate": "2024-01-01",
-  "endDate": "2024-01-31",
-  "limit": 20
-}
-```
+    | Issue | Symptoms | Solution |
+    |-------|----------|----------|
+    | **Invalid API Key** | 401/403 errors in logs | Verify `apiKey` input contains valid Mem0 credentials |
+    | **Missing User ID** | Empty results or errors | Ensure `userId` is populated: `<start.userId>` |
+    | **Malformed Messages** | Add operation fails | Verify `messages` is valid JSON array with `role` and `content` fields |
 
-The operation returns `<mem01.memories>` containing the filtered memory objects and `<mem01.ids>` with their identifiers.
+    #### Search & Retrieval Issues
 
-### Why are my Mem0 operations failing or not returning expected results?
+    | Issue | Symptoms | Solution |
+    |-------|----------|----------|
+    | **No Search Results** | Empty `searchResults` array | Try broader queries or check if memories exist for the user |
+    | **Date Filter Problems** | Unexpected results | Use YYYY-MM-DD format for `startDate` and `endDate` |
+    | **Memory ID Not Found** | Empty memories array | Verify the `memoryId` exists and belongs to the specified `userId` |
 
-Troubleshoot common Mem0 integration issues with this diagnostic checklist:
+    #### Data Flow Issues
+    - **Check connection tags**: Ensure `<mem01.outputField>` references match actual block output names
+    - **Validate input data**: Use Function blocks to log and verify input values before Mem0 operations
+    - **Review workflow logs**: Sim.ai execution logs show detailed error messages for debugging
+  </Accordion>
+  <Accordion title="Can I chain multiple Mem0 operations for complex memory management workflows?">
 
-#### Authentication & API Issues
+    Yes! Mem0 blocks can be chained together for sophisticated memory management patterns:
 
-| Issue | Symptoms | Solution |
-|-------|----------|----------|
-| **Invalid API Key** | 401/403 errors in logs | Verify `apiKey` input contains valid Mem0 credentials |
-| **Missing User ID** | Empty results or errors | Ensure `userId` is populated: `<start.userId>` |
-| **Malformed Messages** | Add operation fails | Verify `messages` is valid JSON array with `role` and `content` fields |
+    #### Advanced Workflow Patterns
 
-#### Search & Retrieval Issues
+    ##### 1. **Search → Conditional → Add/Update Pattern**
+    ```
+    Mem0 (search) → Condition → [Mem0 (add new) | Mem0 (retrieve existing)]
+    ```
+    Use `<mem01.searchResults>` to determine if memories exist, then branch accordingly.
 
-| Issue | Symptoms | Solution |
-|-------|----------|----------|
-| **No Search Results** | Empty `searchResults` array | Try broader queries or check if memories exist for the user |
-| **Date Filter Problems** | Unexpected results | Use YYYY-MM-DD format for `startDate` and `endDate` |
-| **Memory ID Not Found** | Empty memories array | Verify the `memoryId` exists and belongs to the specified `userId` |
+    ##### 2. **Batch Memory Processing**
+    ```
+    Start → Function (prepare data) → Mem0 (add multiple) → Agent (summarize)
+    ```
+    Transform input data into the required messages format before adding to memory.
 
-#### Data Flow Issues
-- **Check connection tags**: Ensure `<mem01.outputField>` references match actual block output names
-- **Validate input data**: Use Function blocks to log and verify input values before Mem0 operations
-- **Review workflow logs**: Sim.ai execution logs show detailed error messages for debugging
+    ##### 3. **Memory-Enhanced Agent Pipeline**
+    ```
+    Webhook → Mem0 (search context) → Agent (enhanced response) → Mem0 (store interaction) → Response
+    ```
 
-### Can I chain multiple Mem0 operations for complex memory management workflows?
-
-Yes! Mem0 blocks can be chained together for sophisticated memory management patterns:
-
-#### Advanced Workflow Patterns
-
-##### 1. **Search → Conditional → Add/Update Pattern**
-```
-Mem0 (search) → Condition → [Mem0 (add new) | Mem0 (retrieve existing)]
-```
-Use `<mem01.searchResults>` to determine if memories exist, then branch accordingly.
-
-##### 2. **Batch Memory Processing**
-```
-Start → Function (prepare data) → Mem0 (add multiple) → Agent (summarize)
-```
-Transform input data into the required messages format before adding to memory.
-
-##### 3. **Memory-Enhanced Agent Pipeline**
-```
-Webhook → Mem0 (search context) → Agent (enhanced response) → Mem0 (store interaction) → Response
-```
-
-#### Connection Examples
-- **Chain search to retrieval**: `<mem01.ids>` → second Mem0 block's `memoryId` input
-- **Feed memories to agents**: `<mem01.memories>` → Agent `systemPrompt` or `context`
-- **Conditional memory storage**: Use Condition blocks with `<mem01.searchResults>` to determine next actions
+    #### Connection Examples
+    - **Chain search to retrieval**: `<mem01.ids>` → second Mem0 block's `memoryId` input
+    - **Feed memories to agents**: `<mem01.memories>` → Agent `systemPrompt` or `context`
+    - **Conditional memory storage**: Use Condition blocks with `<mem01.searchResults>` to determine next actions
+  </Accordion>
+</Accordions>
 {/* MANUAL-CONTENT-END */}

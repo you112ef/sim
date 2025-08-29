@@ -4,6 +4,8 @@ description: Create, upload, and list files
 ---
 
 import { BlockInfoCard } from "@/components/ui/block-info-card"
+import { Accordion, Accordions } from "fumadocs-ui/components/accordion"
+
 
 <BlockInfoCard 
   type="google_drive"
@@ -197,140 +199,143 @@ Consider implementing parallel processing for independent file operations while 
 ## FAQ
 
 {/* MANUAL-CONTENT-START:faq */}
-### How do I upload a file to Google Drive from my workflow?
+<Accordions type="single">
+  <Accordion title="How do I upload a file to Google Drive from my workflow?">
 
-To upload files to Google Drive from your Sim.ai workflow, add a **Google Drive block** and configure the upload operation:
+    To upload files to Google Drive from your Sim.ai workflow, add a **Google Drive block** and configure the upload operation:
 
-#### Required Inputs
+    #### Required Inputs
 
-| Input | Description | Example |
-|-------|-------------|---------|
-| `fileName` | Name for the uploaded file | `<start.fileName>` or static name like `"report.pdf"` |
-| `content` | File content to upload | `<agent1.content>` or `<api1.response>` |
-| `mimeType` | File type specification | `"text/plain"` or `<start.mimeType>` |
-| `folderSelector` | Target folder selection | Choose from authenticated Drive folders |
+    | Input | Description | Example |
+    |-------|-------------|---------|
+    | `fileName` | Name for the uploaded file | `<start.fileName>` or static name like `"report.pdf"` |
+    | `content` | File content to upload | `<agent1.content>` or `<api1.response>` |
+    | `mimeType` | File type specification | `"text/plain"` or `<start.mimeType>` |
+    | `folderSelector` | Target folder selection | Choose from authenticated Drive folders |
 
-The block returns file metadata in `<google_drive1.file>` containing the uploaded file's ID, name, and sharing links.
+    The block returns file metadata in `<google_drive1.file>` containing the uploaded file's ID, name, and sharing links.
+  </Accordion>
+  <Accordion title="How do I create a new folder in Google Drive using my workflow?">
 
-### How do I create a new folder in Google Drive using my workflow?
+    To create folders programmatically in Google Drive:
 
-To create folders programmatically in Google Drive:
+    1. **Add a Google Drive block** and select the `create_folder` operation
+    2. **Configure the folder creation inputs**:
 
-1. **Add a Google Drive block** and select the `create_folder` operation
-2. **Configure the folder creation inputs**:
+    | Input | Purpose | Connection Example |
+    |-------|---------|-------------------|
+    | `fileName` | New folder name | `<start.folderName>` or `"Project Files"` |
+    | `folderSelector` | Parent folder location | Select from Drive folder picker |
+    | `folderId` | Parent folder ID | `<google_drive1.file.id>` from previous folder creation |
 
-| Input | Purpose | Connection Example |
-|-------|---------|-------------------|
-| `fileName` | New folder name | `<start.folderName>` or `"Project Files"` |
-| `folderSelector` | Parent folder location | Select from Drive folder picker |
-| `folderId` | Parent folder ID | `<google_drive1.file.id>` from previous folder creation |
+    The created folder metadata becomes available as `<google_drive1.file>` for downstream blocks.
+  </Accordion>
+  <Accordion title="What outputs can I reference from Google Drive blocks in my workflow?">
 
-The created folder metadata becomes available as `<google_drive1.file>` for downstream blocks.
+    Google Drive blocks expose structured outputs that can be connected to other workflow blocks:
 
-### What outputs can I reference from Google Drive blocks in my workflow?
+    #### Available Output Tags
 
-Google Drive blocks expose structured outputs that can be connected to other workflow blocks:
+    | Output Tag | Type | Description |
+    |------------|------|-------------|
+    | `<google_drive1.file>` | JSON Object | Single file/folder metadata with ID, name, parents |
+    | `<google_drive1.files>` | JSON Array | List of files from folder listing operations |
+    | `<google_drive1.file.id>` | String | Unique Google Drive file identifier |
+    | `<google_drive1.file.name>` | String | Display name of the file or folder |
+    | `<google_drive1.file.webViewLink>` | String | Shareable URL for viewing the file |
+    | `<google_drive1.file.parents>` | Array | Parent folder IDs containing this file |
 
-#### Available Output Tags
+    These outputs integrate seamlessly with Agent blocks, API calls, and conditional logic blocks.
+  </Accordion>
+  <Accordion title="How do I list files from a specific Google Drive folder?">
 
-| Output Tag | Type | Description |
-|------------|------|-------------|
-| `<google_drive1.file>` | JSON Object | Single file/folder metadata with ID, name, parents |
-| `<google_drive1.files>` | JSON Array | List of files from folder listing operations |
-| `<google_drive1.file.id>` | String | Unique Google Drive file identifier |
-| `<google_drive1.file.name>` | String | Display name of the file or folder |
-| `<google_drive1.file.webViewLink>` | String | Shareable URL for viewing the file |
-| `<google_drive1.file.parents>` | Array | Parent folder IDs containing this file |
+    To retrieve file listings from Google Drive folders:
 
-These outputs integrate seamlessly with Agent blocks, API calls, and conditional logic blocks.
+    1. **Select the `list` operation** on your Google Drive block
+    2. **Configure filtering and pagination parameters**:
 
-### How do I list files from a specific Google Drive folder?
+    #### Input Configuration
 
-To retrieve file listings from Google Drive folders:
+    | Parameter | Purpose | Example Value |
+    |-----------|---------|---------------|
+    | `folderSelector` | Target folder picker | Select folder from authenticated Drive |
+    | `query` | Search filter criteria | `"name contains 'report'"` or `<start.searchTerm>` |
+    | `pageSize` | Results per request | `50` or `<start.limit>` |
+    | `pageToken` | Pagination token | `<start.nextPageToken>` for continued listings |
 
-1. **Select the `list` operation** on your Google Drive block
-2. **Configure filtering and pagination parameters**:
+    Access the results using `<google_drive1.files>` to iterate through file metadata or pass to processing blocks.
+  </Accordion>
+  <Accordion title="How do I connect Agent block outputs to Google Drive for automated file creation?">
 
-#### Input Configuration
+    To save AI-generated content directly to Google Drive:
 
-| Parameter | Purpose | Example Value |
-|-----------|---------|---------------|
-| `folderSelector` | Target folder picker | Select folder from authenticated Drive |
-| `query` | Search filter criteria | `"name contains 'report'"` or `<start.searchTerm>` |
-| `pageSize` | Results per request | `50` or `<start.limit>` |
-| `pageToken` | Pagination token | `<start.nextPageToken>` for continued listings |
+    1. **Connect Agent output to Google Drive inputs**:
+    ```
+    Agent → Google Drive (upload operation)
+    ```
 
-Access the results using `<google_drive1.files>` to iterate through file metadata or pass to processing blocks.
+    #### Example Workflow Configuration
 
-### How do I connect Agent block outputs to Google Drive for automated file creation?
+    ```json
+    {
+      "fileName": "<agent1.title>",
+      "content": "<agent1.content>",
+      "mimeType": "text/markdown"
+    }
+    ```
 
-To save AI-generated content directly to Google Drive:
+    This pattern automatically saves agent responses as Drive files, with `<google_drive1.file.webViewLink>` providing shareable URLs for the generated content.
+  </Accordion>
+  <Accordion title="Why is my Google Drive authentication failing or files not uploading?">
 
-1. **Connect Agent output to Google Drive inputs**:
-```
-Agent → Google Drive (upload operation)
-```
+    Troubleshoot common Google Drive integration issues:
 
-#### Example Workflow Configuration
+    #### Authentication Problems
 
-```json
-{
-  "fileName": "<agent1.title>",
-  "content": "<agent1.content>",
-  "mimeType": "text/markdown"
-}
-```
+    | Issue | Cause | Solution |
+    |-------|-------|----------|
+    | **OAuth Permission Error** | Insufficient Drive scope | Re-authenticate with full Google Drive permissions |
+    | **Token Expired** | Authentication timeout | Refresh connection in block settings |
+    | **Account Mismatch** | Wrong Google account | Verify correct account is authenticated |
 
-This pattern automatically saves agent responses as Drive files, with `<google_drive1.file.webViewLink>` providing shareable URLs for the generated content.
+    #### Upload Failures
 
-### Why is my Google Drive authentication failing or files not uploading?
+    | Problem | Description | Fix |
+    |---------|-------------|-----|
+    | **Empty Content Field** | Missing file content | Ensure `content` input has data: `<agent1.content>` |
+    | **Invalid MIME Type** | Incorrect file type | Use standard types: `"text/plain"`, `"application/json"` |
+    | **Folder Access Denied** | Permission restrictions | Select accessible folder or use root directory |
+    | **File Size Limits** | Content too large | Check Google Drive quota and file size restrictions |
+  </Accordion>
+  <Accordion title="Can I chain multiple Google Drive operations together in one workflow?">
 
-Troubleshoot common Google Drive integration issues:
+    Yes! Google Drive blocks can be chained for complex file management workflows:
 
-#### Authentication Problems
+    #### Common Workflow Patterns
 
-| Issue | Cause | Solution |
-|-------|-------|----------|
-| **OAuth Permission Error** | Insufficient Drive scope | Re-authenticate with full Google Drive permissions |
-| **Token Expired** | Authentication timeout | Refresh connection in block settings |
-| **Account Mismatch** | Wrong Google account | Verify correct account is authenticated |
+    ##### 1. **Create Folder → Upload File**
+    ```
+    Google Drive (create_folder) → Google Drive (upload)
+    ```
+    Use `<google_drive1.file.id>` as the `folderId` for the upload operation.
 
-#### Upload Failures
+    ##### 2. **List Files → Process → Update**
+    ```
+    Google Drive (list) → Function → Google Drive (upload)
+    ```
+    Process existing files and create updated versions.
 
-| Problem | Description | Fix |
-|---------|-------------|-----|
-| **Empty Content Field** | Missing file content | Ensure `content` input has data: `<agent1.content>` |
-| **Invalid MIME Type** | Incorrect file type | Use standard types: `"text/plain"`, `"application/json"` |
-| **Folder Access Denied** | Permission restrictions | Select accessible folder or use root directory |
-| **File Size Limits** | Content too large | Check Google Drive quota and file size restrictions |
+    ##### 3. **Webhook → Agent → Google Drive**
+    ```
+    Webhook → Agent → Google Drive (upload)
+    ```
+    Automatically save AI responses triggered by external events.
 
-### Can I chain multiple Google Drive operations together in one workflow?
-
-Yes! Google Drive blocks can be chained for complex file management workflows:
-
-#### Common Workflow Patterns
-
-##### 1. **Create Folder → Upload File**
-```
-Google Drive (create_folder) → Google Drive (upload)
-```
-Use `<google_drive1.file.id>` as the `folderId` for the upload operation.
-
-##### 2. **List Files → Process → Update**
-```
-Google Drive (list) → Function → Google Drive (upload)
-```
-Process existing files and create updated versions.
-
-##### 3. **Webhook → Agent → Google Drive**
-```
-Webhook → Agent → Google Drive (upload)
-```
-Automatically save AI responses triggered by external events.
-
-##### 4. **Conditional File Organization**
-```
-Google Drive (list) → Condition → Multiple Google Drive (create_folder/upload)
-```
-Organize files based on content analysis or metadata conditions.
+    ##### 4. **Conditional File Organization**
+    ```
+    Google Drive (list) → Condition → Multiple Google Drive (create_folder/upload)
+    ```
+    Organize files based on content analysis or metadata conditions.
+  </Accordion>
+</Accordions>
 {/* MANUAL-CONTENT-END */}

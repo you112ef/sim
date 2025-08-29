@@ -4,6 +4,8 @@ description: Extract data from websites
 ---
 
 import { BlockInfoCard } from "@/components/ui/block-info-card"
+import { Accordion, Accordions } from "fumadocs-ui/components/accordion"
+
 
 <BlockInfoCard 
   type="stagehand"
@@ -297,150 +299,153 @@ Use targeted extraction instructions that focus on specific page sections rather
 ## FAQ
 
 {/* MANUAL-CONTENT-START:faq */}
-### How do I extract structured data from a website using the Stagehand Extract block?
+<Accordions type="single">
+  <Accordion title="How do I extract structured data from a website using the Stagehand Extract block?">
 
-To extract data from websites in your Sim.ai workflow, add a **Stagehand Extract block** and configure its required inputs:
+    To extract data from websites in your Sim.ai workflow, add a **Stagehand Extract block** and configure its required inputs:
 
-#### Required Inputs
+    #### Required Inputs
 
-| Input | Description | Example |
-|-------|-------------|---------|
-| `url` | Target webpage URL to extract from | `<start.url>` or static URL like `https://example.com` |
-| `instruction` | Natural language extraction instructions | `"Extract product names, prices, and descriptions from this page"` |
-| `apiKey` | OpenAI API key for data processing | `<start.openaiKey>` or environment variable |
-| `schema` | JSON schema defining expected data structure | `{"type": "object", "properties": {"products": {"type": "array"}}}` |
+    | Input | Description | Example |
+    |-------|-------------|---------|
+    | `url` | Target webpage URL to extract from | `<start.url>` or static URL like `https://example.com` |
+    | `instruction` | Natural language extraction instructions | `"Extract product names, prices, and descriptions from this page"` |
+    | `apiKey` | OpenAI API key for data processing | `<start.openaiKey>` or environment variable |
+    | `schema` | JSON schema defining expected data structure | `{"type": "object", "properties": {"products": {"type": "array"}}}` |
+  </Accordion>
+  <Accordion title="What is the correct way to reference Stagehand Extract block outputs in my workflow?">
 
-### What is the correct way to reference Stagehand Extract block outputs in my workflow?
+    Every Stagehand Extract block exposes outputs that can be referenced using connection tags:
 
-Every Stagehand Extract block exposes outputs that can be referenced using connection tags:
+    #### Available Outputs
 
-#### Available Outputs
+    | Output Tag | Type | Description |
+    |------------|------|-------------|
+    | `<stagehand1.data>` | Object/JSON | Extracted structured data matching your schema |
 
-| Output Tag | Type | Description |
-|------------|------|-------------|
-| `<stagehand1.data>` | Object/JSON | Extracted structured data matching your schema |
+    The extracted data structure follows the JSON schema you provided in the `schema` input, making it easy to access specific fields in downstream blocks.
+  </Accordion>
+  <Accordion title="How do I create a JSON schema for data extraction with Stagehand Extract?">
 
-The extracted data structure follows the JSON schema you provided in the `schema` input, making it easy to access specific fields in downstream blocks.
+    Define your extraction schema based on the data structure you want to extract:
 
-### How do I create a JSON schema for data extraction with Stagehand Extract?
+    #### Example Schemas
 
-Define your extraction schema based on the data structure you want to extract:
-
-#### Example Schemas
-
-##### Product Listing Schema
-```json
-{
-  "type": "object",
-  "properties": {
-    "products": {
-      "type": "array",
-      "items": {
-        "type": "object",
-        "properties": {
-          "name": {"type": "string"},
-          "price": {"type": "string"},
-          "description": {"type": "string"}
+    ##### Product Listing Schema
+    ```json
+    {
+      "type": "object",
+      "properties": {
+        "products": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "name": {"type": "string"},
+              "price": {"type": "string"},
+              "description": {"type": "string"}
+            }
+          }
         }
       }
     }
-  }
-}
-```
+    ```
 
-##### Contact Information Schema
-```json
-{
-  "type": "object",
-  "properties": {
-    "company": {"type": "string"},
-    "email": {"type": "string"},
-    "phone": {"type": "string"},
-    "address": {"type": "string"}
-  }
-}
-```
+    ##### Contact Information Schema
+    ```json
+    {
+      "type": "object",
+      "properties": {
+        "company": {"type": "string"},
+        "email": {"type": "string"},
+        "phone": {"type": "string"},
+        "address": {"type": "string"}
+      }
+    }
+    ```
 
-Connect this schema to the `schema` input using `<start.schema>` or define it directly in the block configuration.
+    Connect this schema to the `schema` input using `<start.schema>` or define it directly in the block configuration.
+  </Accordion>
+  <Accordion title="How do I connect Stagehand Extract with an Agent block for data processing?">
 
-### How do I connect Stagehand Extract with an Agent block for data processing?
+    To process extracted data with AI, connect the Stagehand Extract output to an Agent block:
 
-To process extracted data with AI, connect the Stagehand Extract output to an Agent block:
+    1. **Route extracted data** to the Agent's `userPrompt` or context
+    2. **Reference the data** using `<stagehand1.data>` connection tag
 
-1. **Route extracted data** to the Agent's `userPrompt` or context
-2. **Reference the data** using `<stagehand1.data>` connection tag
+    #### Example Workflow Configuration
 
-#### Example Workflow Configuration
+    ```json
+    Agent Block Input:
+    {
+      "userPrompt": "Analyze this extracted data and provide insights: <stagehand1.data>",
+      "systemPrompt": "You are a data analyst. Provide actionable insights from website data."
+    }
+    ```
 
-```json
-Agent Block Input:
-{
-  "userPrompt": "Analyze this extracted data and provide insights: <stagehand1.data>",
-  "systemPrompt": "You are a data analyst. Provide actionable insights from website data."
-}
-```
+    This pattern enables AI-powered analysis of the structured data extracted from websites.
+  </Accordion>
+  <Accordion title="Why is my Stagehand Extract block failing to extract data?">
 
-This pattern enables AI-powered analysis of the structured data extracted from websites.
+    Troubleshoot common extraction issues with this checklist:
 
-### Why is my Stagehand Extract block failing to extract data?
+    #### Common Issues and Solutions
 
-Troubleshoot common extraction issues with this checklist:
+    | Issue | Description | Solution |
+    |-------|-------------|----------|
+    | **Invalid URL** | Webpage not accessible or malformed URL | Verify `<start.url>` is a valid, accessible webpage |
+    | **OpenAI API Error** | API key invalid or quota exceeded | Check `<start.openaiKey>` and OpenAI account status |
+    | **Schema Mismatch** | Extracted data doesn't match schema | Adjust `schema` to match actual webpage structure |
+    | **Complex Pages** | JavaScript-heavy or dynamic content | Ensure instruction is specific about target elements |
+    | **Empty Results** | No data matches extraction criteria | Refine `instruction` to be more specific or broader |
+  </Accordion>
+  <Accordion title="How do I build a complete web scraping workflow with Stagehand Extract?">
 
-#### Common Issues and Solutions
+    Create comprehensive data extraction workflows using these patterns:
 
-| Issue | Description | Solution |
-|-------|-------------|----------|
-| **Invalid URL** | Webpage not accessible or malformed URL | Verify `<start.url>` is a valid, accessible webpage |
-| **OpenAI API Error** | API key invalid or quota exceeded | Check `<start.openaiKey>` and OpenAI account status |
-| **Schema Mismatch** | Extracted data doesn't match schema | Adjust `schema` to match actual webpage structure |
-| **Complex Pages** | JavaScript-heavy or dynamic content | Ensure instruction is specific about target elements |
-| **Empty Results** | No data matches extraction criteria | Refine `instruction` to be more specific or broader |
+    #### Pattern 1: **Webhook → Stagehand Extract → Agent → Response**
+    Extract data from user-provided URLs and analyze with AI:
+    ```
+    Webhook (receives URL) → Stagehand Extract → Agent (analysis) → Response
+    ```
 
-### How do I build a complete web scraping workflow with Stagehand Extract?
+    #### Pattern 2: **Scheduled → Stagehand Extract → Function → Notification**
+    Monitor websites for changes on a schedule:
+    ```
+    Schedule Trigger → Stagehand Extract → Function (compare data) → Telegram/Email
+    ```
 
-Create comprehensive data extraction workflows using these patterns:
+    #### Pattern 3: **API → Stagehand Extract → Database Storage**
+    Bulk process multiple URLs and store results:
+    ```
+    API (URL list) → Loop → Stagehand Extract → Function (format) → Database
+    ```
+  </Accordion>
+  <Accordion title="Can I extract data from multiple pages or dynamic content with Stagehand Extract?">
 
-#### Pattern 1: **Webhook → Stagehand Extract → Agent → Response**
-Extract data from user-provided URLs and analyze with AI:
-```
-Webhook (receives URL) → Stagehand Extract → Agent (analysis) → Response
-```
+    Stagehand Extract processes single URLs per block execution. For multiple pages:
 
-#### Pattern 2: **Scheduled → Stagehand Extract → Function → Notification**
-Monitor websites for changes on a schedule:
-```
-Schedule Trigger → Stagehand Extract → Function (compare data) → Telegram/Email
-```
+    #### Multi-Page Strategies
 
-#### Pattern 3: **API → Stagehand Extract → Database Storage**
-Bulk process multiple URLs and store results:
-```
-API (URL list) → Loop → Stagehand Extract → Function (format) → Database
-```
+    ##### 1. **Loop Pattern**
+    Use Function blocks to iterate through URL lists:
+    ```
+    Function (URL generator) → Stagehand Extract → Function (aggregate results)
+    ```
 
-### Can I extract data from multiple pages or dynamic content with Stagehand Extract?
+    ##### 2. **Dynamic Content Handling**
+    Provide specific instructions for JavaScript-rendered content:
+    ```json
+    {
+      "instruction": "Wait for the product grid to load, then extract all visible product cards with names, prices, and availability status"
+    }
+    ```
 
-Stagehand Extract processes single URLs per block execution. For multiple pages:
-
-#### Multi-Page Strategies
-
-##### 1. **Loop Pattern**
-Use Function blocks to iterate through URL lists:
-```
-Function (URL generator) → Stagehand Extract → Function (aggregate results)
-```
-
-##### 2. **Dynamic Content Handling**
-Provide specific instructions for JavaScript-rendered content:
-```json
-{
-  "instruction": "Wait for the product grid to load, then extract all visible product cards with names, prices, and availability status"
-}
-```
-
-##### 3. **Pagination Workflow**
-Extract pagination links first, then process each page:
-```
-Stagehand Extract (get pagination) → Function (process links) → Multiple Stagehand Extract blocks
-```
+    ##### 3. **Pagination Workflow**
+    Extract pagination links first, then process each page:
+    ```
+    Stagehand Extract (get pagination) → Function (process links) → Multiple Stagehand Extract blocks
+    ```
+  </Accordion>
+</Accordions>
 {/* MANUAL-CONTENT-END */}

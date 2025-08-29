@@ -4,6 +4,8 @@ description: Read and create issues in Linear
 ---
 
 import { BlockInfoCard } from "@/components/ui/block-info-card"
+import { Accordion, Accordions } from "fumadocs-ui/components/accordion"
+
 
 <BlockInfoCard 
   type="linear"
@@ -140,148 +142,151 @@ For high-volume Linear integrations, consider implementing rate limiting and que
 ## FAQ
 
 {/* MANUAL-CONTENT-START:faq */}
-### How do I fetch issues from my Linear team in a workflow?
+<Accordions type="single">
+  <Accordion title="How do I fetch issues from my Linear team in a workflow?">
 
-To retrieve issues from Linear, add a **Linear block** to your Sim.ai workflow and configure the `linear_read_issues` operation:
+    To retrieve issues from Linear, add a **Linear block** to your Sim.ai workflow and configure the `linear_read_issues` operation:
 
-#### Required Inputs
+    #### Required Inputs
 
-| Input | Description | Example |
-|-------|-------------|---------|
-| `teamId` | Your Linear team identifier | `<start.teamId>` or static value like `"TEAM_abc123"` |
-| `projectId` | Target Linear project ID | `<start.projectId>` or project ID from upstream block |
+    | Input | Description | Example |
+    |-------|-------------|---------|
+    | `teamId` | Your Linear team identifier | `<start.teamId>` or static value like `"TEAM_abc123"` |
+    | `projectId` | Target Linear project ID | `<start.projectId>` or project ID from upstream block |
 
-The block will return an array of issues with complete metadata including titles, descriptions, and current states.
+    The block will return an array of issues with complete metadata including titles, descriptions, and current states.
+  </Accordion>
+  <Accordion title="How do I create a new issue in Linear from my workflow?">
 
-### How do I create a new issue in Linear from my workflow?
+    To create Linear issues programmatically:
 
-To create Linear issues programmatically:
+    1. **Add a Linear block** configured for the `linear_create_issue` operation
+    2. **Set required parameters** using connection tags or static values:
 
-1. **Add a Linear block** configured for the `linear_create_issue` operation
-2. **Set required parameters** using connection tags or static values:
+    #### Example Configuration
 
-#### Example Configuration
+    ```json
+    {
+      "teamId": "<start.teamId>",
+      "projectId": "<start.projectId>",
+      "title": "<agent1.content>",
+      "description": "<function1.issueDetails>"
+    }
+    ```
 
-```json
-{
-  "teamId": "<start.teamId>",
-  "projectId": "<start.projectId>",
-  "title": "<agent1.content>",
-  "description": "<function1.issueDetails>"
-}
-```
+    This creates an issue with AI-generated content or processed data from previous workflow steps.
+  </Accordion>
+  <Accordion title="What outputs can I reference from Linear blocks in my workflow?">
 
-This creates an issue with AI-generated content or processed data from previous workflow steps.
+    Linear blocks expose different outputs depending on the operation used:
 
-### What outputs can I reference from Linear blocks in my workflow?
+    #### Read Issues Operation Outputs
 
-Linear blocks expose different outputs depending on the operation used:
+    | Output Tag | Type | Description |
+    |------------|------|-------------|
+    | `<linear1.issues>` | Array | Complete list of fetched issues |
+    | `<linear1.issues[0].id>` | String | ID of the first issue |
+    | `<linear1.issues[0].title>` | String | Title of the first issue |
+    | `<linear1.issues[0].description>` | String | Description content |
+    | `<linear1.issues[0].state>` | String | Current issue state |
+    | `<linear1.issues[0].teamId>` | String | Team identifier |
+    | `<linear1.issues[0].projectId>` | String | Project identifier |
 
-#### Read Issues Operation Outputs
+    #### Create Issue Operation Outputs
 
-| Output Tag | Type | Description |
-|------------|------|-------------|
-| `<linear1.issues>` | Array | Complete list of fetched issues |
-| `<linear1.issues[0].id>` | String | ID of the first issue |
-| `<linear1.issues[0].title>` | String | Title of the first issue |
-| `<linear1.issues[0].description>` | String | Description content |
-| `<linear1.issues[0].state>` | String | Current issue state |
-| `<linear1.issues[0].teamId>` | String | Team identifier |
-| `<linear1.issues[0].projectId>` | String | Project identifier |
+    | Output Tag | Type | Description |
+    |------------|------|-------------|
+    | `<linear1.issue>` | Object | The newly created issue |
+    | `<linear1.issue.id>` | String | Unique ID of created issue |
+    | `<linear1.issue.title>` | String | Title of the created issue |
+    | `<linear1.issue.description>` | String | Issue description content |
+    | `<linear1.issue.state>` | String | Initial state of the issue |
+  </Accordion>
+  <Accordion title="How do I connect an Agent block to automatically create Linear issues?">
 
-#### Create Issue Operation Outputs
+    To route AI-generated content into Linear issues:
 
-| Output Tag | Type | Description |
-|------------|------|-------------|
-| `<linear1.issue>` | Object | The newly created issue |
-| `<linear1.issue.id>` | String | Unique ID of created issue |
-| `<linear1.issue.title>` | String | Title of the created issue |
-| `<linear1.issue.description>` | String | Issue description content |
-| `<linear1.issue.state>` | String | Initial state of the issue |
+    1. **Configure the Agent block** to analyze or process input data
+    2. **Connect Agent outputs to Linear inputs**:
 
-### How do I connect an Agent block to automatically create Linear issues?
+    #### Example Workflow Pattern
 
-To route AI-generated content into Linear issues:
+    ```
+    Webhook → Agent → Linear
+    ```
 
-1. **Configure the Agent block** to analyze or process input data
-2. **Connect Agent outputs to Linear inputs**:
+    #### Linear Block Configuration
 
-#### Example Workflow Pattern
+    | Field | Connection | Purpose |
+    |-------|------------|---------|
+    | `title` | `<agent1.content>` | Use AI-generated summary as title |
+    | `description` | `<webhook1.payload.details>` | Include original request details |
+    | `teamId` | `<start.defaultTeamId>` | Use workflow parameter for team |
+    | `projectId` | `<start.projectId>` | Route to specific project |
 
-```
-Webhook → Agent → Linear
-```
+    This pattern automatically creates structured Linear issues from incoming data.
+  </Accordion>
+  <Accordion title="Why am I getting authentication errors with the Linear block?">
 
-#### Linear Block Configuration
+    Linear integration requires proper API authentication setup:
 
-| Field | Connection | Purpose |
-|-------|------------|---------|
-| `title` | `<agent1.content>` | Use AI-generated summary as title |
-| `description` | `<webhook1.payload.details>` | Include original request details |
-| `teamId` | `<start.defaultTeamId>` | Use workflow parameter for team |
-| `projectId` | `<start.projectId>` | Route to specific project |
+    #### Common Authentication Issues
 
-This pattern automatically creates structured Linear issues from incoming data.
+    | Issue | Description | Solution |
+    |-------|-------------|----------|
+    | **Missing API Token** | Linear API key not configured | Add Linear API token to your Sim.ai integrations |
+    | **Invalid Team ID** | Team identifier format incorrect | Verify team ID format matches Linear's structure |
+    | **Project Access** | Insufficient permissions | Ensure API token has access to target project |
+    | **Token Expired** | Authentication token no longer valid | Regenerate Linear API token in your Linear settings |
 
-### Why am I getting authentication errors with the Linear block?
+    Check your Sim.ai integrations panel to verify Linear authentication is properly configured.
+  </Accordion>
+  <Accordion title="How do I filter and process Linear issues in my workflow?">
 
-Linear integration requires proper API authentication setup:
+    Combine Linear blocks with Function blocks to filter and transform issue data:
 
-#### Common Authentication Issues
+    #### Example Filtering Workflow
 
-| Issue | Description | Solution |
-|-------|-------------|----------|
-| **Missing API Token** | Linear API key not configured | Add Linear API token to your Sim.ai integrations |
-| **Invalid Team ID** | Team identifier format incorrect | Verify team ID format matches Linear's structure |
-| **Project Access** | Insufficient permissions | Ensure API token has access to target project |
-| **Token Expired** | Authentication token no longer valid | Regenerate Linear API token in your Linear settings |
+    ```
+    Linear (read) → Function → Agent → Telegram
+    ```
 
-Check your Sim.ai integrations panel to verify Linear authentication is properly configured.
+    #### Function Block Processing
 
-### How do I filter and process Linear issues in my workflow?
+    ```javascript
+    // Filter high-priority issues
+    const highPriorityIssues = input.issues.filter(issue => 
+      issue.state === "In Progress" || issue.priority === "High"
+    );
 
-Combine Linear blocks with Function blocks to filter and transform issue data:
+    return {
+      filteredIssues: highPriorityIssues,
+      count: highPriorityIssues.length,
+      summary: `Found ${highPriorityIssues.length} high-priority issues`
+    };
+    ```
 
-#### Example Filtering Workflow
+    Connect `<function1.summary>` to downstream blocks for reporting or notifications.
+  </Accordion>
+  <Accordion title="Can I create Linear issues conditionally based on workflow data?">
 
-```
-Linear (read) → Function → Agent → Telegram
-```
+    Yes! Use Condition blocks to control when Linear issues are created:
 
-#### Function Block Processing
+    #### Conditional Issue Creation Pattern
 
-```javascript
-// Filter high-priority issues
-const highPriorityIssues = input.issues.filter(issue => 
-  issue.state === "In Progress" || issue.priority === "High"
-);
+    ```
+    Webhook → Condition → Linear (create)
+                       ↘ Linear (different project)
+    ```
 
-return {
-  filteredIssues: highPriorityIssues,
-  count: highPriorityIssues.length,
-  summary: `Found ${highPriorityIssues.length} high-priority issues`
-};
-```
+    #### Example Condition Logic
 
-Connect `<function1.summary>` to downstream blocks for reporting or notifications.
+    Configure the Condition block to evaluate:
+    - **If** `<webhook1.severity>` equals `"critical"`
+    - **Then** route to Linear block with `projectId: "URGENT_PROJECT"`
+    - **Else** route to standard project Linear block
 
-### Can I create Linear issues conditionally based on workflow data?
-
-Yes! Use Condition blocks to control when Linear issues are created:
-
-#### Conditional Issue Creation Pattern
-
-```
-Webhook → Condition → Linear (create)
-                   ↘ Linear (different project)
-```
-
-#### Example Condition Logic
-
-Configure the Condition block to evaluate:
-- **If** `<webhook1.severity>` equals `"critical"`
-- **Then** route to Linear block with `projectId: "URGENT_PROJECT"`
-- **Else** route to standard project Linear block
-
-This ensures critical issues are automatically triaged to the appropriate Linear project based on incoming data characteristics.
+    This ensures critical issues are automatically triaged to the appropriate Linear project based on incoming data characteristics.
+  </Accordion>
+</Accordions>
 {/* MANUAL-CONTENT-END */}

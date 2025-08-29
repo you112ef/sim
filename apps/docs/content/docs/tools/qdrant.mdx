@@ -4,6 +4,8 @@ description: Use Qdrant vector database
 ---
 
 import { BlockInfoCard } from "@/components/ui/block-info-card"
+import { Accordion, Accordions } from "fumadocs-ui/components/accordion"
+
 
 <BlockInfoCard 
   type="qdrant"
@@ -233,151 +235,154 @@ Consider implementing vector compression techniques for storage optimization whi
 ## FAQ
 
 {/* MANUAL-CONTENT-START:faq */}
-### How do I store vector embeddings in a Qdrant collection from my workflow?
+<Accordions type="single">
+  <Accordion title="How do I store vector embeddings in a Qdrant collection from my workflow?">
 
-To store vector embeddings in Qdrant, add a **Qdrant block** to your Sim.ai workflow and configure the upsert operation:
+    To store vector embeddings in Qdrant, add a **Qdrant block** to your Sim.ai workflow and configure the upsert operation:
 
-#### Required Inputs
+    #### Required Inputs
 
-| Input | Description | Example |
-|-------|-------------|---------|
-| `url` | Your Qdrant server base URL | `<start.qdrantUrl>` or `https://your-cluster.qdrant.tech` |
-| `collection` | Target collection name | `<start.collectionName>` or static name like `documents` |
-| `points` | Array of points with vectors and metadata | `<embeddings1.points>` or structured array |
+    | Input | Description | Example |
+    |-------|-------------|---------|
+    | `url` | Your Qdrant server base URL | `<start.qdrantUrl>` or `https://your-cluster.qdrant.tech` |
+    | `collection` | Target collection name | `<start.collectionName>` or static name like `documents` |
+    | `points` | Array of points with vectors and metadata | `<embeddings1.points>` or structured array |
 
-#### Point Structure
-```json
-[
-  {
-    "id": 1,
-    "vector": [0.1, 0.2, 0.3, ...],
-    "payload": {"text": "Document content", "category": "news"}
-  }
-]
-```
-
-### How do I perform semantic similarity searches with the Qdrant block?
-
-To search for similar vectors in your Qdrant collection:
-
-1. **Set the operation** to `qdrant_search_vector`
-2. **Configure search inputs**:
-
-| Input | Description | Example |
-|-------|-------------|---------|
-| `url` | Qdrant server URL | `<start.qdrantUrl>` |
-| `collection` | Collection to search | `<start.collectionName>` |
-| `vector` | Query vector for similarity search | `<embeddings1.vector>` |
-| `limit` | Maximum results to return | `<start.limit>` or static number like `10` |
-| `with_payload` | Include metadata in results | `true` |
-
-### What is the correct way to reference Qdrant block outputs in my workflow?
-
-Every Qdrant block exposes outputs that can be referenced using connection tags:
-
-#### Available Outputs
-
-| Output Tag | Type | Description |
-|------------|------|-------------|
-| `<qdrant1.data>` | Array/Object | Main result data from the operation |
-| `<qdrant1.status>` | String | Operation status (success/error) |
-| `<qdrant1.matches>` | Array | Search results with similarity scores |
-| `<qdrant1.upsertedCount>` | Number | Number of points successfully upserted |
-
-#### Search Result Structure
-When using `<qdrant1.matches>`, each result contains:
-- `id`: Point identifier
-- `score`: Similarity score (0-1)
-- `payload`: Associated metadata
-- `vector`: Original vector (if `with_vector` is true)
-
-### How do I connect an Agent block's embeddings to Qdrant for storage?
-
-To store AI-generated embeddings in Qdrant:
-
-1. **Agent generates content** → `<agent1.content>`
-2. **Embeddings block creates vectors** → `<embeddings1.vectors>`
-3. **Qdrant block stores data**:
-
-#### Example Configuration
-```json
-{
-  "collection": "knowledge_base",
-  "points": [
-    {
-      "id": "<function1.generateId>",
-      "vector": "<embeddings1.vector>",
-      "payload": {
-        "text": "<agent1.content>",
-        "timestamp": "<start.timestamp>"
+    #### Point Structure
+    ```json
+    [
+      {
+        "id": 1,
+        "vector": [0.1, 0.2, 0.3, ...],
+        "payload": {"text": "Document content", "category": "news"}
       }
+    ]
+    ```
+  </Accordion>
+  <Accordion title="How do I perform semantic similarity searches with the Qdrant block?">
+
+    To search for similar vectors in your Qdrant collection:
+
+    1. **Set the operation** to `qdrant_search_vector`
+    2. **Configure search inputs**:
+
+    | Input | Description | Example |
+    |-------|-------------|---------|
+    | `url` | Qdrant server URL | `<start.qdrantUrl>` |
+    | `collection` | Collection to search | `<start.collectionName>` |
+    | `vector` | Query vector for similarity search | `<embeddings1.vector>` |
+    | `limit` | Maximum results to return | `<start.limit>` or static number like `10` |
+    | `with_payload` | Include metadata in results | `true` |
+  </Accordion>
+  <Accordion title="What is the correct way to reference Qdrant block outputs in my workflow?">
+
+    Every Qdrant block exposes outputs that can be referenced using connection tags:
+
+    #### Available Outputs
+
+    | Output Tag | Type | Description |
+    |------------|------|-------------|
+    | `<qdrant1.data>` | Array/Object | Main result data from the operation |
+    | `<qdrant1.status>` | String | Operation status (success/error) |
+    | `<qdrant1.matches>` | Array | Search results with similarity scores |
+    | `<qdrant1.upsertedCount>` | Number | Number of points successfully upserted |
+
+    #### Search Result Structure
+    When using `<qdrant1.matches>`, each result contains:
+    - `id`: Point identifier
+    - `score`: Similarity score (0-1)
+    - `payload`: Associated metadata
+    - `vector`: Original vector (if `with_vector` is true)
+  </Accordion>
+  <Accordion title="How do I connect an Agent block's embeddings to Qdrant for storage?">
+
+    To store AI-generated embeddings in Qdrant:
+
+    1. **Agent generates content** → `<agent1.content>`
+    2. **Embeddings block creates vectors** → `<embeddings1.vectors>`
+    3. **Qdrant block stores data**:
+
+    #### Example Configuration
+    ```json
+    {
+      "collection": "knowledge_base",
+      "points": [
+        {
+          "id": "<function1.generateId>",
+          "vector": "<embeddings1.vector>",
+          "payload": {
+            "text": "<agent1.content>",
+            "timestamp": "<start.timestamp>"
+          }
+        }
+      ]
     }
-  ]
-}
-```
+    ```
+  </Accordion>
+  <Accordion title="Why is my Qdrant operation failing with authentication errors?">
 
-### Why is my Qdrant operation failing with authentication errors?
+    Troubleshoot Qdrant authentication and connection issues:
 
-Troubleshoot Qdrant authentication and connection issues:
+    #### Common Issues and Solutions
 
-#### Common Issues and Solutions
+    | Issue | Description | Solution |
+    |-------|-------------|----------|
+    | **Missing API Key** | Cloud Qdrant requires authentication | Add `apiKey` input with `<start.qdrantApiKey>` |
+    | **Wrong URL Format** | Incorrect server URL | Ensure URL includes protocol: `https://cluster.qdrant.tech` |
+    | **Collection Not Found** | Target collection doesn't exist | Create collection first or verify name in `<qdrant1.collection>` |
+    | **Invalid Vector Dimensions** | Vector size mismatch | Ensure `<embeddings1.vector>` matches collection dimensions |
+    | **Network Timeout** | Connection issues | Check Qdrant server status and network connectivity |
+  </Accordion>
+  <Accordion title="Can I build a RAG system using Qdrant with other Sim.ai blocks?">
 
-| Issue | Description | Solution |
-|-------|-------------|----------|
-| **Missing API Key** | Cloud Qdrant requires authentication | Add `apiKey` input with `<start.qdrantApiKey>` |
-| **Wrong URL Format** | Incorrect server URL | Ensure URL includes protocol: `https://cluster.qdrant.tech` |
-| **Collection Not Found** | Target collection doesn't exist | Create collection first or verify name in `<qdrant1.collection>` |
-| **Invalid Vector Dimensions** | Vector size mismatch | Ensure `<embeddings1.vector>` matches collection dimensions |
-| **Network Timeout** | Connection issues | Check Qdrant server status and network connectivity |
+    Yes! Qdrant integrates perfectly with other blocks for Retrieval-Augmented Generation:
 
-### Can I build a RAG system using Qdrant with other Sim.ai blocks?
+    #### RAG Workflow Pattern
+    ```
+    Webhook → Embeddings → Qdrant Search → Agent → Response
+    ```
 
-Yes! Qdrant integrates perfectly with other blocks for Retrieval-Augmented Generation:
+    ##### 1. **Store Knowledge (Setup)**
+    ```
+    Document → Embeddings → Qdrant Upsert
+    ```
+    - Process documents with `<embeddings1.vector>`
+    - Store in Qdrant with `<qdrant1.upsertedCount>` confirmation
 
-#### RAG Workflow Pattern
-```
-Webhook → Embeddings → Qdrant Search → Agent → Response
-```
+    ##### 2. **Query Knowledge (Runtime)**
+    ```
+    User Question → Embeddings → Qdrant Search → Context Retrieval
+    ```
+    - Convert question: `<embeddings2.vector>`
+    - Search similar: `<qdrant2.matches>`
+    - Extract context: `<qdrant2.data[0].payload.text>`
 
-##### 1. **Store Knowledge (Setup)**
-```
-Document → Embeddings → Qdrant Upsert
-```
-- Process documents with `<embeddings1.vector>`
-- Store in Qdrant with `<qdrant1.upsertedCount>` confirmation
+    ##### 3. **Generate Response**
+    ```
+    Agent Input: "Context: <qdrant2.matches> Question: <start.question>"
+    ```
+  </Accordion>
+  <Accordion title="How do I fetch specific points by ID from my Qdrant collection?">
 
-##### 2. **Query Knowledge (Runtime)**
-```
-User Question → Embeddings → Qdrant Search → Context Retrieval
-```
-- Convert question: `<embeddings2.vector>`
-- Search similar: `<qdrant2.matches>`
-- Extract context: `<qdrant2.data[0].payload.text>`
+    To retrieve specific points using their IDs:
 
-##### 3. **Generate Response**
-```
-Agent Input: "Context: <qdrant2.matches> Question: <start.question>"
-```
+    1. **Set operation** to `qdrant_fetch_points`
+    2. **Configure fetch inputs**:
 
-### How do I fetch specific points by ID from my Qdrant collection?
+    | Input | Description | Example |
+    |-------|-------------|---------|
+    | `collection` | Collection name | `<start.collectionName>` |
+    | `ids` | Array of point IDs to fetch | `<start.pointIds>` or `[1, 2, 3]` |
+    | `with_payload` | Include metadata | `true` |
+    | `with_vector` | Include vector data | `false` (unless needed) |
 
-To retrieve specific points using their IDs:
+    #### Use Case Example
+    ```
+    Condition → Qdrant Fetch (if specific IDs needed)
+             → Qdrant Search (if similarity search needed)
+    ```
 
-1. **Set operation** to `qdrant_fetch_points`
-2. **Configure fetch inputs**:
-
-| Input | Description | Example |
-|-------|-------------|---------|
-| `collection` | Collection name | `<start.collectionName>` |
-| `ids` | Array of point IDs to fetch | `<start.pointIds>` or `[1, 2, 3]` |
-| `with_payload` | Include metadata | `true` |
-| `with_vector` | Include vector data | `false` (unless needed) |
-
-#### Use Case Example
-```
-Condition → Qdrant Fetch (if specific IDs needed)
-         → Qdrant Search (if similarity search needed)
-```
-
-Connect `<qdrant1.data>` to downstream blocks for further processing of the retrieved points.
+    Connect `<qdrant1.data>` to downstream blocks for further processing of the retrieved points.
+  </Accordion>
+</Accordions>
 {/* MANUAL-CONTENT-END */}

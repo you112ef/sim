@@ -4,6 +4,8 @@ description: Interact with Wealthbox
 ---
 
 import { BlockInfoCard } from "@/components/ui/block-info-card"
+import { Accordion, Accordions } from "fumadocs-ui/components/accordion"
+
 
 <BlockInfoCard 
   type="wealthbox"
@@ -223,144 +225,147 @@ Use conditional logic to skip unnecessary operations. For example, check if a co
 ## FAQ
 
 {/* MANUAL-CONTENT-START:faq */}
-### How do I create a new contact in Wealthbox from my workflow?
+<Accordions type="single">
+  <Accordion title="How do I create a new contact in Wealthbox from my workflow?">
 
-To create contacts in Wealthbox from your Sim.ai workflow, add a **Wealthbox block** and configure the contact creation inputs:
+    To create contacts in Wealthbox from your Sim.ai workflow, add a **Wealthbox block** and configure the contact creation inputs:
 
-#### Required Inputs for Contact Creation
+    #### Required Inputs for Contact Creation
 
-| Input | Description | Example Connection |
-|-------|-------------|-------------------|
-| `firstName` | Contact's first name | `<start.firstName>` or `<agent1.extractedFirstName>` |
-| `lastName` | Contact's last name | `<start.lastName>` or `<agent1.extractedLastName>` |
-| `emailAddress` | Contact's email (optional) | `<start.email>` or `<webhook1.email>` |
-| `backgroundInformation` | Notes about contact (optional) | `<agent1.contactSummary>` |
+    | Input | Description | Example Connection |
+    |-------|-------------|-------------------|
+    | `firstName` | Contact's first name | `<start.firstName>` or `<agent1.extractedFirstName>` |
+    | `lastName` | Contact's last name | `<start.lastName>` or `<agent1.extractedLastName>` |
+    | `emailAddress` | Contact's email (optional) | `<start.email>` or `<webhook1.email>` |
+    | `backgroundInformation` | Notes about contact (optional) | `<agent1.contactSummary>` |
 
-The block will execute the `wealthbox_write_contact` operation and return `<wealthbox1.success>` and `<wealthbox1.output>` with the created contact data.
+    The block will execute the `wealthbox_write_contact` operation and return `<wealthbox1.success>` and `<wealthbox1.output>` with the created contact data.
+  </Accordion>
+  <Accordion title="What is the correct way to reference Wealthbox block outputs in downstream workflow blocks?">
 
-### What is the correct way to reference Wealthbox block outputs in downstream workflow blocks?
+    Every Wealthbox block exposes structured outputs that can be referenced using connection tags:
 
-Every Wealthbox block exposes structured outputs that can be referenced using connection tags:
+    #### Available Output Tags
 
-#### Available Output Tags
+    | Output Tag | Type | Description |
+    |------------|------|-------------|
+    | `<wealthbox1.success>` | Boolean | `true` if the operation completed successfully |
+    | `<wealthbox1.note>` | JSON Object | Single note with ID, content, and creator info |
+    | `<wealthbox1.notes>` | JSON Array | Multiple notes from bulk operations |
+    | `<wealthbox1.contact>` | JSON Object | Contact with name, email, phone, background |
+    | `<wealthbox1.contacts>` | JSON Array | Multiple contacts from bulk operations |
+    | `<wealthbox1.task>` | JSON Object | Task with title, due date, description |
+    | `<wealthbox1.tasks>` | JSON Array | Multiple tasks from bulk operations |
+    | `<wealthbox1.output>` | JSON Object | Raw operation response data |
+    | `<wealthbox1.metadata>` | JSON Object | Operation metadata and item details |
+  </Accordion>
+  <Accordion title="How do I create a task in Wealthbox with a specific due date format?">
 
-| Output Tag | Type | Description |
-|------------|------|-------------|
-| `<wealthbox1.success>` | Boolean | `true` if the operation completed successfully |
-| `<wealthbox1.note>` | JSON Object | Single note with ID, content, and creator info |
-| `<wealthbox1.notes>` | JSON Array | Multiple notes from bulk operations |
-| `<wealthbox1.contact>` | JSON Object | Contact with name, email, phone, background |
-| `<wealthbox1.contacts>` | JSON Array | Multiple contacts from bulk operations |
-| `<wealthbox1.task>` | JSON Object | Task with title, due date, description |
-| `<wealthbox1.tasks>` | JSON Array | Multiple tasks from bulk operations |
-| `<wealthbox1.output>` | JSON Object | Raw operation response data |
-| `<wealthbox1.metadata>` | JSON Object | Operation metadata and item details |
+    To create tasks in Wealthbox, configure the required inputs with proper date formatting:
 
-### How do I create a task in Wealthbox with a specific due date format?
+    #### Task Creation Configuration
 
-To create tasks in Wealthbox, configure the required inputs with proper date formatting:
+    | Input | Format | Example |
+    |-------|--------|---------|
+    | `title` | String | `<agent1.taskTitle>` or `"Follow up with client"` |
+    | `dueDate` | "YYYY-MM-DD HH:MM AM/PM -HHMM" | `"2024-12-15 02:30 PM -0500"` |
+    | `contactId` | String (optional) | `<wealthbox1.contact.id>` from previous operation |
+    | `description` | String (optional) | `<agent1.taskDescription>` |
 
-#### Task Creation Configuration
+    #### Example Workflow Pattern
+    ```
+    Agent (generates task details) → Wealthbox (creates task) → Condition (checks success)
+    ```
 
-| Input | Format | Example |
-|-------|--------|---------|
-| `title` | String | `<agent1.taskTitle>` or `"Follow up with client"` |
-| `dueDate` | "YYYY-MM-DD HH:MM AM/PM -HHMM" | `"2024-12-15 02:30 PM -0500"` |
-| `contactId` | String (optional) | `<wealthbox1.contact.id>` from previous operation |
-| `description` | String (optional) | `<agent1.taskDescription>` |
+    Connect `<agent1.extractedDueDate>` to ensure the AI formats dates correctly for Wealthbox.
+  </Accordion>
+  <Accordion title="How do I read existing notes from Wealthbox and process them with an Agent block?">
 
-#### Example Workflow Pattern
-```
-Agent (generates task details) → Wealthbox (creates task) → Condition (checks success)
-```
+    To retrieve and process Wealthbox notes in your workflow:
 
-Connect `<agent1.extractedDueDate>` to ensure the AI formats dates correctly for Wealthbox.
+    1. **Configure the Wealthbox block** with `wealthbox_read_note` operation
+    2. **Provide the note ID** via `<start.noteId>` or from a previous workflow step
+    3. **Connect the output** to an Agent block for processing
 
-### How do I read existing notes from Wealthbox and process them with an Agent block?
+    #### Example Connection Pattern
+    ```json
+    {
+      "noteId": "<webhook1.noteId>",
+      "operation": "wealthbox_read_note"
+    }
+    ```
 
-To retrieve and process Wealthbox notes in your workflow:
+    Then connect `<wealthbox1.note.content>` to an Agent block's `userPrompt` to analyze or summarize the note content.
+  </Accordion>
+  <Accordion title="Can I link contacts to notes and tasks when creating them in Wealthbox?">
 
-1. **Configure the Wealthbox block** with `wealthbox_read_note` operation
-2. **Provide the note ID** via `<start.noteId>` or from a previous workflow step
-3. **Connect the output** to an Agent block for processing
+    Yes! Wealthbox blocks support linking entities through contact IDs:
 
-#### Example Connection Pattern
-```json
-{
-  "noteId": "<webhook1.noteId>",
-  "operation": "wealthbox_read_note"
-}
-```
+    #### Linking Pattern for Notes
 
-Then connect `<wealthbox1.note.content>` to an Agent block's `userPrompt` to analyze or summarize the note content.
+    | Field | Connection | Purpose |
+    |-------|------------|---------|
+    | `content` | `<agent1.noteContent>` | Main note text |
+    | `contactId` | `<wealthbox1.contact.id>` | Links note to specific contact |
 
-### Can I link contacts to notes and tasks when creating them in Wealthbox?
+    #### Linking Pattern for Tasks
 
-Yes! Wealthbox blocks support linking entities through contact IDs:
+    | Field | Connection | Purpose |
+    |-------|------------|---------|
+    | `title` | `<agent1.taskTitle>` | Task name |
+    | `dueDate` | `<start.dueDate>` | Formatted due date |
+    | `contactId` | `<wealthbox2.contact.id>` | Links task to contact |
+    | `description` | `<agent1.taskDetails>` | Task description |
 
-#### Linking Pattern for Notes
+    #### Multi-Step Workflow Example
+    ```
+    1. Create Contact → 2. Create Note (linked) → 3. Create Task (linked)
+    ```
+  </Accordion>
+  <Accordion title="Why is my Wealthbox operation failing with authentication errors?">
 
-| Field | Connection | Purpose |
-|-------|------------|---------|
-| `content` | `<agent1.noteContent>` | Main note text |
-| `contactId` | `<wealthbox1.contact.id>` | Links note to specific contact |
+    Troubleshoot Wealthbox authentication and common integration issues:
 
-#### Linking Pattern for Tasks
+    #### Common Issues and Solutions
 
-| Field | Connection | Purpose |
-|-------|------------|---------|
-| `title` | `<agent1.taskTitle>` | Task name |
-| `dueDate` | `<start.dueDate>` | Formatted due date |
-| `contactId` | `<wealthbox2.contact.id>` | Links task to contact |
-| `description` | `<agent1.taskDetails>` | Task description |
+    | Issue | Description | Solution |
+    |-------|-------------|----------|
+    | **OAuth Token Expired** | Authentication credentials invalid | Re-authenticate in Sim.ai settings |
+    | **Invalid Contact ID** | Referencing non-existent contact | Verify `<wealthbox1.contact.id>` exists |
+    | **Date Format Error** | Incorrect due date format | Use exact format: `"YYYY-MM-DD HH:MM AM/PM -HHMM"` |
+    | **Missing Required Fields** | firstName/lastName for contacts empty | Ensure `<start.firstName>` and `<start.lastName>` have values |
+    | **Permission Denied** | Insufficient Wealthbox permissions | Check account permissions for notes/contacts/tasks |
+  </Accordion>
+  <Accordion title="How do I create a workflow that processes incoming data and updates Wealthbox records?">
 
-#### Multi-Step Workflow Example
-```
-1. Create Contact → 2. Create Note (linked) → 3. Create Task (linked)
-```
+    Build automated Wealthbox workflows using these integration patterns:
 
-### Why is my Wealthbox operation failing with authentication errors?
+    #### Pattern 1: **Webhook → Agent → Wealthbox**
+    Process incoming form data and create contacts:
+    ```
+    <webhook1.firstName> → Agent (data validation) → Wealthbox (create contact)
+    ```
 
-Troubleshoot Wealthbox authentication and common integration issues:
+    #### Pattern 2: **API → Function → Wealthbox**
+    Sync external CRM data with Wealthbox:
+    ```
+    <api1.customerData> → Function (transform) → Wealthbox (create/update)
+    ```
 
-#### Common Issues and Solutions
+    #### Pattern 3: **Scheduled Trigger → Wealthbox → Agent → Wealthbox**
+    Daily task management automation:
+    ```
+    Schedule → Read Tasks → Agent (prioritize) → Update Tasks
+    ```
 
-| Issue | Description | Solution |
-|-------|-------------|----------|
-| **OAuth Token Expired** | Authentication credentials invalid | Re-authenticate in Sim.ai settings |
-| **Invalid Contact ID** | Referencing non-existent contact | Verify `<wealthbox1.contact.id>` exists |
-| **Date Format Error** | Incorrect due date format | Use exact format: `"YYYY-MM-DD HH:MM AM/PM -HHMM"` |
-| **Missing Required Fields** | firstName/lastName for contacts empty | Ensure `<start.firstName>` and `<start.lastName>` have values |
-| **Permission Denied** | Insufficient Wealthbox permissions | Check account permissions for notes/contacts/tasks |
+    #### Pattern 4: **Condition-Based Updates**
+    Update records based on specific criteria:
+    ```
+    if `<wealthbox1.contact.email>` is empty:
+      → Agent (find email) → Wealthbox (update contact)
+    ```
 
-### How do I create a workflow that processes incoming data and updates Wealthbox records?
-
-Build automated Wealthbox workflows using these integration patterns:
-
-#### Pattern 1: **Webhook → Agent → Wealthbox**
-Process incoming form data and create contacts:
-```
-<webhook1.firstName> → Agent (data validation) → Wealthbox (create contact)
-```
-
-#### Pattern 2: **API → Function → Wealthbox**
-Sync external CRM data with Wealthbox:
-```
-<api1.customerData> → Function (transform) → Wealthbox (create/update)
-```
-
-#### Pattern 3: **Scheduled Trigger → Wealthbox → Agent → Wealthbox**
-Daily task management automation:
-```
-Schedule → Read Tasks → Agent (prioritize) → Update Tasks
-```
-
-#### Pattern 4: **Condition-Based Updates**
-Update records based on specific criteria:
-```
-if `<wealthbox1.contact.email>` is empty:
-  → Agent (find email) → Wealthbox (update contact)
-```
-
-Connect `<wealthbox1.success>` to Condition blocks to handle operation results and create robust error handling in your workflows.
+    Connect `<wealthbox1.success>` to Condition blocks to handle operation results and create robust error handling in your workflows.
+  </Accordion>
+</Accordions>
 {/* MANUAL-CONTENT-END */}

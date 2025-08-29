@@ -4,6 +4,8 @@ description: Read and parse multiple files
 ---
 
 import { BlockInfoCard } from "@/components/ui/block-info-card"
+import { Accordion, Accordions } from "fumadocs-ui/components/accordion"
+
 
 <BlockInfoCard 
   type="file"
@@ -130,142 +132,145 @@ Structure your workflows to handle processing failures gracefully by implementin
 ## FAQ
 
 {/* MANUAL-CONTENT-START:faq */}
-### How do I upload files to my workflow using the File block?
+<Accordions type="single">
+  <Accordion title="How do I upload files to my workflow using the File block?">
 
-To upload files in your Sim.ai workflow, add a **File block** and configure the `filePath` input:
+    To upload files in your Sim.ai workflow, add a **File block** and configure the `filePath` input:
 
-#### Upload Methods
+    #### Upload Methods
 
-| Method | Input Configuration | Example |
-|--------|-------------------|---------|
-| **Direct Upload** | Upload files through the block interface | Files are automatically processed |
-| **URL Reference** | Provide file URLs in `filePath` | `<start.fileUrl>` or static URL |
-| **Multiple Files** | Array of file paths or URLs | `["file1.pdf", "file2.csv"]` |
+    | Method | Input Configuration | Example |
+    |--------|-------------------|---------|
+    | **Direct Upload** | Upload files through the block interface | Files are automatically processed |
+    | **URL Reference** | Provide file URLs in `filePath` | `<start.fileUrl>` or static URL |
+    | **Multiple Files** | Array of file paths or URLs | `["file1.pdf", "file2.csv"]` |
 
-The block automatically detects file types (PDF, CSV, DOCX, images, text) and applies the appropriate parser.
+    The block automatically detects file types (PDF, CSV, DOCX, images, text) and applies the appropriate parser.
+  </Accordion>
+  <Accordion title="How do I reference parsed file content in downstream blocks?">
 
-### How do I reference parsed file content in downstream blocks?
+    Every File block provides structured outputs that can be connected to other workflow blocks:
 
-Every File block provides structured outputs that can be connected to other workflow blocks:
+    #### Available Outputs
 
-#### Available Outputs
+    | Output Tag | Type | Description |
+    |------------|------|-------------|
+    | `<file1.files>` | Array | Complete array of parsed file objects with metadata |
+    | `<file1.combinedContent>` | String | All file contents merged into a single text string |
 
-| Output Tag | Type | Description |
-|------------|------|-------------|
-| `<file1.files>` | Array | Complete array of parsed file objects with metadata |
-| `<file1.combinedContent>` | String | All file contents merged into a single text string |
+    #### Individual File Access
+    To access specific files from the array:
+    ```
+    <file1.files[0].content>  // First file's text content
+    <file1.files[0].name>     // First file's filename
+    <file1.files[0].type>     // First file's detected type
+    ```
+  </Accordion>
+  <Accordion title="How do I connect file content to an Agent block for processing?">
 
-#### Individual File Access
-To access specific files from the array:
-```
-<file1.files[0].content>  // First file's text content
-<file1.files[0].name>     // First file's filename
-<file1.files[0].type>     // First file's detected type
-```
+    To send parsed file content to an AI agent for analysis:
 
-### How do I connect file content to an Agent block for processing?
+    1. In the Agent block's `userPrompt` field, type `<>` to open connections
+    2. Select `<file1.combinedContent>` for all files together, or `<file1.files[0].content>` for individual files
 
-To send parsed file content to an AI agent for analysis:
+    #### Example Configuration
 
-1. In the Agent block's `userPrompt` field, type `<>` to open connections
-2. Select `<file1.combinedContent>` for all files together, or `<file1.files[0].content>` for individual files
+    ```json
+    {
+      "userPrompt": "Analyze this document: <file1.combinedContent>",
+      "systemPrompt": "You are a document analysis expert."
+    }
+    ```
 
-#### Example Configuration
+    This configuration automatically processes all uploaded file content through the AI agent.
+  </Accordion>
+  <Accordion title="Can I process different file types simultaneously with the File block?">
 
-```json
-{
-  "userPrompt": "Analyze this document: <file1.combinedContent>",
-  "systemPrompt": "You are a document analysis expert."
-}
-```
+    Yes! The File block handles multiple file formats in a single operation:
 
-This configuration automatically processes all uploaded file content through the AI agent.
+    #### Supported File Types
 
-### Can I process different file types simultaneously with the File block?
+    | Format | Parser Features | Output Structure |
+    |--------|----------------|------------------|
+    | **PDF** | Text extraction, metadata | `{content, name, type, pages}` |
+    | **CSV** | Structured data parsing | `{content, name, type, headers, rows}` |
+    | **DOCX** | Text content, formatting | `{content, name, type, wordCount}` |
+    | **Images** | OCR text extraction | `{content, name, type, dimensions}` |
+    | **Text** | Direct content reading | `{content, name, type, encoding}` |
 
-Yes! The File block handles multiple file formats in a single operation:
+    All files are processed simultaneously and returned in the `files` array output.
+  </Accordion>
+  <Accordion title="Why is my file not being parsed correctly?">
 
-#### Supported File Types
+    Troubleshoot file parsing issues with this checklist:
 
-| Format | Parser Features | Output Structure |
-|--------|----------------|------------------|
-| **PDF** | Text extraction, metadata | `{content, name, type, pages}` |
-| **CSV** | Structured data parsing | `{content, name, type, headers, rows}` |
-| **DOCX** | Text content, formatting | `{content, name, type, wordCount}` |
-| **Images** | OCR text extraction | `{content, name, type, dimensions}` |
-| **Text** | Direct content reading | `{content, name, type, encoding}` |
+    #### Common Issues and Solutions
 
-All files are processed simultaneously and returned in the `files` array output.
+    | Issue | Description | Solution |
+    |-------|-------------|----------|
+    | **Empty Content** | File appears to have no text | Verify file isn't corrupted or password-protected |
+    | **URL Access Error** | Cannot fetch file from URL | Ensure URL is publicly accessible and returns file |
+    | **Unsupported Format** | File type not recognized | Check if file extension matches supported formats |
+    | **Large File Timeout** | Processing takes too long | Split large files or use smaller file sizes |
+    | **Array Access Error** | Cannot reference `files[0]` | Ensure files were successfully parsed before indexing |
+  </Accordion>
+  <Accordion title="How do I create a document analysis workflow using the File block?">
 
-### Why is my file not being parsed correctly?
+    Build comprehensive document processing workflows by chaining File blocks with other components:
 
-Troubleshoot file parsing issues with this checklist:
+    #### Common Workflow Patterns
 
-#### Common Issues and Solutions
+    ##### 1. **Webhook → File → Agent → Response**
+    Process uploaded documents via API and return analysis:
+    ```
+    filePath: <start.fileUrl>
+    → Agent prompt: <file1.combinedContent>
+    ```
 
-| Issue | Description | Solution |
-|-------|-------------|----------|
-| **Empty Content** | File appears to have no text | Verify file isn't corrupted or password-protected |
-| **URL Access Error** | Cannot fetch file from URL | Ensure URL is publicly accessible and returns file |
-| **Unsupported Format** | File type not recognized | Check if file extension matches supported formats |
-| **Large File Timeout** | Processing takes too long | Split large files or use smaller file sizes |
-| **Array Access Error** | Cannot reference `files[0]` | Ensure files were successfully parsed before indexing |
+    ##### 2. **File → Function → Database**
+    Parse files and store structured data:
+    ```
+    files: <file1.files>
+    → Transform each file object
+    → Insert into database
+    ```
 
-### How do I create a document analysis workflow using the File block?
+    ##### 3. **File → Condition → Multiple Agents**
+    Route different file types to specialized processors:
+    ```
+    if <file1.files[0].type> == "pdf":
+      → PDF Analysis Agent
+    else:
+      → General Document Agent
+    ```
 
-Build comprehensive document processing workflows by chaining File blocks with other components:
+    ##### 4. **Multiple Files → Comparison Agent**
+    Compare content across multiple documents:
+    ```
+    userPrompt: "Compare these documents: <file1.combinedContent>"
+    ```
+  </Accordion>
+  <Accordion title="How do I handle multiple file uploads and process them individually?">
 
-#### Common Workflow Patterns
+    When uploading multiple files, use the `files` array output to process each file separately:
 
-##### 1. **Webhook → File → Agent → Response**
-Process uploaded documents via API and return analysis:
-```
-filePath: <start.fileUrl>
-→ Agent prompt: <file1.combinedContent>
-```
+    #### Individual File Processing
 
-##### 2. **File → Function → Database**
-Parse files and store structured data:
-```
-files: <file1.files>
-→ Transform each file object
-→ Insert into database
-```
+    ```json
+    {
+      "filePath": ["document1.pdf", "data.csv", "report.docx"]
+    }
+    ```
 
-##### 3. **File → Condition → Multiple Agents**
-Route different file types to specialized processors:
-```
-if <file1.files[0].type> == "pdf":
-  → PDF Analysis Agent
-else:
-  → General Document Agent
-```
+    #### Access Each File
 
-##### 4. **Multiple Files → Comparison Agent**
-Compare content across multiple documents:
-```
-userPrompt: "Compare these documents: <file1.combinedContent>"
-```
+    | Connection Tag | Returns |
+    |----------------|---------|
+    | `<file1.files[0]>` | First file object (document1.pdf) |
+    | `<file1.files[1]>` | Second file object (data.csv) |
+    | `<file1.files[2]>` | Third file object (report.docx) |
 
-### How do I handle multiple file uploads and process them individually?
-
-When uploading multiple files, use the `files` array output to process each file separately:
-
-#### Individual File Processing
-
-```json
-{
-  "filePath": ["document1.pdf", "data.csv", "report.docx"]
-}
-```
-
-#### Access Each File
-
-| Connection Tag | Returns |
-|----------------|---------|
-| `<file1.files[0]>` | First file object (document1.pdf) |
-| `<file1.files[1]>` | Second file object (data.csv) |
-| `<file1.files[2]>` | Third file object (report.docx) |
-
-Use Function blocks or conditional logic to iterate through the array and process each file according to its type and content requirements.
+    Use Function blocks or conditional logic to iterate through the array and process each file according to its type and content requirements.
+  </Accordion>
+</Accordions>
 {/* MANUAL-CONTENT-END */}

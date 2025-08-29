@@ -4,6 +4,8 @@ description: Read and create pages
 ---
 
 import { BlockInfoCard } from "@/components/ui/block-info-card"
+import { Accordion, Accordions } from "fumadocs-ui/components/accordion"
+
 
 <BlockInfoCard 
   type="sharepoint"
@@ -192,121 +194,124 @@ Connection pooling and rate limiting considerations apply to high-volume SharePo
 ## FAQ
 
 {/* MANUAL-CONTENT-START:faq */}
-### How do I create a new SharePoint page from my workflow?
+<Accordions type="single">
+  <Accordion title="How do I create a new SharePoint page from my workflow?">
 
-To create a SharePoint page from your Sim.ai workflow, add a **SharePoint block** and configure the `sharepoint_create_page` operation:
+    To create a SharePoint page from your Sim.ai workflow, add a **SharePoint block** and configure the `sharepoint_create_page` operation:
 
-#### Required Inputs
+    #### Required Inputs
 
-| Input | Description | Example |
-|-------|-------------|---------|
-| `pageName` | The name for your new page | `<start.pageName>` or `"My New Page"` |
-| `siteSelector` | Choose your target SharePoint site | Select from dropdown or use `<start.siteSelector>` |
-| `pageTitle` | Display title (optional) | `<agent1.title>` or defaults to `pageName` |
-| `pageContent` | HTML or text content | `<agent1.content>` for AI-generated content |
+    | Input | Description | Example |
+    |-------|-------------|---------|
+    | `pageName` | The name for your new page | `<start.pageName>` or `"My New Page"` |
+    | `siteSelector` | Choose your target SharePoint site | Select from dropdown or use `<start.siteSelector>` |
+    | `pageTitle` | Display title (optional) | `<agent1.title>` or defaults to `pageName` |
+    | `pageContent` | HTML or text content | `<agent1.content>` for AI-generated content |
 
-The block outputs `<sharepoint1.page>` containing the created page information including ID, URL, and metadata.
+    The block outputs `<sharepoint1.page>` containing the created page information including ID, URL, and metadata.
+  </Accordion>
+  <Accordion title="How do I read existing SharePoint page content in my workflow?">
 
-### How do I read existing SharePoint page content in my workflow?
+    To retrieve SharePoint page content, configure the SharePoint block with the `sharepoint_read_page` operation:
 
-To retrieve SharePoint page content, configure the SharePoint block with the `sharepoint_read_page` operation:
+    #### Input Options
 
-#### Input Options
+    | Method | Input Field | Example |
+    |--------|-------------|---------|
+    | **By Page ID** | `pageId` | `<start.pageId>` or static ID |
+    | **By Page Name** | `pageName` | `<start.pageName>` or `"Sales Report"` |
+    | **List All Pages** | `maxPages` | `10` (default) to `50` (maximum) |
 
-| Method | Input Field | Example |
-|--------|-------------|---------|
-| **By Page ID** | `pageId` | `<start.pageId>` or static ID |
-| **By Page Name** | `pageName` | `<start.pageName>` or `"Sales Report"` |
-| **List All Pages** | `maxPages` | `10` (default) to `50` (maximum) |
+    Use `<sharepoint1.page>` to access the retrieved page data in downstream blocks like Agent or Function blocks for content processing.
+  </Accordion>
+  <Accordion title="What is the correct way to reference SharePoint block outputs in my workflow?">
 
-Use `<sharepoint1.page>` to access the retrieved page data in downstream blocks like Agent or Function blocks for content processing.
+    SharePoint blocks expose different outputs depending on the operation used:
 
-### What is the correct way to reference SharePoint block outputs in my workflow?
+    #### Available Output Tags
 
-SharePoint blocks expose different outputs depending on the operation used:
+    | Output Tag | Operation | Type | Description |
+    |------------|-----------|------|-------------|
+    | `<sharepoint1.page>` | create_page, read_page | Object | Page information with ID, title, content, URL |
+    | `<sharepoint1.site>` | list_sites | Object | Current site details with ID, name, web URL |
+    | `<sharepoint1.sites>` | list_sites | Array | All available SharePoint sites |
 
-#### Available Output Tags
+    Connect these outputs to other blocks using the connection menu or by typing the tag directly into input fields.
+  </Accordion>
+  <Accordion title="How do I connect an Agent block to generate SharePoint page content automatically?">
 
-| Output Tag | Operation | Type | Description |
-|------------|-----------|------|-------------|
-| `<sharepoint1.page>` | create_page, read_page | Object | Page information with ID, title, content, URL |
-| `<sharepoint1.site>` | list_sites | Object | Current site details with ID, name, web URL |
-| `<sharepoint1.sites>` | list_sites | Array | All available SharePoint sites |
+    To use AI-generated content for SharePoint pages:
 
-Connect these outputs to other blocks using the connection menu or by typing the tag directly into input fields.
+    1. **Agent Block First**: Configure an Agent to generate content based on your prompt
+    2. **Connect to SharePoint**: In the SharePoint block's inputs:
+       - Set `pageContent` to `<agent1.content>`
+       - Set `pageTitle` to `<agent1.title>` if the agent generates titles
+       - Set `pageName` to either `<start.pageName>` or a static value
 
-### How do I connect an Agent block to generate SharePoint page content automatically?
+    #### Example Workflow Pattern
+    ```
+    Webhook → Agent → SharePoint (create_page)
+    ```
 
-To use AI-generated content for SharePoint pages:
+    This pattern processes incoming data with AI and automatically creates SharePoint pages with the generated content.
+  </Accordion>
+  <Accordion title="Why is my SharePoint block failing with authentication errors?">
 
-1. **Agent Block First**: Configure an Agent to generate content based on your prompt
-2. **Connect to SharePoint**: In the SharePoint block's inputs:
-   - Set `pageContent` to `<agent1.content>`
-   - Set `pageTitle` to `<agent1.title>` if the agent generates titles
-   - Set `pageName` to either `<start.pageName>` or a static value
+    SharePoint blocks require OAuth authentication setup in Sim.ai:
 
-#### Example Workflow Pattern
-```
-Webhook → Agent → SharePoint (create_page)
-```
+    #### Common Authentication Issues
 
-This pattern processes incoming data with AI and automatically creates SharePoint pages with the generated content.
+    | Issue | Description | Solution |
+    |-------|-------------|----------|
+    | **No Site Access** | Block cannot access SharePoint sites | Ensure OAuth app has Sites.ReadWrite.All permissions |
+    | **Invalid Site Selector** | Selected site doesn't exist | Use `list_sites` operation first to verify available sites |
+    | **Missing Tenant** | SharePoint tenant not configured | Contact admin to configure tenant in OAuth settings |
+    | **Expired Token** | Authentication token expired | Re-authenticate through block settings |
 
-### Why is my SharePoint block failing with authentication errors?
+    Verify your site selection using `<sharepoint1.sites>` from the `list_sites` operation before creating or reading pages.
+  </Accordion>
+  <Accordion title="Can I use SharePoint blocks with conditional logic and other workflow components?">
 
-SharePoint blocks require OAuth authentication setup in Sim.ai:
+    Yes! SharePoint blocks integrate seamlessly with other Sim.ai components:
 
-#### Common Authentication Issues
+    #### Advanced Workflow Patterns
 
-| Issue | Description | Solution |
-|-------|-------------|----------|
-| **No Site Access** | Block cannot access SharePoint sites | Ensure OAuth app has Sites.ReadWrite.All permissions |
-| **Invalid Site Selector** | Selected site doesn't exist | Use `list_sites` operation first to verify available sites |
-| **Missing Tenant** | SharePoint tenant not configured | Contact admin to configure tenant in OAuth settings |
-| **Expired Token** | Authentication token expired | Re-authenticate through block settings |
+    ##### 1. **Content Processing Pipeline**
+    ```
+    Webhook → Function → Agent → SharePoint (create_page)
+    ```
+    Process incoming data, generate AI content, and create SharePoint pages automatically.
 
-Verify your site selection using `<sharepoint1.sites>` from the `list_sites` operation before creating or reading pages.
+    ##### 2. **Conditional Page Creation**
+    ```
+    API → Condition → SharePoint (create_page)
+                    → Email (alternative action)
+    ```
+    Create pages only when specific conditions are met, otherwise send notifications.
 
-### Can I use SharePoint blocks with conditional logic and other workflow components?
+    ##### 3. **Page Content Analysis**
+    ```
+    SharePoint (read_page) → Agent → SharePoint (create_page)
+    ```
+    Read existing pages, analyze with AI, and create summary or follow-up pages.
 
-Yes! SharePoint blocks integrate seamlessly with other Sim.ai components:
+    ##### 4. **Multi-Site Management**
+    Use `<sharepoint1.sites>` with Function blocks to iterate over multiple sites and perform bulk operations across your SharePoint environment.
+  </Accordion>
+  <Accordion title="How do I handle SharePoint page creation errors in my workflow?">
 
-#### Advanced Workflow Patterns
+    Implement error handling for common SharePoint operation failures:
 
-##### 1. **Content Processing Pipeline**
-```
-Webhook → Function → Agent → SharePoint (create_page)
-```
-Process incoming data, generate AI content, and create SharePoint pages automatically.
+    #### Common Error Scenarios
 
-##### 2. **Conditional Page Creation**
-```
-API → Condition → SharePoint (create_page)
-                → Email (alternative action)
-```
-Create pages only when specific conditions are met, otherwise send notifications.
+    | Error Type | Cause | Prevention |
+    |------------|-------|------------|
+    | **Page Already Exists** | Duplicate `pageName` in site | Use dynamic names like `<function1.uniqueName>` |
+    | **Invalid Characters** | Special characters in page name | Sanitize input with Function block before SharePoint |
+    | **Content Too Large** | Page content exceeds limits | Truncate `<agent1.content>` using Function block |
+    | **Site Access Denied** | Insufficient permissions | Verify `siteSelector` matches accessible sites from `<sharepoint1.sites>` |
 
-##### 3. **Page Content Analysis**
-```
-SharePoint (read_page) → Agent → SharePoint (create_page)
-```
-Read existing pages, analyze with AI, and create summary or follow-up pages.
-
-##### 4. **Multi-Site Management**
-Use `<sharepoint1.sites>` with Function blocks to iterate over multiple sites and perform bulk operations across your SharePoint environment.
-
-### How do I handle SharePoint page creation errors in my workflow?
-
-Implement error handling for common SharePoint operation failures:
-
-#### Common Error Scenarios
-
-| Error Type | Cause | Prevention |
-|------------|-------|------------|
-| **Page Already Exists** | Duplicate `pageName` in site | Use dynamic names like `<function1.uniqueName>` |
-| **Invalid Characters** | Special characters in page name | Sanitize input with Function block before SharePoint |
-| **Content Too Large** | Page content exceeds limits | Truncate `<agent1.content>` using Function block |
-| **Site Access Denied** | Insufficient permissions | Verify `siteSelector` matches accessible sites from `<sharepoint1.sites>` |
-
-Add Condition blocks after SharePoint operations to check success status and implement fallback actions for failed page operations.
+    Add Condition blocks after SharePoint operations to check success status and implement fallback actions for failed page operations.
+  </Accordion>
+</Accordions>
 {/* MANUAL-CONTENT-END */}

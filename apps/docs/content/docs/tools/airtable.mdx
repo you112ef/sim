@@ -4,6 +4,7 @@ description: Read, create, and update Airtable
 ---
 
 import { BlockInfoCard } from "@/components/ui/block-info-card"
+import { Accordion, Accordions } from "fumadocs-ui/components/accordion"
 
 <BlockInfoCard 
   type="airtable"
@@ -53,6 +54,83 @@ With Airtable, you can:
 
 In Sim, the Airtable integration enables your agents to interact with your Airtable bases programmatically. This allows for seamless data operations like retrieving information, creating new records, and updating existing data - all within your agent workflows. Use Airtable as a dynamic data source or destination for your agents, enabling them to access and manipulate structured information as part of their decision-making and task execution processes.
 {/* MANUAL-CONTENT-END */}
+
+
+## Webhook
+
+Trigger workflows from Airtable record changes. You can use the Airtable block in trigger mode to trigger a workflow when a record is created, updated, or deleted in the specified table. Click the lightining bolt icon to enable trigger mode.
+
+### Configuration Inputs
+
+| Input | Type | Required | Description |
+|------|------|----------|-------------|
+| `baseId` | string | Yes | Airtable Base ID the webhook monitors. |
+| `tableId` | string | Yes | Table ID within the base that the webhook monitors. |
+| `includeCellValues` | boolean | No | Include full record data in the payloads. Defaults to `false`. |
+
+### Outputs
+
+| Output | Type | Description |
+|--------|------|-------------|
+| `payloads` | array | The payloads of the Airtable changes. |
+| `latestPayload` | object | Convenience object of the latest webhook payload. |
+| `airtableChanges` | array | Changes made to the Airtable table. |
+
+#### `latestPayload` shape
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `timestamp` | string | The timestamp of the Airtable change. |
+| `payloadFormat` | object | Format of the Airtable change payload. |
+| `actionMetadata.source` | string | The source of the Airtable change. |
+| `actionMetadata.sourceMetadata.pageId` | string | The page ID that triggered the change. |
+| `actionMetadata.changedTablesById` | object | Map of table IDs to changed record metadata. |
+| `actionMetadata.baseTransactionNumber` | number | Airtable base transaction number. |
+
+### Example webhook event body (raw Airtable payload)
+
+```json
+{
+  "webhook": {
+    "id": "achAbCdEfGhIjKlMn"
+  },
+  "timestamp": "2023-01-01T00:00:00.000Z",
+  "base": {
+    "id": "appXXXXXXXXXXXXXX"
+  },
+  "table": {
+    "id": "tblXXXXXXXXXXXXXX"
+  },
+  "changedTablesById": {
+    "tblXXXXXXXXXXXXXX": {
+      "changedRecordsById": {
+        "recXXXXXXXXXXXXXX": {
+          "current": {
+            "id": "recXXXXXXXXXXXXXX",
+            "createdTime": "2023-01-01T00:00:00.000Z",
+            "fields": {
+              "Name": "Sample Record",
+              "Status": "Active"
+            }
+          },
+          "previous": {
+            "id": "recXXXXXXXXXXXXXX",
+            "createdTime": "2023-01-01T00:00:00.000Z",
+            "fields": {
+              "Name": "Sample Record",
+              "Status": "Inactive"
+            }
+          }
+        }
+      },
+      "createdRecordsById": {},
+      "destroyedRecordIds": []
+    }
+  }
+}
+```
+
+Method: `POST`  •  Headers: `Content-Type: application/json`
 
 
 ## Operations
@@ -222,161 +300,157 @@ For high-frequency webhook scenarios, implement queuing mechanisms using delay b
 ## FAQ
 
 {/* MANUAL-CONTENT-START:faq */}
-### How do I connect my Airtable base and table to read records in a workflow?
+<Accordions type="single">
+  <Accordion title="How do I connect my Airtable base and table to read records in a workflow?">
+    To read records from an Airtable table, configure the required inputs in your Airtable block:
 
-To read records from an Airtable table, configure the required inputs in your Airtable block:
+    #### Required Inputs for List Records
 
-#### Required Inputs for List Records
+    | Input | Description | Connection Example |
+    |-------|-------------|-------------------|
+    | `baseId` | Your Airtable base ID (found in API docs) | `<start.baseId>` or static value like `"appXXXXXXXXXXXXXX"` |
+    | `tableId` | Table ID or name | `<start.tableId>` or static value like `"tblXXXXXXXXXXXXXX"` |
+    | `maxRecords` | Limit returned records (optional) | `<start.maxRecords>` or number like `100` |
+    | `filterFormula` | Airtable formula to filter results | `<start.filter>` or string like `"{Status} = 'Active'"` |
 
-| Input | Description | Connection Example |
-|-------|-------------|-------------------|
-| `baseId` | Your Airtable base ID (found in API docs) | `<start.baseId>` or static value like `"appXXXXXXXXXXXXXX"` |
-| `tableId` | Table ID or name | `<start.tableId>` or static value like `"tblXXXXXXXXXXXXXX"` |
-| `maxRecords` | Limit returned records (optional) | `<start.maxRecords>` or number like `100` |
-| `filterFormula` | Airtable formula to filter results | `<start.filter>` or string like `"{Status} = 'Active'"` |
+    The block will output an array of records that you can reference as `<airtable1.records>` in downstream blocks.
+  </Accordion>
+  <Accordion title="What is the correct way to reference Airtable block outputs in my workflow?">
+    Every Airtable block exposes outputs that depend on the operation performed:
 
-The block will output an array of records that you can reference as `<airtable1.records>` in downstream blocks.
+    #### List Records Outputs
+    | Output Tag | Type | Description |
+    |------------|------|-------------|
+    | `<airtable1.records>` | Array | Complete array of retrieved records |
 
-### What is the correct way to reference Airtable block outputs in my workflow?
+    #### Get Single Record Outputs
+    | Output Tag | Type | Description |
+    |------------|------|-------------|
+    | `<airtable1.record>` | Object | Single record with id, createdTime, and fields |
+    | `<airtable1.metadata>` | Object | Operation metadata including record count |
 
-Every Airtable block exposes outputs that depend on the operation performed:
+    #### Create/Update Record Outputs
+    | Output Tag | Type | Description |
+    |------------|------|-------------|
+    | `<airtable1.records>` | Array | Created or updated records |
+    | `<airtable1.record>` | Object | Single updated record (for single record operations) |
+    | `<airtable1.metadata>` | Object | Metadata with field names and record counts |
+  </Accordion>
+  <Accordion title="How do I create new records in Airtable from workflow data?">
+    To create records in Airtable, use the create records operation with properly formatted data:
 
-#### List Records Outputs
-| Output Tag | Type | Description |
-|------------|------|-------------|
-| `<airtable1.records>` | Array | Complete array of retrieved records |
+    #### Configuration Example
 
-#### Get Single Record Outputs
-| Output Tag | Type | Description |
-|------------|------|-------------|
-| `<airtable1.record>` | Object | Single record with id, createdTime, and fields |
-| `<airtable1.metadata>` | Object | Operation metadata including record count |
-
-#### Create/Update Record Outputs
-| Output Tag | Type | Description |
-|------------|------|-------------|
-| `<airtable1.records>` | Array | Created or updated records |
-| `<airtable1.record>` | Object | Single updated record (for single record operations) |
-| `<airtable1.metadata>` | Object | Metadata with field names and record counts |
-
-### How do I create new records in Airtable from workflow data?
-
-To create records in Airtable, use the create records operation with properly formatted data:
-
-#### Configuration Example
-
-```json
-{
-  "baseId": "<start.baseId>",
-  "tableId": "tblCustomers", 
-  "records": [
+    ```json
     {
+      "baseId": "<start.baseId>",
+      "tableId": "tblCustomers", 
+      "records": [
+        {
+          "fields": {
+            "Name": "<agent1.extractedName>",
+            "Email": "<start.userEmail>",
+            "Status": "New Lead"
+          }
+        }
+      ]
+    }
+    ```
+
+    The `records` input must be an array of objects, each containing a `fields` object with your table's field names and values.
+  </Accordion>
+  <Accordion title="How do I connect an Agent block's output to update Airtable records?">
+    To route AI-generated content into Airtable fields:
+
+    1. **For single record updates**, map agent outputs to the `fields` input:
+
+    ```json
+    {
+      "baseId": "<start.baseId>",
+      "tableId": "<start.tableId>",
+      "recordId": "<start.recordId>",
       "fields": {
-        "Name": "<agent1.extractedName>",
-        "Email": "<start.userEmail>",
-        "Status": "New Lead"
+        "AI Summary": "<agent1.content>",
+        "Analysis": "<agent1.analysis>",
+        "Last Updated": "TODAY()"
       }
     }
-  ]
-}
-```
+    ```
 
-The `records` input must be an array of objects, each containing a `fields` object with your table's field names and values.
+    2. **For multiple records**, structure data using a Function block to format the array properly before connecting to Airtable.
+  </Accordion>
+  <Accordion title="Why am I getting &quot;Invalid field name&quot; errors when updating Airtable records?">
+    Common field name issues and solutions:
 
-### How do I connect an Agent block's output to update Airtable records?
+    #### Field Name Troubleshooting
 
-To route AI-generated content into Airtable fields:
+    | Issue | Description | Solution |
+    |-------|-------------|----------|
+    | **Case Sensitivity** | Field names are case-sensitive | Match exact case: `"Email"` not `"email"` |
+    | **Special Characters** | Spaces and symbols in field names | Use exact name: `"Customer ID"` with space |
+    | **Field Type Mismatch** | Wrong data type for field | Check Airtable schema: dates need ISO format |
+    | **Read-Only Fields** | Attempting to update computed fields | Exclude formula fields from updates |
+    | **Missing Required Fields** | Not providing mandatory fields | Include all required fields in `fields` object |
 
-1. **For single record updates**, map agent outputs to the `fields` input:
+    Verify field names in your Airtable base match exactly what you're using in the workflow.
+  </Accordion>
+  <Accordion title="How do I filter Airtable records based on conditions from other blocks?">
+    Use the `filterFormula` input with Airtable's formula syntax to filter records:
 
-```json
-{
-  "baseId": "<start.baseId>",
-  "tableId": "<start.tableId>",
-  "recordId": "<start.recordId>",
-  "fields": {
-    "AI Summary": "<agent1.content>",
-    "Analysis": "<agent1.analysis>",
-    "Last Updated": "TODAY()"
-  }
-}
-```
+    #### Common Filter Patterns
 
-2. **For multiple records**, structure data using a Function block to format the array properly before connecting to Airtable.
+    ##### 1. **Filter by Status**
+    ```
+    filterFormula: "{Status} = 'Active'"
+    ```
 
-### Why am I getting "Invalid field name" errors when updating Airtable records?
+    ##### 2. **Filter by Date Range**
+    ```
+    filterFormula: "AND({Created Date} >= '2024-01-01', {Created Date} <= '2024-12-31')"
+    ```
 
-Common field name issues and solutions:
+    ##### 3. **Dynamic Filter from Workflow Data**
+    ```
+    filterFormula: `{Customer ID} = '${<start.customerId>}'`
+    ```
 
-#### Field Name Troubleshooting
+    ##### 4. **Multiple Conditions**
+    ```
+    filterFormula: "AND({Priority} = 'High', {Assigned To} = 'John Doe')"
+    ```
 
-| Issue | Description | Solution |
-|-------|-------------|----------|
-| **Case Sensitivity** | Field names are case-sensitive | Match exact case: `"Email"` not `"email"` |
-| **Special Characters** | Spaces and symbols in field names | Use exact name: `"Customer ID"` with space |
-| **Field Type Mismatch** | Wrong data type for field | Check Airtable schema: dates need ISO format |
-| **Read-Only Fields** | Attempting to update computed fields | Exclude formula fields from updates |
-| **Missing Required Fields** | Not providing mandatory fields | Include all required fields in `fields` object |
+    Connect the filter result to downstream blocks using `<airtable1.records>` for further processing.
+  </Accordion>
+  <Accordion title="Can I combine Airtable operations with webhooks for real-time data sync?">
+    Yes! Airtable blocks integrate seamlessly with webhook triggers and other Sim.ai blocks:
 
-Verify field names in your Airtable base match exactly what you're using in the workflow.
+    #### Common Integration Patterns
 
-### How do I filter Airtable records based on conditions from other blocks?
+    ##### 1. **Webhook → Airtable Create**
+    Automatically add new records when external systems send data:
+    ```
+    Webhook → Airtable (create records)
+    ```
 
-Use the `filterFormula` input with Airtable's formula syntax to filter records:
+    ##### 2. **Airtable List → Agent → Airtable Update**
+    Process existing records with AI and update them:
+    ```
+    Airtable (list) → Agent (analysis) → Airtable (update)
+    ```
 
-#### Common Filter Patterns
+    ##### 3. **Scheduled → Airtable → Email**
+    Periodic data exports and notifications:
+    ```
+    Schedule → Airtable (list) → Email (send report)
+    ```
 
-##### 1. **Filter by Status**
-```
-filterFormula: "{Status} = 'Active'"
-```
+    ##### 4. **API → Function → Airtable**
+    Transform external API data before storing:
+    ```
+    API → Function (format data) → Airtable (create records)
+    ```
 
-##### 2. **Filter by Date Range**
-```
-filterFormula: "AND({Created Date} >= '2024-01-01', {Created Date} <= '2024-12-31')"
-```
-
-##### 3. **Dynamic Filter from Workflow Data**
-```
-filterFormula: `{Customer ID} = '${<start.customerId>}'`
-```
-
-##### 4. **Multiple Conditions**
-```
-filterFormula: "AND({Priority} = 'High', {Assigned To} = 'John Doe')"
-```
-
-Connect the filter result to downstream blocks using `<airtable1.records>` for further processing.
-
-### Can I combine Airtable operations with webhooks for real-time data sync?
-
-Yes! Airtable blocks integrate seamlessly with webhook triggers and other Sim.ai blocks:
-
-#### Common Integration Patterns
-
-##### 1. **Webhook → Airtable Create**
-Automatically add new records when external systems send data:
-```
-Webhook → Airtable (create records)
-```
-
-##### 2. **Airtable List → Agent → Airtable Update**
-Process existing records with AI and update them:
-```
-Airtable (list) → Agent (analysis) → Airtable (update)
-```
-
-##### 3. **Scheduled → Airtable → Email**
-Periodic data exports and notifications:
-```
-Schedule → Airtable (list) → Email (send report)
-```
-
-##### 4. **API → Function → Airtable**
-Transform external API data before storing:
-```
-API → Function (format data) → Airtable (create records)
-```
-
-Use `<airtable1.records>` or `<airtable1.record>` outputs to pass data between these workflow components.
+    Use `<airtable1.records>` or `<airtable1.record>` outputs to pass data between these workflow components.
+  </Accordion>
+</Accordions>
 {/* MANUAL-CONTENT-END */}

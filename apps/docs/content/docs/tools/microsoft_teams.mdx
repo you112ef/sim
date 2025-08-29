@@ -4,6 +4,8 @@ description: Read, write, and create messages
 ---
 
 import { BlockInfoCard } from "@/components/ui/block-info-card"
+import { Accordion, Accordions } from "fumadocs-ui/components/accordion"
+
 
 <BlockInfoCard 
   type="microsoft_teams"
@@ -95,6 +97,63 @@ With Microsoft Teams, you can:
 In Sim, the Microsoft Teams integration enables your agents to interact directly with chat messages programmatically. This allows for powerful automation scenarios such as sending updates, posting alerts, coordinating tasks, and responding to conversations in real time. Your agents can write new messages to chats or channels, update content based on workflow data, and engage with users where collaboration happens. By integrating Sim with Microsoft Teams, you bridge the gap between intelligent workflows and team communication — empowering your agents to streamline collaboration, automate communication tasks, and keep your teams aligned.
 {/* MANUAL-CONTENT-END */}
 
+
+## Webhook
+
+Trigger workflows from new Microsoft Teams channel messages. You can use the Microsoft Teams block in trigger mode to start a workflow when a new message is posted to a channel or chat via the Bot Framework/Graph subscriptions. Click the lightning bolt icon to enable trigger mode, then configure your Teams bot or Graph change notifications to deliver events to your workflow webhook URL.
+
+### Configuration Inputs
+
+| Input | Type | Required | Description |
+|------|------|----------|-------------|
+| `eventType` | string | Yes | Teams event to handle (e.g., `message` for new messages). |
+| `validateSignature` | boolean | No | Validate Bot Framework signature using app credentials. Defaults to `true`. |
+| `includeMessage` | boolean | No | Include parsed message content and metadata in outputs. Defaults to `true`. |
+
+### Outputs
+
+| Output | Type | Description |
+|--------|------|-------------|
+| `payloads` | array | The raw Teams/Bot Framework activity payloads received. |
+| `latestPayload` | object | Convenience object of the latest activity payload. |
+| `teamsMessage` | object | Parsed message fields (text, from, conversation, channelData). |
+
+#### `latestPayload` shape
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `type` | string | Activity type (e.g., `message`). |
+| `id` | string | Activity ID. |
+| `timestamp` | string | When the message was created. |
+| `serviceUrl` | string | Teams service URL for replies. |
+| `channelId` | string | Channel ID (`msteams`). |
+| `from` | object | Sender info. |
+| `conversation` | object | Conversation (chat/channel) identifiers. |
+| `recipient` | object | Bot info. |
+| `text` | string | Message content. |
+| `channelData` | object | Teams-specific data (team, channel). |
+
+### Example webhook event body (raw Teams activity payload)
+
+```json
+{
+  "type": "message",
+  "id": "1694879387465",
+  "timestamp": "2023-01-01T00:00:00.000Z",
+  "serviceUrl": "https://smba.trafficmanager.net/emea/",
+  "channelId": "msteams",
+  "from": { "id": "29:1AAbc...", "name": "John Doe" },
+  "conversation": { "id": "19:abc123@thread.tacv2" },
+  "recipient": { "id": "28:bot-app-id", "name": "My Bot" },
+  "text": "Hello team!",
+  "channelData": {
+    "team": { "id": "19:teamid@thread.tacv2" },
+    "channel": { "id": "19:channelid@thread.tacv2" }
+  }
+}
+```
+
+Method: `POST`  •  Headers: `Content-Type: application/json`, `Authorization: Bearer <bot token>` (Bot Framework)
 
 ## Operations
 
@@ -268,163 +327,166 @@ Use conditional logic based on `<teams1.messageType>` to skip processing of syst
 ## FAQ
 
 {/* MANUAL-CONTENT-START:faq */}
-### How do I send a message from my workflow to a Microsoft Teams chat?
+<Accordions type="single">
+  <Accordion title="How do I send a message from my workflow to a Microsoft Teams chat?">
 
-To send messages from your workflow to Microsoft Teams chat, add a **Microsoft Teams block** to your Sim.ai workflow and configure its inputs for the `write_chat` operation:
+    To send messages from your workflow to Microsoft Teams chat, add a **Microsoft Teams block** to your Sim.ai workflow and configure its inputs for the `write_chat` operation:
 
-#### Required Inputs
+    #### Required Inputs
 
-| Input | Description | Example |
-|-------|-------------|---------|
-| `chatId` | The ID of the Teams chat to send to | `<start.chatId>` or static chat ID |
-| `content` | The message content to send | `<agent1.content>` or any string value |
+    | Input | Description | Example |
+    |-------|-------------|---------|
+    | `chatId` | The ID of the Teams chat to send to | `<start.chatId>` or static chat ID |
+    | `content` | The message content to send | `<agent1.content>` or any string value |
 
-The block will authenticate using OAuth and send your message to the specified Teams chat.
+    The block will authenticate using OAuth and send your message to the specified Teams chat.
+  </Accordion>
+  <Accordion title="How do I read messages from a Microsoft Teams channel in my workflow?">
 
-### How do I read messages from a Microsoft Teams channel in my workflow?
+    To retrieve messages from a Teams channel in Sim.ai:
 
-To retrieve messages from a Teams channel in Sim.ai:
+    1. **Add a Microsoft Teams block** and select the `read_channel` operation
+    2. **Configure the required inputs**:
 
-1. **Add a Microsoft Teams block** and select the `read_channel` operation
-2. **Configure the required inputs**:
+    | Input | Description | Example |
+    |-------|-------------|---------|
+    | `teamId` | The ID of the Microsoft Team | `<start.teamId>` or environment variable |
+    | `channelId` | The ID of the specific channel | `<start.channelId>` or static channel ID |
 
-| Input | Description | Example |
-|-------|-------------|---------|
-| `teamId` | The ID of the Microsoft Team | `<start.teamId>` or environment variable |
-| `channelId` | The ID of the specific channel | `<start.channelId>` or static channel ID |
+    3. **Access the retrieved content** using `<microsoft_teams1.content>` or `<microsoft_teams1.messages>` in downstream blocks.
+  </Accordion>
+  <Accordion title="What is the correct way to reference Microsoft Teams block outputs in my workflow?">
 
-3. **Access the retrieved content** using `<microsoft_teams1.content>` or `<microsoft_teams1.messages>` in downstream blocks.
+    Every Microsoft Teams block exposes multiple outputs that can be referenced using connection tags:
 
-### What is the correct way to reference Microsoft Teams block outputs in my workflow?
+    #### Core Outputs
 
-Every Microsoft Teams block exposes multiple outputs that can be referenced using connection tags:
+    | Output Tag | Type | Description |
+    |------------|------|-------------|
+    | `<microsoft_teams1.success>` | Boolean | `true` if operation completed successfully |
+    | `<microsoft_teams1.content>` | String | Formatted content of all messages |
+    | `<microsoft_teams1.messageCount>` | Number | Total number of messages retrieved |
+    | `<microsoft_teams1.messages>` | Array | Full array of message objects |
+    | `<microsoft_teams1.messageId>` | String | ID of sent/created message (write operations) |
 
-#### Core Outputs
+    #### Advanced Outputs
 
-| Output Tag | Type | Description |
-|------------|------|-------------|
-| `<microsoft_teams1.success>` | Boolean | `true` if operation completed successfully |
-| `<microsoft_teams1.content>` | String | Formatted content of all messages |
-| `<microsoft_teams1.messageCount>` | Number | Total number of messages retrieved |
-| `<microsoft_teams1.messages>` | Array | Full array of message objects |
-| `<microsoft_teams1.messageId>` | String | ID of sent/created message (write operations) |
+    | Output Tag | Type | Description |
+    |------------|------|-------------|
+    | `<microsoft_teams1.attachmentCount>` | Number | Total number of file attachments found |
+    | `<microsoft_teams1.attachmentTypes>` | Array | Types of attachments (pdf, image, etc.) |
+    | `<microsoft_teams1.url>` | String | Web URL to the sent message |
+    | `<microsoft_teams1.createdTime>` | String | Timestamp when message was created |
+  </Accordion>
+  <Accordion title="How do I connect an Agent block's output to Microsoft Teams for automated responses?">
 
-#### Advanced Outputs
+    To route an agent's response to Teams:
 
-| Output Tag | Type | Description |
-|------------|------|-------------|
-| `<microsoft_teams1.attachmentCount>` | Number | Total number of file attachments found |
-| `<microsoft_teams1.attachmentTypes>` | Array | Types of attachments (pdf, image, etc.) |
-| `<microsoft_teams1.url>` | String | Web URL to the sent message |
-| `<microsoft_teams1.createdTime>` | String | Timestamp when message was created |
+    1. In the Microsoft Teams block, select the appropriate write operation (`write_chat` or `write_channel`)
+    2. In the `content` field, type `<>` to open the connection menu
+    3. Select `<agent1.content>` from the available connections
 
-### How do I connect an Agent block's output to Microsoft Teams for automated responses?
+    #### Example Configuration for Chat Response
 
-To route an agent's response to Teams:
+    ```json
+    {
+      "chatId": "<start.message.conversation_id>",
+      "content": "<agent1.content>"
+    }
+    ```
 
-1. In the Microsoft Teams block, select the appropriate write operation (`write_chat` or `write_channel`)
-2. In the `content` field, type `<>` to open the connection menu
-3. Select `<agent1.content>` from the available connections
+    #### Example Configuration for Channel Notification
 
-#### Example Configuration for Chat Response
+    ```json
+    {
+      "teamId": "<start.teamId>",
+      "channelId": "<start.channelId>",
+      "content": "Analysis complete: <agent1.content>"
+    }
+    ```
+  </Accordion>
+  <Accordion title="Why is my Microsoft Teams block failing to authenticate or send messages?">
 
-```json
-{
-  "chatId": "<start.message.conversation_id>",
-  "content": "<agent1.content>"
-}
-```
+    Troubleshoot common Microsoft Teams integration issues:
 
-#### Example Configuration for Channel Notification
+    #### Authentication Issues
 
-```json
-{
-  "teamId": "<start.teamId>",
-  "channelId": "<start.channelId>",
-  "content": "Analysis complete: <agent1.content>"
-}
-```
+    | Issue | Description | Solution |
+    |-------|-------------|----------|
+    | **OAuth Token Expired** | Authentication token needs renewal | Reconnect your Microsoft account in Sim.ai settings |
+    | **Insufficient Permissions** | Bot lacks required Teams permissions | Ensure your app has `Chat.ReadWrite` and `ChannelMessage.Send` permissions |
+    | **Invalid App Registration** | Teams app not properly configured | Verify your Microsoft Teams app registration in Azure |
 
-### Why is my Microsoft Teams block failing to authenticate or send messages?
+    #### Message Sending Issues
 
-Troubleshoot common Microsoft Teams integration issues:
+    | Issue | Description | Solution |
+    |-------|-------------|----------|
+    | **Invalid Chat/Channel ID** | Incorrect identifier format | Verify IDs match Teams URL structure |
+    | **Empty Content Field** | No message content provided | Ensure `content` input is populated (e.g., `<agent1.content>`) |
+    | **Rate Limiting** | Too many API requests | Add delays between multiple Teams operations |
+  </Accordion>
+  <Accordion title="Can I create automated Teams workflows that respond to incoming messages?">
 
-#### Authentication Issues
+    Yes! Microsoft Teams blocks integrate seamlessly with other Sim.ai workflow components for automated responses:
 
-| Issue | Description | Solution |
-|-------|-------------|----------|
-| **OAuth Token Expired** | Authentication token needs renewal | Reconnect your Microsoft account in Sim.ai settings |
-| **Insufficient Permissions** | Bot lacks required Teams permissions | Ensure your app has `Chat.ReadWrite` and `ChannelMessage.Send` permissions |
-| **Invalid App Registration** | Teams app not properly configured | Verify your Microsoft Teams app registration in Azure |
+    #### Common Workflow Patterns
 
-#### Message Sending Issues
+    ##### 1. **Webhook → Agent → Microsoft Teams**
+    Process incoming Teams messages with AI and reply automatically:
+    ```
+    Webhook (Teams bot) → Agent (process message) → Teams (send response)
+    ```
+    Use `<start.text>` as Agent input and `<agent1.content>` as Teams response.
 
-| Issue | Description | Solution |
-|-------|-------------|----------|
-| **Invalid Chat/Channel ID** | Incorrect identifier format | Verify IDs match Teams URL structure |
-| **Empty Content Field** | No message content provided | Ensure `content` input is populated (e.g., `<agent1.content>`) |
-| **Rate Limiting** | Too many API requests | Add delays between multiple Teams operations |
+    ##### 2. **Scheduled Trigger → API → Microsoft Teams**
+    Create automated notifications for periodic updates:
+    ```
+    Schedule → External API → Teams Channel
+    ```
+    Send daily reports or status updates to specific channels.
 
-### Can I create automated Teams workflows that respond to incoming messages?
+    ##### 3. **Condition → Multiple Teams Actions**
+    Send different messages based on conditional logic:
+    ```
+    if `<condition1.result>` is "urgent":
+      → Teams Chat (direct notification)
+    else:
+      → Teams Channel (general update)
+    ```
 
-Yes! Microsoft Teams blocks integrate seamlessly with other Sim.ai workflow components for automated responses:
+    ##### 4. **Teams Read → Function → Teams Write**
+    Process existing messages and respond:
+    ```
+    Teams Read → Function (analyze content) → Teams Write (summary)
+    ```
+  </Accordion>
+  <Accordion title="How do I handle Microsoft Teams message attachments and rich content in my workflow?">
 
-#### Common Workflow Patterns
+    Microsoft Teams blocks provide detailed attachment information through specialized outputs:
 
-##### 1. **Webhook → Agent → Microsoft Teams**
-Process incoming Teams messages with AI and reply automatically:
-```
-Webhook (Teams bot) → Agent (process message) → Teams (send response)
-```
-Use `<start.text>` as Agent input and `<agent1.content>` as Teams response.
+    #### Attachment Analysis
 
-##### 2. **Scheduled Trigger → API → Microsoft Teams**
-Create automated notifications for periodic updates:
-```
-Schedule → External API → Teams Channel
-```
-Send daily reports or status updates to specific channels.
+    | Output | Usage Example | Description |
+    |--------|---------------|-------------|
+    | `<microsoft_teams1.attachmentCount>` | `<condition1.input>` | Use in conditions to check for attachments |
+    | `<microsoft_teams1.attachmentTypes>` | `<function1.attachmentData>` | Process different file types differently |
+    | `<microsoft_teams1.messages>` | `<function1.messageArray>` | Access full message objects with attachment details |
 
-##### 3. **Condition → Multiple Teams Actions**
-Send different messages based on conditional logic:
-```
-if `<condition1.result>` is "urgent":
-  → Teams Chat (direct notification)
-else:
-  → Teams Channel (general update)
-```
+    #### Processing Attachments in Functions
 
-##### 4. **Teams Read → Function → Teams Write**
-Process existing messages and respond:
-```
-Teams Read → Function (analyze content) → Teams Write (summary)
-```
+    ```javascript
+    // Example Function block processing Teams attachments
+    const messages = input.messages;
+    const attachments = messages
+      .filter(msg => msg.attachments && msg.attachments.length > 0)
+      .map(msg => ({
+        messageId: msg.id,
+        attachmentTypes: msg.attachments.map(att => att.contentType),
+        attachmentNames: msg.attachments.map(att => att.name)
+      }));
+    ```
 
-### How do I handle Microsoft Teams message attachments and rich content in my workflow?
-
-Microsoft Teams blocks provide detailed attachment information through specialized outputs:
-
-#### Attachment Analysis
-
-| Output | Usage Example | Description |
-|--------|---------------|-------------|
-| `<microsoft_teams1.attachmentCount>` | `<condition1.input>` | Use in conditions to check for attachments |
-| `<microsoft_teams1.attachmentTypes>` | `<function1.attachmentData>` | Process different file types differently |
-| `<microsoft_teams1.messages>` | `<function1.messageArray>` | Access full message objects with attachment details |
-
-#### Processing Attachments in Functions
-
-```javascript
-// Example Function block processing Teams attachments
-const messages = input.messages;
-const attachments = messages
-  .filter(msg => msg.attachments && msg.attachments.length > 0)
-  .map(msg => ({
-    messageId: msg.id,
-    attachmentTypes: msg.attachments.map(att => att.contentType),
-    attachmentNames: msg.attachments.map(att => att.name)
-  }));
-```
-
-This enables sophisticated content analysis and automated responses based on message attachments in Teams conversations.
+    This enables sophisticated content analysis and automated responses based on message attachments in Teams conversations.
+  </Accordion>
+</Accordions>
 {/* MANUAL-CONTENT-END */}

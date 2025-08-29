@@ -4,6 +4,8 @@ description: Connect to MySQL database
 ---
 
 import { BlockInfoCard } from "@/components/ui/block-info-card"
+import { Accordion, Accordions } from "fumadocs-ui/components/accordion"
+
 
 <BlockInfoCard 
   type="mysql"
@@ -232,177 +234,180 @@ Cache frequently accessed data by implementing Redis or in-memory storage blocks
 ## FAQ
 
 {/* MANUAL-CONTENT-START:faq */}
-### How do I connect my workflow to a MySQL database in Sim.ai?
+<Accordions type="single">
+  <Accordion title="How do I connect my workflow to a MySQL database in Sim.ai?">
 
-To connect your workflow to a MySQL database, add a **MySQL block** to your Sim.ai workflow and configure the required database connection inputs:
+    To connect your workflow to a MySQL database, add a **MySQL block** to your Sim.ai workflow and configure the required database connection inputs:
 
-#### Required Connection Inputs
+    #### Required Connection Inputs
 
-| Input | Description | Example |
-|-------|-------------|---------|
-| `host` | MySQL server hostname or IP | `<start.dbHost>` or `"localhost"` |
-| `port` | MySQL server port number | `<start.dbPort>` or `3306` |
-| `database` | Database name to connect to | `<start.dbName>` or `"myapp_db"` |
-| `username` | Database username | `<start.dbUser>` or environment variable |
-| `password` | Database password | `<start.dbPassword>` or secure connection |
+    | Input | Description | Example |
+    |-------|-------------|---------|
+    | `host` | MySQL server hostname or IP | `<start.dbHost>` or `"localhost"` |
+    | `port` | MySQL server port number | `<start.dbPort>` or `3306` |
+    | `database` | Database name to connect to | `<start.dbName>` or `"myapp_db"` |
+    | `username` | Database username | `<start.dbUser>` or environment variable |
+    | `password` | Database password | `<start.dbPassword>` or secure connection |
 
-#### Optional Parameters
-- `ssl`: SSL connection mode (`"disabled"`, `"required"`, or `"preferred"`)
+    #### Optional Parameters
+    - `ssl`: SSL connection mode (`"disabled"`, `"required"`, or `"preferred"`)
+  </Accordion>
+  <Accordion title="How do I execute a SELECT query to retrieve data from MySQL?">
 
-### How do I execute a SELECT query to retrieve data from MySQL?
+    Use the `mysql_query` operation to execute SELECT queries and retrieve data:
 
-Use the `mysql_query` operation to execute SELECT queries and retrieve data:
+    1. **Set the operation** to `mysql_query`
+    2. **Configure database connection** parameters (host, port, database, username, password)
+    3. **Add your SQL query** in the `query` field:
 
-1. **Set the operation** to `mysql_query`
-2. **Configure database connection** parameters (host, port, database, username, password)
-3. **Add your SQL query** in the `query` field:
+    #### Example Query Configuration
+    ```sql
+    SELECT id, name, email FROM users WHERE status = 'active'
+    ```
 
-#### Example Query Configuration
-```sql
-SELECT id, name, email FROM users WHERE status = 'active'
-```
+    You can also use dynamic queries with connection tags:
+    ```sql
+    SELECT * FROM orders WHERE customer_id = '<start.customerId>'
+    ```
+  </Accordion>
+  <Accordion title="What outputs can I reference from MySQL blocks in my workflow?">
 
-You can also use dynamic queries with connection tags:
-```sql
-SELECT * FROM orders WHERE customer_id = '<start.customerId>'
-```
+    Every MySQL block exposes three standard outputs that can be referenced using connection tags:
 
-### What outputs can I reference from MySQL blocks in my workflow?
+    #### Available Output Tags
 
-Every MySQL block exposes three standard outputs that can be referenced using connection tags:
+    | Output Tag | Type | Description |
+    |------------|------|-------------|
+    | `<mysql1.message>` | String | Success or error message describing the operation |
+    | `<mysql1.rows>` | Array | Array of rows returned from the query |
+    | `<mysql1.rowCount>` | Number | Number of rows affected by the operation |
 
-#### Available Output Tags
+    #### Example Usage in Downstream Blocks
+    - Connect `<mysql1.rows>` to an Agent block to process query results
+    - Use `<mysql1.rowCount>` in a Condition block to check if records exist
+    - Reference `<mysql1.message>` for error handling and logging
+  </Accordion>
+  <Accordion title="How do I insert new records into MySQL from my workflow data?">
 
-| Output Tag | Type | Description |
-|------------|------|-------------|
-| `<mysql1.message>` | String | Success or error message describing the operation |
-| `<mysql1.rows>` | Array | Array of rows returned from the query |
-| `<mysql1.rowCount>` | Number | Number of rows affected by the operation |
+    To insert data into MySQL tables using the `mysql_insert` operation:
 
-#### Example Usage in Downstream Blocks
-- Connect `<mysql1.rows>` to an Agent block to process query results
-- Use `<mysql1.rowCount>` in a Condition block to check if records exist
-- Reference `<mysql1.message>` for error handling and logging
+    1. **Set operation** to `mysql_insert`
+    2. **Configure connection** parameters
+    3. **Specify target table** in the `table` field
+    4. **Map data object** with key-value pairs matching your table columns
 
-### How do I insert new records into MySQL from my workflow data?
+    #### Example Insert Configuration
 
-To insert data into MySQL tables using the `mysql_insert` operation:
+    | Field | Value | Example |
+    |-------|-------|---------|
+    | `table` | `"users"` | Target table name |
+    | `data` | Object with column mappings | `{"name": "<start.userName>", "email": "<start.userEmail>"}` |
 
-1. **Set operation** to `mysql_insert`
-2. **Configure connection** parameters
-3. **Specify target table** in the `table` field
-4. **Map data object** with key-value pairs matching your table columns
+    #### Dynamic Data Mapping
+    ```json
+    {
+      "name": "<webhook1.body.fullName>",
+      "email": "<webhook1.body.email>",
+      "created_at": "<function1.timestamp>"
+    }
+    ```
+  </Accordion>
+  <Accordion title="How do I update existing MySQL records based on workflow conditions?">
 
-#### Example Insert Configuration
+    Use the `mysql_update` operation to modify existing records:
 
-| Field | Value | Example |
-|-------|-------|---------|
-| `table` | `"users"` | Target table name |
-| `data` | Object with column mappings | `{"name": "<start.userName>", "email": "<start.userEmail>"}` |
+    #### Required Parameters for Updates
 
-#### Dynamic Data Mapping
-```json
-{
-  "name": "<webhook1.body.fullName>",
-  "email": "<webhook1.body.email>",
-  "created_at": "<function1.timestamp>"
-}
-```
+    | Parameter | Description | Example |
+    |-----------|-------------|---------|
+    | `table` | Table name to update | `"orders"` |
+    | `data` | Key-value pairs of fields to update | `{"status": "<agent1.orderStatus>"}` |
+    | `where` | WHERE clause condition (without WHERE keyword) | `"id = '<start.orderId>'"` |
 
-### How do I update existing MySQL records based on workflow conditions?
+    #### Example Update Configuration
+    ```json
+    {
+      "table": "customers",
+      "data": {
+        "last_login": "<function1.currentTimestamp>",
+        "login_count": "<mysql_query1.rows[0].login_count> + 1"
+      },
+      "where": "email = '<webhook1.body.email>'"
+    }
+    ```
+  </Accordion>
+  <Accordion title="How do I integrate MySQL blocks with Agent blocks for data-driven AI responses?">
 
-Use the `mysql_update` operation to modify existing records:
+    Create powerful data-driven workflows by connecting MySQL query results to Agent blocks:
 
-#### Required Parameters for Updates
+    #### Common Integration Patterns
 
-| Parameter | Description | Example |
-|-----------|-------------|---------|
-| `table` | Table name to update | `"orders"` |
-| `data` | Key-value pairs of fields to update | `{"status": "<agent1.orderStatus>"}` |
-| `where` | WHERE clause condition (without WHERE keyword) | `"id = '<start.orderId>'"` |
+    ##### 1. **Query → Agent Pattern**
+    ```
+    MySQL (SELECT) → Agent → Response
+    ```
+    - Connect `<mysql1.rows>` to Agent's `context` or `systemPrompt`
+    - Agent processes database results and generates responses
 
-#### Example Update Configuration
-```json
-{
-  "table": "customers",
-  "data": {
-    "last_login": "<function1.currentTimestamp>",
-    "login_count": "<mysql_query1.rows[0].login_count> + 1"
-  },
-  "where": "email = '<webhook1.body.email>'"
-}
-```
+    ##### 2. **Agent → MySQL Pattern**
+    ```
+    Webhook → Agent → MySQL (INSERT/UPDATE)
+    ```
+    - Agent processes user input: `<webhook1.body.message>`
+    - Connect `<agent1.extractedData>` to MySQL `data` parameter
 
-### How do I integrate MySQL blocks with Agent blocks for data-driven AI responses?
+    ##### 3. **Conditional Database Operations**
+    ```
+    MySQL (SELECT) → Condition → MySQL (INSERT/UPDATE)
+    ```
+    - Use `<mysql1.rowCount>` in Condition block
+    - Route to different database operations based on existence checks
+  </Accordion>
+  <Accordion title="Why is my MySQL connection failing and how do I troubleshoot it?">
 
-Create powerful data-driven workflows by connecting MySQL query results to Agent blocks:
+    Troubleshoot MySQL connection issues with this systematic approach:
 
-#### Common Integration Patterns
+    #### Common Connection Problems
 
-##### 1. **Query → Agent Pattern**
-```
-MySQL (SELECT) → Agent → Response
-```
-- Connect `<mysql1.rows>` to Agent's `context` or `systemPrompt`
-- Agent processes database results and generates responses
+    | Issue | Symptoms | Solution |
+    |-------|----------|----------|
+    | **Authentication Failed** | "Access denied" in `<mysql1.message>` | Verify `username` and `password` are correct |
+    | **Host Unreachable** | Connection timeout errors | Check `host` and `port` values, ensure network access |
+    | **Database Not Found** | "Unknown database" error | Confirm `database` name exists and user has access |
+    | **SSL Configuration** | SSL handshake failures | Set `ssl` parameter to `"disabled"` for testing |
+    | **Query Syntax Error** | SQL syntax error messages | Validate SQL syntax in `query` field |
 
-##### 2. **Agent → MySQL Pattern**
-```
-Webhook → Agent → MySQL (INSERT/UPDATE)
-```
-- Agent processes user input: `<webhook1.body.message>`
-- Connect `<agent1.extractedData>` to MySQL `data` parameter
+    #### Debugging Steps
+    1. **Test connection** with minimal SELECT query: `"SELECT 1"`
+    2. **Check credentials** using static values before dynamic connections
+    3. **Verify permissions** - ensure database user has required privileges
+    4. **Review logs** in workflow execution for detailed error messages
+  </Accordion>
+  <Accordion title="How do I handle MySQL query results with conditional logic in workflows?">
 
-##### 3. **Conditional Database Operations**
-```
-MySQL (SELECT) → Condition → MySQL (INSERT/UPDATE)
-```
-- Use `<mysql1.rowCount>` in Condition block
-- Route to different database operations based on existence checks
+    Combine MySQL blocks with Condition blocks to create smart data-driven workflows:
 
-### Why is my MySQL connection failing and how do I troubleshoot it?
+    #### Pattern 1: Check Record Existence
+    ```
+    MySQL (SELECT) → Condition → Different Actions
+    ```
 
-Troubleshoot MySQL connection issues with this systematic approach:
+    #### Condition Configuration
+    - **Condition**: `<mysql1.rowCount> > 0`
+    - **True path**: Update existing record
+    - **False path**: Insert new record
 
-#### Common Connection Problems
+    #### Pattern 2: Process Query Results
+    ```
+    MySQL (SELECT) → Condition → Agent/Function
+    ```
 
-| Issue | Symptoms | Solution |
-|-------|----------|----------|
-| **Authentication Failed** | "Access denied" in `<mysql1.message>` | Verify `username` and `password` are correct |
-| **Host Unreachable** | Connection timeout errors | Check `host` and `port` values, ensure network access |
-| **Database Not Found** | "Unknown database" error | Confirm `database` name exists and user has access |
-| **SSL Configuration** | SSL handshake failures | Set `ssl` parameter to `"disabled"` for testing |
-| **Query Syntax Error** | SQL syntax error messages | Validate SQL syntax in `query` field |
+    #### Example Conditions
+    - `<mysql1.rows.length> === 0` - No results found
+    - `<mysql1.rows[0].status> === 'pending'` - Check specific field value
+    - `<mysql1.rowCount> >= 10` - Threshold-based routing
 
-#### Debugging Steps
-1. **Test connection** with minimal SELECT query: `"SELECT 1"`
-2. **Check credentials** using static values before dynamic connections
-3. **Verify permissions** - ensure database user has required privileges
-4. **Review logs** in workflow execution for detailed error messages
-
-### How do I handle MySQL query results with conditional logic in workflows?
-
-Combine MySQL blocks with Condition blocks to create smart data-driven workflows:
-
-#### Pattern 1: Check Record Existence
-```
-MySQL (SELECT) → Condition → Different Actions
-```
-
-#### Condition Configuration
-- **Condition**: `<mysql1.rowCount> > 0`
-- **True path**: Update existing record
-- **False path**: Insert new record
-
-#### Pattern 2: Process Query Results
-```
-MySQL (SELECT) → Condition → Agent/Function
-```
-
-#### Example Conditions
-- `<mysql1.rows.length> === 0` - No results found
-- `<mysql1.rows[0].status> === 'pending'` - Check specific field value
-- `<mysql1.rowCount> >= 10` - Threshold-based routing
-
-This enables sophisticated database-driven decision making within your Sim.ai workflows.
+    This enables sophisticated database-driven decision making within your Sim.ai workflows.
+  </Accordion>
+</Accordions>
 {/* MANUAL-CONTENT-END */}

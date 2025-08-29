@@ -4,6 +4,8 @@ description: Search for videos on YouTube
 ---
 
 import { BlockInfoCard } from "@/components/ui/block-info-card"
+import { Accordion, Accordions } from "fumadocs-ui/components/accordion"
+
 
 <BlockInfoCard 
   type="youtube"
@@ -130,156 +132,159 @@ Integrate YouTube searches with external data sources to create enriched content
 ## FAQ
 
 {/* MANUAL-CONTENT-START:faq */}
-### How do I search for YouTube videos in my workflow?
+<Accordions type="single">
+  <Accordion title="How do I search for YouTube videos in my workflow?">
 
-To search for YouTube videos in your Sim.ai workflow, add a **YouTube block** and configure its required inputs:
+    To search for YouTube videos in your Sim.ai workflow, add a **YouTube block** and configure its required inputs:
 
-#### Required Inputs
+    #### Required Inputs
 
-| Input | Description | Example |
-|-------|-------------|---------|
-| `query` | Your search terms | `<start.searchTerm>` or static text like "AI tutorials" |
-| `apiKey` | YouTube Data API key | `<start.apiKey>` or environment variable |
-| `maxResults` | Number of videos to return (optional) | `<start.limit>` or static number like 10 |
+    | Input | Description | Example |
+    |-------|-------------|---------|
+    | `query` | Your search terms | `<start.searchTerm>` or static text like "AI tutorials" |
+    | `apiKey` | YouTube Data API key | `<start.apiKey>` or environment variable |
+    | `maxResults` | Number of videos to return (optional) | `<start.limit>` or static number like 10 |
 
-The block will return matching videos with metadata including titles, descriptions, and video IDs.
+    The block will return matching videos with metadata including titles, descriptions, and video IDs.
+  </Accordion>
+  <Accordion title="How do I get a YouTube API key for the YouTube block?">
 
-### How do I get a YouTube API key for the YouTube block?
+    To use the YouTube block, you need a YouTube Data API key:
 
-To use the YouTube block, you need a YouTube Data API key:
+    1. **Visit Google Cloud Console** and create a new project or select existing one
+    2. **Enable the YouTube Data API v3** in the API Library
+    3. **Create credentials** (API Key) in the Credentials section
+    4. **Restrict the key** (optional but recommended) to YouTube Data API only
+    5. **Copy the API key** and use it in your workflow's `apiKey` input
 
-1. **Visit Google Cloud Console** and create a new project or select existing one
-2. **Enable the YouTube Data API v3** in the API Library
-3. **Create credentials** (API Key) in the Credentials section
-4. **Restrict the key** (optional but recommended) to YouTube Data API only
-5. **Copy the API key** and use it in your workflow's `apiKey` input
+    Store your API key securely and reference it using `<start.apiKey>` in your workflow configuration.
+  </Accordion>
+  <Accordion title="What outputs does the YouTube block provide and how do I reference them?">
 
-Store your API key securely and reference it using `<start.apiKey>` in your workflow configuration.
+    The YouTube block provides structured outputs that you can reference in downstream blocks:
 
-### What outputs does the YouTube block provide and how do I reference them?
+    #### Available Outputs
 
-The YouTube block provides structured outputs that you can reference in downstream blocks:
+    | Output Tag | Type | Description |
+    |------------|------|-------------|
+    | `<youtube1.items>` | Array | Complete array of video objects with metadata |
+    | `<youtube1.totalResults>` | Number | Total number of videos returned by search |
 
-#### Available Outputs
+    #### Video Object Structure
+    Each item in `<youtube1.items>` contains:
+    - `videoId`: Unique YouTube video identifier
+    - `title`: Video title
+    - `description`: Video description text
+    - `thumbnails`: Various thumbnail image URLs
+    - `channelTitle`: Name of the video's channel
+    - `publishedAt`: Video publication date
+  </Accordion>
+  <Accordion title="How do I connect YouTube search results to an Agent block for content analysis?">
 
-| Output Tag | Type | Description |
-|------------|------|-------------|
-| `<youtube1.items>` | Array | Complete array of video objects with metadata |
-| `<youtube1.totalResults>` | Number | Total number of videos returned by search |
+    To analyze YouTube video data with an AI agent:
 
-#### Video Object Structure
-Each item in `<youtube1.items>` contains:
-- `videoId`: Unique YouTube video identifier
-- `title`: Video title
-- `description`: Video description text
-- `thumbnails`: Various thumbnail image URLs
-- `channelTitle`: Name of the video's channel
-- `publishedAt`: Video publication date
+    1. **Connect the YouTube output** to your Agent block's input
+    2. **Reference the video data** in your agent prompt
 
-### How do I connect YouTube search results to an Agent block for content analysis?
+    #### Example Configuration
 
-To analyze YouTube video data with an AI agent:
+    ```json
+    {
+      "userPrompt": "Analyze these YouTube videos and summarize the main topics: <youtube1.items>"
+    }
+    ```
 
-1. **Connect the YouTube output** to your Agent block's input
-2. **Reference the video data** in your agent prompt
+    The agent will receive the complete video metadata and can extract insights, create summaries, or recommend videos based on the search results.
+  </Accordion>
+  <Accordion title="How do I filter YouTube search results based on specific criteria?">
 
-#### Example Configuration
+    While the YouTube block handles the initial search, you can use a **Function block** to filter results:
 
-```json
-{
-  "userPrompt": "Analyze these YouTube videos and summarize the main topics: <youtube1.items>"
-}
-```
+    #### Example Workflow Pattern
+    ```
+    YouTube → Function → Agent
+    ```
 
-The agent will receive the complete video metadata and can extract insights, create summaries, or recommend videos based on the search results.
+    #### Function Block Logic
+    ```javascript
+    // Filter videos published in the last month
+    const oneMonthAgo = new Date();
+    oneMonthAgo.setMonth(oneMonthAgo.getMonth() - 1);
 
-### How do I filter YouTube search results based on specific criteria?
+    return input.items.filter(video => 
+      new Date(video.publishedAt) > oneMonthAgo
+    );
+    ```
 
-While the YouTube block handles the initial search, you can use a **Function block** to filter results:
+    Connect `<youtube1.items>` to the Function block input, then use `<function1.result>` in downstream blocks.
+  </Accordion>
+  <Accordion title="Why is my YouTube search returning no results or errors?">
 
-#### Example Workflow Pattern
-```
-YouTube → Function → Agent
-```
+    Troubleshoot common YouTube block issues:
 
-#### Function Block Logic
-```javascript
-// Filter videos published in the last month
-const oneMonthAgo = new Date();
-oneMonthAgo.setMonth(oneMonthAgo.getMonth() - 1);
+    #### Common Problems and Solutions
 
-return input.items.filter(video => 
-  new Date(video.publishedAt) > oneMonthAgo
-);
-```
+    | Issue | Description | Solution |
+    |-------|-------------|----------|
+    | **Invalid API Key** | Authentication failed | Verify `<start.apiKey>` is correct and API is enabled |
+    | **Quota Exceeded** | Daily API limit reached | Check Google Cloud Console quotas |
+    | **Empty Results** | No videos match query | Try broader search terms in `query` field |
+    | **Invalid Query** | Search terms cause errors | Ensure `<start.searchTerm>` contains valid text |
+    | **Rate Limiting** | Too many requests | Add delays between workflow runs |
 
-Connect `<youtube1.items>` to the Function block input, then use `<function1.result>` in downstream blocks.
+    Check the workflow logs for specific error messages from the YouTube API.
+  </Accordion>
+  <Accordion title="Can I use YouTube search results to create automated video recommendations?">
 
-### Why is my YouTube search returning no results or errors?
+    Yes! Combine YouTube with other blocks for intelligent video curation:
 
-Troubleshoot common YouTube block issues:
+    #### Recommendation Workflow Pattern
 
-#### Common Problems and Solutions
+    ##### 1. **User Input → YouTube → Agent → Response**
+    ```
+    Webhook: User provides topic
+    YouTube: Search for videos on that topic
+    Agent: Analyze and rank videos by relevance
+    ```
 
-| Issue | Description | Solution |
-|-------|-------------|----------|
-| **Invalid API Key** | Authentication failed | Verify `<start.apiKey>` is correct and API is enabled |
-| **Quota Exceeded** | Daily API limit reached | Check Google Cloud Console quotas |
-| **Empty Results** | No videos match query | Try broader search terms in `query` field |
-| **Invalid Query** | Search terms cause errors | Ensure `<start.searchTerm>` contains valid text |
-| **Rate Limiting** | Too many requests | Add delays between workflow runs |
+    ##### 2. **Scheduled → YouTube → Function → Notification**
+    ```
+    Schedule: Daily trigger
+    YouTube: Search trending topics
+    Function: Filter by duration/views
+    Telegram: Send curated list
+    ```
 
-Check the workflow logs for specific error messages from the YouTube API.
+    #### Example Agent Prompt
+    ```
+    "From these YouTube videos: <youtube1.items>
+    Create a ranked list of the top 3 most educational videos about <start.topic>.
+    Include title, channel, and brief explanation why each video is recommended."
+    ```
+  </Accordion>
+  <Accordion title="How do I handle large YouTube search results efficiently in my workflow?">
 
-### Can I use YouTube search results to create automated video recommendations?
+    For workflows processing many videos, optimize performance:
 
-Yes! Combine YouTube with other blocks for intelligent video curation:
+    #### Best Practices
 
-#### Recommendation Workflow Pattern
+    1. **Limit Results**: Set `maxResults` to reasonable numbers (5-50)
+    2. **Batch Processing**: Use Function blocks to process `<youtube1.items>` in chunks
+    3. **Early Filtering**: Apply filters before expensive operations like AI analysis
+    4. **Cache Results**: Store `<youtube1.items>` in databases for reuse
 
-##### 1. **User Input → YouTube → Agent → Response**
-```
-Webhook: User provides topic
-YouTube: Search for videos on that topic
-Agent: Analyze and rank videos by relevance
-```
+    #### Example Batch Processing
+    ```javascript
+    // Process 5 videos at a time
+    const batchSize = 5;
+    const batches = [];
+    for (let i = 0; i < input.items.length; i += batchSize) {
+      batches.push(input.items.slice(i, i + batchSize));
+    }
+    return batches[0]; // Process first batch
+    ```
 
-##### 2. **Scheduled → YouTube → Function → Notification**
-```
-Schedule: Daily trigger
-YouTube: Search trending topics
-Function: Filter by duration/views
-Telegram: Send curated list
-```
-
-#### Example Agent Prompt
-```
-"From these YouTube videos: <youtube1.items>
-Create a ranked list of the top 3 most educational videos about <start.topic>.
-Include title, channel, and brief explanation why each video is recommended."
-```
-
-### How do I handle large YouTube search results efficiently in my workflow?
-
-For workflows processing many videos, optimize performance:
-
-#### Best Practices
-
-1. **Limit Results**: Set `maxResults` to reasonable numbers (5-50)
-2. **Batch Processing**: Use Function blocks to process `<youtube1.items>` in chunks
-3. **Early Filtering**: Apply filters before expensive operations like AI analysis
-4. **Cache Results**: Store `<youtube1.items>` in databases for reuse
-
-#### Example Batch Processing
-```javascript
-// Process 5 videos at a time
-const batchSize = 5;
-const batches = [];
-for (let i = 0; i < input.items.length; i += batchSize) {
-  batches.push(input.items.slice(i, i + batchSize));
-}
-return batches[0]; // Process first batch
-```
-
-This approach prevents timeouts and manages API costs effectively.
+    This approach prevents timeouts and manages API costs effectively.
+  </Accordion>
+</Accordions>
 {/* MANUAL-CONTENT-END */}

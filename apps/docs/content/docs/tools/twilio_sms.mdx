@@ -4,6 +4,8 @@ description: Send SMS messages
 ---
 
 import { BlockInfoCard } from "@/components/ui/block-info-card"
+import { Accordion, Accordions } from "fumadocs-ui/components/accordion"
+
 
 <BlockInfoCard 
   type="twilio_sms"
@@ -130,142 +132,145 @@ Monitor Twilio usage metrics and implement cost optimization strategies by analy
 ## FAQ
 
 {/* MANUAL-CONTENT-START:faq */}
-### How do I send an SMS message from my workflow using Twilio?
+<Accordions type="single">
+  <Accordion title="How do I send an SMS message from my workflow using Twilio?">
 
-To send SMS messages from your workflow, add a **Twilio SMS block** to your Sim.ai workflow and configure its required inputs:
+    To send SMS messages from your workflow, add a **Twilio SMS block** to your Sim.ai workflow and configure its required inputs:
 
-#### Required Inputs
+    #### Required Inputs
 
-| Input | Description | Example |
-|-------|-------------|---------|
-| `accountSid` | Your Twilio Account SID | `<start.accountSid>` or environment variable |
-| `authToken` | Your Twilio Auth Token | `<start.authToken>` or environment variable |
-| `fromNumber` | Your Twilio phone number | `<start.fromNumber>` or static number like `+1234567890` |
-| `phoneNumbers` | Recipient phone numbers (one per line) | `<start.phoneNumber>` or multiple numbers |
-| `message` | SMS content to send | `<agent1.content>` or any string |
+    | Input | Description | Example |
+    |-------|-------------|---------|
+    | `accountSid` | Your Twilio Account SID | `<start.accountSid>` or environment variable |
+    | `authToken` | Your Twilio Auth Token | `<start.authToken>` or environment variable |
+    | `fromNumber` | Your Twilio phone number | `<start.fromNumber>` or static number like `+1234567890` |
+    | `phoneNumbers` | Recipient phone numbers (one per line) | `<start.phoneNumber>` or multiple numbers |
+    | `message` | SMS content to send | `<agent1.content>` or any string |
+  </Accordion>
+  <Accordion title="How do I send SMS to multiple recipients at once?">
 
-### How do I send SMS to multiple recipients at once?
+    To send the same message to multiple recipients, format phone numbers in the `phoneNumbers` field with one number per line:
 
-To send the same message to multiple recipients, format phone numbers in the `phoneNumbers` field with one number per line:
+    #### Example Configuration
 
-#### Example Configuration
+    ```
+    +1234567890
+    +0987654321
+    +1122334455
+    ```
 
-```
-+1234567890
-+0987654321
-+1122334455
-```
+    You can connect this from other blocks using tags like `<start.recipientList>` or `<function1.formattedNumbers>`. Each recipient will receive the same message content but as separate SMS deliveries.
+  </Accordion>
+  <Accordion title="What is the correct way to reference Twilio SMS block outputs in my workflow?">
 
-You can connect this from other blocks using tags like `<start.recipientList>` or `<function1.formattedNumbers>`. Each recipient will receive the same message content but as separate SMS deliveries.
+    Every Twilio SMS block exposes outputs that can be referenced using connection tags:
 
-### What is the correct way to reference Twilio SMS block outputs in my workflow?
+    #### Available Outputs
 
-Every Twilio SMS block exposes outputs that can be referenced using connection tags:
+    | Output Tag | Type | Description |
+    |------------|------|-------------|
+    | `<twilio_sms1.success>` | Boolean | `true` if SMS was sent successfully |
+    | `<twilio_sms1.messageId>` | String | Unique Twilio message SID identifier |
+    | `<twilio_sms1.status>` | String | Delivery status (queued, sent, delivered, failed) |
+    | `<twilio_sms1.fromNumber>` | String | Phone number message was sent from |
+    | `<twilio_sms1.toNumber>` | String | Phone number message was sent to |
+    | `<twilio_sms1.error>` | String | Error information if sending fails |
 
-#### Available Outputs
+    These values can be connected to inputs of downstream blocks for logging, conditional logic, or further processing.
+  </Accordion>
+  <Accordion title="How do I connect an Agent block's response to send as an SMS?">
 
-| Output Tag | Type | Description |
-|------------|------|-------------|
-| `<twilio_sms1.success>` | Boolean | `true` if SMS was sent successfully |
-| `<twilio_sms1.messageId>` | String | Unique Twilio message SID identifier |
-| `<twilio_sms1.status>` | String | Delivery status (queued, sent, delivered, failed) |
-| `<twilio_sms1.fromNumber>` | String | Phone number message was sent from |
-| `<twilio_sms1.toNumber>` | String | Phone number message was sent to |
-| `<twilio_sms1.error>` | String | Error information if sending fails |
+    To route an AI agent's response directly to SMS recipients:
 
-These values can be connected to inputs of downstream blocks for logging, conditional logic, or further processing.
+    1. In the Twilio SMS block's `message` field, type `<>` to open the connection menu
+    2. Select `<agent1.content>` from the available connections
 
-### How do I connect an Agent block's response to send as an SMS?
+    #### Example Workflow Pattern
 
-To route an AI agent's response directly to SMS recipients:
+    ```
+    Webhook → Agent → Twilio SMS
+    ```
 
-1. In the Twilio SMS block's `message` field, type `<>` to open the connection menu
-2. Select `<agent1.content>` from the available connections
+    #### Configuration Example
 
-#### Example Workflow Pattern
+    ```json
+    {
+      "phoneNumbers": "<start.userPhone>",
+      "message": "<agent1.content>",
+      "fromNumber": "+1234567890"
+    }
+    ```
 
-```
-Webhook → Agent → Twilio SMS
-```
+    This automatically sends the AI-generated response as an SMS to the requesting user.
+  </Accordion>
+  <Accordion title="Why is my SMS not being delivered?">
 
-#### Configuration Example
+    Troubleshoot common Twilio SMS issues with this checklist:
 
-```json
-{
-  "phoneNumbers": "<start.userPhone>",
-  "message": "<agent1.content>",
-  "fromNumber": "+1234567890"
-}
-```
+    #### Common Issues and Solutions
 
-This automatically sends the AI-generated response as an SMS to the requesting user.
+    | Issue | Description | Solution |
+    |-------|-------------|----------|
+    | **Invalid Credentials** | Wrong Account SID or Auth Token | Verify `<start.accountSid>` and `<start.authToken>` match Twilio console |
+    | **Unverified Number** | Recipient not verified in trial account | Add number to verified list or upgrade to paid account |
+    | **Invalid Phone Format** | Incorrect number formatting | Use E.164 format: `+1234567890` (include country code) |
+    | **Message Too Long** | SMS exceeds 160 characters | Split long messages or use MMS-enabled numbers |
+    | **From Number Issues** | Invalid or unowned Twilio number | Ensure `fromNumber` is purchased in your Twilio account |
+    | **Geographic Restrictions** | Sending to unsupported regions | Check Twilio's geographic permissions for target countries |
 
-### Why is my SMS not being delivered?
+    Check `<twilio_sms1.error>` output for specific error details from the Twilio API.
+  </Accordion>
+  <Accordion title="How do I create conditional SMS notifications based on workflow results?">
 
-Troubleshoot common Twilio SMS issues with this checklist:
+    Use Condition blocks to send different SMS messages based on workflow outcomes:
 
-#### Common Issues and Solutions
+    #### Pattern 1: Success/Failure Notifications
 
-| Issue | Description | Solution |
-|-------|-------------|----------|
-| **Invalid Credentials** | Wrong Account SID or Auth Token | Verify `<start.accountSid>` and `<start.authToken>` match Twilio console |
-| **Unverified Number** | Recipient not verified in trial account | Add number to verified list or upgrade to paid account |
-| **Invalid Phone Format** | Incorrect number formatting | Use E.164 format: `+1234567890` (include country code) |
-| **Message Too Long** | SMS exceeds 160 characters | Split long messages or use MMS-enabled numbers |
-| **From Number Issues** | Invalid or unowned Twilio number | Ensure `fromNumber` is purchased in your Twilio account |
-| **Geographic Restrictions** | Sending to unsupported regions | Check Twilio's geographic permissions for target countries |
+    ```
+    API Call → Condition → Twilio SMS (success)
+                       → Twilio SMS (failure)
+    ```
 
-Check `<twilio_sms1.error>` output for specific error details from the Twilio API.
+    Connect `<api1.success>` to the Condition block, then route different messages based on the result.
 
-### How do I create conditional SMS notifications based on workflow results?
+    #### Pattern 2: Status-Based Messaging
 
-Use Condition blocks to send different SMS messages based on workflow outcomes:
+    ```json
+    // Condition: if <order.status> equals "completed"
+    {
+      "message": "Your order #<order.id> has been completed!",
+      "phoneNumbers": "<order.customerPhone>"
+    }
+    ```
+  </Accordion>
+  <Accordion title="Can I combine Twilio SMS with other blocks for automation workflows?">
 
-#### Pattern 1: Success/Failure Notifications
+    Yes! Twilio SMS blocks integrate seamlessly with other Sim.ai workflow components:
 
-```
-API Call → Condition → Twilio SMS (success)
-                   → Twilio SMS (failure)
-```
+    #### Common Workflow Patterns
 
-Connect `<api1.success>` to the Condition block, then route different messages based on the result.
+    ##### 1. **Webhook → Function → Twilio SMS**
+    Process incoming data, format it, and send SMS notifications.
 
-#### Pattern 2: Status-Based Messaging
+    ##### 2. **Schedule → API → Twilio SMS**
+    Create automated SMS reminders or status updates on a schedule.
 
-```json
-// Condition: if <order.status> equals "completed"
-{
-  "message": "Your order #<order.id> has been completed!",
-  "phoneNumbers": "<order.customerPhone>"
-}
-```
+    ##### 3. **Agent → Condition → Twilio SMS**
+    Send AI responses via SMS with conditional routing:
+    ```
+    if `<agent1.confidence>` > 0.8:
+      → Twilio SMS (confident response)
+    else:
+      → Twilio SMS (escalation message)
+    ```
 
-### Can I combine Twilio SMS with other blocks for automation workflows?
+    ##### 4. **Database → Function → Twilio SMS**
+    Query customer data and send personalized SMS messages:
+    ```
+    Database → Function (format message) → Twilio SMS
+    ```
 
-Yes! Twilio SMS blocks integrate seamlessly with other Sim.ai workflow components:
-
-#### Common Workflow Patterns
-
-##### 1. **Webhook → Function → Twilio SMS**
-Process incoming data, format it, and send SMS notifications.
-
-##### 2. **Schedule → API → Twilio SMS**
-Create automated SMS reminders or status updates on a schedule.
-
-##### 3. **Agent → Condition → Twilio SMS**
-Send AI responses via SMS with conditional routing:
-```
-if `<agent1.confidence>` > 0.8:
-  → Twilio SMS (confident response)
-else:
-  → Twilio SMS (escalation message)
-```
-
-##### 4. **Database → Function → Twilio SMS**
-Query customer data and send personalized SMS messages:
-```
-Database → Function (format message) → Twilio SMS
-```
-
-Use `<database1.customerPhone>` and `<function1.personalizedMessage>` to create targeted messaging campaigns.
+    Use `<database1.customerPhone>` and `<function1.personalizedMessage>` to create targeted messaging campaigns.
+  </Accordion>
+</Accordions>
 {/* MANUAL-CONTENT-END */}

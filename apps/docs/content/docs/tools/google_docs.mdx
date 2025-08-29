@@ -4,6 +4,8 @@ description: Read, write, and create documents
 ---
 
 import { BlockInfoCard } from "@/components/ui/block-info-card"
+import { Accordion, Accordions } from "fumadocs-ui/components/accordion"
+
 
 <BlockInfoCard 
   type="google_docs"
@@ -201,142 +203,145 @@ Cache document metadata when workflows require repeated access to document prope
 ## FAQ
 
 {/* MANUAL-CONTENT-START:faq */}
-### How do I read content from an existing Google Docs document in my workflow?
+<Accordions type="single">
+  <Accordion title="How do I read content from an existing Google Docs document in my workflow?">
 
-To read content from a Google Docs document in Sim.ai, add a **Google Docs block** to your workflow and configure the read operation:
+    To read content from a Google Docs document in Sim.ai, add a **Google Docs block** to your workflow and configure the read operation:
 
-#### Required Input
+    #### Required Input
 
-| Input | Description | Example |
-|-------|-------------|---------|
-| `documentId` | The Google Docs document ID from the URL | `<start.docId>` or static ID like `1BxiMVs0XRA5nFMdKvBdBZjgmUUqptlbs74OgvE2upms` |
+    | Input | Description | Example |
+    |-------|-------------|---------|
+    | `documentId` | The Google Docs document ID from the URL | `<start.docId>` or static ID like `1BxiMVs0XRA5nFMdKvBdBZjgmUUqptlbs74OgvE2upms` |
 
-#### Available Outputs
+    #### Available Outputs
 
-| Output Tag | Type | Description |
-|------------|------|-------------|
-| `<google_docs1.content>` | String | Full text content extracted from the document |
-| `<google_docs1.metadata>` | JSON | Document metadata including ID, title, and URL |
+    | Output Tag | Type | Description |
+    |------------|------|-------------|
+    | `<google_docs1.content>` | String | Full text content extracted from the document |
+    | `<google_docs1.metadata>` | JSON | Document metadata including ID, title, and URL |
+  </Accordion>
+  <Accordion title="How do I create a new Google Docs document from my workflow?">
 
-### How do I create a new Google Docs document from my workflow?
+    To create new documents programmatically in Sim.ai:
 
-To create new documents programmatically in Sim.ai:
+    1. **Add a Google Docs block** and select the `google_docs_create` operation
+    2. **Configure the required inputs**:
 
-1. **Add a Google Docs block** and select the `google_docs_create` operation
-2. **Configure the required inputs**:
+    #### Input Configuration
 
-#### Input Configuration
+    | Input | Required | Description | Example |
+    |-------|----------|-------------|---------|
+    | `title` | Yes | Document title | `<start.title>` or `"Meeting Notes - {date}"` |
+    | `content` | No | Initial document content | `<agent1.content>` or static text |
+    | `folderSelector` | No | Target folder selection | Folder picker in UI |
+    | `folderId` | No | Specific folder ID | `<start.folderId>` |
 
-| Input | Required | Description | Example |
-|-------|----------|-------------|---------|
-| `title` | Yes | Document title | `<start.title>` or `"Meeting Notes - {date}"` |
-| `content` | No | Initial document content | `<agent1.content>` or static text |
-| `folderSelector` | No | Target folder selection | Folder picker in UI |
-| `folderId` | No | Specific folder ID | `<start.folderId>` |
+    The block outputs `<google_docs1.metadata>` containing the new document's ID, title, and shareable URL.
+  </Accordion>
+  <Accordion title="What is the correct way to reference Google Docs outputs in downstream blocks?">
 
-The block outputs `<google_docs1.metadata>` containing the new document's ID, title, and shareable URL.
+    Google Docs blocks expose specific outputs that can be connected to other blocks using connection tags:
 
-### What is the correct way to reference Google Docs outputs in downstream blocks?
+    #### Output Reference Examples
 
-Google Docs blocks expose specific outputs that can be connected to other blocks using connection tags:
+    | Use Case | Connection Tag | Target Block |
+    |----------|----------------|--------------|
+    | **Process document content** | `<google_docs1.content>` | Agent block's `userPrompt` |
+    | **Extract document URL** | `<google_docs1.metadata.url>` | Slack message content |
+    | **Get document title** | `<google_docs1.metadata.title>` | Email subject line |
+    | **Reference document ID** | `<google_docs1.metadata.id>` | Another Google Docs operation |
+  </Accordion>
+  <Accordion title="How do I update content in an existing Google Docs document?">
 
-#### Output Reference Examples
+    To write or update content in an existing document:
 
-| Use Case | Connection Tag | Target Block |
-|----------|----------------|--------------|
-| **Process document content** | `<google_docs1.content>` | Agent block's `userPrompt` |
-| **Extract document URL** | `<google_docs1.metadata.url>` | Slack message content |
-| **Get document title** | `<google_docs1.metadata.title>` | Email subject line |
-| **Reference document ID** | `<google_docs1.metadata.id>` | Another Google Docs operation |
+    1. **Use the `google_docs_write` operation**
+    2. **Configure both required inputs**:
 
-### How do I update content in an existing Google Docs document?
+    #### Required Configuration
 
-To write or update content in an existing document:
+    ```json
+    {
+      "documentId": "<start.documentId>",
+      "content": "<agent1.content>"
+    }
+    ```
 
-1. **Use the `google_docs_write` operation**
-2. **Configure both required inputs**:
+    #### Output Verification
 
-#### Required Configuration
+    | Output | Description | Usage |
+    |--------|-------------|--------|
+    | `<google_docs1.updatedContent>` | Boolean success indicator | Connect to Condition blocks |
+    | `<google_docs1.metadata>` | Updated document information | Reference in notifications |
+  </Accordion>
+  <Accordion title="How do I authenticate Google Docs with Sim.ai workflows?">
 
-```json
-{
-  "documentId": "<start.documentId>",
-  "content": "<agent1.content>"
-}
-```
+    Google Docs integration requires OAuth authentication setup:
 
-#### Output Verification
+    #### Authentication Steps
 
-| Output | Description | Usage |
-|--------|-------------|--------|
-| `<google_docs1.updatedContent>` | Boolean success indicator | Connect to Condition blocks |
-| `<google_docs1.metadata>` | Updated document information | Reference in notifications |
+    1. **Connect your Google account** in the Sim.ai connections panel
+    2. **Grant document permissions** during the OAuth flow
+    3. **Reference authenticated connection** in your workflow blocks
 
-### How do I authenticate Google Docs with Sim.ai workflows?
+    #### Required Permissions
 
-Google Docs integration requires OAuth authentication setup:
+    - `https://www.googleapis.com/auth/documents` - Read and write document access
+    - `https://www.googleapis.com/auth/drive.file` - File creation and folder access
 
-#### Authentication Steps
+    Once authenticated, all Google Docs blocks in your workspace automatically use the stored credentials.
+  </Accordion>
+  <Accordion title="What are common workflow patterns using Google Docs blocks?">
 
-1. **Connect your Google account** in the Sim.ai connections panel
-2. **Grant document permissions** during the OAuth flow
-3. **Reference authenticated connection** in your workflow blocks
+    Google Docs blocks integrate seamlessly with other Sim.ai components for document automation:
 
-#### Required Permissions
+    #### Popular Workflow Patterns
 
-- `https://www.googleapis.com/auth/documents` - Read and write document access
-- `https://www.googleapis.com/auth/drive.file` - File creation and folder access
+    ##### 1. **Webhook → Agent → Google Docs Create**
+    Generate AI-powered documents from external triggers:
+    ```
+    External API → Agent (content generation) → Google Docs (document creation)
+    ```
 
-Once authenticated, all Google Docs blocks in your workspace automatically use the stored credentials.
+    ##### 2. **Google Docs Read → Agent → Google Docs Write**
+    Process and update existing documents:
+    ```
+    Read document → AI analysis → Write updated content back
+    ```
 
-### What are common workflow patterns using Google Docs blocks?
+    ##### 3. **Scheduled Trigger → Multiple APIs → Google Docs**
+    Create automated reports:
+    ```
+    Timer → Fetch data → Transform → Create summary document
+    ```
 
-Google Docs blocks integrate seamlessly with other Sim.ai components for document automation:
+    ##### 4. **Google Docs Create → Email/Slack**
+    Share newly created documents:
+    ```
+    Create document → Extract `<google_docs1.metadata.url>` → Send notification
+    ```
+  </Accordion>
+  <Accordion title="Why is my Google Docs operation failing?">
 
-#### Popular Workflow Patterns
+    Troubleshoot common issues with this diagnostic checklist:
 
-##### 1. **Webhook → Agent → Google Docs Create**
-Generate AI-powered documents from external triggers:
-```
-External API → Agent (content generation) → Google Docs (document creation)
-```
+    #### Common Issues and Solutions
 
-##### 2. **Google Docs Read → Agent → Google Docs Write**
-Process and update existing documents:
-```
-Read document → AI analysis → Write updated content back
-```
+    | Issue | Symptoms | Solution |
+    |-------|----------|----------|
+    | **Invalid Document ID** | "Document not found" error | Verify `documentId` format and permissions |
+    | **Permission Denied** | Authentication errors | Re-authenticate Google account connection |
+    | **Empty Content** | Document created but blank | Ensure `content` input is populated |
+    | **Folder Access** | Cannot create in specified folder | Check folder permissions and `folderId` |
+    | **Rate Limiting** | API quota exceeded | Add delays between operations |
 
-##### 3. **Scheduled Trigger → Multiple APIs → Google Docs**
-Create automated reports:
-```
-Timer → Fetch data → Transform → Create summary document
-```
+    #### Debug Steps
 
-##### 4. **Google Docs Create → Email/Slack**
-Share newly created documents:
-```
-Create document → Extract `<google_docs1.metadata.url>` → Send notification
-```
-
-### Why is my Google Docs operation failing?
-
-Troubleshoot common issues with this diagnostic checklist:
-
-#### Common Issues and Solutions
-
-| Issue | Symptoms | Solution |
-|-------|----------|----------|
-| **Invalid Document ID** | "Document not found" error | Verify `documentId` format and permissions |
-| **Permission Denied** | Authentication errors | Re-authenticate Google account connection |
-| **Empty Content** | Document created but blank | Ensure `content` input is populated |
-| **Folder Access** | Cannot create in specified folder | Check folder permissions and `folderId` |
-| **Rate Limiting** | API quota exceeded | Add delays between operations |
-
-#### Debug Steps
-
-1. **Check the workflow logs** for specific error messages
-2. **Verify document ID format**: Should be alphanumeric string from Google Docs URL
-3. **Test with static values** before using dynamic connection tags
-4. **Ensure proper OAuth scopes** are granted during authentication
+    1. **Check the workflow logs** for specific error messages
+    2. **Verify document ID format**: Should be alphanumeric string from Google Docs URL
+    3. **Test with static values** before using dynamic connection tags
+    4. **Ensure proper OAuth scopes** are granted during authentication
+  </Accordion>
+</Accordions>
 {/* MANUAL-CONTENT-END */}

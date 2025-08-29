@@ -4,6 +4,8 @@ description: Send messages through Telegram or trigger workflows from Telegram e
 ---
 
 import { BlockInfoCard } from "@/components/ui/block-info-card"
+import { Accordion, Accordions } from "fumadocs-ui/components/accordion"
+
 
 <BlockInfoCard 
   type="telegram"
@@ -64,6 +66,56 @@ Key features of Telegram include:
 In Sim, the Telegram integration enables your agents to leverage these powerful messaging capabilities as part of their workflows. This creates opportunities for automated notifications, alerts, and interactive conversations through Telegram's secure messaging platform. The integration allows agents to send messages programmatically to individuals or channels, enabling timely communication and updates. By connecting Sim with Telegram, you can build intelligent agents that engage users through a secure and widely-adopted messaging platform, perfect for delivering notifications, updates, and interactive communications.
 {/* MANUAL-CONTENT-END */}
 
+
+## Webhook
+
+Trigger workflows from new Telegram messages that mention or DM your bot. You can use the Telegram block in trigger mode to start a workflow when your bot receives updates from Telegram via a webhook. Click the lightning bolt icon to enable trigger mode, then enter your bot token and click save changes.
+
+### Configuration Inputs
+
+| Input | Type | Required | Description |
+|------|------|----------|-------------|
+| `allowedUpdates` | array | No | List of update types to receive (e.g., `["message"]`). Defaults to all. |
+| `secretToken` | string | No | Secret token for verifying Telegram webhook requests (`X-Telegram-Bot-Api-Secret-Token`). |
+| `includeEntities` | boolean | No | Include parsed entities (mentions, commands) in outputs. Defaults to `true`. |
+
+### Outputs
+
+| Output | Type | Description |
+|--------|------|-------------|
+| `payloads` | array | The raw Telegram update payloads received. |
+| `latestPayload` | object | Convenience object of the latest update. |
+| `telegramMessage` | object | Parsed message fields (chat, from, text, entities). |
+
+#### `latestPayload` shape
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `update_id` | number | Unique identifier for the update. |
+| `message.message_id` | number | Unique message ID. |
+| `message.date` | number | Unix time when the message was sent. |
+| `message.chat` | object | Chat the message belongs to (id, type, title). |
+| `message.from` | object | Sender user object. |
+| `message.text` | string | Message text. |
+| `message.entities` | array | Message entities (bot commands, mentions). |
+
+### Example webhook event body (raw Telegram update payload)
+
+```json
+{
+  "update_id": 10000,
+  "message": {
+    "message_id": 1365,
+    "date": 1441645532,
+    "chat": { "id": -1001234567890, "type": "supergroup", "title": "My Group" },
+    "from": { "id": 1111111, "is_bot": false, "first_name": "Alice" },
+    "text": "/start hello",
+    "entities": [ { "offset": 0, "length": 6, "type": "bot_command" } ]
+  }
+}
+```
+
+Method: `POST`  •  Headers: `Content-Type: application/json`, `X-Telegram-Bot-Api-Secret-Token` (optional)
 
 ## Operations
 
@@ -156,169 +208,172 @@ Optimize message content by removing unnecessary formatting and redundant inform
 ## FAQ
 
 {/* MANUAL-CONTENT-START:faq */}
-### How do I send a message from my workflow to a Telegram chat or channel?
+<Accordions type="single">
+  <Accordion title="How do I send a message from my workflow to a Telegram chat or channel?">
 
-To send messages from your workflow to Telegram, add a **Telegram block** to your Sim.ai workflow and configure its required inputs:
+    To send messages from your workflow to Telegram, add a **Telegram block** to your Sim.ai workflow and configure its required inputs:
 
-#### Required Inputs
+    #### Required Inputs
 
-| Input | Description | Example Connection |
-|-------|-------------|-------------------|
-| `botToken` | Your Telegram bot token from BotFather | `<start.botToken>` or environment variable |
-| `chatId` | The ID of your target chat/channel/user | `<start.chatId>` or static ID like `-1001234567890` |
-| `text` | The message content to send | `<agent1.content>` or any string value |
+    | Input | Description | Example Connection |
+    |-------|-------------|-------------------|
+    | `botToken` | Your Telegram bot token from BotFather | `<start.botToken>` or environment variable |
+    | `chatId` | The ID of your target chat/channel/user | `<start.chatId>` or static ID like `-1001234567890` |
+    | `text` | The message content to send | `<agent1.content>` or any string value |
 
-All three inputs are required for the block to function properly. You can connect these from other blocks or provide static values.
+    All three inputs are required for the block to function properly. You can connect these from other blocks or provide static values.
+  </Accordion>
+  <Accordion title="How do I trigger a workflow when someone sends a message to my Telegram bot?">
 
-### How do I trigger a workflow when someone sends a message to my Telegram bot?
+    To create Telegram-triggered workflows in Sim.ai:
 
-To create Telegram-triggered workflows in Sim.ai:
+    1. **Add a Webhook Trigger block** as your workflow's entry point
+    2. **Register the webhook URL** with Telegram's Bot API using the `setWebhook` method
+    3. **Map incoming message fields** to downstream blocks using these connection tags:
 
-1. **Add a Webhook Trigger block** as your workflow's entry point
-2. **Register the webhook URL** with Telegram's Bot API using the `setWebhook` method
-3. **Map incoming message fields** to downstream blocks using these connection tags:
+    #### Available Webhook Outputs
+    - `<start.message_id>` - Unique message identifier
+    - `<start.from_username>` - Username of the message sender
+    - `<start.text>` - The actual message text content
+    - `<start.chat_id>` - Chat ID where message was received
+    - `<start.chat_type>` - Type of chat (private, group, supergroup, channel)
 
-#### Available Webhook Outputs
-- `<start.message_id>` - Unique message identifier
-- `<start.from_username>` - Username of the message sender
-- `<start.text>` - The actual message text content
-- `<start.chat_id>` - Chat ID where message was received
-- `<start.chat_type>` - Type of chat (private, group, supergroup, channel)
+    Connect `<start.text>` to an Agent block's `userPrompt` to process incoming messages with AI.
+  </Accordion>
+  <Accordion title="What outputs can I reference from a Telegram block in my workflow?">
 
-Connect `<start.text>` to an Agent block's `userPrompt` to process incoming messages with AI.
+    Every Telegram block exposes multiple outputs that can be referenced using connection tags:
 
-### What outputs can I reference from a Telegram block in my workflow?
+    #### Message Send Outputs
+    | Output Tag | Type | Description |
+    |------------|------|-------------|
+    | `<telegram1.success>` | Boolean | `true` if message was delivered successfully |
+    | `<telegram1.messageId>` | Number | Unique Telegram message identifier |
+    | `<telegram1.chatId>` | String | ID of the destination chat |
+    | `<telegram1.text>` | String | The text content that was sent |
+    | `<telegram1.timestamp>` | Number | Unix timestamp when message was sent |
+    | `<telegram1.from>` | Object | Information about the bot that sent the message |
 
-Every Telegram block exposes multiple outputs that can be referenced using connection tags:
+    #### API Response Outputs
+    - `<telegram1.ok>` - API response success status
+    - `<telegram1.result>` - Complete message result object from Telegram API
+    - `<telegram1.chatType>` - Type of destination chat
+    - `<telegram1.username>` - Chat username if available
 
-#### Message Send Outputs
-| Output Tag | Type | Description |
-|------------|------|-------------|
-| `<telegram1.success>` | Boolean | `true` if message was delivered successfully |
-| `<telegram1.messageId>` | Number | Unique Telegram message identifier |
-| `<telegram1.chatId>` | String | ID of the destination chat |
-| `<telegram1.text>` | String | The text content that was sent |
-| `<telegram1.timestamp>` | Number | Unix timestamp when message was sent |
-| `<telegram1.from>` | Object | Information about the bot that sent the message |
+    These values can be connected to inputs of downstream blocks for logging, conditional logic, or further processing.
+  </Accordion>
+  <Accordion title="How do I connect an Agent block's response to send as a Telegram message?">
 
-#### API Response Outputs
-- `<telegram1.ok>` - API response success status
-- `<telegram1.result>` - Complete message result object from Telegram API
-- `<telegram1.chatType>` - Type of destination chat
-- `<telegram1.username>` - Chat username if available
+    To route an AI agent's response directly to Telegram:
 
-These values can be connected to inputs of downstream blocks for logging, conditional logic, or further processing.
+    1. **In the Telegram block's `text` input**, type `<>` to open the connection menu
+    2. **Select the agent's output** like `<agent1.content>` from available connections
+    3. **Configure the chat destination** using `<start.chat_id>` for reply-to-sender behavior
 
-### How do I connect an Agent block's response to send as a Telegram message?
+    #### Example Chatbot Configuration
+    ```
+    Webhook → Agent → Telegram
+    ```
 
-To route an AI agent's response directly to Telegram:
+    **Connection Setup:**
+    - Agent `userPrompt`: `<start.text>`
+    - Telegram `chatId`: `<start.chat_id>` 
+    - Telegram `text`: `<agent1.content>`
+    - Telegram `botToken`: `<start.botToken>`
 
-1. **In the Telegram block's `text` input**, type `<>` to open the connection menu
-2. **Select the agent's output** like `<agent1.content>` from available connections
-3. **Configure the chat destination** using `<start.chat_id>` for reply-to-sender behavior
+    This creates an automatic reply system where the agent processes incoming messages and responds through Telegram.
+  </Accordion>
+  <Accordion title="Why is my Telegram block failing to send messages?">
 
-#### Example Chatbot Configuration
-```
-Webhook → Agent → Telegram
-```
+    Troubleshoot common Telegram integration issues with this diagnostic checklist:
 
-**Connection Setup:**
-- Agent `userPrompt`: `<start.text>`
-- Telegram `chatId`: `<start.chat_id>` 
-- Telegram `text`: `<agent1.content>`
-- Telegram `botToken`: `<start.botToken>`
+    #### Authentication Issues
+    - **Invalid Bot Token**: Verify `botToken` input matches your BotFather-generated token exactly
+    - **Token Format**: Ensure token follows format `123456789:ABC-DEF1234ghIkl-zyx57W2v1u123ew11`
 
-This creates an automatic reply system where the agent processes incoming messages and responds through Telegram.
+    #### Chat ID Problems
+    - **Wrong Chat Format**: User IDs are positive numbers, group/channel IDs start with `-`
+    - **Bot Not Added**: For groups/channels, add your bot as an admin with message sending permissions
+    - **Private Chat**: User must have started a conversation with your bot first
 
-### Why is my Telegram block failing to send messages?
+    #### Message Content Errors
+    - **Empty Text**: Ensure `text` input is populated (not empty string or null)
+    - **Text Too Long**: Telegram limits messages to 4096 characters
+    - **Invalid Characters**: Some special characters may cause API errors
 
-Troubleshoot common Telegram integration issues with this diagnostic checklist:
+    #### Network and API Issues
+    - **Rate Limiting**: Telegram limits bots to 30 messages per second per chat
+    - **API Downtime**: Check Telegram Bot API status if all messages fail
+    - **Connection Timeout**: Verify your Sim.ai workflow has stable internet connectivity
 
-#### Authentication Issues
-- **Invalid Bot Token**: Verify `botToken` input matches your BotFather-generated token exactly
-- **Token Format**: Ensure token follows format `123456789:ABC-DEF1234ghIkl-zyx57W2v1u123ew11`
+    Use `<telegram1.success>` output to conditionally handle failed sends in your workflow.
+  </Accordion>
+  <Accordion title="How can I create conditional Telegram notifications based on workflow results?">
 
-#### Chat ID Problems
-- **Wrong Chat Format**: User IDs are positive numbers, group/channel IDs start with `-`
-- **Bot Not Added**: For groups/channels, add your bot as an admin with message sending permissions
-- **Private Chat**: User must have started a conversation with your bot first
+    Use Telegram blocks with Condition blocks to send different messages based on workflow outcomes:
 
-#### Message Content Errors
-- **Empty Text**: Ensure `text` input is populated (not empty string or null)
-- **Text Too Long**: Telegram limits messages to 4096 characters
-- **Invalid Characters**: Some special characters may cause API errors
+    #### Pattern 1: Success/Error Notifications
+    ```
+    API Call → Condition → Telegram (success)
+                       → Telegram (error)
+    ```
 
-#### Network and API Issues
-- **Rate Limiting**: Telegram limits bots to 30 messages per second per chat
-- **API Downtime**: Check Telegram Bot API status if all messages fail
-- **Connection Timeout**: Verify your Sim.ai workflow has stable internet connectivity
+    **Configuration:**
+    - Condition `input`: `<api1.success>`
+    - Success Telegram `text`: `"API call completed successfully"`
+    - Error Telegram `text`: `"API call failed: <api1.error>"`
 
-Use `<telegram1.success>` output to conditionally handle failed sends in your workflow.
+    #### Pattern 2: Data-Driven Messages
+    ```
+    Function → Condition → Telegram (alert)
+                       → (no action)
+    ```
 
-### How can I create conditional Telegram notifications based on workflow results?
+    **Setup:**
+    - Function processes data and outputs `<function1.alertNeeded>`
+    - Condition checks if `<function1.alertNeeded>` equals `true`
+    - Telegram sends `<function1.alertMessage>` only when condition is met
 
-Use Telegram blocks with Condition blocks to send different messages based on workflow outcomes:
+    This pattern enables smart notifications that only trigger when specific conditions are satisfied.
+  </Accordion>
+  <Accordion title="What are common workflow patterns for integrating Telegram with other Sim.ai blocks?">
 
-#### Pattern 1: Success/Error Notifications
-```
-API Call → Condition → Telegram (success)
-                   → Telegram (error)
-```
+    Here are proven integration patterns for building robust Telegram-enabled workflows:
 
-**Configuration:**
-- Condition `input`: `<api1.success>`
-- Success Telegram `text`: `"API call completed successfully"`
-- Error Telegram `text`: `"API call failed: <api1.error>"`
+    #### 1. **Interactive Chatbot Pattern**
+    ```
+    Webhook → Agent → Function → Telegram
+    ```
+    Process user input with AI, format the response, and send back to Telegram.
 
-#### Pattern 2: Data-Driven Messages
-```
-Function → Condition → Telegram (alert)
-                   → (no action)
-```
+    #### 2. **Automated Monitoring Pattern**
+    ```
+    Schedule → API → Condition → Telegram
+    ```
+    Periodically check external services and notify Telegram channels of issues.
 
-**Setup:**
-- Function processes data and outputs `<function1.alertNeeded>`
-- Condition checks if `<function1.alertNeeded>` equals `true`
-- Telegram sends `<function1.alertMessage>` only when condition is met
+    #### 3. **Data Processing Pipeline**
+    ```
+    Webhook → Function → Agent → Telegram
+    ```
+    Receive data, transform it, analyze with AI, and broadcast results.
 
-This pattern enables smart notifications that only trigger when specific conditions are satisfied.
+    #### 4. **Multi-Channel Notification**
+    ```
+    Trigger → Function → Telegram (Channel A)
+                     → Telegram (Channel B)  
+                     → Telegram (User DM)
+    ```
+    Send the same or different messages to multiple Telegram destinations simultaneously.
 
-### What are common workflow patterns for integrating Telegram with other Sim.ai blocks?
+    #### 5. **Approval Workflow**
+    ```
+    Form Submit → Agent → Telegram (manager)
+    Manager Reply → Webhook → Function → Telegram (requester)
+    ```
+    Create approval chains where responses flow between different Telegram users or groups.
 
-Here are proven integration patterns for building robust Telegram-enabled workflows:
-
-#### 1. **Interactive Chatbot Pattern**
-```
-Webhook → Agent → Function → Telegram
-```
-Process user input with AI, format the response, and send back to Telegram.
-
-#### 2. **Automated Monitoring Pattern**
-```
-Schedule → API → Condition → Telegram
-```
-Periodically check external services and notify Telegram channels of issues.
-
-#### 3. **Data Processing Pipeline**
-```
-Webhook → Function → Agent → Telegram
-```
-Receive data, transform it, analyze with AI, and broadcast results.
-
-#### 4. **Multi-Channel Notification**
-```
-Trigger → Function → Telegram (Channel A)
-                 → Telegram (Channel B)  
-                 → Telegram (User DM)
-```
-Send the same or different messages to multiple Telegram destinations simultaneously.
-
-#### 5. **Approval Workflow**
-```
-Form Submit → Agent → Telegram (manager)
-Manager Reply → Webhook → Function → Telegram (requester)
-```
-Create approval chains where responses flow between different Telegram users or groups.
-
-Each pattern leverages Telegram's real-time messaging capabilities to create responsive, automated communication systems within your Sim.ai workflows.
+    Each pattern leverages Telegram's real-time messaging capabilities to create responsive, automated communication systems within your Sim.ai workflows.
+  </Accordion>
+</Accordions>
 {/* MANUAL-CONTENT-END */}

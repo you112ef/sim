@@ -4,6 +4,8 @@ description: Search and retrieve academic papers from ArXiv
 ---
 
 import { BlockInfoCard } from "@/components/ui/block-info-card"
+import { Accordion, Accordions } from "fumadocs-ui/components/accordion"
+
 
 <BlockInfoCard 
   type="arxiv"
@@ -160,138 +162,141 @@ Store retrieved research data securely, particularly when building proprietary r
 ## FAQ
 
 {/* MANUAL-CONTENT-START:faq */}
-### How do I search for academic papers using the ArXiv block in my workflow?
+<Accordions type="single">
+  <Accordion title="How do I search for academic papers using the ArXiv block in my workflow?">
 
-To search for academic papers from ArXiv, add an **ArXiv block** to your Sim.ai workflow and configure the `arxiv_search` operation with these inputs:
+    To search for academic papers from ArXiv, add an **ArXiv block** to your Sim.ai workflow and configure the `arxiv_search` operation with these inputs:
 
-#### Required Inputs
+    #### Required Inputs
 
-| Input | Description | Example |
-|-------|-------------|---------|
-| `searchQuery` | Keywords, topics, or research terms | `<start.topic>` or static text like "machine learning" |
+    | Input | Description | Example |
+    |-------|-------------|---------|
+    | `searchQuery` | Keywords, topics, or research terms | `<start.topic>` or static text like "machine learning" |
 
-#### Optional Search Parameters
+    #### Optional Search Parameters
 
-| Input | Description | Options | Example |
-|-------|-------------|---------|---------|
-| `searchField` | Specific field to search | all, ti (title), au (author), abs (abstract), co (comment), jr (journal), cat (category), rn (report number) | `<start.searchField>` |
-| `maxResults` | Number of papers to return | 1-2000 (default: 10) | `<start.maxResults>` |
-| `sortBy` | Sort criteria | relevance, lastUpdatedDate, submittedDate | `<start.sortBy>` |
-| `sortOrder` | Sort direction | ascending, descending | `<start.sortOrder>` |
+    | Input | Description | Options | Example |
+    |-------|-------------|---------|---------|
+    | `searchField` | Specific field to search | all, ti (title), au (author), abs (abstract), co (comment), jr (journal), cat (category), rn (report number) | `<start.searchField>` |
+    | `maxResults` | Number of papers to return | 1-2000 (default: 10) | `<start.maxResults>` |
+    | `sortBy` | Sort criteria | relevance, lastUpdatedDate, submittedDate | `<start.sortBy>` |
+    | `sortOrder` | Sort direction | ascending, descending | `<start.sortOrder>` |
+  </Accordion>
+  <Accordion title="What outputs does the ArXiv block provide and how do I reference them?">
 
-### What outputs does the ArXiv block provide and how do I reference them?
+    The ArXiv block exposes several outputs that can be connected to downstream blocks using connection tags:
 
-The ArXiv block exposes several outputs that can be connected to downstream blocks using connection tags:
+    #### ArXiv Search Outputs
 
-#### ArXiv Search Outputs
+    | Output Tag | Type | Description |
+    |------------|------|-------------|
+    | `<arxiv1.papers>` | JSON Array | Complete list of papers matching your search query |
+    | `<arxiv1.totalResults>` | Number | Total count of papers found in the search |
 
-| Output Tag | Type | Description |
-|------------|------|-------------|
-| `<arxiv1.papers>` | JSON Array | Complete list of papers matching your search query |
-| `<arxiv1.totalResults>` | Number | Total count of papers found in the search |
+    #### Individual Paper Details (arxiv_get_paper)
 
-#### Individual Paper Details (arxiv_get_paper)
+    | Output Tag | Type | Description |
+    |------------|------|-------------|
+    | `<arxiv1.paper>` | JSON Object | Detailed metadata for a specific paper |
 
-| Output Tag | Type | Description |
-|------------|------|-------------|
-| `<arxiv1.paper>` | JSON Object | Detailed metadata for a specific paper |
+    #### Author Papers (arxiv_get_author_papers)
 
-#### Author Papers (arxiv_get_author_papers)
+    | Output Tag | Type | Description |
+    |------------|------|-------------|
+    | `<arxiv1.authorPapers>` | JSON Array | All papers by the specified author |
+  </Accordion>
+  <Accordion title="How do I retrieve detailed information about a specific ArXiv paper?">
 
-| Output Tag | Type | Description |
-|------------|------|-------------|
-| `<arxiv1.authorPapers>` | JSON Array | All papers by the specified author |
+    To get comprehensive details about a specific paper:
 
-### How do I retrieve detailed information about a specific ArXiv paper?
+    1. **Use the `arxiv_get_paper` operation** in your ArXiv block
+    2. **Provide the paper ID** in the required input:
 
-To get comprehensive details about a specific paper:
+    #### Configuration Example
 
-1. **Use the `arxiv_get_paper` operation** in your ArXiv block
-2. **Provide the paper ID** in the required input:
+    | Input | Value | Description |
+    |-------|-------|-------------|
+    | `paperId` | `<start.arxivId>` or `"1706.03762"` | ArXiv paper identifier (without "arXiv:" prefix) |
 
-#### Configuration Example
+    The output `<arxiv1.paper>` will contain complete paper metadata including title, authors, abstract, publication date, categories, and download links.
+  </Accordion>
+  <Accordion title="How do I connect ArXiv search results to an Agent block for analysis?">
 
-| Input | Value | Description |
-|-------|-------|-------------|
-| `paperId` | `<start.arxivId>` or `"1706.03762"` | ArXiv paper identifier (without "arXiv:" prefix) |
+    To process ArXiv papers with AI analysis:
 
-The output `<arxiv1.paper>` will contain complete paper metadata including title, authors, abstract, publication date, categories, and download links.
+    1. **Connect ArXiv output to Agent input** using connection tags
+    2. **Reference papers data** in the agent's prompt
 
-### How do I connect ArXiv search results to an Agent block for analysis?
+    #### Example Workflow Configuration
 
-To process ArXiv papers with AI analysis:
+    ```
+    ArXiv Search → Agent → Output
+    ```
 
-1. **Connect ArXiv output to Agent input** using connection tags
-2. **Reference papers data** in the agent's prompt
+    **Agent Block Setup:**
+    - `userPrompt`: `"Summarize these research papers: <arxiv1.papers>"`
+    - `systemPrompt`: `"You are a research analyst. Provide concise summaries of academic papers."`
 
-#### Example Workflow Configuration
+    The agent will receive the full JSON array of papers and can analyze titles, abstracts, authors, and other metadata.
+  </Accordion>
+  <Accordion title="How do I search for papers by a specific author using the ArXiv block?">
 
-```
-ArXiv Search → Agent → Output
-```
+    To find all papers by a particular researcher:
 
-**Agent Block Setup:**
-- `userPrompt`: `"Summarize these research papers: <arxiv1.papers>"`
-- `systemPrompt`: `"You are a research analyst. Provide concise summaries of academic papers."`
+    1. **Select the `arxiv_get_author_papers` operation**
+    2. **Configure the required input:**
 
-The agent will receive the full JSON array of papers and can analyze titles, abstracts, authors, and other metadata.
+    #### Author Search Configuration
 
-### How do I search for papers by a specific author using the ArXiv block?
+    | Input | Description | Example |
+    |-------|-------------|---------|
+    | `authorName` | Full or partial author name | `<start.authorName>` or `"Geoffrey Hinton"` |
+    | `maxResults` | Maximum papers to return | `<start.maxResults>` or static number like `50` |
 
-To find all papers by a particular researcher:
+    The output `<arxiv1.authorPapers>` contains an array of all papers by that author, which can be connected to downstream processing blocks.
+  </Accordion>
+  <Accordion title="What common errors occur when using the ArXiv block and how do I fix them?">
 
-1. **Select the `arxiv_get_author_papers` operation**
-2. **Configure the required input:**
+    Troubleshoot ArXiv integration issues with these solutions:
 
-#### Author Search Configuration
+    #### Common Issues and Resolutions
 
-| Input | Description | Example |
-|-------|-------------|---------|
-| `authorName` | Full or partial author name | `<start.authorName>` or `"Geoffrey Hinton"` |
-| `maxResults` | Maximum papers to return | `<start.maxResults>` or static number like `50` |
+    | Error Type | Cause | Solution |
+    |------------|-------|----------|
+    | **Invalid Paper ID Format** | Wrong ID format provided | Use format like `"1706.03762"` without "arXiv:" prefix |
+    | **Empty Search Results** | Query too specific or typos | Broaden search terms in `<arxiv1.searchQuery>` |
+    | **Rate Limiting** | Too many requests | Reduce `maxResults` or add delays between requests |
+    | **Author Name Not Found** | Exact name match required | Try variations: "Smith, J." vs "John Smith" |
+    | **Connection Tag Errors** | Incorrect output references | Verify tags like `<arxiv1.papers>` match block name |
 
-The output `<arxiv1.authorPapers>` contains an array of all papers by that author, which can be connected to downstream processing blocks.
+    Check workflow execution logs for specific API error messages from ArXiv's service.
+  </Accordion>
+  <Accordion title="How do I create a research workflow that combines ArXiv with other blocks?">
 
-### What common errors occur when using the ArXiv block and how do I fix them?
+    ArXiv integrates seamlessly with other Sim.ai blocks for comprehensive research automation:
 
-Troubleshoot ArXiv integration issues with these solutions:
+    #### Common Research Workflow Patterns
 
-#### Common Issues and Resolutions
+    ##### 1. **Webhook → ArXiv → Agent → Email**
+    - Trigger: `<start.researchTopic>`
+    - ArXiv: Search papers on topic
+    - Agent: Summarize findings using `<arxiv1.papers>`
+    - Email: Send research summary
 
-| Error Type | Cause | Solution |
-|------------|-------|----------|
-| **Invalid Paper ID Format** | Wrong ID format provided | Use format like `"1706.03762"` without "arXiv:" prefix |
-| **Empty Search Results** | Query too specific or typos | Broaden search terms in `<arxiv1.searchQuery>` |
-| **Rate Limiting** | Too many requests | Reduce `maxResults` or add delays between requests |
-| **Author Name Not Found** | Exact name match required | Try variations: "Smith, J." vs "John Smith" |
-| **Connection Tag Errors** | Incorrect output references | Verify tags like `<arxiv1.papers>` match block name |
+    ##### 2. **Schedule → ArXiv → Function → Database**
+    - Schedule: Daily trigger
+    - ArXiv: Get latest papers in category
+    - Function: Process and format `<arxiv1.papers>`
+    - Database: Store research updates
 
-Check workflow execution logs for specific API error messages from ArXiv's service.
+    ##### 3. **API → ArXiv → Condition → Multiple Actions**
+    - API: Fetch trending topics
+    - ArXiv: Search each topic using `<api1.topics>`
+    - Condition: Check if `<arxiv1.totalResults>` > 5
+    - Actions: Different responses based on paper count
 
-### How do I create a research workflow that combines ArXiv with other blocks?
-
-ArXiv integrates seamlessly with other Sim.ai blocks for comprehensive research automation:
-
-#### Common Research Workflow Patterns
-
-##### 1. **Webhook → ArXiv → Agent → Email**
-- Trigger: `<start.researchTopic>`
-- ArXiv: Search papers on topic
-- Agent: Summarize findings using `<arxiv1.papers>`
-- Email: Send research summary
-
-##### 2. **Schedule → ArXiv → Function → Database**
-- Schedule: Daily trigger
-- ArXiv: Get latest papers in category
-- Function: Process and format `<arxiv1.papers>`
-- Database: Store research updates
-
-##### 3. **API → ArXiv → Condition → Multiple Actions**
-- API: Fetch trending topics
-- ArXiv: Search each topic using `<api1.topics>`
-- Condition: Check if `<arxiv1.totalResults>` > 5
-- Actions: Different responses based on paper count
-
-##### 4. **Form → ArXiv → Agent → Telegram**
-Perfect for creating a research assistant bot that searches ArXiv and delivers summaries via Telegram.
+    ##### 4. **Form → ArXiv → Agent → Telegram**
+    Perfect for creating a research assistant bot that searches ArXiv and delivers summaries via Telegram.
+  </Accordion>
+</Accordions>
 {/* MANUAL-CONTENT-END */}

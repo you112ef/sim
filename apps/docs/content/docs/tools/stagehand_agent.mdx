@@ -4,6 +4,8 @@ description: Autonomous web browsing agent
 ---
 
 import { BlockInfoCard } from "@/components/ui/block-info-card"
+import { Accordion, Accordions } from "fumadocs-ui/components/accordion"
+
 
 <BlockInfoCard 
   type="stagehand_agent"
@@ -266,137 +268,140 @@ Create monitoring dashboards that track `<stagehand1.structuredOutput>` validati
 ## FAQ
 
 {/* MANUAL-CONTENT-START:faq */}
-### How do I set up a Stagehand Agent to browse a website and extract data?
+<Accordions type="single">
+  <Accordion title="How do I set up a Stagehand Agent to browse a website and extract data?">
 
-To create an autonomous web browsing workflow with Stagehand Agent, add the **Stagehand Agent block** to your Sim.ai workflow and configure its required inputs:
+    To create an autonomous web browsing workflow with Stagehand Agent, add the **Stagehand Agent block** to your Sim.ai workflow and configure its required inputs:
 
-#### Required Inputs
+    #### Required Inputs
 
-| Input | Description | Example |
-|-------|-------------|---------|
-| `startUrl` | The webpage URL where the agent begins | `<start.websiteUrl>` or static URL like `https://example.com` |
-| `task` | Clear instructions for what the agent should accomplish | `<start.userTask>` or "Extract product prices from this page" |
-| `apiKey` | OpenAI API key for agent execution | `<start.openaiKey>` or environment variable |
+    | Input | Description | Example |
+    |-------|-------------|---------|
+    | `startUrl` | The webpage URL where the agent begins | `<start.websiteUrl>` or static URL like `https://example.com` |
+    | `task` | Clear instructions for what the agent should accomplish | `<start.userTask>` or "Extract product prices from this page" |
+    | `apiKey` | OpenAI API key for agent execution | `<start.openaiKey>` or environment variable |
 
-#### Optional Inputs
+    #### Optional Inputs
 
-| Input | Description | Example |
-|-------|-------------|---------|
-| `variables` | JSON object for task substitution using %key% format | `{"productName": "<start.productName>"}` |
-| `outputSchema` | JSON schema defining expected return data structure | `{"type": "object", "properties": {"price": {"type": "string"}}}` |
+    | Input | Description | Example |
+    |-------|-------------|---------|
+    | `variables` | JSON object for task substitution using %key% format | `{"productName": "<start.productName>"}` |
+    | `outputSchema` | JSON schema defining expected return data structure | `{"type": "object", "properties": {"price": {"type": "string"}}}` |
+  </Accordion>
+  <Accordion title="How do I reference the results from a Stagehand Agent in downstream blocks?">
 
-### How do I reference the results from a Stagehand Agent in downstream blocks?
+    The Stagehand Agent block provides two main outputs that can be connected to other blocks:
 
-The Stagehand Agent block provides two main outputs that can be connected to other blocks:
+    #### Available Output Tags
 
-#### Available Output Tags
+    | Output Tag | Type | Description |
+    |------------|------|-------------|
+    | `<stagehand_agent1.agentResult>` | Object | Complete execution result from the agent |
+    | `<stagehand_agent1.structuredOutput>` | JSON | Structured data extracted according to your schema |
 
-| Output Tag | Type | Description |
-|------------|------|-------------|
-| `<stagehand_agent1.agentResult>` | Object | Complete execution result from the agent |
-| `<stagehand_agent1.structuredOutput>` | JSON | Structured data extracted according to your schema |
+    Use these connection tags in downstream blocks like Agent blocks, Function blocks, or Webhook responses.
+  </Accordion>
+  <Accordion title="What is the correct way to write tasks for the Stagehand Agent?">
 
-Use these connection tags in downstream blocks like Agent blocks, Function blocks, or Webhook responses.
+    Write clear, specific instructions that describe the exact actions you want the agent to perform:
 
-### What is the correct way to write tasks for the Stagehand Agent?
+    #### Effective Task Examples
 
-Write clear, specific instructions that describe the exact actions you want the agent to perform:
+    1. **Data Extraction**: "Navigate to the products section and extract the name, price, and availability of all items"
+    2. **Form Completion**: "Fill out the contact form with name: %customerName% and email: %customerEmail%"
+    3. **Search and Filter**: "Search for %searchTerm% and collect the first 5 results with their titles and URLs"
+    4. **Navigation Tasks**: "Click on the 'About' menu, then navigate to the team page and extract all team member names"
 
-#### Effective Task Examples
+    #### Using Variables in Tasks
+    Reference variables using `%variableName%` format and provide them in the `variables` input as JSON:
+    ```json
+    {
+      "customerName": "<start.name>",
+      "searchTerm": "<agent1.extractedKeyword>"
+    }
+    ```
+  </Accordion>
+  <Accordion title="How do I connect a Webhook trigger to a Stagehand Agent for automated web browsing?">
 
-1. **Data Extraction**: "Navigate to the products section and extract the name, price, and availability of all items"
-2. **Form Completion**: "Fill out the contact form with name: %customerName% and email: %customerEmail%"
-3. **Search and Filter**: "Search for %searchTerm% and collect the first 5 results with their titles and URLs"
-4. **Navigation Tasks**: "Click on the 'About' menu, then navigate to the team page and extract all team member names"
+    To create webhook-triggered web automation:
 
-#### Using Variables in Tasks
-Reference variables using `%variableName%` format and provide them in the `variables` input as JSON:
-```json
-{
-  "customerName": "<start.name>",
-  "searchTerm": "<agent1.extractedKeyword>"
-}
-```
+    1. **Start with a Webhook Trigger block** to receive external requests
+    2. **Connect webhook data** to Stagehand Agent inputs:
 
-### How do I connect a Webhook trigger to a Stagehand Agent for automated web browsing?
+    #### Example Configuration
+    ```
+    Webhook → Stagehand Agent → Function → Response
+    ```
 
-To create webhook-triggered web automation:
+    Map webhook fields to agent inputs:
+    - `startUrl`: `<start.targetWebsite>`
+    - `task`: `<start.instructions>`
+    - `apiKey`: Environment variable or `<start.apiKey>`
+    - `variables`: `<start.parameters>`
+  </Accordion>
+  <Accordion title="Why is my Stagehand Agent failing or returning incomplete results?">
 
-1. **Start with a Webhook Trigger block** to receive external requests
-2. **Connect webhook data** to Stagehand Agent inputs:
+    Common issues and their solutions:
 
-#### Example Configuration
-```
-Webhook → Stagehand Agent → Function → Response
-```
+    #### Authentication and Setup Issues
 
-Map webhook fields to agent inputs:
-- `startUrl`: `<start.targetWebsite>`
-- `task`: `<start.instructions>`
-- `apiKey`: Environment variable or `<start.apiKey>`
-- `variables`: `<start.parameters>`
+    | Issue | Description | Solution |
+    |-------|-------------|----------|
+    | **Invalid API Key** | OpenAI key is missing or incorrect | Verify `apiKey` input contains valid OpenAI API key |
+    | **URL Access** | Website blocks automated browsing | Check if target site allows bot access |
+    | **Task Complexity** | Instructions are too vague or complex | Break complex tasks into specific, actionable steps |
 
-### Why is my Stagehand Agent failing or returning incomplete results?
+    #### Task Writing Issues
 
-Common issues and their solutions:
+    | Issue | Description | Solution |
+    |-------|-------------|----------|
+    | **Unclear Instructions** | Agent doesn't understand the goal | Use specific action verbs: "click", "extract", "navigate" |
+    | **Missing Variables** | Referenced %variables% not provided | Ensure all %variables% in task have corresponding entries in `variables` input |
+    | **Schema Mismatch** | Output doesn't match expected structure | Align `outputSchema` with actual data available on the page |
+  </Accordion>
+  <Accordion title="How do I structure the output schema for consistent data extraction?">
 
-#### Authentication and Setup Issues
+    Define a JSON schema in the `outputSchema` input to ensure the agent returns data in your desired format:
 
-| Issue | Description | Solution |
-|-------|-------------|----------|
-| **Invalid API Key** | OpenAI key is missing or incorrect | Verify `apiKey` input contains valid OpenAI API key |
-| **URL Access** | Website blocks automated browsing | Check if target site allows bot access |
-| **Task Complexity** | Instructions are too vague or complex | Break complex tasks into specific, actionable steps |
-
-#### Task Writing Issues
-
-| Issue | Description | Solution |
-|-------|-------------|----------|
-| **Unclear Instructions** | Agent doesn't understand the goal | Use specific action verbs: "click", "extract", "navigate" |
-| **Missing Variables** | Referenced %variables% not provided | Ensure all %variables% in task have corresponding entries in `variables` input |
-| **Schema Mismatch** | Output doesn't match expected structure | Align `outputSchema` with actual data available on the page |
-
-### How do I structure the output schema for consistent data extraction?
-
-Define a JSON schema in the `outputSchema` input to ensure the agent returns data in your desired format:
-
-#### Example Schema for E-commerce Data
-```json
-{
-  "type": "object",
-  "properties": {
-    "products": {
-      "type": "array",
-      "items": {
-        "type": "object",
-        "properties": {
-          "name": {"type": "string"},
-          "price": {"type": "string"},
-          "inStock": {"type": "boolean"}
+    #### Example Schema for E-commerce Data
+    ```json
+    {
+      "type": "object",
+      "properties": {
+        "products": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "name": {"type": "string"},
+              "price": {"type": "string"},
+              "inStock": {"type": "boolean"}
+            }
+          }
         }
       }
     }
-  }
-}
-```
+    ```
 
-Access structured results using `<stagehand_agent1.structuredOutput>` in subsequent blocks for processing or API responses.
+    Access structured results using `<stagehand_agent1.structuredOutput>` in subsequent blocks for processing or API responses.
+  </Accordion>
+  <Accordion title="What are common workflow patterns that combine Stagehand Agent with other blocks?">
 
-### What are common workflow patterns that combine Stagehand Agent with other blocks?
+    Popular integration patterns for web automation:
 
-Popular integration patterns for web automation:
+    #### 1. **Webhook → Stagehand Agent → Agent → Response**
+    Receive external requests, browse websites, analyze data with AI, and return insights.
 
-#### 1. **Webhook → Stagehand Agent → Agent → Response**
-Receive external requests, browse websites, analyze data with AI, and return insights.
+    #### 2. **Scheduled Trigger → Stagehand Agent → Function → Database**
+    Periodically scrape websites and store data in structured format.
 
-#### 2. **Scheduled Trigger → Stagehand Agent → Function → Database**
-Periodically scrape websites and store data in structured format.
+    #### 3. **Agent → Stagehand Agent → Agent**
+    Use AI to generate browsing instructions, execute them with Stagehand, then process results.
 
-#### 3. **Agent → Stagehand Agent → Agent**
-Use AI to generate browsing instructions, execute them with Stagehand, then process results.
+    #### 4. **API → Stagehand Agent → Condition → Multiple Actions**
+    Fetch configuration data, perform web actions, then route results based on success/failure conditions.
 
-#### 4. **API → Stagehand Agent → Condition → Multiple Actions**
-Fetch configuration data, perform web actions, then route results based on success/failure conditions.
-
-Connect outputs like `<stagehand_agent1.structuredOutput>` to Agent blocks' `context` input for AI-powered analysis of extracted web data.
+    Connect outputs like `<stagehand_agent1.structuredOutput>` to Agent blocks' `context` input for AI-powered analysis of extracted web data.
+  </Accordion>
+</Accordions>
 {/* MANUAL-CONTENT-END */}

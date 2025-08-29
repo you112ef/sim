@@ -4,6 +4,8 @@ description: Send Gmail or trigger workflows from Gmail events
 ---
 
 import { BlockInfoCard } from "@/components/ui/block-info-card"
+import { Accordion, Accordions } from "fumadocs-ui/components/accordion"
+
 
 <BlockInfoCard 
   type="gmail"
@@ -48,6 +50,63 @@ With Gmail, you can:
 In Sim, the Gmail integration enables your agents to send, read, and search emails programmatically. This allows for powerful automation scenarios such as sending notifications, processing incoming messages, extracting information from emails, and managing communication workflows. Your agents can compose and send personalized emails, search for specific messages using Gmail's query syntax, and extract content from emails to use in other parts of your workflow. Coming soon, agents will also be able to listen for new emails in real-time, enabling responsive workflows that can trigger actions based on incoming messages. This integration bridges the gap between your AI workflows and email communications, enabling seamless interaction with one of the world's most widely used communication platforms.
 {/* MANUAL-CONTENT-END */}
 
+
+## Webhook
+
+Trigger workflows from new Gmail messages. You can use the Gmail block in trigger mode to start a workflow when a new email arrives that matches your Gmail Pub/Sub notification configuration. Click the lightning bolt icon to enable trigger mode, then configure Gmail push notifications to your webhook URL via Google Cloud Pub/Sub.
+
+### Configuration Inputs
+
+| Input | Type | Required | Description |
+|------|------|----------|-------------|
+| `subscription` | string | Yes | Pub/Sub subscription that delivers Gmail notifications to your webhook. |
+| `validateToken` | boolean | No | Validate Pub/Sub verification tokens and message signatures. Defaults to `true`. |
+| `includeMessagePayload` | boolean | No | Fetch and include full message data after notification. Defaults to `false`. |
+
+### Outputs
+
+| Output | Type | Description |
+|--------|------|-------------|
+| `payloads` | array | The raw Pub/Sub notifications received. |
+| `latestPayload` | object | Convenience object of the latest Pub/Sub notification. |
+| `gmailEvent` | object | Parsed Gmail notification fields (email id, thread id, label ids). |
+
+#### `latestPayload` shape
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `message.messageId` | string | Unique Pub/Sub message ID. |
+| `message.data` | string | Base64-encoded Gmail notification data. |
+| `message.publishTime` | string | RFC3339 timestamp when Pub/Sub published the message. |
+| `subscription` | string | Pub/Sub subscription that received the message. |
+
+### Example webhook event body (raw Gmail Pub/Sub payload)
+
+```json
+{
+  "message": {
+    "messageId": "2070443601311540",
+    "publishTime": "2023-01-01T00:00:00.000Z",
+    "data": "eyJlbWFpbEFkZHJlc3MiOiAieW91QGV4YW1wbGUuY29tIiwgImhpc3RvcnlJZCI6ICIxNzM1MDEyMzQ1Njc4OSIsICJtZXNzYWdlSWQiOiAiMTIzNDU2Nzg5MDEyMyIsICJsYWJlbElkcyI6IFsiSU5CT1giLCAiVU5SRUFEIl19"
+  },
+  "subscription": "projects/my-project/subscriptions/gmail-webhook"
+}
+```
+
+Decoded `message.data` example:
+
+```json
+{
+  "emailAddress": "you@example.com",
+  "historyId": "17350123456789",
+  "messages": [
+    { "id": "1234567890123", "threadId": "222333444555" }
+  ],
+  "labelIds": ["INBOX", "UNREAD"]
+}
+```
+
+Method: `POST`  •  Headers: `Content-Type: application/json`, `ce-type: google.cloud.pubsub.topic.v1.messagePublished`
 
 ## Operations
 
@@ -201,148 +260,151 @@ Batch similar operations together rather than executing multiple individual Gmai
 ## FAQ
 
 {/* MANUAL-CONTENT-START:faq */}
-### How do I send an email from my workflow using the Gmail block?
+<Accordions type="single">
+  <Accordion title="How do I send an email from my workflow using the Gmail block?">
 
-To send emails from your Sim.ai workflow, add a **Gmail block** configured with the `gmail_send` operation and connect the required inputs:
+    To send emails from your Sim.ai workflow, add a **Gmail block** configured with the `gmail_send` operation and connect the required inputs:
 
-#### Required Inputs
+    #### Required Inputs
 
-| Input | Description | Example Connection |
-|-------|-------------|-------------------|
-| `to` | Recipient email address | `<start.recipient>` or `user@example.com` |
-| `subject` | Email subject line | `<agent1.content>` or static text |
-| `body` | Email body content | `<agent1.response>` or formatted text |
+    | Input | Description | Example Connection |
+    |-------|-------------|-------------------|
+    | `to` | Recipient email address | `<start.recipient>` or `user@example.com` |
+    | `subject` | Email subject line | `<agent1.content>` or static text |
+    | `body` | Email body content | `<agent1.response>` or formatted text |
 
-#### Optional Inputs
+    #### Optional Inputs
 
-| Input | Description | Example |
-|-------|-------------|---------|
-| `cc` | CC recipients (comma-separated) | `<start.cc_list>` or `user1@example.com,user2@example.com` |
-| `bcc` | BCC recipients (comma-separated) | `<start.bcc_list>` or static addresses |
+    | Input | Description | Example |
+    |-------|-------------|---------|
+    | `cc` | CC recipients (comma-separated) | `<start.cc_list>` or `user1@example.com,user2@example.com` |
+    | `bcc` | BCC recipients (comma-separated) | `<start.bcc_list>` or static addresses |
+  </Accordion>
+  <Accordion title="How do I trigger a workflow when I receive a new Gmail email?">
 
-### How do I trigger a workflow when I receive a new Gmail email?
+    To create Gmail-triggered workflows in Sim.ai:
 
-To create Gmail-triggered workflows in Sim.ai:
+    1. **Add a Webhook Trigger block** as your workflow's entry point
+    2. **Configure Gmail webhook** using Google's Pub/Sub notifications
+    3. **Map incoming email data** to downstream blocks using connection tags
 
-1. **Add a Webhook Trigger block** as your workflow's entry point
-2. **Configure Gmail webhook** using Google's Pub/Sub notifications
-3. **Map incoming email data** to downstream blocks using connection tags
+    #### Example Workflow
+    ```
+    Webhook → Agent → Gmail (reply)
+    ```
 
-#### Example Workflow
-```
-Webhook → Agent → Gmail (reply)
-```
+    Connect `<start.body_text>` to an Agent block's `userPrompt` to process incoming email content, then send a reply using `<agent1.content>` in the Gmail block's `body` field.
+  </Accordion>
+  <Accordion title="What are the correct connection tags for referencing Gmail block outputs?">
 
-Connect `<start.body_text>` to an Agent block's `userPrompt` to process incoming email content, then send a reply using `<agent1.content>` in the Gmail block's `body` field.
+    Every Gmail block exposes comprehensive outputs that can be referenced using connection tags:
 
-### What are the correct connection tags for referencing Gmail block outputs?
+    #### Core Output Tags
 
-Every Gmail block exposes comprehensive outputs that can be referenced using connection tags:
+    | Output Tag | Type | Description |
+    |------------|------|-------------|
+    | `<gmail1.content>` | String | Success message or email content |
+    | `<gmail1.metadata>` | Object | Complete email metadata |
+    | `<gmail1.email_id>` | String | Unique Gmail message identifier |
+    | `<gmail1.subject>` | String | Email subject line |
+    | `<gmail1.from>` | String | Sender email address |
+    | `<gmail1.to>` | String | Recipient email address |
+    | `<gmail1.body_text>` | String | Plain text email content |
+    | `<gmail1.body_html>` | String | HTML email content |
+    | `<gmail1.attachments>` | Array | Email attachments data |
+    | `<gmail1.has_attachments>` | Boolean | Whether email contains attachments |
+    | `<gmail1.date>` | String | Email timestamp in ISO format |
+    | `<gmail1.labels>` | String | Gmail labels (comma-separated) |
+  </Accordion>
+  <Accordion title="How do I read specific emails using the Gmail block?">
 
-#### Core Output Tags
+    Configure the Gmail block with the `gmail_read` operation to retrieve emails:
 
-| Output Tag | Type | Description |
-|------------|------|-------------|
-| `<gmail1.content>` | String | Success message or email content |
-| `<gmail1.metadata>` | Object | Complete email metadata |
-| `<gmail1.email_id>` | String | Unique Gmail message identifier |
-| `<gmail1.subject>` | String | Email subject line |
-| `<gmail1.from>` | String | Sender email address |
-| `<gmail1.to>` | String | Recipient email address |
-| `<gmail1.body_text>` | String | Plain text email content |
-| `<gmail1.body_html>` | String | HTML email content |
-| `<gmail1.attachments>` | Array | Email attachments data |
-| `<gmail1.has_attachments>` | Boolean | Whether email contains attachments |
-| `<gmail1.date>` | String | Email timestamp in ISO format |
-| `<gmail1.labels>` | String | Gmail labels (comma-separated) |
+    #### Input Configuration
 
-### How do I read specific emails using the Gmail block?
+    | Parameter | Purpose | Example Value |
+    |-----------|---------|---------------|
+    | `messageId` | Read specific email by ID | `<webhook1.email_id>` |
+    | `folder` | Target Gmail label/folder | `INBOX`, `SENT`, or custom labels |
+    | `unreadOnly` | Filter to unread emails only | `true` or `<start.unread_filter>` |
+    | `maxResults` | Limit number of emails (1-10) | `5` or `<start.limit>` |
+    | `includeAttachments` | Download email attachments | `true` to include files |
 
-Configure the Gmail block with the `gmail_read` operation to retrieve emails:
+    #### Example: Reading Latest Unread Emails
+    ```json
+    {
+      "folder": "INBOX",
+      "unreadOnly": true,
+      "maxResults": 3,
+      "includeAttachments": false
+    }
+    ```
+  </Accordion>
+  <Accordion title="How do I create draft emails without sending them immediately?">
 
-#### Input Configuration
+    Use the Gmail block with the `gmail_draft` operation to create email drafts:
 
-| Parameter | Purpose | Example Value |
-|-----------|---------|---------------|
-| `messageId` | Read specific email by ID | `<webhook1.email_id>` |
-| `folder` | Target Gmail label/folder | `INBOX`, `SENT`, or custom labels |
-| `unreadOnly` | Filter to unread emails only | `true` or `<start.unread_filter>` |
-| `maxResults` | Limit number of emails (1-10) | `5` or `<start.limit>` |
-| `includeAttachments` | Download email attachments | `true` to include files |
+    1. **Configure the Gmail block** with `gmail_draft` operation
+    2. **Connect required inputs** using the same format as sending emails
+    3. **Reference draft outputs** for confirmation or further processing
 
-#### Example: Reading Latest Unread Emails
-```json
-{
-  "folder": "INBOX",
-  "unreadOnly": true,
-  "maxResults": 3,
-  "includeAttachments": false
-}
-```
+    #### Draft Outputs
+    - `<gmail1.content>`: Draft creation success message
+    - `<gmail1.metadata>`: Draft metadata including draft ID
 
-### How do I create draft emails without sending them immediately?
+    This is useful for workflows that need approval before sending or batch email preparation.
+  </Accordion>
+  <Accordion title="Why is my Gmail block failing to authenticate or send emails?">
 
-Use the Gmail block with the `gmail_draft` operation to create email drafts:
+    Troubleshoot common Gmail integration issues:
 
-1. **Configure the Gmail block** with `gmail_draft` operation
-2. **Connect required inputs** using the same format as sending emails
-3. **Reference draft outputs** for confirmation or further processing
+    #### Authentication Issues
 
-#### Draft Outputs
-- `<gmail1.content>`: Draft creation success message
-- `<gmail1.metadata>`: Draft metadata including draft ID
+    | Problem | Solution |
+    |---------|----------|
+    | **OAuth Setup** | Ensure Gmail API is enabled in Google Cloud Console |
+    | **Scope Permissions** | Verify your app has `gmail.send` and `gmail.readonly` scopes |
+    | **Token Expiry** | Refresh OAuth tokens or re-authenticate |
+    | **Account Access** | Check if 2FA or security settings block API access |
 
-This is useful for workflows that need approval before sending or batch email preparation.
+    #### Common Configuration Errors
 
-### Why is my Gmail block failing to authenticate or send emails?
+    | Error | Cause | Fix |
+    |-------|-------|-----|
+    | **Invalid Recipient** | Malformed email address | Validate `to` field format: `user@domain.com` |
+    | **Empty Subject/Body** | Required fields missing | Ensure `<agent1.content>` or static text is provided |
+    | **Rate Limits** | Too many API calls | Add delays between Gmail operations |
+    | **Attachment Size** | Files exceed Gmail limits | Check attachment sizes in `<gmail1.attachments>` |
+  </Accordion>
+  <Accordion title="Can I combine Gmail with other Sim.ai blocks for email automation?">
 
-Troubleshoot common Gmail integration issues:
+    Yes! Gmail blocks integrate seamlessly with other workflow components:
 
-#### Authentication Issues
+    #### Common Integration Patterns
 
-| Problem | Solution |
-|---------|----------|
-| **OAuth Setup** | Ensure Gmail API is enabled in Google Cloud Console |
-| **Scope Permissions** | Verify your app has `gmail.send` and `gmail.readonly` scopes |
-| **Token Expiry** | Refresh OAuth tokens or re-authenticate |
-| **Account Access** | Check if 2FA or security settings block API access |
+    ##### 1. **Webhook → Agent → Gmail (Email Processing)**
+    ```
+    Webhook (new email) → Agent (analyze content) → Gmail (send reply)
+    ```
+    Use `<start.body_text>` → `<agent1.userPrompt>` → `<gmail1.body>`
 
-#### Common Configuration Errors
+    ##### 2. **API → Function → Gmail (Data Notifications)**
+    ```
+    API (fetch data) → Function (format report) → Gmail (send summary)
+    ```
+    Transform API data and email formatted reports to stakeholders.
 
-| Error | Cause | Fix |
-|-------|-------|-----|
-| **Invalid Recipient** | Malformed email address | Validate `to` field format: `user@domain.com` |
-| **Empty Subject/Body** | Required fields missing | Ensure `<agent1.content>` or static text is provided |
-| **Rate Limits** | Too many API calls | Add delays between Gmail operations |
-| **Attachment Size** | Files exceed Gmail limits | Check attachment sizes in `<gmail1.attachments>` |
+    ##### 3. **Gmail → Condition → Multiple Actions**
+    ```
+    Gmail (read) → Condition (check priority) → Gmail/Slack (notify)
+    ```
+    Route emails based on content analysis or sender priority.
 
-### Can I combine Gmail with other Sim.ai blocks for email automation?
-
-Yes! Gmail blocks integrate seamlessly with other workflow components:
-
-#### Common Integration Patterns
-
-##### 1. **Webhook → Agent → Gmail (Email Processing)**
-```
-Webhook (new email) → Agent (analyze content) → Gmail (send reply)
-```
-Use `<start.body_text>` → `<agent1.userPrompt>` → `<gmail1.body>`
-
-##### 2. **API → Function → Gmail (Data Notifications)**
-```
-API (fetch data) → Function (format report) → Gmail (send summary)
-```
-Transform API data and email formatted reports to stakeholders.
-
-##### 3. **Gmail → Condition → Multiple Actions**
-```
-Gmail (read) → Condition (check priority) → Gmail/Slack (notify)
-```
-Route emails based on content analysis or sender priority.
-
-##### 4. **Scheduled → Gmail Search → Agent (Email Digest)**
-```
-Schedule → Gmail (search recent) → Agent (summarize) → Gmail (send digest)
-```
-Create automated email summaries using `<gmail1.content>` from search results.
+    ##### 4. **Scheduled → Gmail Search → Agent (Email Digest)**
+    ```
+    Schedule → Gmail (search recent) → Agent (summarize) → Gmail (send digest)
+    ```
+    Create automated email summaries using `<gmail1.content>` from search results.
+  </Accordion>
+</Accordions>
 {/* MANUAL-CONTENT-END */}

@@ -4,6 +4,8 @@ description: Use Pinecone vector database
 ---
 
 import { BlockInfoCard } from "@/components/ui/block-info-card"
+import { Accordion, Accordions } from "fumadocs-ui/components/accordion"
+
 
 <BlockInfoCard 
   type="pinecone"
@@ -210,125 +212,128 @@ For high-throughput scenarios, implement asynchronous processing patterns where 
 ## FAQ
 
 {/* MANUAL-CONTENT-START:faq */}
-### How do I set up a Pinecone block to store text embeddings in my Sim.ai workflow?
+<Accordions type="single">
+  <Accordion title="How do I set up a Pinecone block to store text embeddings in my Sim.ai workflow?">
 
-To store text embeddings using Pinecone, add a **Pinecone block** to your workflow and configure the `pinecone_upsert_text` operation:
+    To store text embeddings using Pinecone, add a **Pinecone block** to your workflow and configure the `pinecone_upsert_text` operation:
 
-#### Required Inputs
+    #### Required Inputs
 
-| Input | Description | Example |
-|-------|-------------|---------|
-| `indexHost` | Your Pinecone index host URL | `<start.indexHost>` or `https://your-index-abc123.svc.us-west1-gcp.pinecone.io` |
-| `namespace` | Target namespace for records | `<start.namespace>` or static value like `documents` |
-| `records` | Array of records with _id, text, and metadata | `<function1.formattedRecords>` |
-| `apiKey` | Your Pinecone API key | `<start.apiKey>` or environment variable |
+    | Input | Description | Example |
+    |-------|-------------|---------|
+    | `indexHost` | Your Pinecone index host URL | `<start.indexHost>` or `https://your-index-abc123.svc.us-west1-gcp.pinecone.io` |
+    | `namespace` | Target namespace for records | `<start.namespace>` or static value like `documents` |
+    | `records` | Array of records with _id, text, and metadata | `<function1.formattedRecords>` |
+    | `apiKey` | Your Pinecone API key | `<start.apiKey>` or environment variable |
 
-Each record in the `records` array should contain an `_id` field, `text` field, and optional `metadata` object for storing additional information.
+    Each record in the `records` array should contain an `_id` field, `text` field, and optional `metadata` object for storing additional information.
+  </Accordion>
+  <Accordion title="How do I generate embeddings from text before storing them in Pinecone?">
 
-### How do I generate embeddings from text before storing them in Pinecone?
+    To generate embeddings from text input, configure a Pinecone block with the `pinecone_generate_embeddings` operation:
 
-To generate embeddings from text input, configure a Pinecone block with the `pinecone_generate_embeddings` operation:
+    #### Example Workflow Configuration
+    ```
+    Agent → Pinecone (Generate Embeddings) → Pinecone (Upsert)
+    ```
 
-#### Example Workflow Configuration
-```
-Agent → Pinecone (Generate Embeddings) → Pinecone (Upsert)
-```
+    #### Required Inputs for Embedding Generation
 
-#### Required Inputs for Embedding Generation
+    | Input | Description | Example |
+    |-------|-------------|---------|
+    | `model` | Embedding model to use | `<start.model>` or `text-embedding-3-small` |
+    | `inputs` | Array of text strings | `[<agent1.content>]` or `<function1.textArray>` |
+    | `apiKey` | Your Pinecone API key | `<start.apiKey>` |
 
-| Input | Description | Example |
-|-------|-------------|---------|
-| `model` | Embedding model to use | `<start.model>` or `text-embedding-3-small` |
-| `inputs` | Array of text strings | `[<agent1.content>]` or `<function1.textArray>` |
-| `apiKey` | Your Pinecone API key | `<start.apiKey>` |
+    The output `<pinecone1.data>` contains the generated embeddings that can be used in downstream blocks.
+  </Accordion>
+  <Accordion title="What is the correct way to reference Pinecone block outputs in my workflow?">
 
-The output `<pinecone1.data>` contains the generated embeddings that can be used in downstream blocks.
+    Every Pinecone block exposes specific outputs based on the operation performed:
 
-### What is the correct way to reference Pinecone block outputs in my workflow?
+    #### Available Output Tags
 
-Every Pinecone block exposes specific outputs based on the operation performed:
+    | Output Tag | Type | Description | Operations |
+    |------------|------|-------------|------------|
+    | `<pinecone1.matches>` | Array | Search results with ID, score, and metadata | `search_text`, `search_vector`, `fetch` |
+    | `<pinecone1.upsertedCount>` | Number | Number of successfully inserted records | `upsert_text` |
+    | `<pinecone1.data>` | Array | Generated embeddings with values and metadata | `generate_embeddings` |
+    | `<pinecone1.model>` | String | Model used for embedding generation | `generate_embeddings` |
+    | `<pinecone1.vector_type>` | String | Type of vector (dense/sparse) | `generate_embeddings` |
+    | `<pinecone1.usage>` | Object | Usage statistics and token counts | `generate_embeddings` |
+    | `<pinecone1.namespace>` | String | Namespace where operation was performed | `search_vector` |
+  </Accordion>
+  <Accordion title="How do I search for similar text in my Pinecone index from a workflow?">
 
-#### Available Output Tags
+    To perform semantic search on stored text, configure a Pinecone block with the `pinecone_search_text` operation:
 
-| Output Tag | Type | Description | Operations |
-|------------|------|-------------|------------|
-| `<pinecone1.matches>` | Array | Search results with ID, score, and metadata | `search_text`, `search_vector`, `fetch` |
-| `<pinecone1.upsertedCount>` | Number | Number of successfully inserted records | `upsert_text` |
-| `<pinecone1.data>` | Array | Generated embeddings with values and metadata | `generate_embeddings` |
-| `<pinecone1.model>` | String | Model used for embedding generation | `generate_embeddings` |
-| `<pinecone1.vector_type>` | String | Type of vector (dense/sparse) | `generate_embeddings` |
-| `<pinecone1.usage>` | Object | Usage statistics and token counts | `generate_embeddings` |
-| `<pinecone1.namespace>` | String | Namespace where operation was performed | `search_vector` |
+    #### Search Configuration
 
-### How do I search for similar text in my Pinecone index from a workflow?
+    | Input | Description | Example |
+    |-------|-------------|---------|
+    | `indexHost` | Your Pinecone index host URL | `<start.indexHost>` |
+    | `searchQuery` | Text query to find similar content | `<agent1.content>` or `<start.userQuery>` |
+    | `topK` | Number of results to return | `<start.topK>` or `"10"` |
+    | `namespace` | Optional namespace to search within | `<start.namespace>` |
+    | `filter` | Optional metadata filters | `{"category": "<start.category>"}` |
+    | `apiKey` | Your Pinecone API key | `<start.apiKey>` |
 
-To perform semantic search on stored text, configure a Pinecone block with the `pinecone_search_text` operation:
+    The search results are available in `<pinecone1.matches>` and can be connected to Agent blocks for processing or response generation.
+  </Accordion>
+  <Accordion title="How do I connect Pinecone search results to an Agent block for processing?">
 
-#### Search Configuration
+    To process Pinecone search results with an AI agent:
 
-| Input | Description | Example |
-|-------|-------------|---------|
-| `indexHost` | Your Pinecone index host URL | `<start.indexHost>` |
-| `searchQuery` | Text query to find similar content | `<agent1.content>` or `<start.userQuery>` |
-| `topK` | Number of results to return | `<start.topK>` or `"10"` |
-| `namespace` | Optional namespace to search within | `<start.namespace>` |
-| `filter` | Optional metadata filters | `{"category": "<start.category>"}` |
-| `apiKey` | Your Pinecone API key | `<start.apiKey>` |
+    1. Configure the Agent block's `context` or `userPrompt` input
+    2. Reference the search results using `<pinecone1.matches>`
+    3. The Agent can analyze, summarize, or answer questions based on the retrieved content
 
-The search results are available in `<pinecone1.matches>` and can be connected to Agent blocks for processing or response generation.
+    #### Example Integration Pattern
+    ```json
+    {
+      "userPrompt": "<start.question>",
+      "context": "Based on these search results: <pinecone1.matches>"
+    }
+    ```
 
-### How do I connect Pinecone search results to an Agent block for processing?
+    This pattern enables retrieval-augmented generation (RAG) where the agent responds using relevant information from your Pinecone vector database.
+  </Accordion>
+  <Accordion title="Why is my Pinecone operation failing with authentication errors?">
 
-To process Pinecone search results with an AI agent:
+    Troubleshoot common Pinecone authentication and configuration issues:
 
-1. Configure the Agent block's `context` or `userPrompt` input
-2. Reference the search results using `<pinecone1.matches>`
-3. The Agent can analyze, summarize, or answer questions based on the retrieved content
+    #### Common Issues and Solutions
 
-#### Example Integration Pattern
-```json
-{
-  "userPrompt": "<start.question>",
-  "context": "Based on these search results: <pinecone1.matches>"
-}
-```
+    | Issue | Description | Solution |
+    |-------|-------------|----------|
+    | **Invalid API Key** | Incorrect or expired Pinecone API key | Verify `<start.apiKey>` matches your Pinecone console key |
+    | **Wrong Index Host** | Incorrect index host URL format | Ensure `indexHost` includes full URL: `https://index-name-abc123.svc.region.pinecone.io` |
+    | **Namespace Errors** | Namespace doesn't exist or access denied | Create namespace first or use empty string for default |
+    | **Model Not Found** | Embedding model not available | Use supported models like `text-embedding-3-small` |
+    | **Record Format Issues** | Invalid record structure for upsert | Ensure records contain `_id` and `text` fields |
+  </Accordion>
+  <Accordion title="Can I combine multiple Pinecone operations in a single workflow?">
 
-This pattern enables retrieval-augmented generation (RAG) where the agent responds using relevant information from your Pinecone vector database.
+    Yes! You can chain multiple Pinecone operations for complex vector database workflows:
 
-### Why is my Pinecone operation failing with authentication errors?
+    #### Common Multi-Operation Patterns
 
-Troubleshoot common Pinecone authentication and configuration issues:
+    ##### 1. **Generate → Upsert → Search**
+    ```
+    Function (prepare text) → Pinecone (generate_embeddings) → Pinecone (upsert_text) → Pinecone (search_text)
+    ```
 
-#### Common Issues and Solutions
+    ##### 2. **Search → Fetch → Process**
+    ```
+    Pinecone (search_vector) → Pinecone (fetch) → Agent (process results)
+    ```
 
-| Issue | Description | Solution |
-|-------|-------------|----------|
-| **Invalid API Key** | Incorrect or expired Pinecone API key | Verify `<start.apiKey>` matches your Pinecone console key |
-| **Wrong Index Host** | Incorrect index host URL format | Ensure `indexHost` includes full URL: `https://index-name-abc123.svc.region.pinecone.io` |
-| **Namespace Errors** | Namespace doesn't exist or access denied | Create namespace first or use empty string for default |
-| **Model Not Found** | Embedding model not available | Use supported models like `text-embedding-3-small` |
-| **Record Format Issues** | Invalid record structure for upsert | Ensure records contain `_id` and `text` fields |
+    ##### 3. **Webhook → Search → Agent → Response**
+    ```
+    Webhook → Pinecone (search_text) → Agent (analyze) → API Response
+    ```
 
-### Can I combine multiple Pinecone operations in a single workflow?
-
-Yes! You can chain multiple Pinecone operations for complex vector database workflows:
-
-#### Common Multi-Operation Patterns
-
-##### 1. **Generate → Upsert → Search**
-```
-Function (prepare text) → Pinecone (generate_embeddings) → Pinecone (upsert_text) → Pinecone (search_text)
-```
-
-##### 2. **Search → Fetch → Process**
-```
-Pinecone (search_vector) → Pinecone (fetch) → Agent (process results)
-```
-
-##### 3. **Webhook → Search → Agent → Response**
-```
-Webhook → Pinecone (search_text) → Agent (analyze) → API Response
-```
-
-Use different Pinecone blocks for each operation, connecting outputs like `<pinecone1.data>` to inputs like `<pinecone2.vector>` to create sophisticated vector database workflows in Sim.ai.
+    Use different Pinecone blocks for each operation, connecting outputs like `<pinecone1.data>` to inputs like `<pinecone2.vector>` to create sophisticated vector database workflows in Sim.ai.
+  </Accordion>
+</Accordions>
 {/* MANUAL-CONTENT-END */}

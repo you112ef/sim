@@ -4,6 +4,8 @@ description: Search and extract information
 ---
 
 import { BlockInfoCard } from "@/components/ui/block-info-card"
+import { Accordion, Accordions } from "fumadocs-ui/components/accordion"
+
 
 <BlockInfoCard 
   type="tavily"
@@ -155,128 +157,131 @@ Structure your workflows to minimize redundant API calls by leveraging connectio
 ## FAQ
 
 {/* MANUAL-CONTENT-START:faq */}
-### How do I search the web using the Tavily block in my workflow?
+<Accordions type="single">
+  <Accordion title="How do I search the web using the Tavily block in my workflow?">
 
-To perform AI-powered web searches with Tavily in Sim.ai, add a **Tavily block** to your workflow and configure the `tavily_search` operation:
+    To perform AI-powered web searches with Tavily in Sim.ai, add a **Tavily block** to your workflow and configure the `tavily_search` operation:
 
-#### Required Inputs
+    #### Required Inputs
 
-| Input | Description | Example |
-|-------|-------------|---------|
-| `query` | Your search query | `<start.searchTerm>` or `<agent1.content>` |
-| `apiKey` | Your Tavily API key | `<start.tavilyApiKey>` or environment variable |
-| `max_results` | Number of results (1-20) | `5` or `<start.resultCount>` |
+    | Input | Description | Example |
+    |-------|-------------|---------|
+    | `query` | Your search query | `<start.searchTerm>` or `<agent1.content>` |
+    | `apiKey` | Your Tavily API key | `<start.tavilyApiKey>` or environment variable |
+    | `max_results` | Number of results (1-20) | `5` or `<start.resultCount>` |
 
-Connect these inputs from other blocks or use static values to execute targeted web searches within your automation.
+    Connect these inputs from other blocks or use static values to execute targeted web searches within your automation.
+  </Accordion>
+  <Accordion title="How do I extract content from specific websites using Tavily?">
 
-### How do I extract content from specific websites using Tavily?
+    To extract raw content from web pages, configure the Tavily block with the `tavily_extract` operation:
 
-To extract raw content from web pages, configure the Tavily block with the `tavily_extract` operation:
+    #### Required Configuration
 
-#### Required Configuration
+    | Input | Description | Example |
+    |-------|-------------|---------|
+    | `urls` | Target URLs to extract from | `<start.targetUrl>` or `["https://example.com"]` |
+    | `apiKey` | Your Tavily API key | `<start.tavilyApiKey>` |
+    | `extract_depth` | Extraction level (basic/advanced) | `"basic"` for 1 credit per 5 URLs |
 
-| Input | Description | Example |
-|-------|-------------|---------|
-| `urls` | Target URLs to extract from | `<start.targetUrl>` or `["https://example.com"]` |
-| `apiKey` | Your Tavily API key | `<start.tavilyApiKey>` |
-| `extract_depth` | Extraction level (basic/advanced) | `"basic"` for 1 credit per 5 URLs |
+    The `extract_depth` parameter controls cost and detail: "basic" uses 1 credit per 5 URLs while "advanced" uses 2 credits per 5 URLs for deeper content extraction.
+  </Accordion>
+  <Accordion title="What outputs can I reference from a Tavily block in downstream workflow steps?">
 
-The `extract_depth` parameter controls cost and detail: "basic" uses 1 credit per 5 URLs while "advanced" uses 2 credits per 5 URLs for deeper content extraction.
+    Every Tavily block provides multiple outputs that can be connected to other blocks using connection tags:
 
-### What outputs can I reference from a Tavily block in downstream workflow steps?
+    #### Available Outputs
 
-Every Tavily block provides multiple outputs that can be connected to other blocks using connection tags:
+    | Output Tag | Type | Description |
+    |------------|------|-------------|
+    | `<tavily1.results>` | Array | Complete search results or extracted content array |
+    | `<tavily1.answer>` | String | AI-generated answer from search results |
+    | `<tavily1.query>` | String | The search query that was executed |
+    | `<tavily1.content>` | String | Extracted text content from web pages |
+    | `<tavily1.title>` | String | Page title from extracted content |
+    | `<tavily1.url>` | String | Source URL of the content |
 
-#### Available Outputs
+    Connect these outputs to Agent blocks, Function blocks, or other tools for further processing.
+  </Accordion>
+  <Accordion title="How do I connect Tavily search results to an Agent block for analysis?">
 
-| Output Tag | Type | Description |
-|------------|------|-------------|
-| `<tavily1.results>` | Array | Complete search results or extracted content array |
-| `<tavily1.answer>` | String | AI-generated answer from search results |
-| `<tavily1.query>` | String | The search query that was executed |
-| `<tavily1.content>` | String | Extracted text content from web pages |
-| `<tavily1.title>` | String | Page title from extracted content |
-| `<tavily1.url>` | String | Source URL of the content |
+    To process Tavily search results with AI analysis:
 
-Connect these outputs to Agent blocks, Function blocks, or other tools for further processing.
+    1. **Add a Tavily block** configured for search operation
+    2. **Add an Agent block** after the Tavily block
+    3. **Connect Tavily outputs** to the Agent's inputs:
 
-### How do I connect Tavily search results to an Agent block for analysis?
+    #### Example Configuration
 
-To process Tavily search results with AI analysis:
+    ```json
+    Agent Block inputs:
+    {
+      "systemPrompt": "Analyze the search results and provide a summary",
+      "userPrompt": "Search results: <tavily1.results>\nAnswer: <tavily1.answer>"
+    }
+    ```
 
-1. **Add a Tavily block** configured for search operation
-2. **Add an Agent block** after the Tavily block
-3. **Connect Tavily outputs** to the Agent's inputs:
+    This pattern enables AI-powered analysis of web search results within your workflow automation.
+  </Accordion>
+  <Accordion title="Why is my Tavily search returning no results or failing?">
 
-#### Example Configuration
+    Troubleshoot common Tavily integration issues with these solutions:
 
-```json
-Agent Block inputs:
-{
-  "systemPrompt": "Analyze the search results and provide a summary",
-  "userPrompt": "Search results: <tavily1.results>\nAnswer: <tavily1.answer>"
-}
-```
+    #### Common Problems and Fixes
 
-This pattern enables AI-powered analysis of web search results within your workflow automation.
+    | Issue | Cause | Solution |
+    |-------|-------|----------|
+    | **API Authentication Error** | Invalid or missing API key | Verify `<start.tavilyApiKey>` is correctly set |
+    | **Empty Results Array** | Query too specific or no matches | Broaden search terms in `<tavily1.query>` |
+    | **Max Results Error** | Invalid result count | Ensure `max_results` is between 1-20 |
+    | **URL Extraction Fails** | Invalid URL format | Check `urls` input contains valid HTTP/HTTPS URLs |
+    | **Rate Limiting** | Too many requests | Implement delays between Tavily block executions |
 
-### Why is my Tavily search returning no results or failing?
+    Check workflow execution logs for specific error messages from the Tavily API.
+  </Accordion>
+  <Accordion title="Can I create automated research workflows combining Tavily with other blocks?">
 
-Troubleshoot common Tavily integration issues with these solutions:
+    Yes! Tavily blocks integrate seamlessly with other Sim.ai components for automated research and content processing:
 
-#### Common Problems and Fixes
+    #### Popular Workflow Patterns
 
-| Issue | Cause | Solution |
-|-------|-------|----------|
-| **API Authentication Error** | Invalid or missing API key | Verify `<start.tavilyApiKey>` is correctly set |
-| **Empty Results Array** | Query too specific or no matches | Broaden search terms in `<tavily1.query>` |
-| **Max Results Error** | Invalid result count | Ensure `max_results` is between 1-20 |
-| **URL Extraction Fails** | Invalid URL format | Check `urls` input contains valid HTTP/HTTPS URLs |
-| **Rate Limiting** | Too many requests | Implement delays between Tavily block executions |
+    ##### 1. **Webhook → Tavily → Agent → Response**
+    ```
+    User Query → Search Web → Analyze Results → Generate Summary
+    ```
+    Connect `<start.query>` to Tavily, then `<tavily1.results>` to an Agent for intelligent summarization.
 
-Check workflow execution logs for specific error messages from the Tavily API.
+    ##### 2. **Scheduled → Tavily → Condition → Notification**
+    ```
+    Daily Trigger → Search News → Check Keywords → Send Alerts
+    ```
+    Automate monitoring by searching for specific topics and triggering alerts based on findings.
 
-### Can I create automated research workflows combining Tavily with other blocks?
+    ##### 3. **Function → Tavily Extract → Agent → Database**
+    ```
+    Process URLs → Extract Content → Summarize → Store Data
+    ```
+    Extract and process content from multiple websites simultaneously using `<tavily1.content>` outputs.
 
-Yes! Tavily blocks integrate seamlessly with other Sim.ai components for automated research and content processing:
+    ##### 4. **Agent → Tavily → Agent Chain**
+    ```
+    Generate Query → Search Web → Refine Results → Final Answer
+    ```
+    Create multi-step research workflows where agents generate search queries and process results iteratively.
+  </Accordion>
+  <Accordion title="How do I handle multiple URLs for content extraction in a single Tavily block?">
 
-#### Popular Workflow Patterns
+    For bulk content extraction from multiple URLs, configure the Tavily block's `urls` input as an array:
 
-##### 1. **Webhook → Tavily → Agent → Response**
-```
-User Query → Search Web → Analyze Results → Generate Summary
-```
-Connect `<start.query>` to Tavily, then `<tavily1.results>` to an Agent for intelligent summarization.
+    #### Array Input Methods
 
-##### 2. **Scheduled → Tavily → Condition → Notification**
-```
-Daily Trigger → Search News → Check Keywords → Send Alerts
-```
-Automate monitoring by searching for specific topics and triggering alerts based on findings.
+    | Method | Example | Use Case |
+    |--------|---------|-----------|
+    | **Static Array** | `["https://site1.com", "https://site2.com"]` | Fixed list of URLs |
+    | **Dynamic Array** | `<function1.urlList>` | URLs generated by upstream blocks |
+    | **Single URL** | `<start.targetUrl>` | Extract from one webpage |
 
-##### 3. **Function → Tavily Extract → Agent → Database**
-```
-Process URLs → Extract Content → Summarize → Store Data
-```
-Extract and process content from multiple websites simultaneously using `<tavily1.content>` outputs.
-
-##### 4. **Agent → Tavily → Agent Chain**
-```
-Generate Query → Search Web → Refine Results → Final Answer
-```
-Create multi-step research workflows where agents generate search queries and process results iteratively.
-
-### How do I handle multiple URLs for content extraction in a single Tavily block?
-
-For bulk content extraction from multiple URLs, configure the Tavily block's `urls` input as an array:
-
-#### Array Input Methods
-
-| Method | Example | Use Case |
-|--------|---------|-----------|
-| **Static Array** | `["https://site1.com", "https://site2.com"]` | Fixed list of URLs |
-| **Dynamic Array** | `<function1.urlList>` | URLs generated by upstream blocks |
-| **Single URL** | `<start.targetUrl>` | Extract from one webpage |
-
-The `extract_depth` setting affects both cost and extraction quality across all provided URLs, with "basic" providing essential content and "advanced" delivering comprehensive text extraction.
+    The `extract_depth` setting affects both cost and extraction quality across all provided URLs, with "basic" providing essential content and "advanced" delivering comprehensive text extraction.
+  </Accordion>
+</Accordions>
 {/* MANUAL-CONTENT-END */}

@@ -4,6 +4,8 @@ description: Read, write, and update data
 ---
 
 import { BlockInfoCard } from "@/components/ui/block-info-card"
+import { Accordion, Accordions } from "fumadocs-ui/components/accordion"
+
 
 <BlockInfoCard 
   type="google_sheets"
@@ -264,130 +266,133 @@ Implement data validation workflows where read operations verify data integrity 
 ## FAQ
 
 {/* MANUAL-CONTENT-START:faq */}
-### How do I read data from a Google Sheets spreadsheet in my workflow?
+<Accordions type="single">
+  <Accordion title="How do I read data from a Google Sheets spreadsheet in my workflow?">
 
-To read data from Google Sheets, add a **Google Sheets block** to your Sim.ai workflow and configure the read operation:
+    To read data from Google Sheets, add a **Google Sheets block** to your Sim.ai workflow and configure the read operation:
 
-#### Required Inputs
+    #### Required Inputs
 
-| Input | Description | Example |
-|-------|-------------|---------|
-| `spreadsheetId` | The Google Sheets document ID from the URL | `<start.sheetId>` or static ID like `1BxiMVs0XRA5nFMdKvBdBZjgmUUqptlbs74OgvE2upms` |
-| `range` | Cell range to read (optional) | `<start.range>` or static range like `A1:D10` |
+    | Input | Description | Example |
+    |-------|-------------|---------|
+    | `spreadsheetId` | The Google Sheets document ID from the URL | `<start.sheetId>` or static ID like `1BxiMVs0XRA5nFMdKvBdBZjgmUUqptlbs74OgvE2upms` |
+    | `range` | Cell range to read (optional) | `<start.range>` or static range like `A1:D10` |
 
-The block outputs `<google_sheets1.data>` containing the cell values and `<google_sheets1.metadata>` with spreadsheet information.
+    The block outputs `<google_sheets1.data>` containing the cell values and `<google_sheets1.metadata>` with spreadsheet information.
+  </Accordion>
+  <Accordion title="How do I write data to Google Sheets from another block's output?">
 
-### How do I write data to Google Sheets from another block's output?
+    To write data from previous blocks to Google Sheets:
 
-To write data from previous blocks to Google Sheets:
+    1. **Connect the spreadsheet ID** using `<start.spreadsheetId>` or a static value
+    2. **Map the data array** from another block like `<agent1.structuredOutput>` or `<function1.results>`
+    3. **Set the target range** using `<start.range>` or specify cells like `A1:C5`
 
-1. **Connect the spreadsheet ID** using `<start.spreadsheetId>` or a static value
-2. **Map the data array** from another block like `<agent1.structuredOutput>` or `<function1.results>`
-3. **Set the target range** using `<start.range>` or specify cells like `A1:C5`
+    #### Example Configuration
+    ```json
+    {
+      "spreadsheetId": "<start.sheetId>",
+      "range": "A1:B10",
+      "values": "<function1.dataArray>"
+    }
+    ```
+  </Accordion>
+  <Accordion title="What is the correct way to reference Google Sheets block outputs in downstream blocks?">
 
-#### Example Configuration
-```json
-{
-  "spreadsheetId": "<start.sheetId>",
-  "range": "A1:B10",
-  "values": "<function1.dataArray>"
-}
-```
+    Every Google Sheets block provides multiple outputs that can be connected to other blocks:
 
-### What is the correct way to reference Google Sheets block outputs in downstream blocks?
+    #### Available Output Tags
 
-Every Google Sheets block provides multiple outputs that can be connected to other blocks:
+    | Output Tag | Type | Description |
+    |------------|------|-------------|
+    | `<google_sheets1.data>` | JSON | Complete sheet data including values and formatting |
+    | `<google_sheets1.metadata>` | JSON | Spreadsheet metadata with ID, title, and URL |
+    | `<google_sheets1.updatedRange>` | String | Range of cells that were modified |
+    | `<google_sheets1.updatedRows>` | Number | Count of rows affected by the operation |
+    | `<google_sheets1.updatedColumns>` | Number | Count of columns affected |
+    | `<google_sheets1.updatedCells>` | Number | Total number of cells modified |
+    | `<google_sheets1.tableRange>` | String | Full table range (for append operations) |
 
-#### Available Output Tags
+    Use these outputs by dragging them into input fields of subsequent blocks.
+  </Accordion>
+  <Accordion title="How do I append new data to the end of an existing Google Sheets document?">
 
-| Output Tag | Type | Description |
-|------------|------|-------------|
-| `<google_sheets1.data>` | JSON | Complete sheet data including values and formatting |
-| `<google_sheets1.metadata>` | JSON | Spreadsheet metadata with ID, title, and URL |
-| `<google_sheets1.updatedRange>` | String | Range of cells that were modified |
-| `<google_sheets1.updatedRows>` | Number | Count of rows affected by the operation |
-| `<google_sheets1.updatedColumns>` | Number | Count of columns affected |
-| `<google_sheets1.updatedCells>` | Number | Total number of cells modified |
-| `<google_sheets1.tableRange>` | String | Full table range (for append operations) |
+    To add data to the bottom of your spreadsheet:
 
-Use these outputs by dragging them into input fields of subsequent blocks.
+    1. **Use the append operation** in your Google Sheets block
+    2. **Connect the data source** like `<webhook1.payload>` or `<agent1.extractedData>`
+    3. **Configure append settings**:
 
-### How do I append new data to the end of an existing Google Sheets document?
+    #### Input Configuration
 
-To add data to the bottom of your spreadsheet:
+    | Parameter | Purpose | Example Value |
+    |-----------|---------|---------------|
+    | `spreadsheetId` | Target sheet identifier | `<start.sheetId>` |
+    | `range` | Starting position (optional) | `A1` or `<start.startCell>` |
+    | `values` | Data array to append | `<function1.processedRows>` |
+    | `insertDataOption` | Insert method | `INSERT_ROWS` or `OVERWRITE` |
 
-1. **Use the append operation** in your Google Sheets block
-2. **Connect the data source** like `<webhook1.payload>` or `<agent1.extractedData>`
-3. **Configure append settings**:
+    The operation returns `<google_sheets1.tableRange>` showing where data was added.
+  </Accordion>
+  <Accordion title="Why is my Google Sheets integration failing with authentication errors?">
 
-#### Input Configuration
+    Google Sheets requires OAuth authentication setup. Common authentication issues include:
 
-| Parameter | Purpose | Example Value |
-|-----------|---------|---------------|
-| `spreadsheetId` | Target sheet identifier | `<start.sheetId>` |
-| `range` | Starting position (optional) | `A1` or `<start.startCell>` |
-| `values` | Data array to append | `<function1.processedRows>` |
-| `insertDataOption` | Insert method | `INSERT_ROWS` or `OVERWRITE` |
+    #### Troubleshooting Authentication
 
-The operation returns `<google_sheets1.tableRange>` showing where data was added.
+    | Issue | Symptoms | Solution |
+    |-------|----------|----------|
+    | **Missing OAuth Setup** | "Authentication required" errors | Configure Google OAuth credentials in Sim.ai settings |
+    | **Insufficient Permissions** | "Access denied" responses | Ensure OAuth scope includes `https://www.googleapis.com/auth/spreadsheets` |
+    | **Invalid Sheet ID** | "Spreadsheet not found" | Verify `spreadsheetId` matches the document ID from the URL |
+    | **Sheet Access Rights** | "Permission denied" | Share the Google Sheet with your authenticated account |
+    | **Expired Token** | Intermittent failures | Re-authenticate your Google account in Sim.ai |
+  </Accordion>
+  <Accordion title="How do I create a workflow that processes data from Google Sheets with an AI agent?">
 
-### Why is my Google Sheets integration failing with authentication errors?
+    Create data processing workflows by chaining Google Sheets with other Sim.ai blocks:
 
-Google Sheets requires OAuth authentication setup. Common authentication issues include:
+    #### Common Workflow Patterns
 
-#### Troubleshooting Authentication
+    ##### 1. **Google Sheets → Agent → Google Sheets**
+    Read data, process with AI, write results back:
+    ```
+    - Read: `<google_sheets1.data>` → Agent input
+    - Process: Agent analyzes the data  
+    - Write: `<agent1.structuredOutput>` → New sheet range
+    ```
 
-| Issue | Symptoms | Solution |
-|-------|----------|----------|
-| **Missing OAuth Setup** | "Authentication required" errors | Configure Google OAuth credentials in Sim.ai settings |
-| **Insufficient Permissions** | "Access denied" responses | Ensure OAuth scope includes `https://www.googleapis.com/auth/spreadsheets` |
-| **Invalid Sheet ID** | "Spreadsheet not found" | Verify `spreadsheetId` matches the document ID from the URL |
-| **Sheet Access Rights** | "Permission denied" | Share the Google Sheet with your authenticated account |
-| **Expired Token** | Intermittent failures | Re-authenticate your Google account in Sim.ai |
+    ##### 2. **Webhook → Function → Google Sheets**
+    Receive external data, transform it, save to sheets:
+    ```
+    - Receive: `<start.payload>`
+    - Transform: `<function1.processedData>`
+    - Save: `<google_sheets1.updatedCells>` confirmation
+    ```
 
-### How do I create a workflow that processes data from Google Sheets with an AI agent?
+    ##### 3. **Scheduled → Google Sheets → Condition → Telegram**
+    Automated reporting with conditional notifications:
+    ```
+    - Read sheet data periodically
+    - Check conditions on `<google_sheets1.data>`
+    - Send alerts via Telegram if criteria met
+    ```
+  </Accordion>
+  <Accordion title="What data formats does Google Sheets accept for the values input?">
 
-Create data processing workflows by chaining Google Sheets with other Sim.ai blocks:
+    The `values` input accepts arrays in specific formats depending on your data structure:
 
-#### Common Workflow Patterns
+    #### Supported Data Formats
 
-##### 1. **Google Sheets → Agent → Google Sheets**
-Read data, process with AI, write results back:
-```
-- Read: `<google_sheets1.data>` → Agent input
-- Process: Agent analyzes the data  
-- Write: `<agent1.structuredOutput>` → New sheet range
-```
+    | Format Type | Structure | Example |
+    |-------------|-----------|---------|
+    | **Single Row** | `[["value1", "value2", "value3"]]` | `[["John", "Doe", "Manager"]]` |
+    | **Multiple Rows** | `[["row1col1", "row1col2"], ["row2col1", "row2col2"]]` | `[["Alice", 25], ["Bob", 30]]` |
+    | **Mixed Types** | Arrays with strings, numbers, booleans | `[["Product", 29.99, true]]` |
+    | **From Function** | `<function1.formattedArray>` | Dynamic arrays from processing blocks |
+    | **From Agent** | `<agent1.extractedData>` | Structured data extracted by AI |
 
-##### 2. **Webhook → Function → Google Sheets**
-Receive external data, transform it, save to sheets:
-```
-- Receive: `<start.payload>`
-- Transform: `<function1.processedData>`
-- Save: `<google_sheets1.updatedCells>` confirmation
-```
-
-##### 3. **Scheduled → Google Sheets → Condition → Telegram**
-Automated reporting with conditional notifications:
-```
-- Read sheet data periodically
-- Check conditions on `<google_sheets1.data>`
-- Send alerts via Telegram if criteria met
-```
-
-### What data formats does Google Sheets accept for the values input?
-
-The `values` input accepts arrays in specific formats depending on your data structure:
-
-#### Supported Data Formats
-
-| Format Type | Structure | Example |
-|-------------|-----------|---------|
-| **Single Row** | `[["value1", "value2", "value3"]]` | `[["John", "Doe", "Manager"]]` |
-| **Multiple Rows** | `[["row1col1", "row1col2"], ["row2col1", "row2col2"]]` | `[["Alice", 25], ["Bob", 30]]` |
-| **Mixed Types** | Arrays with strings, numbers, booleans | `[["Product", 29.99, true]]` |
-| **From Function** | `<function1.formattedArray>` | Dynamic arrays from processing blocks |
-| **From Agent** | `<agent1.extractedData>` | Structured data extracted by AI |
-
-Set `valueInputOption` to `RAW` for literal values or `USER_ENTERED` for formula parsing.
+    Set `valueInputOption` to `RAW` for literal values or `USER_ENTERED` for formula parsing.
+  </Accordion>
+</Accordions>
 {/* MANUAL-CONTENT-END */}

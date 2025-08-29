@@ -4,6 +4,8 @@ description: Create, upload, and list files
 ---
 
 import { BlockInfoCard } from "@/components/ui/block-info-card"
+import { Accordion, Accordions } from "fumadocs-ui/components/accordion"
+
 
 <BlockInfoCard 
   type="onedrive"
@@ -183,138 +185,141 @@ Query optimization for list operations involves using specific search criteria r
 ## FAQ
 
 {/* MANUAL-CONTENT-START:faq */}
-### How do I upload a file to OneDrive from my workflow?
+<Accordions type="single">
+  <Accordion title="How do I upload a file to OneDrive from my workflow?">
 
-To upload files to OneDrive from your Sim.ai workflow, add a **OneDrive block** and configure the required inputs:
+    To upload files to OneDrive from your Sim.ai workflow, add a **OneDrive block** and configure the required inputs:
 
-#### Required Inputs
+    #### Required Inputs
 
-| Input | Description | Example |
-|-------|-------------|---------|
-| `fileName` | Name for the uploaded file | `<start.fileName>` or static name like `report.txt` |
-| `content` | File content to upload | `<agent1.content>` or `<function1.result>` |
-| `folderSelector` | Target folder (optional) | Select from dropdown or use `<start.folderId>` |
+    | Input | Description | Example |
+    |-------|-------------|---------|
+    | `fileName` | Name for the uploaded file | `<start.fileName>` or static name like `report.txt` |
+    | `content` | File content to upload | `<agent1.content>` or `<function1.result>` |
+    | `folderSelector` | Target folder (optional) | Select from dropdown or use `<start.folderId>` |
 
-The block will return `<onedrive1.success>` and `<onedrive1.file>` containing the uploaded file metadata.
+    The block will return `<onedrive1.success>` and `<onedrive1.file>` containing the uploaded file metadata.
+  </Accordion>
+  <Accordion title="How do I reference OneDrive block outputs in downstream blocks?">
 
-### How do I reference OneDrive block outputs in downstream blocks?
+    OneDrive blocks expose several outputs that can be connected to other workflow blocks:
 
-OneDrive blocks expose several outputs that can be connected to other workflow blocks:
+    #### Upload Operation Outputs
 
-#### Upload Operation Outputs
+    | Output Tag | Type | Description |
+    |------------|------|-------------|
+    | `<onedrive1.success>` | Boolean | `true` if file upload completed successfully |
+    | `<onedrive1.file.id>` | String | Unique OneDrive file identifier |
+    | `<onedrive1.file.name>` | String | Name of the uploaded file |
+    | `<onedrive1.file.webViewLink>` | String | URL to view file in OneDrive web interface |
+    | `<onedrive1.file.webContentLink>` | String | Direct download URL for the file |
 
-| Output Tag | Type | Description |
-|------------|------|-------------|
-| `<onedrive1.success>` | Boolean | `true` if file upload completed successfully |
-| `<onedrive1.file.id>` | String | Unique OneDrive file identifier |
-| `<onedrive1.file.name>` | String | Name of the uploaded file |
-| `<onedrive1.file.webViewLink>` | String | URL to view file in OneDrive web interface |
-| `<onedrive1.file.webContentLink>` | String | Direct download URL for the file |
+    #### List Operation Outputs
 
-#### List Operation Outputs
+    | Output Tag | Type | Description |
+    |------------|------|-------------|
+    | `<onedrive1.files>` | Array | Array of file and folder objects |
+    | `<onedrive1.nextPageToken>` | String | Token for pagination if more results exist |
+  </Accordion>
+  <Accordion title="How do I create folders and organize files in OneDrive workflows?">
 
-| Output Tag | Type | Description |
-|------------|------|-------------|
-| `<onedrive1.files>` | Array | Array of file and folder objects |
-| `<onedrive1.nextPageToken>` | String | Token for pagination if more results exist |
+    Use the OneDrive block's folder creation capabilities to organize your file structure:
 
-### How do I create folders and organize files in OneDrive workflows?
+    1. **Create Parent Folder First**:
+       - Set operation to `onedrive_create_folder`
+       - Configure `folderName` with `<start.folderName>` or static name
 
-Use the OneDrive block's folder creation capabilities to organize your file structure:
+    2. **Upload Files to Created Folder**:
+       - Add second OneDrive block
+       - Set `folderSelector` to `<onedrive1.file.id>` from the folder creation block
 
-1. **Create Parent Folder First**:
-   - Set operation to `onedrive_create_folder`
-   - Configure `folderName` with `<start.folderName>` or static name
+    #### Example Workflow Pattern
+    ```
+    Webhook → OneDrive (create folder) → OneDrive (upload file)
+    ```
 
-2. **Upload Files to Created Folder**:
-   - Add second OneDrive block
-   - Set `folderSelector` to `<onedrive1.file.id>` from the folder creation block
+    Connect `<onedrive1.file.id>` to the second block's `manualFolderId` to upload into the newly created folder.
+  </Accordion>
+  <Accordion title="How do I list and filter OneDrive files in my workflow?">
 
-#### Example Workflow Pattern
-```
-Webhook → OneDrive (create folder) → OneDrive (upload file)
-```
+    To retrieve and filter files from OneDrive:
 
-Connect `<onedrive1.file.id>` to the second block's `manualFolderId` to upload into the newly created folder.
+    #### Configuration Options
 
-### How do I list and filter OneDrive files in my workflow?
+    | Input | Purpose | Example |
+    |-------|---------|---------|
+    | `folderSelector` | Choose specific folder | Select from authenticated folders |
+    | `query` | Filter files by search terms | `<start.searchTerm>` or `name:'report'` |
+    | `pageSize` | Limit results returned | `<start.limit>` or static number like `50` |
 
-To retrieve and filter files from OneDrive:
+    #### Processing Results
+    Connect `<onedrive1.files>` to a **Function block** to iterate through results:
 
-#### Configuration Options
+    ```javascript
+    // Access file properties
+    const fileNames = files.map(file => file.name);
+    const fileIds = files.map(file => file.id);
+    ```
+  </Accordion>
+  <Accordion title="What authentication is required for OneDrive blocks in Sim.ai?">
 
-| Input | Purpose | Example |
-|-------|---------|---------|
-| `folderSelector` | Choose specific folder | Select from authenticated folders |
-| `query` | Filter files by search terms | `<start.searchTerm>` or `name:'report'` |
-| `pageSize` | Limit results returned | `<start.limit>` or static number like `50` |
+    OneDrive blocks use OAuth authentication that must be configured before use:
 
-#### Processing Results
-Connect `<onedrive1.files>` to a **Function block** to iterate through results:
+    1. **Initial Setup**: Authenticate your Microsoft account when first adding the OneDrive block
+    2. **Permission Scopes**: The integration requests access to read and write files in your OneDrive
+    3. **Token Management**: Sim.ai automatically handles token refresh for ongoing workflows
 
-```javascript
-// Access file properties
-const fileNames = files.map(file => file.name);
-const fileIds = files.map(file => file.id);
-```
+    #### Common Authentication Issues
 
-### What authentication is required for OneDrive blocks in Sim.ai?
+    | Issue | Description | Solution |
+    |-------|-------------|----------|
+    | **Expired Token** | OAuth token needs refresh | Re-authenticate the OneDrive block in workflow settings |
+    | **Permission Denied** | Insufficient OneDrive permissions | Ensure account has read/write access to target folders |
+    | **Account Access** | Wrong Microsoft account connected | Disconnect and reconnect with correct account |
+  </Accordion>
+  <Accordion title="How do I handle OneDrive errors and failed operations?">
 
-OneDrive blocks use OAuth authentication that must be configured before use:
+    Troubleshoot common OneDrive integration issues:
 
-1. **Initial Setup**: Authenticate your Microsoft account when first adding the OneDrive block
-2. **Permission Scopes**: The integration requests access to read and write files in your OneDrive
-3. **Token Management**: Sim.ai automatically handles token refresh for ongoing workflows
+    #### Error Diagnosis Steps
 
-#### Common Authentication Issues
+    1. **Check Success Status**: Always verify `<onedrive1.success>` before using outputs
+    2. **Validate Inputs**: Ensure required fields like `fileName` and `content` are populated
+    3. **Folder Permissions**: Confirm the target folder exists and is accessible
 
-| Issue | Description | Solution |
-|-------|-------------|----------|
-| **Expired Token** | OAuth token needs refresh | Re-authenticate the OneDrive block in workflow settings |
-| **Permission Denied** | Insufficient OneDrive permissions | Ensure account has read/write access to target folders |
-| **Account Access** | Wrong Microsoft account connected | Disconnect and reconnect with correct account |
+    #### Common Error Patterns
 
-### How do I handle OneDrive errors and failed operations?
+    | Error Type | Cause | Solution |
+    |------------|-------|----------|
+    | **Upload Fails** | Empty content or invalid fileName | Verify `<agent1.content>` has data before upload |
+    | **Folder Not Found** | Invalid folderSelector or manualFolderId | Use `onedrive_list` to verify folder IDs exist |
+    | **Quota Exceeded** | OneDrive storage limit reached | Check account storage or implement file cleanup |
+    | **Network Timeout** | Large file upload interrupted | Implement retry logic or reduce file size |
+  </Accordion>
+  <Accordion title="How do I integrate OneDrive with Agent blocks for document processing?">
 
-Troubleshoot common OneDrive integration issues:
+    Combine OneDrive with AI agents for intelligent document workflows:
 
-#### Error Diagnosis Steps
+    #### Document Generation Pattern
+    ```
+    Webhook → Agent → OneDrive (upload)
+    ```
 
-1. **Check Success Status**: Always verify `<onedrive1.success>` before using outputs
-2. **Validate Inputs**: Ensure required fields like `fileName` and `content` are populated
-3. **Folder Permissions**: Confirm the target folder exists and is accessible
+    1. **Generate Content**: Connect `<start.prompt>` to Agent block's `userPrompt`
+    2. **Upload Result**: Connect `<agent1.content>` to OneDrive block's `content` input
+    3. **Dynamic Naming**: Use `<start.documentName>` or generate names like `Report_${timestamp}.txt`
 
-#### Common Error Patterns
+    #### Document Analysis Pattern
+    ```
+    OneDrive (list) → Function → Agent → OneDrive (upload)
+    ```
 
-| Error Type | Cause | Solution |
-|------------|-------|----------|
-| **Upload Fails** | Empty content or invalid fileName | Verify `<agent1.content>` has data before upload |
-| **Folder Not Found** | Invalid folderSelector or manualFolderId | Use `onedrive_list` to verify folder IDs exist |
-| **Quota Exceeded** | OneDrive storage limit reached | Check account storage or implement file cleanup |
-| **Network Timeout** | Large file upload interrupted | Implement retry logic or reduce file size |
+    1. **Retrieve Files**: List documents with `<onedrive1.files>`
+    2. **Process Content**: Use Function block to extract file content
+    3. **AI Analysis**: Send content to Agent for summarization or analysis
+    4. **Save Results**: Upload processed results back to OneDrive
 
-### How do I integrate OneDrive with Agent blocks for document processing?
-
-Combine OneDrive with AI agents for intelligent document workflows:
-
-#### Document Generation Pattern
-```
-Webhook → Agent → OneDrive (upload)
-```
-
-1. **Generate Content**: Connect `<start.prompt>` to Agent block's `userPrompt`
-2. **Upload Result**: Connect `<agent1.content>` to OneDrive block's `content` input
-3. **Dynamic Naming**: Use `<start.documentName>` or generate names like `Report_${timestamp}.txt`
-
-#### Document Analysis Pattern
-```
-OneDrive (list) → Function → Agent → OneDrive (upload)
-```
-
-1. **Retrieve Files**: List documents with `<onedrive1.files>`
-2. **Process Content**: Use Function block to extract file content
-3. **AI Analysis**: Send content to Agent for summarization or analysis
-4. **Save Results**: Upload processed results back to OneDrive
-
-This creates automated document processing pipelines that can analyze, transform, and organize files in your OneDrive storage.
+    This creates automated document processing pipelines that can analyze, transform, and organize files in your OneDrive storage.
+  </Accordion>
+</Accordions>
 {/* MANUAL-CONTENT-END */}

@@ -4,6 +4,8 @@ description: Access Reddit data and content
 ---
 
 import { BlockInfoCard } from "@/components/ui/block-info-card"
+import { Accordion, Accordions } from "fumadocs-ui/components/accordion"
+
 
 <BlockInfoCard 
   type="reddit"
@@ -136,133 +138,136 @@ For workflows processing user-generated content, implement appropriate data hand
 ## FAQ
 
 {/* MANUAL-CONTENT-START:faq */}
-### How do I fetch posts from a specific subreddit in my Sim.ai workflow?
+<Accordions type="single">
+  <Accordion title="How do I fetch posts from a specific subreddit in my Sim.ai workflow?">
 
-To retrieve Reddit posts, add a **Reddit block** to your workflow and configure the `reddit_get_posts` operation:
+    To retrieve Reddit posts, add a **Reddit block** to your workflow and configure the `reddit_get_posts` operation:
 
-#### Required Inputs
+    #### Required Inputs
 
-| Input | Description | Example |
-|-------|-------------|---------|
-| `subreddit` | Subreddit name without r/ prefix | `<start.subreddit>` or static value like `technology` |
-| `sort` | Post sorting method | `<start.sortBy>` or choose: `hot`, `new`, `top`, `rising` |
-| `limit` | Maximum posts to fetch (1-100) | `<start.postCount>` or static number like `25` |
-| `time` | Time filter for top posts | `<start.timeFilter>` or choose: `day`, `week`, `month`, `year`, `all` |
+    | Input | Description | Example |
+    |-------|-------------|---------|
+    | `subreddit` | Subreddit name without r/ prefix | `<start.subreddit>` or static value like `technology` |
+    | `sort` | Post sorting method | `<start.sortBy>` or choose: `hot`, `new`, `top`, `rising` |
+    | `limit` | Maximum posts to fetch (1-100) | `<start.postCount>` or static number like `25` |
+    | `time` | Time filter for top posts | `<start.timeFilter>` or choose: `day`, `week`, `month`, `year`, `all` |
 
-The block will return an array of posts with titles, scores, authors, and metadata that you can process in downstream blocks.
+    The block will return an array of posts with titles, scores, authors, and metadata that you can process in downstream blocks.
+  </Accordion>
+  <Accordion title="What outputs can I reference from a Reddit block after fetching posts?">
 
-### What outputs can I reference from a Reddit block after fetching posts?
+    Every Reddit block executing `reddit_get_posts` exposes these connection tags:
 
-Every Reddit block executing `reddit_get_posts` exposes these connection tags:
+    #### Available Post Outputs
 
-#### Available Post Outputs
+    | Output Tag | Type | Description |
+    |------------|------|-------------|
+    | `<reddit1.subreddit>` | String | Name of the subreddit that was queried |
+    | `<reddit1.posts>` | Array | Complete array of post objects |
+    | `<reddit1.posts[0].title>` | String | Title of the first post |
+    | `<reddit1.posts[0].author>` | String | Username of the post author |
+    | `<reddit1.posts[0].score>` | Number | Post upvote score |
+    | `<reddit1.posts[0].url>` | String | Direct URL to the Reddit post |
+    | `<reddit1.posts[0].num_comments>` | Number | Total comment count |
 
-| Output Tag | Type | Description |
-|------------|------|-------------|
-| `<reddit1.subreddit>` | String | Name of the subreddit that was queried |
-| `<reddit1.posts>` | Array | Complete array of post objects |
-| `<reddit1.posts[0].title>` | String | Title of the first post |
-| `<reddit1.posts[0].author>` | String | Username of the post author |
-| `<reddit1.posts[0].score>` | Number | Post upvote score |
-| `<reddit1.posts[0].url>` | String | Direct URL to the Reddit post |
-| `<reddit1.posts[0].num_comments>` | Number | Total comment count |
+    Use these tags to connect Reddit data to Agent blocks, Function blocks, or conditional logic in your workflow.
+  </Accordion>
+  <Accordion title="How do I fetch comments from a specific Reddit post in my workflow?">
 
-Use these tags to connect Reddit data to Agent blocks, Function blocks, or conditional logic in your workflow.
+    To retrieve comments from a Reddit post, configure a Reddit block with the `reddit_get_comments` operation:
 
-### How do I fetch comments from a specific Reddit post in my workflow?
+    #### Required Comment Inputs
 
-To retrieve comments from a Reddit post, configure a Reddit block with the `reddit_get_comments` operation:
+    | Input | Description | Example |
+    |-------|-------------|---------|
+    | `postId` | Reddit post ID (without prefixes) | `<reddit1.posts[0].id>` or static ID like `1a2b3c4` |
+    | `subreddit` | Subreddit containing the post | `<reddit1.subreddit>` or static name like `AskReddit` |
+    | `sort` | Comment sorting method | Choose: `confidence`, `top`, `new`, `controversial`, `old`, `random`, `qa` |
+    | `limit` | Maximum comments to return (1-100) | Static number like `20` or `<start.commentLimit>` |
 
-#### Required Comment Inputs
+    This operation returns detailed comment data including authors, scores, and reply threads.
+  </Accordion>
+  <Accordion title="What is the correct way to connect Reddit posts to an Agent block for content analysis?">
 
-| Input | Description | Example |
-|-------|-------------|---------|
-| `postId` | Reddit post ID (without prefixes) | `<reddit1.posts[0].id>` or static ID like `1a2b3c4` |
-| `subreddit` | Subreddit containing the post | `<reddit1.subreddit>` or static name like `AskReddit` |
-| `sort` | Comment sorting method | Choose: `confidence`, `top`, `new`, `controversial`, `old`, `random`, `qa` |
-| `limit` | Maximum comments to return (1-100) | Static number like `20` or `<start.commentLimit>` |
+    To analyze Reddit content with AI, connect the Reddit block's post data to an Agent block's input:
 
-This operation returns detailed comment data including authors, scores, and reply threads.
+    #### Example Workflow Configuration
+    ```
+    Reddit → Agent → Function
+    ```
 
-### What is the correct way to connect Reddit posts to an Agent block for content analysis?
+    #### Agent Block Setup
+    1. In the Agent's `userPrompt` field, reference Reddit data:
+       ```
+       Analyze these Reddit posts: <reddit1.posts>
+       ```
 
-To analyze Reddit content with AI, connect the Reddit block's post data to an Agent block's input:
+    2. Or process individual post elements:
+       ```
+       Summarize this post: Title: <reddit1.posts[0].title>, Content: <reddit1.posts[0].selftext>
+       ```
 
-#### Example Workflow Configuration
-```
-Reddit → Agent → Function
-```
+    The Agent can then generate insights, summaries, or classifications based on the Reddit content.
+  </Accordion>
+  <Accordion title="How do I create a workflow that monitors a subreddit and sends alerts based on specific criteria?">
 
-#### Agent Block Setup
-1. In the Agent's `userPrompt` field, reference Reddit data:
-   ```
-   Analyze these Reddit posts: <reddit1.posts>
-   ```
+    Build an automated Reddit monitoring system using this pattern:
 
-2. Or process individual post elements:
-   ```
-   Summarize this post: Title: <reddit1.posts[0].title>, Content: <reddit1.posts[0].selftext>
-   ```
+    #### Workflow Structure
+    ```
+    Webhook/Schedule → Reddit → Function → Condition → Agent → Notification
+    ```
 
-The Agent can then generate insights, summaries, or classifications based on the Reddit content.
+    #### Step-by-Step Setup
 
-### How do I create a workflow that monitors a subreddit and sends alerts based on specific criteria?
+    1. **Trigger Block**: Use Webhook or Schedule to initiate monitoring
+    2. **Reddit Block**: Configure with:
+       ```json
+       {
+         "subreddit": "<start.targetSubreddit>",
+         "sort": "new",
+         "limit": 10
+       }
+       ```
+    3. **Function Block**: Filter posts by keywords or scores
+    4. **Condition Block**: Check if posts meet alert criteria
+    5. **Agent Block**: Generate alert message using `<reddit1.posts>` data
+  </Accordion>
+  <Accordion title="Why am I getting empty results from my Reddit block?">
 
-Build an automated Reddit monitoring system using this pattern:
+    Troubleshoot Reddit data retrieval issues with these common solutions:
 
-#### Workflow Structure
-```
-Webhook/Schedule → Reddit → Function → Condition → Agent → Notification
-```
+    #### Common Issues and Fixes
 
-#### Step-by-Step Setup
+    | Problem | Cause | Solution |
+    |---------|-------|----------|
+    | **Empty posts array** | Subreddit name incorrect | Remove `r/` prefix, use exact subreddit name |
+    | **Rate limit errors** | Too many requests | Reduce `limit` parameter or add delays between requests |
+    | **Invalid post ID** | Wrong ID format for comments | Use post ID without `t3_` prefix |
+    | **Restricted content** | Private/banned subreddit | Verify subreddit exists and is publicly accessible |
+    | **Time filter issues** | Wrong time parameter | Use exact values: `day`, `week`, `month`, `year`, `all` |
 
-1. **Trigger Block**: Use Webhook or Schedule to initiate monitoring
-2. **Reddit Block**: Configure with:
-   ```json
-   {
-     "subreddit": "<start.targetSubreddit>",
-     "sort": "new",
-     "limit": 10
-   }
-   ```
-3. **Function Block**: Filter posts by keywords or scores
-4. **Condition Block**: Check if posts meet alert criteria
-5. **Agent Block**: Generate alert message using `<reddit1.posts>` data
+    Check workflow execution logs for specific error messages from Reddit's API.
+  </Accordion>
+  <Accordion title="Can I combine multiple Reddit operations in a single workflow for comprehensive data analysis?">
 
-### Why am I getting empty results from my Reddit block?
+    Yes! Chain Reddit operations to build comprehensive content analysis workflows:
 
-Troubleshoot Reddit data retrieval issues with these common solutions:
+    #### Multi-Operation Pattern
 
-#### Common Issues and Fixes
+    ##### 1. **Posts → Comments → Analysis**
+    ```
+    Reddit (get_posts) → Function (extract post IDs) → Reddit (get_comments) → Agent (analyze sentiment)
+    ```
 
-| Problem | Cause | Solution |
-|---------|-------|----------|
-| **Empty posts array** | Subreddit name incorrect | Remove `r/` prefix, use exact subreddit name |
-| **Rate limit errors** | Too many requests | Reduce `limit` parameter or add delays between requests |
-| **Invalid post ID** | Wrong ID format for comments | Use post ID without `t3_` prefix |
-| **Restricted content** | Private/banned subreddit | Verify subreddit exists and is publicly accessible |
-| **Time filter issues** | Wrong time parameter | Use exact values: `day`, `week`, `month`, `year`, `all` |
+    ##### 2. **Comparative Analysis**
+    ```
+    Reddit (subreddit A) → Function (store data)
+    Reddit (subreddit B) → Function (compare with A) → Agent (generate insights)
+    ```
 
-Check workflow execution logs for specific error messages from Reddit's API.
-
-### Can I combine multiple Reddit operations in a single workflow for comprehensive data analysis?
-
-Yes! Chain Reddit operations to build comprehensive content analysis workflows:
-
-#### Multi-Operation Pattern
-
-##### 1. **Posts → Comments → Analysis**
-```
-Reddit (get_posts) → Function (extract post IDs) → Reddit (get_comments) → Agent (analyze sentiment)
-```
-
-##### 2. **Comparative Analysis**
-```
-Reddit (subreddit A) → Function (store data)
-Reddit (subreddit B) → Function (compare with A) → Agent (generate insights)
-```
-
-##### 3. **Content Aggregation**
-Use Function blocks to merge `<reddit1.posts>` and `<reddit2.posts>` arrays, then analyze combined data with Agent blocks for cross-subreddit insights and trend identification.
+    ##### 3. **Content Aggregation**
+    Use Function blocks to merge `<reddit1.posts>` and `<reddit2.posts>` arrays, then analyze combined data with Agent blocks for cross-subreddit insights and trend identification.
+  </Accordion>
+</Accordions>
 {/* MANUAL-CONTENT-END */}

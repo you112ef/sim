@@ -4,6 +4,8 @@ description: Connect to PostgreSQL database
 ---
 
 import { BlockInfoCard } from "@/components/ui/block-info-card"
+import { Accordion, Accordions } from "fumadocs-ui/components/accordion"
+
 
 <BlockInfoCard 
   type="postgresql"
@@ -234,153 +236,156 @@ For high-frequency workflows, cache frequently accessed reference data using int
 ## FAQ
 
 {/* MANUAL-CONTENT-START:faq */}
-### How do I connect my Sim.ai workflow to a PostgreSQL database?
+<Accordions type="single">
+  <Accordion title="How do I connect my Sim.ai workflow to a PostgreSQL database?">
 
-To connect your workflow to a PostgreSQL database, add a **PostgreSQL block** to your workflow and configure the required database connection inputs:
+    To connect your workflow to a PostgreSQL database, add a **PostgreSQL block** to your workflow and configure the required database connection inputs:
 
-#### Required Connection Inputs
+    #### Required Connection Inputs
 
-| Input | Description | Example |
-|-------|-------------|---------|
-| `host` | PostgreSQL server hostname or IP | `<start.dbHost>` or `"localhost"` |
-| `port` | PostgreSQL server port | `<start.dbPort>` or `5432` |
-| `database` | Database name to connect to | `<start.dbName>` or `"myapp"` |
-| `username` | Database username | `<start.dbUser>` or environment variable |
-| `password` | Database password | `<start.dbPassword>` or secure connection |
+    | Input | Description | Example |
+    |-------|-------------|---------|
+    | `host` | PostgreSQL server hostname or IP | `<start.dbHost>` or `"localhost"` |
+    | `port` | PostgreSQL server port | `<start.dbPort>` or `5432` |
+    | `database` | Database name to connect to | `<start.dbName>` or `"myapp"` |
+    | `username` | Database username | `<start.dbUser>` or environment variable |
+    | `password` | Database password | `<start.dbPassword>` or secure connection |
 
-#### Optional SSL Configuration
-Set `ssl` to `"required"`, `"preferred"`, or `"disabled"` based on your security requirements.
+    #### Optional SSL Configuration
+    Set `ssl` to `"required"`, `"preferred"`, or `"disabled"` based on your security requirements.
+  </Accordion>
+  <Accordion title="What is the correct way to execute SELECT queries using the PostgreSQL block?">
 
-### What is the correct way to execute SELECT queries using the PostgreSQL block?
+    Use the **postgresql_query** operation to retrieve data from your database:
 
-Use the **postgresql_query** operation to retrieve data from your database:
+    1. **Configure connection parameters** using connection tags like `<start.dbHost>`
+    2. **Set the query input** with your SQL SELECT statement
+    3. **Reference results** using output connection tags
 
-1. **Configure connection parameters** using connection tags like `<start.dbHost>`
-2. **Set the query input** with your SQL SELECT statement
-3. **Reference results** using output connection tags
+    #### Example Configuration
+    ```sql
+    SELECT id, name, email FROM users WHERE created_at > '2024-01-01'
+    ```
 
-#### Example Configuration
-```sql
-SELECT id, name, email FROM users WHERE created_at > '2024-01-01'
-```
+    Connect this query string to the `query` input field, either as static text or from another block like `<agent1.generatedQuery>`.
+  </Accordion>
+  <Accordion title="How do I reference PostgreSQL block outputs in downstream workflow blocks?">
 
-Connect this query string to the `query` input field, either as static text or from another block like `<agent1.generatedQuery>`.
+    Every PostgreSQL block exposes three main outputs that can be referenced using connection tags:
 
-### How do I reference PostgreSQL block outputs in downstream workflow blocks?
+    #### Available Output Tags
 
-Every PostgreSQL block exposes three main outputs that can be referenced using connection tags:
+    | Output Tag | Type | Description |
+    |------------|------|-------------|
+    | `<postgresql1.message>` | String | Success/error message from the database operation |
+    | `<postgresql1.rows>` | Array | Array of rows returned from SELECT queries |
+    | `<postgresql1.rowCount>` | Number | Number of rows affected or returned |
 
-#### Available Output Tags
+    #### Accessing Specific Row Data
+    For detailed row access, use array indexing: `<postgresql1.rows[0].columnName>` to get the first row's specific column value.
+  </Accordion>
+  <Accordion title="How do I insert data from other blocks into PostgreSQL tables?">
 
-| Output Tag | Type | Description |
-|------------|------|-------------|
-| `<postgresql1.message>` | String | Success/error message from the database operation |
-| `<postgresql1.rows>` | Array | Array of rows returned from SELECT queries |
-| `<postgresql1.rowCount>` | Number | Number of rows affected or returned |
+    Use the **postgresql_insert** operation with the `data` input configured as a JSON object:
 
-#### Accessing Specific Row Data
-For detailed row access, use array indexing: `<postgresql1.rows[0].columnName>` to get the first row's specific column value.
+    #### Step-by-Step Process
 
-### How do I insert data from other blocks into PostgreSQL tables?
+    1. **Set the table name** in the `table` input field
+    2. **Configure the data object** using connection tags from upstream blocks:
 
-Use the **postgresql_insert** operation with the `data` input configured as a JSON object:
+    ```json
+    {
+      "name": "<start.userName>",
+      "email": "<start.userEmail>",
+      "status": "<agent1.processedStatus>",
+      "created_at": "<function1.timestamp>"
+    }
+    ```
 
-#### Step-by-Step Process
+    3. **Reference insertion results** using `<postgresql1.rowCount>` to confirm successful insertion
+  </Accordion>
+  <Accordion title="How can I update existing PostgreSQL records based on workflow conditions?">
 
-1. **Set the table name** in the `table` input field
-2. **Configure the data object** using connection tags from upstream blocks:
+    Use the **postgresql_update** operation with conditional WHERE clauses:
 
-```json
-{
-  "name": "<start.userName>",
-  "email": "<start.userEmail>",
-  "status": "<agent1.processedStatus>",
-  "created_at": "<function1.timestamp>"
-}
-```
+    #### Required Update Inputs
 
-3. **Reference insertion results** using `<postgresql1.rowCount>` to confirm successful insertion
+    | Input | Purpose | Example |
+    |-------|---------|---------|
+    | `table` | Target table name | `"users"` or `<start.tableName>` |
+    | `data` | Fields to update | `{"status": "<agent1.newStatus>"}` |
+    | `where` | Condition (without WHERE) | `"id = <start.userId>"` |
 
-### How can I update existing PostgreSQL records based on workflow conditions?
+    #### Example Workflow Pattern
+    ```
+    Webhook → Function → PostgreSQL Update → Agent
+    ```
+    Update user records based on incoming webhook data, then send confirmation via an Agent block.
+  </Accordion>
+  <Accordion title="What are the common PostgreSQL connection errors and how do I troubleshoot them?">
 
-Use the **postgresql_update** operation with conditional WHERE clauses:
+    Troubleshoot database connectivity issues with this systematic approach:
 
-#### Required Update Inputs
+    #### Common Issues and Solutions
 
-| Input | Purpose | Example |
-|-------|---------|---------|
-| `table` | Target table name | `"users"` or `<start.tableName>` |
-| `data` | Fields to update | `{"status": "<agent1.newStatus>"}` |
-| `where` | Condition (without WHERE) | `"id = <start.userId>"` |
+    | Error Type | Description | Solution |
+    |------------|-------------|----------|
+    | **Connection Timeout** | Cannot reach database server | Verify `<start.host>` and `<start.port>` values |
+    | **Authentication Failed** | Invalid credentials | Check `<start.username>` and `<start.password>` |
+    | **Database Not Found** | Target database doesn't exist | Confirm `<start.database>` name is correct |
+    | **SSL Connection Error** | SSL configuration mismatch | Set `ssl` to `"disabled"` for testing |
+    | **Query Syntax Error** | Invalid SQL in query input | Validate SQL syntax in `query` field |
+    | **Permission Denied** | User lacks table privileges | Grant appropriate permissions to database user |
 
-#### Example Workflow Pattern
-```
-Webhook → Function → PostgreSQL Update → Agent
-```
-Update user records based on incoming webhook data, then send confirmation via an Agent block.
+    Check workflow execution logs for specific PostgreSQL error messages and connection details.
+  </Accordion>
+  <Accordion title="How do I combine PostgreSQL blocks with Agent blocks for data-driven AI responses?">
 
-### What are the common PostgreSQL connection errors and how do I troubleshoot them?
+    Create intelligent workflows that query databases and generate AI responses:
 
-Troubleshoot database connectivity issues with this systematic approach:
+    #### Pattern 1: **Query → Agent Analysis**
+    ```
+    PostgreSQL Query → Agent → Response Block
+    ```
+    Connect `<postgresql1.rows>` to an Agent's `userPrompt` for data analysis and insights.
 
-#### Common Issues and Solutions
+    #### Pattern 2: **Agent → Database Operations**
+    ```
+    Agent → Function → PostgreSQL Insert → Confirmation
+    ```
+    Let agents generate structured data, transform it via Function block, then store in PostgreSQL.
 
-| Error Type | Description | Solution |
-|------------|-------------|----------|
-| **Connection Timeout** | Cannot reach database server | Verify `<start.host>` and `<start.port>` values |
-| **Authentication Failed** | Invalid credentials | Check `<start.username>` and `<start.password>` |
-| **Database Not Found** | Target database doesn't exist | Confirm `<start.database>` name is correct |
-| **SSL Connection Error** | SSL configuration mismatch | Set `ssl` to `"disabled"` for testing |
-| **Query Syntax Error** | Invalid SQL in query input | Validate SQL syntax in `query` field |
-| **Permission Denied** | User lacks table privileges | Grant appropriate permissions to database user |
+    #### Pattern 3: **Conditional Database Updates**
+    ```
+    PostgreSQL Query → Condition → PostgreSQL Update → Agent
+    ```
+    Query existing data, check conditions, update records, and generate status reports through agents.
+  </Accordion>
+  <Accordion title="Can I execute complex SQL operations and stored procedures with PostgreSQL blocks?">
 
-Check workflow execution logs for specific PostgreSQL error messages and connection details.
+    Yes, use the **postgresql_execute** operation for advanced SQL operations:
 
-### How do I combine PostgreSQL blocks with Agent blocks for data-driven AI responses?
+    #### Supported SQL Operations
+    - **Complex JOINs and subqueries** for multi-table data retrieval
+    - **Stored procedure calls** using `CALL procedure_name(parameters)`
+    - **Database functions** and custom SQL commands
+    - **Transaction control** with BEGIN, COMMIT, ROLLBACK statements
 
-Create intelligent workflows that query databases and generate AI responses:
+    #### Example Complex Query
+    ```sql
+    WITH user_stats AS (
+      SELECT user_id, COUNT(*) as order_count 
+      FROM orders 
+      WHERE created_at > '<function1.dateRange>'
+      GROUP BY user_id
+    )
+    SELECT u.name, u.email, us.order_count
+    FROM users u
+    JOIN user_stats us ON u.id = us.user_id
+    ORDER BY us.order_count DESC
+    ```
 
-#### Pattern 1: **Query → Agent Analysis**
-```
-PostgreSQL Query → Agent → Response Block
-```
-Connect `<postgresql1.rows>` to an Agent's `userPrompt` for data analysis and insights.
-
-#### Pattern 2: **Agent → Database Operations**
-```
-Agent → Function → PostgreSQL Insert → Confirmation
-```
-Let agents generate structured data, transform it via Function block, then store in PostgreSQL.
-
-#### Pattern 3: **Conditional Database Updates**
-```
-PostgreSQL Query → Condition → PostgreSQL Update → Agent
-```
-Query existing data, check conditions, update records, and generate status reports through agents.
-
-### Can I execute complex SQL operations and stored procedures with PostgreSQL blocks?
-
-Yes, use the **postgresql_execute** operation for advanced SQL operations:
-
-#### Supported SQL Operations
-- **Complex JOINs and subqueries** for multi-table data retrieval
-- **Stored procedure calls** using `CALL procedure_name(parameters)`
-- **Database functions** and custom SQL commands
-- **Transaction control** with BEGIN, COMMIT, ROLLBACK statements
-
-#### Example Complex Query
-```sql
-WITH user_stats AS (
-  SELECT user_id, COUNT(*) as order_count 
-  FROM orders 
-  WHERE created_at > '<function1.dateRange>'
-  GROUP BY user_id
-)
-SELECT u.name, u.email, us.order_count
-FROM users u
-JOIN user_stats us ON u.id = us.user_id
-ORDER BY us.order_count DESC
-```
-
-Connect this to the `query` input and reference results using `<postgresql1.rows>` for downstream processing.
+    Connect this to the `query` input and reference results using `<postgresql1.rows>` for downstream processing.
+  </Accordion>
+</Accordions>
 {/* MANUAL-CONTENT-END */}

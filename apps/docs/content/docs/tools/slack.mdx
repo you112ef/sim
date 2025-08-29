@@ -4,6 +4,8 @@ description: Send messages to Slack or trigger workflows from Slack events
 ---
 
 import { BlockInfoCard } from "@/components/ui/block-info-card"
+import { Accordion, Accordions } from "fumadocs-ui/components/accordion"
+
 
 <BlockInfoCard 
   type="slack"
@@ -61,6 +63,59 @@ In Sim, the Slack integration enables your agents to programmatically interact w
 This allows for powerful automation scenarios such as sending notifications, alerts, updates, and reports directly to your team's communication hub, sharing structured documents, or monitoring conversations for workflow triggers. Your agents can deliver timely information, share results from processes they've completed, create collaborative documents, or alert team members when attention is needed. This integration bridges the gap between your AI workflows and your team's communication, ensuring everyone stays informed without manual intervention. By connecting Sim with Slack, you can create agents that keep your team updated with relevant information at the right time, enhance collaboration by sharing insights automatically, and reduce the need for manual status updates—all while leveraging your existing Slack workspace where your team already communicates.
 {/* MANUAL-CONTENT-END */}
 
+
+## Webhook
+
+Trigger workflows from new Slack channel messages. You can use the Slack block in trigger mode to start a workflow when your Slack app receives an event (e.g., `message.channels`) via Slack Event Subscriptions. Click the lightning bolt icon to enable trigger mode, then configure your app’s Events to send to your workflow webhook URL.
+
+### Configuration Inputs
+
+| Input | Type | Required | Description |
+|------|------|----------|-------------|
+| `eventType` | string | Yes | Slack event type to handle (e.g., `message.channels`). |
+| `signingSecret` | string | No | Slack app signing secret for signature validation. |
+| `validateSignature` | boolean | No | Validate `X-Slack-Signature` using `X-Slack-Request-Timestamp`. Defaults to `true`. |
+
+### Outputs
+
+| Output | Type | Description |
+|--------|------|-------------|
+| `payloads` | array | The raw Slack event payloads received. |
+| `latestPayload` | object | Convenience object of the latest event payload. |
+| `slackEvent` | object | Parsed event fields (type, channel, user, text, ts). |
+
+#### `latestPayload` shape
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `type` | string | Envelope type (e.g., `event_callback`). |
+| `team_id` | string | Slack team ID. |
+| `api_app_id` | string | App ID. |
+| `event` | object | The inner event object (e.g., `message`). |
+| `event_id` | string | Unique event ID. |
+| `event_time` | number | Unix timestamp for event. |
+
+### Example webhook event body (raw Slack event payload)
+
+```json
+{
+  "token": "Jhj5dZrVaK7ZwHHjRyZWjbDl",
+  "team_id": "T0001",
+  "api_app_id": "A0FFV41KK",
+  "type": "event_callback",
+  "event_id": "Ev08MFMKH6",
+  "event_time": 1234567890,
+  "event": {
+    "type": "message",
+    "channel": "C2147483705",
+    "user": "U2147483697",
+    "text": "Hello world",
+    "ts": "1355517523.000005"
+  }
+}
+```
+
+Method: `POST`  •  Headers: `Content-Type: application/json`, `X-Slack-Signature`, `X-Slack-Request-Timestamp`
 
 ## Operations
 
@@ -202,151 +257,154 @@ Monitor API response times and implement circuit breaker patterns for workflows 
 ## FAQ
 
 {/* MANUAL-CONTENT-START:faq */}
-### How do I send a message from my workflow to a Slack channel?
+<Accordions type="single">
+  <Accordion title="How do I send a message from my workflow to a Slack channel?">
 
-To send messages from your workflow to Slack, add a **Slack block** to your Sim.ai workflow and configure its required inputs:
+    To send messages from your workflow to Slack, add a **Slack block** to your Sim.ai workflow and configure its required inputs:
 
-#### Required Inputs
+    #### Required Inputs
 
-| Input | Description | Example |
-|-------|-------------|---------|
-| `channel` | Target Slack channel or user | `<start.channel>` or static value like `#general` |
-| `text` | Message content (supports mrkdwn formatting) | `<agent1.content>` or any string |
+    | Input | Description | Example |
+    |-------|-------------|---------|
+    | `channel` | Target Slack channel or user | `<start.channel>` or static value like `#general` |
+    | `text` | Message content (supports mrkdwn formatting) | `<agent1.content>` or any string |
 
-#### Optional Authentication
+    #### Optional Authentication
 
-| Input | Description | Example |
-|-------|-------------|---------|
-| `authMethod` | Choose `oauth` or `bot_token` | `oauth` (recommended) |
-| `botToken` | Bot token if using custom bot | `<start.botToken>` or environment variable |
+    | Input | Description | Example |
+    |-------|-------------|---------|
+    | `authMethod` | Choose `oauth` or `bot_token` | `oauth` (recommended) |
+    | `botToken` | Bot token if using custom bot | `<start.botToken>` or environment variable |
+  </Accordion>
+  <Accordion title="How do I trigger a workflow when someone mentions my bot in Slack?">
 
-### How do I trigger a workflow when someone mentions my bot in Slack?
+    To create Slack-triggered workflows in Sim.ai:
 
-To create Slack-triggered workflows in Sim.ai:
+    1. **Add a Webhook Trigger block** as your workflow's entry point
+    2. **Configure Slack Event Subscriptions** to send events to your webhook URL
+    3. **Map incoming event fields** to downstream blocks:
 
-1. **Add a Webhook Trigger block** as your workflow's entry point
-2. **Configure Slack Event Subscriptions** to send events to your webhook URL
-3. **Map incoming event fields** to downstream blocks:
+    #### Example Workflow
+    ```
+    Webhook → Agent → Slack
+    ```
+    Connect `<start.event.text>` to an Agent block's `userPrompt` to process incoming mentions or messages.
+  </Accordion>
+  <Accordion title="What is the correct way to reference Slack block outputs in my workflow?">
 
-#### Example Workflow
-```
-Webhook → Agent → Slack
-```
-Connect `<start.event.text>` to an Agent block's `userPrompt` to process incoming mentions or messages.
+    Every Slack block exposes outputs that can be referenced using connection tags based on the operation used:
 
-### What is the correct way to reference Slack block outputs in my workflow?
+    #### Message Operation Outputs
 
-Every Slack block exposes outputs that can be referenced using connection tags based on the operation used:
+    | Output Tag | Type | Description |
+    |------------|------|-------------|
+    | `<slack1.ts>` | String | Message timestamp from Slack API |
+    | `<slack1.channel>` | String | Channel ID where message was sent |
 
-#### Message Operation Outputs
+    #### Canvas Operation Outputs
 
-| Output Tag | Type | Description |
-|------------|------|-------------|
-| `<slack1.ts>` | String | Message timestamp from Slack API |
-| `<slack1.channel>` | String | Channel ID where message was sent |
+    | Output Tag | Type | Description |
+    |------------|------|-------------|
+    | `<slack1.canvas_id>` | String | ID of the created canvas |
+    | `<slack1.channel>` | String | Channel where canvas was created |
+    | `<slack1.title>` | String | Title of the canvas |
 
-#### Canvas Operation Outputs
+    #### Message Reader Operation Outputs
 
-| Output Tag | Type | Description |
-|------------|------|-------------|
-| `<slack1.canvas_id>` | String | ID of the created canvas |
-| `<slack1.channel>` | String | Channel where canvas was created |
-| `<slack1.title>` | String | Title of the canvas |
+    | Output Tag | Type | Description |
+    |------------|------|-------------|
+    | `<slack1.messages>` | Array | Array of message objects from the channel |
+  </Accordion>
+  <Accordion title="How do I connect an Agent block's output to a Slack message with formatting?">
 
-#### Message Reader Operation Outputs
+    To route an agent's response to Slack with rich formatting:
 
-| Output Tag | Type | Description |
-|------------|------|-------------|
-| `<slack1.messages>` | Array | Array of message objects from the channel |
+    1. In the Slack block's `text` field, type `<>` to open the connection menu
+    2. Select `<agent1.content>` from available connections
+    3. Use Slack mrkdwn formatting for enhanced presentation:
 
-### How do I connect an Agent block's output to a Slack message with formatting?
+    #### Example Configuration
 
-To route an agent's response to Slack with rich formatting:
+    ```json
+    {
+      "channel": "<start.event.channel>",
+      "text": "*AI Response:*\n\n<agent1.content>\n\n_Generated by Sim.ai workflow_"
+    }
+    ```
 
-1. In the Slack block's `text` field, type `<>` to open the connection menu
-2. Select `<agent1.content>` from available connections
-3. Use Slack mrkdwn formatting for enhanced presentation:
+    This configuration sends formatted messages with bold headers and italicized footers using Slack's mrkdwn syntax.
+  </Accordion>
+  <Accordion title="How do I read messages from a Slack channel in my workflow?">
 
-#### Example Configuration
+    To retrieve channel messages using the `slack_message_reader` operation:
 
-```json
-{
-  "channel": "<start.event.channel>",
-  "text": "*AI Response:*\n\n<agent1.content>\n\n_Generated by Sim.ai workflow_"
-}
-```
+    #### Required Inputs
 
-This configuration sends formatted messages with bold headers and italicized footers using Slack's mrkdwn syntax.
+    | Input | Description | Example |
+    |-------|-------------|---------|
+    | `channel` | Slack channel to read from | `<start.channel>` or `#support` |
 
-### How do I read messages from a Slack channel in my workflow?
+    #### Optional Filtering
 
-To retrieve channel messages using the `slack_message_reader` operation:
+    | Input | Description | Example |
+    |-------|-------------|---------|
+    | `limit` | Number of messages (max 100) | `10` or `<start.messageCount>` |
+    | `oldest` | Start timestamp | `<start.fromTime>` |
+    | `latest` | End timestamp | `<start.toTime>` |
 
-#### Required Inputs
+    Access individual messages using `<slack1.messages[0].text>` or iterate through all messages in downstream blocks.
+  </Accordion>
+  <Accordion title="Why is my Slack message not sending or canvas not creating?">
 
-| Input | Description | Example |
-|-------|-------------|---------|
-| `channel` | Slack channel to read from | `<start.channel>` or `#support` |
+    Troubleshoot common issues with this systematic approach:
 
-#### Optional Filtering
+    #### Authentication Issues
 
-| Input | Description | Example |
-|-------|-------------|---------|
-| `limit` | Number of messages (max 100) | `10` or `<start.messageCount>` |
-| `oldest` | Start timestamp | `<start.fromTime>` |
-| `latest` | End timestamp | `<start.toTime>` |
+    | Problem | Solution |
+    |---------|----------|
+    | **OAuth not configured** | Set up Slack app OAuth in workspace settings |
+    | **Invalid bot token** | Verify `<start.botToken>` matches your bot's token |
+    | **Missing scopes** | Ensure bot has `chat:write` and `channels:read` permissions |
 
-Access individual messages using `<slack1.messages[0].text>` or iterate through all messages in downstream blocks.
+    #### Channel and Content Issues
 
-### Why is my Slack message not sending or canvas not creating?
+    | Problem | Solution |
+    |---------|----------|
+    | **Channel not found** | Use channel ID or verify `#channel-name` format |
+    | **Bot not in channel** | Invite bot to private channels before sending |
+    | **Empty text field** | Ensure `text` input has content (e.g., `<agent1.content>`) |
+    | **Canvas content missing** | Provide both `title` and `content` for canvas creation |
 
-Troubleshoot common issues with this systematic approach:
+    #### Workflow Integration Issues
 
-#### Authentication Issues
+    | Problem | Solution |
+    |---------|----------|
+    | **Connection tag errors** | Verify upstream blocks produce expected outputs |
+    | **Channel mismatch** | Ensure `<start.event.channel>` matches intended destination |
+  </Accordion>
+  <Accordion title="Can I create complex Slack automations with multiple operations?">
 
-| Problem | Solution |
-|---------|----------|
-| **OAuth not configured** | Set up Slack app OAuth in workspace settings |
-| **Invalid bot token** | Verify `<start.botToken>` matches your bot's token |
-| **Missing scopes** | Ensure bot has `chat:write` and `channels:read` permissions |
+    Yes! Slack blocks support multiple operations and integrate seamlessly with other Sim.ai workflow components:
 
-#### Channel and Content Issues
+    #### Advanced Workflow Patterns
 
-| Problem | Solution |
-|---------|----------|
-| **Channel not found** | Use channel ID or verify `#channel-name` format |
-| **Bot not in channel** | Invite bot to private channels before sending |
-| **Empty text field** | Ensure `text` input has content (e.g., `<agent1.content>`) |
-| **Canvas content missing** | Provide both `title` and `content` for canvas creation |
+    ##### 1. **Webhook → Agent → Slack Message + Canvas**
+    Process Slack mentions, generate AI responses, and create documentation canvases simultaneously.
 
-#### Workflow Integration Issues
+    ##### 2. **API → Function → Slack Message Reader → Condition → Slack**
+    Read channel history, analyze content with external APIs, and send conditional responses.
 
-| Problem | Solution |
-|---------|----------|
-| **Connection tag errors** | Verify upstream blocks produce expected outputs |
-| **Channel mismatch** | Ensure `<start.event.channel>` matches intended destination |
+    ##### 3. **Schedule → Slack Message Reader → Agent → Slack**
+    Daily digest workflows that read channel activity and generate AI-powered summaries.
 
-### Can I create complex Slack automations with multiple operations?
+    ##### 4. **Multi-Channel Broadcasting**
+    ```
+    Agent → Slack (#general)
+          → Slack (#updates)
+          → Slack (#team-alerts)
+    ```
 
-Yes! Slack blocks support multiple operations and integrate seamlessly with other Sim.ai workflow components:
-
-#### Advanced Workflow Patterns
-
-##### 1. **Webhook → Agent → Slack Message + Canvas**
-Process Slack mentions, generate AI responses, and create documentation canvases simultaneously.
-
-##### 2. **API → Function → Slack Message Reader → Condition → Slack**
-Read channel history, analyze content with external APIs, and send conditional responses.
-
-##### 3. **Schedule → Slack Message Reader → Agent → Slack**
-Daily digest workflows that read channel activity and generate AI-powered summaries.
-
-##### 4. **Multi-Channel Broadcasting**
-```
-Agent → Slack (#general)
-      → Slack (#updates)
-      → Slack (#team-alerts)
-```
-
-Use the same agent output to broadcast formatted messages across multiple channels with different styling and context.
+    Use the same agent output to broadcast formatted messages across multiple channels with different styling and context.
+  </Accordion>
+</Accordions>
 {/* MANUAL-CONTENT-END */}

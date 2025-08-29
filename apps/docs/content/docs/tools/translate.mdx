@@ -4,6 +4,8 @@ description: Translate text to any language
 ---
 
 import { BlockInfoCard } from "@/components/ui/block-info-card"
+import { Accordion, Accordions } from "fumadocs-ui/components/accordion"
+
 
 <BlockInfoCard 
   type="translate"
@@ -149,141 +151,144 @@ For critical translations, consider implementing parallel translation workflows 
 ## FAQ
 
 {/* MANUAL-CONTENT-START:faq */}
-### How do I translate text from another block in my Sim.ai workflow?
+<Accordions type="single">
+  <Accordion title="How do I translate text from another block in my Sim.ai workflow?">
 
-To translate text from upstream blocks, add a **Translate block** to your workflow and connect the source text using connection tags:
+    To translate text from upstream blocks, add a **Translate block** to your workflow and connect the source text using connection tags:
 
-#### Required Inputs
+    #### Required Inputs
 
-| Input | Description | Example |
-|-------|-------------|---------|
-| `text` | Source text to translate | `<agent1.content>` or `<start.message>` |
-| `target_language` | Target language code | `"es"` for Spanish or `<start.language>` |
-| `source_language` | Source language (optional) | `"en"` or `"auto"` for auto-detection |
+    | Input | Description | Example |
+    |-------|-------------|---------|
+    | `text` | Source text to translate | `<agent1.content>` or `<start.message>` |
+    | `target_language` | Target language code | `"es"` for Spanish or `<start.language>` |
+    | `source_language` | Source language (optional) | `"en"` or `"auto"` for auto-detection |
 
-Connect any text output from previous blocks by typing `<>` in the text field and selecting the desired connection.
+    Connect any text output from previous blocks by typing `<>` in the text field and selecting the desired connection.
+  </Accordion>
+  <Accordion title="What outputs can I reference from a Translate block in downstream blocks?">
 
-### What outputs can I reference from a Translate block in downstream blocks?
+    Every Translate block exposes three outputs that can be referenced using connection tags:
 
-Every Translate block exposes three outputs that can be referenced using connection tags:
+    #### Available Outputs
 
-#### Available Outputs
+    | Output Tag | Type | Description |
+    |------------|------|-------------|
+    | `<translate1.content>` | String | The translated text result |
+    | `<translate1.model>` | String | Language model used for translation |
+    | `<translate1.tokens>` | JSON Object | Token usage statistics and costs |
 
-| Output Tag | Type | Description |
-|------------|------|-------------|
-| `<translate1.content>` | String | The translated text result |
-| `<translate1.model>` | String | Language model used for translation |
-| `<translate1.tokens>` | JSON Object | Token usage statistics and costs |
+    The most commonly used output is `<translate1.content>` which contains the actual translated text for use in subsequent blocks.
+  </Accordion>
+  <Accordion title="How do I connect a Translate block to send translated messages via other communication blocks?">
 
-The most commonly used output is `<translate1.content>` which contains the actual translated text for use in subsequent blocks.
+    To create translation workflows that output to messaging platforms:
 
-### How do I connect a Translate block to send translated messages via other communication blocks?
+    1. **Connect the source text** to the Translate block's `text` input
+    2. **Reference the translated output** in downstream blocks
 
-To create translation workflows that output to messaging platforms:
+    #### Example Workflow Pattern
+    ```
+    Webhook → Translate → Telegram
+    ```
 
-1. **Connect the source text** to the Translate block's `text` input
-2. **Reference the translated output** in downstream blocks
+    Configuration:
+    - Translate block: `text` = `<start.message.text>`
+    - Telegram block: `text` = `<translate1.content>`
 
-#### Example Workflow Pattern
-```
-Webhook → Translate → Telegram
-```
+    This automatically translates incoming messages and forwards them to Telegram in the target language.
+  </Accordion>
+  <Accordion title="Can I use variables or dynamic inputs to specify the target language?">
 
-Configuration:
-- Translate block: `text` = `<start.message.text>`
-- Telegram block: `text` = `<translate1.content>`
+    Yes! The Translate block accepts dynamic language specifications through connection tags:
 
-This automatically translates incoming messages and forwards them to Telegram in the target language.
+    #### Dynamic Language Selection
 
-### Can I use variables or dynamic inputs to specify the target language?
+    | Method | Example | Use Case |
+    |--------|---------|----------|
+    | **From webhook payload** | `<start.target_lang>` | User specifies language in request |
+    | **From function output** | `<function1.detected_language>` | Language detection logic |
+    | **From condition result** | `<condition1.language_code>` | Conditional language routing |
+    | **Static value** | `"fr"` | Fixed target language |
 
-Yes! The Translate block accepts dynamic language specifications through connection tags:
+    #### Supported Language Codes
+    Common ISO 639-1 codes: `en` (English), `es` (Spanish), `fr` (French), `de` (German), `ja` (Japanese), `zh` (Chinese), `ar` (Arabic)
+  </Accordion>
+  <Accordion title="How do I handle translation errors and validate successful translations?">
 
-#### Dynamic Language Selection
+    Implement error handling by checking the Translate block's outputs and adding conditional logic:
 
-| Method | Example | Use Case |
-|--------|---------|----------|
-| **From webhook payload** | `<start.target_lang>` | User specifies language in request |
-| **From function output** | `<function1.detected_language>` | Language detection logic |
-| **From condition result** | `<condition1.language_code>` | Conditional language routing |
-| **Static value** | `"fr"` | Fixed target language |
+    #### Error Detection Patterns
 
-#### Supported Language Codes
-Common ISO 639-1 codes: `en` (English), `es` (Spanish), `fr` (French), `de` (German), `ja` (Japanese), `zh` (Chinese), `ar` (Arabic)
+    ##### 1. **Check Content Length**
+    ```
+    Condition Block:
+    if `<translate1.content>`.length > 0
+      → Success path
+    else
+      → Error handling block
+    ```
 
-### How do I handle translation errors and validate successful translations?
+    ##### 2. **Validate Against Source**
+    ```
+    Function Block:
+    Compare `<translate1.content>` with `<start.original_text>`
+    Return validation status
+    ```
 
-Implement error handling by checking the Translate block's outputs and adding conditional logic:
+    ##### 3. **Token Usage Monitoring**
+    Reference `<translate1.tokens>` to track API costs and detect unusually high token consumption that might indicate processing errors.
+  </Accordion>
+  <Accordion title="What are common workflow patterns for the Translate block in multi-language applications?">
 
-#### Error Detection Patterns
+    The Translate block integrates effectively in several automation scenarios:
 
-##### 1. **Check Content Length**
-```
-Condition Block:
-if `<translate1.content>`.length > 0
-  → Success path
-else
-  → Error handling block
-```
+    #### Popular Integration Patterns
 
-##### 2. **Validate Against Source**
-```
-Function Block:
-Compare `<translate1.content>` with `<start.original_text>`
-Return validation status
-```
+    ##### 1. **Real-time Message Translation**
+    ```
+    Webhook → Translate → Slack/Discord/Telegram
+    ```
+    Automatically translate incoming messages for international teams.
 
-##### 3. **Token Usage Monitoring**
-Reference `<translate1.tokens>` to track API costs and detect unusually high token consumption that might indicate processing errors.
+    ##### 2. **Content Localization Pipeline**
+    ```
+    API → Function → Translate → Database
+    ```
+    Fetch content, process it, translate to multiple languages, and store results.
 
-### What are common workflow patterns for the Translate block in multi-language applications?
+    ##### 3. **Multi-language Support Bot**
+    ```
+    Webhook → Agent → Translate → Response Block
+    ```
+    AI agent responds in user's preferred language by translating the generated content.
 
-The Translate block integrates effectively in several automation scenarios:
+    ##### 4. **Batch Translation Processing**
+    ```
+    Scheduled Trigger → Database → Translate → Email
+    ```
+    Translate stored content and send localized notifications on schedule.
 
-#### Popular Integration Patterns
+    ##### 5. **Language Detection + Translation**
+    ```
+    API → Function (detect language) → Translate → Output
+    ```
+    Automatically detect source language and translate to target language.
+  </Accordion>
+  <Accordion title="How do I preserve formatting and special characters during translation?">
 
-##### 1. **Real-time Message Translation**
-```
-Webhook → Translate → Slack/Discord/Telegram
-```
-Automatically translate incoming messages for international teams.
+    The Translate block maintains text formatting and handles special characters appropriately:
 
-##### 2. **Content Localization Pipeline**
-```
-API → Function → Translate → Database
-```
-Fetch content, process it, translate to multiple languages, and store results.
+    #### Formatting Preservation
 
-##### 3. **Multi-language Support Bot**
-```
-Webhook → Agent → Translate → Response Block
-```
-AI agent responds in user's preferred language by translating the generated content.
+    | Element | Handling | Example |
+    |---------|----------|---------|
+    | **Markdown** | Preserved in output | `**bold**` remains `**negrita**` |
+    | **HTML tags** | Structure maintained | `<p>text</p>` becomes `<p>texto</p>` |
+    | **Line breaks** | Original spacing kept | Paragraph structure preserved |
+    | **Special chars** | Unicode support | Emoji and symbols translated correctly |
 
-##### 4. **Batch Translation Processing**
-```
-Scheduled Trigger → Database → Translate → Email
-```
-Translate stored content and send localized notifications on schedule.
-
-##### 5. **Language Detection + Translation**
-```
-API → Function (detect language) → Translate → Output
-```
-Automatically detect source language and translate to target language.
-
-### How do I preserve formatting and special characters during translation?
-
-The Translate block maintains text formatting and handles special characters appropriately:
-
-#### Formatting Preservation
-
-| Element | Handling | Example |
-|---------|----------|---------|
-| **Markdown** | Preserved in output | `**bold**` remains `**negrita**` |
-| **HTML tags** | Structure maintained | `<p>text</p>` becomes `<p>texto</p>` |
-| **Line breaks** | Original spacing kept | Paragraph structure preserved |
-| **Special chars** | Unicode support | Emoji and symbols translated correctly |
-
-To ensure optimal formatting preservation, connect the raw text output `<translate1.content>` directly to blocks that support formatted content.
+    To ensure optimal formatting preservation, connect the raw text output `<translate1.content>` directly to blocks that support formatted content.
+  </Accordion>
+</Accordions>
 {/* MANUAL-CONTENT-END */}

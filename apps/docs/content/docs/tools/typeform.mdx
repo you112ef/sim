@@ -4,6 +4,8 @@ description: Interact with Typeform
 ---
 
 import { BlockInfoCard } from "@/components/ui/block-info-card"
+import { Accordion, Accordions } from "fumadocs-ui/components/accordion"
+
 
 <BlockInfoCard 
   type="typeform"
@@ -180,160 +182,163 @@ Monitor API rate limits and implement backoff strategies for high-frequency form
 ## FAQ
 
 {/* MANUAL-CONTENT-START:faq */}
-### How do I retrieve form responses from Typeform in my Sim.ai workflow?
+<Accordions type="single">
+  <Accordion title="How do I retrieve form responses from Typeform in my Sim.ai workflow?">
 
-To fetch Typeform responses, add a **Typeform block** to your workflow and configure the required inputs:
+    To fetch Typeform responses, add a **Typeform block** to your workflow and configure the required inputs:
 
-#### Required Inputs
+    #### Required Inputs
 
-| Input | Description | Example |
-|-------|-------------|---------|
-| `formId` | Your Typeform's unique identifier | `<start.formId>` or static ID like `abc123def` |
-| `apiKey` | Personal Access Token from Typeform | `<start.apiKey>` or environment variable |
+    | Input | Description | Example |
+    |-------|-------------|---------|
+    | `formId` | Your Typeform's unique identifier | `<start.formId>` or static ID like `abc123def` |
+    | `apiKey` | Personal Access Token from Typeform | `<start.apiKey>` or environment variable |
 
-#### Optional Filters
+    #### Optional Filters
 
-| Input | Type | Description | Example |
-|-------|------|-------------|---------|
-| `pageSize` | Number | Responses per page (default: 25) | `<start.pageSize>` or `50` |
-| `since` | String | Start date filter (ISO 8601) | `<start.since>` or `2024-01-01T00:00:00Z` |
-| `until` | String | End date filter (ISO 8601) | `<start.until>` or `2024-12-31T23:59:59Z` |
-| `completed` | String | Filter by completion status | `<start.completed>` or `true` |
+    | Input | Type | Description | Example |
+    |-------|------|-------------|---------|
+    | `pageSize` | Number | Responses per page (default: 25) | `<start.pageSize>` or `50` |
+    | `since` | String | Start date filter (ISO 8601) | `<start.since>` or `2024-01-01T00:00:00Z` |
+    | `until` | String | End date filter (ISO 8601) | `<start.until>` or `2024-12-31T23:59:59Z` |
+    | `completed` | String | Filter by completion status | `<start.completed>` or `true` |
+  </Accordion>
+  <Accordion title="What outputs are available from the Typeform responses operation?">
 
-### What outputs are available from the Typeform responses operation?
+    The Typeform block provides structured outputs for processing form data:
 
-The Typeform block provides structured outputs for processing form data:
+    #### Available Outputs
 
-#### Available Outputs
+    | Output Tag | Type | Description |
+    |------------|------|-------------|
+    | `<typeform1.total_items>` | Number | Total number of responses in the form |
+    | `<typeform1.page_count>` | Number | Total number of pages for pagination |
+    | `<typeform1.items>` | Array | Complete response data with answers and metadata |
 
-| Output Tag | Type | Description |
-|------------|------|-------------|
-| `<typeform1.total_items>` | Number | Total number of responses in the form |
-| `<typeform1.page_count>` | Number | Total number of pages for pagination |
-| `<typeform1.items>` | Array | Complete response data with answers and metadata |
+    #### Response Data Structure
+    Each item in `<typeform1.items>` contains:
+    - `response_id`: Unique identifier for the response
+    - `submitted_at`: Timestamp when form was submitted
+    - `answers`: Array of question answers with field references
+    - `calculated`: Calculated fields and scores
+  </Accordion>
+  <Accordion title="How do I download files uploaded through Typeform file fields?">
 
-#### Response Data Structure
-Each item in `<typeform1.items>` contains:
-- `response_id`: Unique identifier for the response
-- `submitted_at`: Timestamp when form was submitted
-- `answers`: Array of question answers with field references
-- `calculated`: Calculated fields and scores
+    To access uploaded files from Typeform responses:
 
-### How do I download files uploaded through Typeform file fields?
+    1. **First, get responses** using the `typeform_responses` operation
+    2. **Add another Typeform block** set to `typeform_files` operation
+    3. **Configure file download inputs**:
 
-To access uploaded files from Typeform responses:
+    #### Required File Inputs
 
-1. **First, get responses** using the `typeform_responses` operation
-2. **Add another Typeform block** set to `typeform_files` operation
-3. **Configure file download inputs**:
+    | Input | Description | Connection Example |
+    |-------|-------------|-------------------|
+    | `formId` | Same form ID | `<typeform1.formId>` |
+    | `responseId` | ID from response data | `<typeform1.items[0].response_id>` |
+    | `fieldId` | File field identifier | `<start.fieldId>` or static field ID |
+    | `filename` | Original filename | `<typeform1.items[0].answers[0].file.filename>` |
+    | `apiKey` | Your access token | `<start.apiKey>` |
 
-#### Required File Inputs
+    #### File Outputs
 
-| Input | Description | Connection Example |
-|-------|-------------|-------------------|
-| `formId` | Same form ID | `<typeform1.formId>` |
-| `responseId` | ID from response data | `<typeform1.items[0].response_id>` |
-| `fieldId` | File field identifier | `<start.fieldId>` or static field ID |
-| `filename` | Original filename | `<typeform1.items[0].answers[0].file.filename>` |
-| `apiKey` | Your access token | `<start.apiKey>` |
+    | Output Tag | Description |
+    |------------|-------------|
+    | `<typeform2.fileUrl>` | Direct download URL for the file |
+    | `<typeform2.contentType>` | MIME type (e.g., `image/jpeg`) |
+    | `<typeform2.filename>` | Original filename from upload |
+  </Accordion>
+  <Accordion title="How do I connect Typeform responses to an Agent block for analysis?">
 
-#### File Outputs
+    To process Typeform data with AI analysis:
 
-| Output Tag | Description |
-|------------|-------------|
-| `<typeform2.fileUrl>` | Direct download URL for the file |
-| `<typeform2.contentType>` | MIME type (e.g., `image/jpeg`) |
-| `<typeform2.filename>` | Original filename from upload |
+    1. **Connect response data** to Agent's `userPrompt`:
+    ```
+    <typeform1.items> → Agent `userPrompt`
+    ```
 
-### How do I connect Typeform responses to an Agent block for analysis?
+    2. **Create analysis prompt** in the Agent block:
+    ```
+    Analyze these survey responses and provide insights: <typeform1.items>
+    ```
 
-To process Typeform data with AI analysis:
+    #### Example Workflow Pattern
+    ```
+    Webhook → Typeform (responses) → Agent (analysis) → Database (storage)
+    ```
 
-1. **Connect response data** to Agent's `userPrompt`:
-```
-<typeform1.items> → Agent `userPrompt`
-```
+    This pattern retrieves responses, analyzes them with AI, and stores insights for reporting.
+  </Accordion>
+  <Accordion title="What are common authentication issues with Typeform integration?">
 
-2. **Create analysis prompt** in the Agent block:
-```
-Analyze these survey responses and provide insights: <typeform1.items>
-```
+    Troubleshoot Typeform API authentication problems:
 
-#### Example Workflow Pattern
-```
-Webhook → Typeform (responses) → Agent (analysis) → Database (storage)
-```
+    #### Common Authentication Errors
 
-This pattern retrieves responses, analyzes them with AI, and stores insights for reporting.
+    | Issue | Symptom | Solution |
+    |-------|---------|----------|
+    | **Invalid API Key** | 401 Unauthorized error | Verify `<start.apiKey>` matches your Personal Access Token |
+    | **Wrong Form ID** | 404 Not Found error | Confirm `<start.formId>` exists and you have access |
+    | **Expired Token** | Authentication failure | Generate new token in Typeform account settings |
+    | **Insufficient Permissions** | Access denied to form | Ensure API token has read access to the target form |
 
-### What are common authentication issues with Typeform integration?
+    #### Getting Your Credentials
+    1. **API Key**: Generate in Typeform → Settings → Personal tokens
+    2. **Form ID**: Found in form URL: `typeform.com/to/FORM_ID`
+  </Accordion>
+  <Accordion title="How can I filter Typeform responses by date range in my workflow?">
 
-Troubleshoot Typeform API authentication problems:
+    To retrieve responses within specific timeframes, use the date filter inputs:
 
-#### Common Authentication Errors
+    #### Date Range Configuration
 
-| Issue | Symptom | Solution |
-|-------|---------|----------|
-| **Invalid API Key** | 401 Unauthorized error | Verify `<start.apiKey>` matches your Personal Access Token |
-| **Wrong Form ID** | 404 Not Found error | Confirm `<start.formId>` exists and you have access |
-| **Expired Token** | Authentication failure | Generate new token in Typeform account settings |
-| **Insufficient Permissions** | Access denied to form | Ensure API token has read access to the target form |
+    ```json
+    {
+      "formId": "<start.formId>",
+      "apiKey": "<start.apiKey>",
+      "since": "<start.startDate>",
+      "until": "<start.endDate>",
+      "pageSize": 100
+    }
+    ```
 
-#### Getting Your Credentials
-1. **API Key**: Generate in Typeform → Settings → Personal tokens
-2. **Form ID**: Found in form URL: `typeform.com/to/FORM_ID`
+    #### Dynamic Date Filtering
+    Connect dates from other blocks:
+    - `<webhook1.body.startDate>` for webhook-triggered filtering
+    - `<function1.lastWeekDate>` for calculated date ranges
+    - `<condition1.dateRange>` for conditional date logic
+  </Accordion>
+  <Accordion title="How do I combine Typeform with other blocks for automated workflows?">
 
-### How can I filter Typeform responses by date range in my workflow?
+    Typeform integrates seamlessly with other Sim.ai workflow components:
 
-To retrieve responses within specific timeframes, use the date filter inputs:
+    #### Common Integration Patterns
 
-#### Date Range Configuration
+    ##### 1. **Scheduled → Typeform → Email**
+    Daily digest of new form responses:
+    ```
+    Schedule (daily) → Typeform (new responses) → Email (summary)
+    ```
 
-```json
-{
-  "formId": "<start.formId>",
-  "apiKey": "<start.apiKey>",
-  "since": "<start.startDate>",
-  "until": "<start.endDate>",
-  "pageSize": 100
-}
-```
+    ##### 2. **Webhook → Typeform → Database**
+    Real-time response processing:
+    ```
+    Typeform webhook → Typeform (get full response) → Database (store)
+    ```
 
-#### Dynamic Date Filtering
-Connect dates from other blocks:
-- `<webhook1.body.startDate>` for webhook-triggered filtering
-- `<function1.lastWeekDate>` for calculated date ranges
-- `<condition1.dateRange>` for conditional date logic
+    ##### 3. **Typeform → Agent → Multiple Actions**
+    AI-powered response routing:
+    ```
+    Typeform → Agent (classify) → Condition → [Email/Slack/Database]
+    ```
 
-### How do I combine Typeform with other blocks for automated workflows?
+    ##### 4. **Typeform → Function → API**
+    Data transformation and external integration:
+    ```
+    Typeform → Function (transform) → External API (sync)
+    ```
 
-Typeform integrates seamlessly with other Sim.ai workflow components:
-
-#### Common Integration Patterns
-
-##### 1. **Scheduled → Typeform → Email**
-Daily digest of new form responses:
-```
-Schedule (daily) → Typeform (new responses) → Email (summary)
-```
-
-##### 2. **Webhook → Typeform → Database**
-Real-time response processing:
-```
-Typeform webhook → Typeform (get full response) → Database (store)
-```
-
-##### 3. **Typeform → Agent → Multiple Actions**
-AI-powered response routing:
-```
-Typeform → Agent (classify) → Condition → [Email/Slack/Database]
-```
-
-##### 4. **Typeform → Function → API**
-Data transformation and external integration:
-```
-Typeform → Function (transform) → External API (sync)
-```
-
-Use `<typeform1.items>` to pass response data between blocks for comprehensive automation workflows.
+    Use `<typeform1.items>` to pass response data between blocks for comprehensive automation workflows.
+  </Accordion>
+</Accordions>
 {/* MANUAL-CONTENT-END */}

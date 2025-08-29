@@ -4,6 +4,8 @@ description: Convert website content into text
 ---
 
 import { BlockInfoCard } from "@/components/ui/block-info-card"
+import { Accordion, Accordions } from "fumadocs-ui/components/accordion"
+
 
 <BlockInfoCard 
   type="jina"
@@ -145,132 +147,135 @@ Consider content size limitations when processing extremely long web pages. Jina
 ## FAQ
 
 {/* MANUAL-CONTENT-START:faq */}
-### How do I extract content from a website URL in my Sim.ai workflow?
+<Accordions type="single">
+  <Accordion title="How do I extract content from a website URL in my Sim.ai workflow?">
 
-To extract web content using the Jina block, add it to your workflow and configure the required inputs:
+    To extract web content using the Jina block, add it to your workflow and configure the required inputs:
 
-#### Required Inputs
+    #### Required Inputs
 
-| Input | Description | Example |
-|-------|-------------|---------|
-| `url` | The website URL to extract content from | `<start.url>` or static URL like `https://example.com` |
-| `apiKey` | Your Jina AI API key for authentication | `<start.apiKey>` or environment variable |
+    | Input | Description | Example |
+    |-------|-------------|---------|
+    | `url` | The website URL to extract content from | `<start.url>` or static URL like `https://example.com` |
+    | `apiKey` | Your Jina AI API key for authentication | `<start.apiKey>` or environment variable |
 
-#### Optional Configuration
+    #### Optional Configuration
 
-| Input | Description | Default |
-|-------|-------------|---------|
-| `useReaderLMv2` | Enable advanced content processing | `false` |
-| `gatherLinks` | Include all page links at the end | `false` |
-| `jsonResponse` | Return structured JSON instead of text | `false` |
+    | Input | Description | Default |
+    |-------|-------------|---------|
+    | `useReaderLMv2` | Enable advanced content processing | `false` |
+    | `gatherLinks` | Include all page links at the end | `false` |
+    | `jsonResponse` | Return structured JSON instead of text | `false` |
+  </Accordion>
+  <Accordion title="How do I connect a webhook URL input to the Jina block for web scraping?">
 
-### How do I connect a webhook URL input to the Jina block for web scraping?
+    To process URLs from webhook triggers or user inputs:
 
-To process URLs from webhook triggers or user inputs:
+    1. **Add a Webhook block** as your workflow entry point
+    2. **Connect the URL field** to Jina's `url` input using `<start.url>`
+    3. **Configure authentication** with your API key
 
-1. **Add a Webhook block** as your workflow entry point
-2. **Connect the URL field** to Jina's `url` input using `<start.url>`
-3. **Configure authentication** with your API key
+    #### Example Workflow Configuration
+    ```
+    Webhook → Jina → Agent
+    ```
 
-#### Example Workflow Configuration
-```
-Webhook → Jina → Agent
-```
+    Map `<start.url>` to the Jina block's `url` field to automatically extract content from incoming requests.
+  </Accordion>
+  <Accordion title="What is the correct way to reference Jina block outputs in downstream blocks?">
 
-Map `<start.url>` to the Jina block's `url` field to automatically extract content from incoming requests.
+    The Jina block exposes one primary output that can be referenced using connection tags:
 
-### What is the correct way to reference Jina block outputs in downstream blocks?
+    #### Available Output
 
-The Jina block exposes one primary output that can be referenced using connection tags:
+    | Output Tag | Type | Description |
+    |------------|------|-------------|
+    | `<jina1.content>` | String | Clean, LLM-friendly text extracted from the webpage |
 
-#### Available Output
+    This extracted content can be connected to other blocks like Agent prompts, Function inputs, or API request bodies.
+  </Accordion>
+  <Accordion title="How do I connect Jina's extracted content to an Agent block for analysis?">
 
-| Output Tag | Type | Description |
-|------------|------|-------------|
-| `<jina1.content>` | String | Clean, LLM-friendly text extracted from the webpage |
+    To analyze web content with AI:
 
-This extracted content can be connected to other blocks like Agent prompts, Function inputs, or API request bodies.
+    1. In the Agent block's `userPrompt` or `content` field, type `<>` to open connections
+    2. Select `<jina1.content>` to use the extracted webpage text
 
-### How do I connect Jina's extracted content to an Agent block for analysis?
+    #### Example Agent Configuration
 
-To analyze web content with AI:
+    ```json
+    {
+      "userPrompt": "Summarize this webpage content: <jina1.content>",
+      "systemPrompt": "You are a helpful assistant that creates concise summaries."
+    }
+    ```
 
-1. In the Agent block's `userPrompt` or `content` field, type `<>` to open connections
-2. Select `<jina1.content>` to use the extracted webpage text
+    This setup automatically processes extracted web content through your AI agent.
+  </Accordion>
+  <Accordion title="Why is my Jina block failing to extract website content?">
 
-#### Example Agent Configuration
+    Troubleshoot common extraction issues with this checklist:
 
-```json
-{
-  "userPrompt": "Summarize this webpage content: <jina1.content>",
-  "systemPrompt": "You are a helpful assistant that creates concise summaries."
-}
-```
+    #### Common Issues and Solutions
 
-This setup automatically processes extracted web content through your AI agent.
+    | Issue | Description | Solution |
+    |-------|-------------|----------|
+    | **Invalid API Key** | Authentication failure | Verify `<start.apiKey>` contains valid Jina AI credentials |
+    | **Malformed URL** | URL format is incorrect | Ensure URL includes protocol (`https://example.com`) |
+    | **Protected Content** | Site blocks automated access | Try different URLs or check site's robots.txt |
+    | **Network Timeout** | Request takes too long | Use shorter URLs or reduce content complexity |
+    | **Empty Content** | No text extracted | Enable `useReaderLMv2` for better extraction quality |
+  </Accordion>
+  <Accordion title="Can I combine Jina with other blocks to create automated content workflows?">
 
-### Why is my Jina block failing to extract website content?
+    Yes! Jina integrates seamlessly with other Sim.ai workflow components for content processing automation:
 
-Troubleshoot common extraction issues with this checklist:
+    #### Common Workflow Patterns
 
-#### Common Issues and Solutions
+    ##### 1. **Webhook → Jina → Agent → Response**
+    Process URLs submitted via API and return AI-generated summaries:
+    ```json
+    {
+      "url": "<start.url>",
+      "userPrompt": "Create a brief summary of: <jina1.content>"
+    }
+    ```
 
-| Issue | Description | Solution |
-|-------|-------------|----------|
-| **Invalid API Key** | Authentication failure | Verify `<start.apiKey>` contains valid Jina AI credentials |
-| **Malformed URL** | URL format is incorrect | Ensure URL includes protocol (`https://example.com`) |
-| **Protected Content** | Site blocks automated access | Try different URLs or check site's robots.txt |
-| **Network Timeout** | Request takes too long | Use shorter URLs or reduce content complexity |
-| **Empty Content** | No text extracted | Enable `useReaderLMv2` for better extraction quality |
+    ##### 2. **Scheduled Trigger → Jina → Condition → Notification**
+    Monitor websites for changes and trigger alerts based on content analysis.
 
-### Can I combine Jina with other blocks to create automated content workflows?
+    ##### 3. **Function → Jina → Database**
+    Extract content from multiple URLs and store processed results:
+    - Use Function block to generate URL lists
+    - Connect `<function1.urls>` to Jina for batch processing
+    - Store `<jina1.content>` in database blocks
 
-Yes! Jina integrates seamlessly with other Sim.ai workflow components for content processing automation:
+    ##### 4. **API → Jina → Email**
+    Fetch URLs from external systems, extract content, and send formatted reports.
+  </Accordion>
+  <Accordion title="How do I configure advanced Jina extraction options for better content quality?">
 
-#### Common Workflow Patterns
+    Optimize content extraction by configuring optional parameters:
 
-##### 1. **Webhook → Jina → Agent → Response**
-Process URLs submitted via API and return AI-generated summaries:
-```json
-{
-  "url": "<start.url>",
-  "userPrompt": "Create a brief summary of: <jina1.content>"
-}
-```
+    #### Advanced Configuration Options
 
-##### 2. **Scheduled Trigger → Jina → Condition → Notification**
-Monitor websites for changes and trigger alerts based on content analysis.
+    | Parameter | Use Case | Recommendation |
+    |-----------|----------|----------------|
+    | `useReaderLMv2` | Complex layouts, better text quality | Set to `true` for news articles, blogs |
+    | `gatherLinks` | Link analysis, reference extraction | Enable when building link databases |
+    | `jsonResponse` | Structured data processing | Use with Function blocks for data manipulation |
 
-##### 3. **Function → Jina → Database**
-Extract content from multiple URLs and store processed results:
-- Use Function block to generate URL lists
-- Connect `<function1.urls>` to Jina for batch processing
-- Store `<jina1.content>` in database blocks
+    #### Example Advanced Setup
+    ```json
+    {
+      "url": "<start.url>",
+      "useReaderLMv2": true,
+      "gatherLinks": true,
+      "jsonResponse": false
+    }
+    ```
 
-##### 4. **API → Jina → Email**
-Fetch URLs from external systems, extract content, and send formatted reports.
-
-### How do I configure advanced Jina extraction options for better content quality?
-
-Optimize content extraction by configuring optional parameters:
-
-#### Advanced Configuration Options
-
-| Parameter | Use Case | Recommendation |
-|-----------|----------|----------------|
-| `useReaderLMv2` | Complex layouts, better text quality | Set to `true` for news articles, blogs |
-| `gatherLinks` | Link analysis, reference extraction | Enable when building link databases |
-| `jsonResponse` | Structured data processing | Use with Function blocks for data manipulation |
-
-#### Example Advanced Setup
-```json
-{
-  "url": "<start.url>",
-  "useReaderLMv2": true,
-  "gatherLinks": true,
-  "jsonResponse": false
-}
-```
-
-This configuration provides the highest quality text extraction with comprehensive link gathering for detailed content analysis.
+    This configuration provides the highest quality text extraction with comprehensive link gathering for detailed content analysis.
+  </Accordion>
+</Accordions>
 {/* MANUAL-CONTENT-END */}

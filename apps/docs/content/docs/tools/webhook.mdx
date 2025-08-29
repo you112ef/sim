@@ -4,6 +4,8 @@ description: Trigger workflow execution from external webhooks
 ---
 
 import { BlockInfoCard } from "@/components/ui/block-info-card"
+import { Accordion, Accordions } from "fumadocs-ui/components/accordion"
+
 
 <BlockInfoCard 
   type="webhook"
@@ -100,144 +102,147 @@ Monitor webhook endpoint performance and implement horizontal scaling strategies
 ## FAQ
 
 {/* MANUAL-CONTENT-START:faq */}
-### How do I set up a webhook trigger to start my workflow when external events occur?
+<Accordions type="single">
+  <Accordion title="How do I set up a webhook trigger to start my workflow when external events occur?">
 
-To create a webhook-triggered workflow in Sim.ai:
+    To create a webhook-triggered workflow in Sim.ai:
 
-1. **Add a Webhook block** as your workflow's first block
-2. **Deploy your workflow** to generate a unique webhook URL
-3. **Configure the external service** to send HTTP requests to your webhook URL
-4. **Map webhook payload fields** to downstream blocks using connection tags
+    1. **Add a Webhook block** as your workflow's first block
+    2. **Deploy your workflow** to generate a unique webhook URL
+    3. **Configure the external service** to send HTTP requests to your webhook URL
+    4. **Map webhook payload fields** to downstream blocks using connection tags
 
-The Webhook block automatically captures incoming HTTP request data and makes it available to other blocks in your workflow through connection tags.
+    The Webhook block automatically captures incoming HTTP request data and makes it available to other blocks in your workflow through connection tags.
+  </Accordion>
+  <Accordion title="What data can I access from incoming webhook requests in my workflow?">
 
-### What data can I access from incoming webhook requests in my workflow?
+    The Webhook block exposes all incoming request data through connection tags:
 
-The Webhook block exposes all incoming request data through connection tags:
+    #### Available Webhook Outputs
 
-#### Available Webhook Outputs
+    | Output Tag | Type | Description |
+    |------------|------|-------------|
+    | `<webhook1.body>` | Object | Complete request body payload |
+    | `<webhook1.headers>` | Object | HTTP headers from the request |
+    | `<webhook1.method>` | String | HTTP method (GET, POST, PUT, etc.) |
+    | `<webhook1.query>` | Object | URL query parameters |
+    | `<webhook1.url>` | String | Full request URL |
 
-| Output Tag | Type | Description |
-|------------|------|-------------|
-| `<webhook1.body>` | Object | Complete request body payload |
-| `<webhook1.headers>` | Object | HTTP headers from the request |
-| `<webhook1.method>` | String | HTTP method (GET, POST, PUT, etc.) |
-| `<webhook1.query>` | Object | URL query parameters |
-| `<webhook1.url>` | String | Full request URL |
+    You can access nested fields using dot notation like `<webhook1.body.user.email>` or `<webhook1.headers.authorization>`.
+  </Accordion>
+  <Accordion title="How do I connect webhook data to an Agent block for processing incoming requests?">
 
-You can access nested fields using dot notation like `<webhook1.body.user.email>` or `<webhook1.headers.authorization>`.
+    To route webhook payload data to an AI agent:
 
-### How do I connect webhook data to an Agent block for processing incoming requests?
+    1. **Add an Agent block** after your Webhook block
+    2. **Configure the agent's inputs** using webhook connection tags:
 
-To route webhook payload data to an AI agent:
+    #### Example Configuration
 
-1. **Add an Agent block** after your Webhook block
-2. **Configure the agent's inputs** using webhook connection tags:
+    ```json
+    {
+      "userPrompt": "<webhook1.body.message>",
+      "systemPrompt": "Process this webhook data: <webhook1.body>"
+    }
+    ```
 
-#### Example Configuration
+    This allows the AI agent to analyze and respond to incoming webhook requests automatically.
+  </Accordion>
+  <Accordion title="What is the correct way to handle different types of webhook payloads in my workflow?">
 
-```json
-{
-  "userPrompt": "<webhook1.body.message>",
-  "systemPrompt": "Process this webhook data: <webhook1.body>"
-}
-```
+    Use Condition blocks to route different webhook data types:
 
-This allows the AI agent to analyze and respond to incoming webhook requests automatically.
+    #### Example Workflow Pattern
 
-### What is the correct way to handle different types of webhook payloads in my workflow?
+    ```
+    Webhook → Condition → Agent (Route A)
+                      → Agent (Route B)
+    ```
 
-Use Condition blocks to route different webhook data types:
+    Configure the Condition block to check webhook fields:
+    - **Condition**: `<webhook1.body.event_type>` equals `"user_signup"`
+    - **True path**: Route to user onboarding agent
+    - **False path**: Route to general processing agent
+  </Accordion>
+  <Accordion title="How do I respond back to the webhook sender with data from my workflow?">
 
-#### Example Workflow Pattern
+    While the Webhook block receives data, you can send responses using HTTP Response blocks:
 
-```
-Webhook → Condition → Agent (Route A)
-                  → Agent (Route B)
-```
+    #### Response Workflow Pattern
 
-Configure the Condition block to check webhook fields:
-- **Condition**: `<webhook1.body.event_type>` equals `"user_signup"`
-- **True path**: Route to user onboarding agent
-- **False path**: Route to general processing agent
+    ```
+    Webhook → Agent → HTTP Response
+    ```
 
-### How do I respond back to the webhook sender with data from my workflow?
+    1. **Process the webhook data** with downstream blocks
+    2. **Add an HTTP Response block** at the end of your workflow
+    3. **Configure response data** using processed outputs:
 
-While the Webhook block receives data, you can send responses using HTTP Response blocks:
+    ```json
+    {
+      "status": 200,
+      "body": {
+        "result": "<agent1.content>",
+        "processed_at": "<function1.timestamp>"
+      }
+    }
+    ```
+  </Accordion>
+  <Accordion title="Why is my webhook not triggering my workflow?">
 
-#### Response Workflow Pattern
+    Troubleshoot webhook issues with this checklist:
 
-```
-Webhook → Agent → HTTP Response
-```
+    #### Common Issues and Solutions
 
-1. **Process the webhook data** with downstream blocks
-2. **Add an HTTP Response block** at the end of your workflow
-3. **Configure response data** using processed outputs:
+    | Issue | Description | Solution |
+    |-------|-------------|----------|
+    | **Workflow Not Deployed** | Webhook URL not active | Deploy your workflow to activate the webhook endpoint |
+    | **Incorrect HTTP Method** | Sender using wrong method | Check if external service matches expected method (POST/GET) |
+    | **Authentication Errors** | Missing or invalid auth | Verify webhook authentication requirements |
+    | **Payload Format Issues** | Malformed request body | Check webhook logs for payload structure |
+    | **Timeout Errors** | Workflow taking too long | Optimize downstream blocks for faster execution |
+    | **URL Mismatch** | Wrong webhook endpoint | Ensure external service uses the exact webhook URL |
+  </Accordion>
+  <Accordion title="Can I use multiple webhook triggers in a single workflow?">
 
-```json
-{
-  "status": 200,
-  "body": {
-    "result": "<agent1.content>",
-    "processed_at": "<function1.timestamp>"
-  }
-}
-```
+    No, each workflow can only have one trigger block (including Webhook blocks). However, you can create multiple workflows with separate webhook triggers:
 
-### Why is my webhook not triggering my workflow?
+    #### Multi-Webhook Architecture
 
-Troubleshoot webhook issues with this checklist:
+    ##### Workflow 1: User Events
+    ```
+    Webhook (user-events) → Agent → Database
+    ```
 
-#### Common Issues and Solutions
+    ##### Workflow 2: Payment Events  
+    ```
+    Webhook (payment-events) → Function → Email
+    ```
 
-| Issue | Description | Solution |
-|-------|-------------|----------|
-| **Workflow Not Deployed** | Webhook URL not active | Deploy your workflow to activate the webhook endpoint |
-| **Incorrect HTTP Method** | Sender using wrong method | Check if external service matches expected method (POST/GET) |
-| **Authentication Errors** | Missing or invalid auth | Verify webhook authentication requirements |
-| **Payload Format Issues** | Malformed request body | Check webhook logs for payload structure |
-| **Timeout Errors** | Workflow taking too long | Optimize downstream blocks for faster execution |
-| **URL Mismatch** | Wrong webhook endpoint | Ensure external service uses the exact webhook URL |
+    Use different webhook URLs for different event types, then coordinate between workflows using API calls or shared data stores if needed.
+  </Accordion>
+  <Accordion title="How do I test my webhook trigger during development?">
 
-### Can I use multiple webhook triggers in a single workflow?
+    Test your webhook trigger using these methods:
 
-No, each workflow can only have one trigger block (including Webhook blocks). However, you can create multiple workflows with separate webhook triggers:
+    #### Development Testing Options
 
-#### Multi-Webhook Architecture
+    1. **Webhook Testing Tools**
+       - Use tools like Postman or curl to send test requests
+       - Send sample payloads to your webhook URL
 
-##### Workflow 1: User Events
-```
-Webhook (user-events) → Agent → Database
-```
+    2. **Workflow Logs**
+       - Monitor workflow execution logs for incoming requests
+       - Check payload structure and connection tag values
 
-##### Workflow 2: Payment Events  
-```
-Webhook (payment-events) → Function → Email
-```
+    3. **Test Payload Example**
+    ```bash
+    curl -X POST https://your-webhook-url \
+      -H "Content-Type: application/json" \
+      -d '{"test": "data", "user": {"id": 123}}'
+    ```
 
-Use different webhook URLs for different event types, then coordinate between workflows using API calls or shared data stores if needed.
-
-### How do I test my webhook trigger during development?
-
-Test your webhook trigger using these methods:
-
-#### Development Testing Options
-
-1. **Webhook Testing Tools**
-   - Use tools like Postman or curl to send test requests
-   - Send sample payloads to your webhook URL
-
-2. **Workflow Logs**
-   - Monitor workflow execution logs for incoming requests
-   - Check payload structure and connection tag values
-
-3. **Test Payload Example**
-```bash
-curl -X POST https://your-webhook-url \
-  -H "Content-Type: application/json" \
-  -d '{"test": "data", "user": {"id": 123}}'
-```
-
-Reference the test data in your workflow using `<webhook1.body.test>` and `<webhook1.body.user.id>`.
+    Reference the test data in your workflow using `<webhook1.body.test>` and `<webhook1.body.user.id>`.
+  </Accordion>
+</Accordions>
 {/* MANUAL-CONTENT-END */}

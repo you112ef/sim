@@ -4,6 +4,8 @@ description: Use Supabase database
 ---
 
 import { BlockInfoCard } from "@/components/ui/block-info-card"
+import { Accordion, Accordions } from "fumadocs-ui/components/accordion"
+
 
 <BlockInfoCard 
   type="supabase"
@@ -275,164 +277,167 @@ For bulk operations, prefer `upsert` over separate insert/update logic when deal
 ## FAQ
 
 {/* MANUAL-CONTENT-START:faq */}
-### How do I query data from my Supabase database in a workflow?
+<Accordions type="single">
+  <Accordion title="How do I query data from my Supabase database in a workflow?">
 
-To query data from Supabase, add a **Supabase block** to your Sim.ai workflow and configure the required inputs for the `supabase_query` operation:
+    To query data from Supabase, add a **Supabase block** to your Sim.ai workflow and configure the required inputs for the `supabase_query` operation:
 
-#### Required Inputs
+    #### Required Inputs
 
-| Input | Description | Example |
-|-------|-------------|---------|
-| `projectId` | Your Supabase project ID from the dashboard | `<start.projectId>` or static value like `jdrkgepadsdopsntdlom` |
-| `table` | The table name to query | `<start.tableName>` or static value like `users` |
-| `apiKey` | Your Supabase service role secret key | `<start.apiKey>` or environment variable |
+    | Input | Description | Example |
+    |-------|-------------|---------|
+    | `projectId` | Your Supabase project ID from the dashboard | `<start.projectId>` or static value like `jdrkgepadsdopsntdlom` |
+    | `table` | The table name to query | `<start.tableName>` or static value like `users` |
+    | `apiKey` | Your Supabase service role secret key | `<start.apiKey>` or environment variable |
 
-#### Optional Filtering
+    #### Optional Filtering
 
-| Input | Description | Example |
-|-------|-------------|---------|
-| `filter` | PostgREST filter syntax | `"id=eq.123"` or `"status=eq.active"` |
-| `orderBy` | Column to sort by | `"created_at"` or `"name DESC"` |
-| `limit` | Maximum rows to return | `10` or `<start.pageSize>` |
+    | Input | Description | Example |
+    |-------|-------------|---------|
+    | `filter` | PostgREST filter syntax | `"id=eq.123"` or `"status=eq.active"` |
+    | `orderBy` | Column to sort by | `"created_at"` or `"name DESC"` |
+    | `limit` | Maximum rows to return | `10` or `<start.pageSize>` |
+  </Accordion>
+  <Accordion title="How do I insert new records into my Supabase table from a workflow?">
 
-### How do I insert new records into my Supabase table from a workflow?
+    Use the `supabase_insert` operation to add data to your table:
 
-Use the `supabase_insert` operation to add data to your table:
+    1. **Set the operation** to `supabase_insert`
+    2. **Configure required inputs**:
+       - `projectId`: `<start.projectId>`
+       - `table`: Target table name like `customers`
+       - `data`: JSON object with record data
+       - `apiKey`: Your service role key
 
-1. **Set the operation** to `supabase_insert`
-2. **Configure required inputs**:
-   - `projectId`: `<start.projectId>`
-   - `table`: Target table name like `customers`
-   - `data`: JSON object with record data
-   - `apiKey`: Your service role key
+    #### Example Data Input
+    ```json
+    {
+      "name": "<agent1.extractedName>",
+      "email": "<start.userEmail>",
+      "status": "active"
+    }
+    ```
 
-#### Example Data Input
-```json
-{
-  "name": "<agent1.extractedName>",
-  "email": "<start.userEmail>",
-  "status": "active"
-}
-```
+    The `<supabase1.results>` output will contain the newly created record with auto-generated fields like `id` and timestamps.
+  </Accordion>
+  <Accordion title="What is the correct way to reference Supabase block outputs in my workflow?">
 
-The `<supabase1.results>` output will contain the newly created record with auto-generated fields like `id` and timestamps.
+    Every Supabase block exposes outputs that can be referenced using connection tags:
 
-### What is the correct way to reference Supabase block outputs in my workflow?
+    #### Available Outputs
 
-Every Supabase block exposes outputs that can be referenced using connection tags:
+    | Output Tag | Type | Description |
+    |------------|------|-------------|
+    | `<supabase1.message>` | String | Success or error message from the operation |
+    | `<supabase1.results>` | Array | Database records returned from the operation |
 
-#### Available Outputs
+    #### Accessing Specific Record Fields
+    For query results, you can access individual fields:
+    - `<supabase1.results[0].id>` - First record's ID
+    - `<supabase1.results[0].name>` - First record's name field
+    - `<supabase1.results.length>` - Number of records returned
+  </Accordion>
+  <Accordion title="How do I update existing records in my Supabase database?">
 
-| Output Tag | Type | Description |
-|------------|------|-------------|
-| `<supabase1.message>` | String | Success or error message from the operation |
-| `<supabase1.results>` | Array | Database records returned from the operation |
+    To update records, use the `supabase_update` operation with proper filtering:
 
-#### Accessing Specific Record Fields
-For query results, you can access individual fields:
-- `<supabase1.results[0].id>` - First record's ID
-- `<supabase1.results[0].name>` - First record's name field
-- `<supabase1.results.length>` - Number of records returned
+    #### Required Configuration
 
-### How do I update existing records in my Supabase database?
+    | Input | Value | Description |
+    |-------|-------|-------------|
+    | `projectId` | `<start.projectId>` | Your Supabase project identifier |
+    | `table` | `users` | Target table name |
+    | `filter` | `"id=eq.123"` | PostgREST filter to find records |
+    | `data` | Update object | Fields to modify |
 
-To update records, use the `supabase_update` operation with proper filtering:
+    #### Example Update Data
+    ```json
+    {
+      "status": "verified",
+      "updated_at": "<function1.currentTimestamp>"
+    }
+    ```
 
-#### Required Configuration
+    The `filter` parameter determines which records get updated. Use PostgREST syntax like `"email=eq.user@example.com"` or `"status=eq.pending"`.
+  </Accordion>
+  <Accordion title="How do I handle authentication and connect to my Supabase project?">
 
-| Input | Value | Description |
-|-------|-------|-------------|
-| `projectId` | `<start.projectId>` | Your Supabase project identifier |
-| `table` | `users` | Target table name |
-| `filter` | `"id=eq.123"` | PostgREST filter to find records |
-| `data` | Update object | Fields to modify |
+    Supabase requires proper authentication credentials for all operations:
 
-#### Example Update Data
-```json
-{
-  "status": "verified",
-  "updated_at": "<function1.currentTimestamp>"
-}
-```
+    #### Required Credentials
 
-The `filter` parameter determines which records get updated. Use PostgREST syntax like `"email=eq.user@example.com"` or `"status=eq.pending"`.
+    1. **Project ID**: Found in your Supabase dashboard URL
+       - Format: `https://app.supabase.com/project/[PROJECT_ID]`
+       - Example: `jdrkgepadsdopsntdlom`
 
-### How do I handle authentication and connect to my Supabase project?
+    2. **API Key**: Service role secret key (not anon key)
+       - Found in: Project Settings → API → Service Role Key
+       - Provides full database access for server-side operations
 
-Supabase requires proper authentication credentials for all operations:
+    #### Security Best Practices
+    - Store credentials in environment variables
+    - Use `<start.supabaseKey>` for API key input
+    - Never hardcode secrets in workflow configurations
+  </Accordion>
+  <Accordion title="Why is my Supabase query returning empty results or failing?">
 
-#### Required Credentials
+    Troubleshoot common Supabase integration issues:
 
-1. **Project ID**: Found in your Supabase dashboard URL
-   - Format: `https://app.supabase.com/project/[PROJECT_ID]`
-   - Example: `jdrkgepadsdopsntdlom`
+    #### Common Issues and Solutions
 
-2. **API Key**: Service role secret key (not anon key)
-   - Found in: Project Settings → API → Service Role Key
-   - Provides full database access for server-side operations
+    | Issue | Description | Solution |
+    |-------|-------------|----------|
+    | **Empty Results** | Query returns no data | Verify table exists and filter syntax is correct |
+    | **Authentication Error** | Invalid credentials | Check `projectId` and `apiKey` are correct |
+    | **Table Not Found** | Specified table doesn't exist | Verify `table` name matches your database schema |
+    | **Filter Syntax Error** | Invalid PostgREST filter | Use correct format: `"column=eq.value"` or `"id=gt.100"` |
+    | **Permission Denied** | Insufficient API key permissions | Use service role key, not anon key |
 
-#### Security Best Practices
-- Store credentials in environment variables
-- Use `<start.supabaseKey>` for API key input
-- Never hardcode secrets in workflow configurations
+    #### PostgREST Filter Examples
+    - `"id=eq.123"` - Exact match
+    - `"age=gte.18"` - Greater than or equal
+    - `"status=in.(active,pending)"` - Multiple values
+    - `"name=ilike.*john*"` - Case-insensitive pattern match
+  </Accordion>
+  <Accordion title="How do I integrate Supabase with Agent blocks for dynamic database operations?">
 
-### Why is my Supabase query returning empty results or failing?
+    Combine Supabase with AI agents for intelligent data management:
 
-Troubleshoot common Supabase integration issues:
+    #### Common Workflow Patterns
 
-#### Common Issues and Solutions
+    ##### 1. **Agent → Function → Supabase Insert**
+    Process user input with AI, format data, then save to database:
+    ```
+    Agent processes: "<start.userMessage>"
+    Function formats: Agent output into database schema
+    Supabase inserts: Structured data
+    ```
 
-| Issue | Description | Solution |
-|-------|-------------|----------|
-| **Empty Results** | Query returns no data | Verify table exists and filter syntax is correct |
-| **Authentication Error** | Invalid credentials | Check `projectId` and `apiKey` are correct |
-| **Table Not Found** | Specified table doesn't exist | Verify `table` name matches your database schema |
-| **Filter Syntax Error** | Invalid PostgREST filter | Use correct format: `"column=eq.value"` or `"id=gt.100"` |
-| **Permission Denied** | Insufficient API key permissions | Use service role key, not anon key |
+    ##### 2. **Supabase Query → Agent → Response**
+    Retrieve data and generate AI-powered insights:
+    ```
+    Supabase queries: User records with `<start.userId>`
+    Agent analyzes: `<supabase1.results>` for patterns
+    Return: Personalized recommendations
+    ```
 
-#### PostgREST Filter Examples
-- `"id=eq.123"` - Exact match
-- `"age=gte.18"` - Greater than or equal
-- `"status=in.(active,pending)"` - Multiple values
-- `"name=ilike.*john*"` - Case-insensitive pattern match
+    ##### 3. **Webhook → Supabase Get Row → Condition → Update**
+    Validate and update records based on incoming data:
+    ```
+    Webhook receives: External API payload
+    Supabase gets: Existing record with `<start.recordId>`
+    Condition checks: If record exists
+    Supabase updates: Record with new data
+    ```
 
-### How do I integrate Supabase with Agent blocks for dynamic database operations?
-
-Combine Supabase with AI agents for intelligent data management:
-
-#### Common Workflow Patterns
-
-##### 1. **Agent → Function → Supabase Insert**
-Process user input with AI, format data, then save to database:
-```
-Agent processes: "<start.userMessage>"
-Function formats: Agent output into database schema
-Supabase inserts: Structured data
-```
-
-##### 2. **Supabase Query → Agent → Response**
-Retrieve data and generate AI-powered insights:
-```
-Supabase queries: User records with `<start.userId>`
-Agent analyzes: `<supabase1.results>` for patterns
-Return: Personalized recommendations
-```
-
-##### 3. **Webhook → Supabase Get Row → Condition → Update**
-Validate and update records based on incoming data:
-```
-Webhook receives: External API payload
-Supabase gets: Existing record with `<start.recordId>`
-Condition checks: If record exists
-Supabase updates: Record with new data
-```
-
-##### 4. **Scheduled Trigger → Supabase Query → Agent → Supabase Update**
-Automated data processing and enrichment:
-```
-Timer triggers: Daily at 9 AM
-Supabase queries: Unprocessed records
-Agent enriches: Record data with AI analysis
-Supabase updates: Records with `processed: true`
-```
+    ##### 4. **Scheduled Trigger → Supabase Query → Agent → Supabase Update**
+    Automated data processing and enrichment:
+    ```
+    Timer triggers: Daily at 9 AM
+    Supabase queries: Unprocessed records
+    Agent enriches: Record data with AI analysis
+    Supabase updates: Records with `processed: true`
+    ```
+  </Accordion>
+</Accordions>
 {/* MANUAL-CONTENT-END */}

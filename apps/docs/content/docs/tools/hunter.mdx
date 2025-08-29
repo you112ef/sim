@@ -4,6 +4,8 @@ description: Find and verify professional email addresses
 ---
 
 import { BlockInfoCard } from "@/components/ui/block-info-card"
+import { Accordion, Accordions } from "fumadocs-ui/components/accordion"
+
 
 <BlockInfoCard 
   type="hunter"
@@ -261,185 +263,188 @@ Leverage the department and seniority breakdowns in count operations to optimize
 ## FAQ
 
 {/* MANUAL-CONTENT-START:faq */}
-### How do I find email addresses for a specific company domain using Hunter io in my workflow?
+<Accordions type="single">
+  <Accordion title="How do I find email addresses for a specific company domain using Hunter io in my workflow?">
 
-To find email addresses for a company domain, add a **Hunter io block** to your Sim.ai workflow and configure the `hunter_domain_search` operation:
+    To find email addresses for a company domain, add a **Hunter io block** to your Sim.ai workflow and configure the `hunter_domain_search` operation:
 
-#### Required Inputs
+    #### Required Inputs
 
-| Input | Description | Example |
-|-------|-------------|---------|
-| `domain` | Company domain to search | `<start.domain>` or static value like `"company.com"` |
-| `apiKey` | Your Hunter.io API key | `<start.apiKey>` or environment variable |
+    | Input | Description | Example |
+    |-------|-------------|---------|
+    | `domain` | Company domain to search | `<start.domain>` or static value like `"company.com"` |
+    | `apiKey` | Your Hunter.io API key | `<start.apiKey>` or environment variable |
 
-#### Optional Filters
+    #### Optional Filters
 
-| Input | Description | Example |
-|-------|-------------|---------|
-| `limit` | Max emails to return (default: 10) | `<start.limit>` or static number |
-| `department` | Filter by department | `"sales"`, `"marketing"`, `"executive"` |
-| `seniority` | Filter by level | `"junior"`, `"senior"`, `"executive"` |
-| `type` | Email type filter | `"personal"` or `"generic"` |
+    | Input | Description | Example |
+    |-------|-------------|---------|
+    | `limit` | Max emails to return (default: 10) | `<start.limit>` or static number |
+    | `department` | Filter by department | `"sales"`, `"marketing"`, `"executive"` |
+    | `seniority` | Filter by level | `"junior"`, `"senior"`, `"executive"` |
+    | `type` | Email type filter | `"personal"` or `"generic"` |
 
-The block will return detailed company information and an array of found email addresses with confidence scores and sources.
+    The block will return detailed company information and an array of found email addresses with confidence scores and sources.
+  </Accordion>
+  <Accordion title="What Hunter io outputs can I reference in downstream blocks?">
 
-### What Hunter io outputs can I reference in downstream blocks?
+    Hunter io blocks expose different outputs depending on the operation used:
 
-Hunter io blocks expose different outputs depending on the operation used:
+    #### Domain Search Outputs
 
-#### Domain Search Outputs
+    | Output Tag | Type | Description |
+    |------------|------|-------------|
+    | `<hunter1.emails>` | Array | Complete email addresses with person details |
+    | `<hunter1.domain>` | String | The searched domain name |
+    | `<hunter1.organization>` | String | Company name |
+    | `<hunter1.pattern>` | String | Email pattern used by the company |
+    | `<hunter1.industry>` | String | Company industry |
+    | `<hunter1.technologies>` | Array | Technologies used by the company |
+    | `<hunter1.accept_all>` | Boolean | Whether domain accepts all emails |
 
-| Output Tag | Type | Description |
-|------------|------|-------------|
-| `<hunter1.emails>` | Array | Complete email addresses with person details |
-| `<hunter1.domain>` | String | The searched domain name |
-| `<hunter1.organization>` | String | Company name |
-| `<hunter1.pattern>` | String | Email pattern used by the company |
-| `<hunter1.industry>` | String | Company industry |
-| `<hunter1.technologies>` | Array | Technologies used by the company |
-| `<hunter1.accept_all>` | Boolean | Whether domain accepts all emails |
+    #### Email Finder Outputs
 
-#### Email Finder Outputs
+    | Output Tag | Type | Description |
+    |------------|------|-------------|
+    | `<hunter1.email>` | String | The most likely email address found |
+    | `<hunter1.score>` | Number | Confidence score (0-100) |
+    | `<hunter1.sources>` | Array | Sources where email was found |
 
-| Output Tag | Type | Description |
-|------------|------|-------------|
-| `<hunter1.email>` | String | The most likely email address found |
-| `<hunter1.score>` | Number | Confidence score (0-100) |
-| `<hunter1.sources>` | Array | Sources where email was found |
+    #### Email Verifier Outputs
 
-#### Email Verifier Outputs
+    | Output Tag | Type | Description |
+    |------------|------|-------------|
+    | `<hunter1.result>` | String | `"deliverable"`, `"undeliverable"`, or `"risky"` |
+    | `<hunter1.status>` | String | Detailed verification status |
+    | `<hunter1.score>` | Number | Verification confidence score |
+  </Accordion>
+  <Accordion title="How do I find a specific person's email address using their name and company domain?">
 
-| Output Tag | Type | Description |
-|------------|------|-------------|
-| `<hunter1.result>` | String | `"deliverable"`, `"undeliverable"`, or `"risky"` |
-| `<hunter1.status>` | String | Detailed verification status |
-| `<hunter1.score>` | Number | Verification confidence score |
+    To find a person's email using the `hunter_email_finder` operation:
 
-### How do I find a specific person's email address using their name and company domain?
+    1. **Configure the Hunter io block** with these required inputs:
 
-To find a person's email using the `hunter_email_finder` operation:
+    | Input | Connection Example | Description |
+    |-------|-------------------|-------------|
+    | `domain` | `<start.companyDomain>` | Company's domain name |
+    | `first_name` | `<start.firstName>` | Person's first name |
+    | `last_name` | `<start.lastName>` | Person's last name |
+    | `apiKey` | `<start.apiKey>` | Your Hunter.io API key |
 
-1. **Configure the Hunter io block** with these required inputs:
+    2. **Reference the results** in downstream blocks:
+       - Use `<hunter1.email>` for the found email address
+       - Use `<hunter1.score>` to check confidence level
+       - Use `<hunter1.verification.status>` for deliverability status
+  </Accordion>
+  <Accordion title="How do I verify if an email address is valid and deliverable?">
 
-| Input | Connection Example | Description |
-|-------|-------------------|-------------|
-| `domain` | `<start.companyDomain>` | Company's domain name |
-| `first_name` | `<start.firstName>` | Person's first name |
-| `last_name` | `<start.lastName>` | Person's last name |
-| `apiKey` | `<start.apiKey>` | Your Hunter.io API key |
+    To verify email deliverability using the `hunter_email_verifier` operation:
 
-2. **Reference the results** in downstream blocks:
-   - Use `<hunter1.email>` for the found email address
-   - Use `<hunter1.score>` to check confidence level
-   - Use `<hunter1.verification.status>` for deliverability status
+    #### Input Configuration
+    ```json
+    {
+      "email": "<start.emailToVerify>",
+      "apiKey": "<start.apiKey>"
+    }
+    ```
 
-### How do I verify if an email address is valid and deliverable?
+    #### Processing Verification Results
 
-To verify email deliverability using the `hunter_email_verifier` operation:
+    Use these output tags to handle verification results:
 
-#### Input Configuration
-```json
-{
-  "email": "<start.emailToVerify>",
-  "apiKey": "<start.apiKey>"
-}
-```
+    | Output | Purpose | Example Usage |
+    |--------|---------|---------------|
+    | `<hunter1.result>` | Main deliverability status | Connect to Condition block for routing |
+    | `<hunter1.score>` | Confidence percentage | Filter emails above certain threshold |
+    | `<hunter1.disposable>` | Check if disposable email | Exclude temporary emails |
+    | `<hunter1.webmail>` | Check if webmail provider | Separate personal vs business emails |
+    | `<hunter1.mx_records>` | Domain has mail servers | Technical validation check |
+  </Accordion>
+  <Accordion title="Why is my Hunter io block returning empty results or failing?">
 
-#### Processing Verification Results
+    Troubleshoot common Hunter io issues with this diagnostic approach:
 
-Use these output tags to handle verification results:
+    #### Authentication Issues
 
-| Output | Purpose | Example Usage |
-|--------|---------|---------------|
-| `<hunter1.result>` | Main deliverability status | Connect to Condition block for routing |
-| `<hunter1.score>` | Confidence percentage | Filter emails above certain threshold |
-| `<hunter1.disposable>` | Check if disposable email | Exclude temporary emails |
-| `<hunter1.webmail>` | Check if webmail provider | Separate personal vs business emails |
-| `<hunter1.mx_records>` | Domain has mail servers | Technical validation check |
+    | Problem | Solution |
+    |---------|----------|
+    | Invalid API key | Verify `<start.apiKey>` matches your Hunter.io dashboard |
+    | Rate limit exceeded | Check your Hunter.io plan limits and usage |
+    | Insufficient credits | Ensure your account has available search credits |
 
-### Why is my Hunter io block returning empty results or failing?
+    #### Input Validation Errors
 
-Troubleshoot common Hunter io issues with this diagnostic approach:
+    | Problem | Solution |
+    |---------|----------|
+    | Missing required domain | Ensure `domain` field is populated for domain searches |
+    | Invalid email format | Check email format for verification operations |
+    | Empty name fields | Provide both `first_name` and `last_name` for email finder |
 
-#### Authentication Issues
+    #### Data Quality Issues
 
-| Problem | Solution |
-|---------|----------|
-| Invalid API key | Verify `<start.apiKey>` matches your Hunter.io dashboard |
-| Rate limit exceeded | Check your Hunter.io plan limits and usage |
-| Insufficient credits | Ensure your account has available search credits |
+    | Problem | Solution |
+    |---------|----------|
+    | No emails found | Try broader search criteria or different domains |
+    | Low confidence scores | Use `<hunter1.score>` to filter results above threshold |
+    | Generic emails only | Set `type: "personal"` to find individual addresses |
+  </Accordion>
+  <Accordion title="How do I combine Hunter io with Agent blocks for lead enrichment workflows?">
 
-#### Input Validation Errors
+    Create powerful lead enrichment by connecting Hunter io with AI agents:
 
-| Problem | Solution |
-|---------|----------|
-| Missing required domain | Ensure `domain` field is populated for domain searches |
-| Invalid email format | Check email format for verification operations |
-| Empty name fields | Provide both `first_name` and `last_name` for email finder |
+    #### Pattern 1: Company Research Pipeline
+    ```
+    Webhook → Hunter io (discover) → Agent → Hunter io (domain_search)
+    ```
 
-#### Data Quality Issues
+    1. **Start with company discovery**: Use `<start.query>` for AI-powered company search
+    2. **Process results with Agent**: Feed `<hunter1.results>` to analyze companies
+    3. **Find emails for targets**: Use `<agent1.selectedDomains>` for email discovery
 
-| Problem | Solution |
-|---------|----------|
-| No emails found | Try broader search criteria or different domains |
-| Low confidence scores | Use `<hunter1.score>` to filter results above threshold |
-| Generic emails only | Set `type: "personal"` to find individual addresses |
+    #### Pattern 2: Contact Verification Flow
+    ```
+    Hunter io (email_finder) → Hunter io (email_verifier) → Agent → Action
+    ```
 
-### How do I combine Hunter io with Agent blocks for lead enrichment workflows?
+    1. **Find candidate email**: Use name + domain to get `<hunter1.email>`
+    2. **Verify deliverability**: Pass `<hunter1.email>` to verifier
+    3. **AI decision making**: Let Agent process `<hunter2.result>` for next steps
 
-Create powerful lead enrichment by connecting Hunter io with AI agents:
+    #### Pattern 3: Enriched Lead Scoring
+    ```
+    Hunter io (companies_find) → Agent → CRM Update
+    ```
 
-#### Pattern 1: Company Research Pipeline
-```
-Webhook → Hunter io (discover) → Agent → Hunter io (domain_search)
-```
+    Connect `<hunter1.company>` data to an Agent block for intelligent lead scoring based on company size, industry, and technology stack.
+  </Accordion>
+  <Accordion title="How do I filter and process large email lists from Hunter io domain searches?">
 
-1. **Start with company discovery**: Use `<start.query>` for AI-powered company search
-2. **Process results with Agent**: Feed `<hunter1.results>` to analyze companies
-3. **Find emails for targets**: Use `<agent1.selectedDomains>` for email discovery
+    When processing multiple emails from `<hunter1.emails>`, use these strategies:
 
-#### Pattern 2: Contact Verification Flow
-```
-Hunter io (email_finder) → Hunter io (email_verifier) → Agent → Action
-```
+    #### Filter by Confidence Score
+    Use a Function block to filter emails:
+    ```javascript
+    // Filter emails with score > 80
+    const highConfidenceEmails = <hunter1.emails>.filter(email => email.confidence > 80);
+    return highConfidenceEmails;
+    ```
 
-1. **Find candidate email**: Use name + domain to get `<hunter1.email>`
-2. **Verify deliverability**: Pass `<hunter1.email>` to verifier
-3. **AI decision making**: Let Agent process `<hunter2.result>` for next steps
+    #### Department-Based Routing
+    Use Condition blocks to route emails by department:
 
-#### Pattern 3: Enriched Lead Scoring
-```
-Hunter io (companies_find) → Agent → CRM Update
-```
+    | Condition | Route To | Purpose |
+    |-----------|----------|---------|
+    | `email.department === "sales"` | Sales Agent | Personalized sales outreach |
+    | `email.department === "marketing"` | Marketing Agent | Partnership opportunities |
+    | `email.department === "executive"` | Executive Agent | High-level communications |
 
-Connect `<hunter1.company>` data to an Agent block for intelligent lead scoring based on company size, industry, and technology stack.
+    #### Bulk Verification Workflow
+    Process found emails through verification:
+    ```
+    Hunter io (domain_search) → Function (extract emails) → Hunter io (email_verifier) → Filter Results
+    ```
 
-### How do I filter and process large email lists from Hunter io domain searches?
-
-When processing multiple emails from `<hunter1.emails>`, use these strategies:
-
-#### Filter by Confidence Score
-Use a Function block to filter emails:
-```javascript
-// Filter emails with score > 80
-const highConfidenceEmails = <hunter1.emails>.filter(email => email.confidence > 80);
-return highConfidenceEmails;
-```
-
-#### Department-Based Routing
-Use Condition blocks to route emails by department:
-
-| Condition | Route To | Purpose |
-|-----------|----------|---------|
-| `email.department === "sales"` | Sales Agent | Personalized sales outreach |
-| `email.department === "marketing"` | Marketing Agent | Partnership opportunities |
-| `email.department === "executive"` | Executive Agent | High-level communications |
-
-#### Bulk Verification Workflow
-Process found emails through verification:
-```
-Hunter io (domain_search) → Function (extract emails) → Hunter io (email_verifier) → Filter Results
-```
-
-Use `<function1.emailList>` to iterate through `<hunter1.emails>` array for batch verification.
+    Use `<function1.emailList>` to iterate through `<hunter1.emails>` array for batch verification.
+  </Accordion>
+</Accordions>
 {/* MANUAL-CONTENT-END */}

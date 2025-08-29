@@ -4,6 +4,8 @@ description: Interact with Confluence
 ---
 
 import { BlockInfoCard } from "@/components/ui/block-info-card"
+import { Accordion, Accordions } from "fumadocs-ui/components/accordion"
+
 
 <BlockInfoCard 
   type="confluence"
@@ -53,7 +55,6 @@ Retrieve content from Confluence pages using the Confluence API.
 | --------- | ---- | -------- | ----------- |
 | `domain` | string | Yes | Your Confluence domain \(e.g., yourcompany.atlassian.net\) |
 | `pageId` | string | Yes | Confluence page ID to retrieve |
-| `cloudId` | string | No | Confluence Cloud ID for the instance. If not provided, it will be fetched using the domain. |
 
 #### Output
 
@@ -77,7 +78,7 @@ Update a Confluence page using the Confluence API.
 | `title` | string | No | New title for the page |
 | `content` | string | No | New content for the page in Confluence storage format |
 | `version` | number | No | Version number of the page \(required for preventing conflicts\) |
-| `cloudId` | string | No | Confluence Cloud ID for the instance. If not provided, it will be fetched using the domain. |
+
 
 #### Output
 
@@ -125,7 +126,7 @@ Always implement version checking in update workflows by storing the current ver
 
 Enable comprehensive monitoring for all Confluence operations using the `<confluence1.success>` output to track operation reliability. The `<confluence1.ts>` timestamp enables performance analysis and helps identify API response time trends. Implement logging for the `<confluence1.pageId>` to ensure correct page targeting and facilitate troubleshooting.
 
-Monitor API rate limits by implementing request throttling in high-volume workflows. Confluence's API has specific rate limits that vary by license tier, so implement appropriate delays between batch operations. Use the optional `cloudId` parameter when working with multiple Confluence instances to ensure proper API endpoint targeting.
+Monitor API rate limits by implementing request throttling in high-volume workflows. Confluence's API has specific rate limits that vary by license tier, so implement appropriate delays between batch operations.
 
 Create validation workflows that verify page accessibility before attempting updates. Test `domain` connectivity and `pageId` validity early in workflows to fail fast and provide meaningful error messages rather than encountering failures during complex processing steps.
 
@@ -139,7 +140,7 @@ Validate page permissions before performing operations, especially updates. Impl
 
 Optimize API usage by implementing intelligent caching strategies for frequently accessed pages. Store retrieved content in workflow variables when processing multiple operations on the same page to reduce API calls. For batch operations, implement proper request spacing to avoid rate limiting while maintaining reasonable processing speed.
 
-Use the optional `cloudId` parameter when available to reduce API resolution overhead. Pre-calculate and store cloud IDs for known Confluence instances to eliminate the automatic domain-to-cloudId resolution step, improving response times for high-frequency operations.
+
 
 Structure workflows to minimize the number of Confluence operations by combining retrieval and processing steps efficiently. Rather than retrieving the same page multiple times within a workflow, capture the content once and process it through multiple subsequent blocks using connection tags.
 {/* MANUAL-CONTENT-END */}
@@ -148,144 +149,146 @@ Structure workflows to minimize the number of Confluence operations by combining
 ## FAQ
 
 {/* MANUAL-CONTENT-START:faq */}
-### How do I retrieve content from a Confluence page in my workflow?
+<Accordions type="single">
+  <Accordion title="How do I retrieve content from a Confluence page in my workflow?">
 
-To retrieve Confluence page content, add a **Confluence block** to your Sim.ai workflow and configure the `confluence_retrieve` operation:
+    To retrieve Confluence page content, add a **Confluence block** to your Sim.ai workflow and configure the `confluence_retrieve` operation:
 
-#### Required Inputs
+    #### Required Inputs
 
-| Input | Description | Example |
-|-------|-------------|---------|
-| `domain` | Your Confluence domain URL | `<start.domain>` or `"yourcompany.atlassian.net"` |
-| `pageId` | The specific page ID to retrieve | `<start.pageId>` or `"123456789"` |
-| `cloudId` | Optional Cloud ID for the instance | `<start.cloudId>` or leave empty for auto-fetch |
+    | Input | Description | Example |
+    |-------|-------------|---------|
+    | `domain` | Your Confluence domain URL | `<start.domain>` or `"yourcompany.atlassian.net"` |
+    | `pageId` | The specific page ID to retrieve | `<start.pageId>` or `"123456789"` |
 
-The block will return the page content with HTML tags stripped, making it ready for processing by Agent blocks or other workflow components.
 
-### How do I update a Confluence page with new content from my workflow?
+    The block will return the page content with HTML tags stripped, making it ready for processing by Agent blocks or other workflow components.
+  </Accordion>
+  <Accordion title="How do I update a Confluence page with new content from my workflow?">
 
-To update Confluence pages using the `confluence_update` operation:
+    To update Confluence pages using the `confluence_update` operation:
 
-1. **Set the required inputs** for page identification
-2. **Provide new content** from other blocks (like Agent outputs)
-3. **Include version number** to prevent conflicts
+    1. **Set the required inputs** for page identification
+    2. **Provide new content** from other blocks (like Agent outputs)
+    3. **Include version number** to prevent conflicts
 
-#### Example Configuration
+    #### Example Configuration
 
-```json
-{
-  "domain": "<start.domain>",
-  "pageId": "<start.pageId>",
-  "title": "<agent1.title>",
-  "content": "<agent1.content>",
-  "version": "<start.version>"
-}
-```
+    ```json
+    {
+      "domain": "<start.domain>",
+      "pageId": "<start.pageId>",
+      "title": "<agent1.title>",
+      "content": "<agent1.content>",
+      "version": "<start.version>"
+    }
+    ```
 
-This updates the specified page with AI-generated content while maintaining proper versioning.
+    This updates the specified page with AI-generated content while maintaining proper versioning.
+  </Accordion>
+  <Accordion title="What are the correct connection tags for referencing Confluence block outputs?">
 
-### What are the correct connection tags for referencing Confluence block outputs?
+    Every Confluence block exposes outputs that can be referenced in downstream blocks:
 
-Every Confluence block exposes outputs that can be referenced in downstream blocks:
+    #### Available Output Tags
 
-#### Available Output Tags
+    | Output Tag | Type | Description |
+    |------------|------|-------------|
+    | `<confluence1.ts>` | String | Timestamp when operation completed |
+    | `<confluence1.pageId>` | String | The Confluence page identifier |
+    | `<confluence1.content>` | String | Page content with HTML tags removed |
+    | `<confluence1.title>` | String | Page title text |
+    | `<confluence1.success>` | Boolean | Operation success status (update only) |
 
-| Output Tag | Type | Description |
-|------------|------|-------------|
-| `<confluence1.ts>` | String | Timestamp when operation completed |
-| `<confluence1.pageId>` | String | The Confluence page identifier |
-| `<confluence1.content>` | String | Page content with HTML tags removed |
-| `<confluence1.title>` | String | Page title text |
-| `<confluence1.success>` | Boolean | Operation success status (update only) |
+    Use these tags to connect Confluence data to Agent blocks, Condition blocks, or other workflow components.
+  </Accordion>
+  <Accordion title="How do I connect a Confluence page's content to an Agent block for processing?">
 
-Use these tags to connect Confluence data to Agent blocks, Condition blocks, or other workflow components.
+    To send Confluence page content to an AI agent for analysis or summarization:
 
-### How do I connect a Confluence page's content to an Agent block for processing?
+    1. **Add a Confluence block** with `confluence_retrieve` operation
+    2. **Add an Agent block** after the Confluence block
+    3. **Connect the content** using `<confluence1.content>` in the Agent's prompt
 
-To send Confluence page content to an AI agent for analysis or summarization:
+    #### Example Workflow Pattern
 
-1. **Add a Confluence block** with `confluence_retrieve` operation
-2. **Add an Agent block** after the Confluence block
-3. **Connect the content** using `<confluence1.content>` in the Agent's prompt
+    ```
+    Start → Confluence → Agent → Function
+    ```
 
-#### Example Workflow Pattern
+    In the Agent block's `userPrompt`, reference: `"Summarize this documentation: <confluence1.content>"`
 
-```
-Start → Confluence → Agent → Function
-```
+    This allows the AI to process and analyze Confluence documentation content within your workflow.
+  </Accordion>
+  <Accordion title="Why is my Confluence block failing to retrieve or update pages?">
 
-In the Agent block's `userPrompt`, reference: `"Summarize this documentation: <confluence1.content>"`
+    Troubleshoot common Confluence integration issues with this checklist:
 
-This allows the AI to process and analyze Confluence documentation content within your workflow.
+    #### Common Issues and Solutions
 
-### Why is my Confluence block failing to retrieve or update pages?
+    | Issue | Description | Solution |
+    |-------|-------------|----------|
+    | **Invalid Domain** | Incorrect Confluence URL format | Ensure domain is like `company.atlassian.net` without protocol |
+    | **Page ID Not Found** | Wrong or non-existent page ID | Verify page ID from Confluence URL or API |
+    | **Authentication Failed** | Missing or invalid credentials | Check API token and user permissions in Sim.ai settings |
+    | **Version Conflict** | Outdated version number for updates | Fetch current version before updating |
+    | **Permission Denied** | User lacks page access rights | Ensure API user has read/write permissions |
 
-Troubleshoot common Confluence integration issues with this checklist:
+    Check the workflow execution logs for specific error messages from the Confluence API.
+  </Accordion>
+  <Accordion title="How can I build automated workflows that process Confluence documentation?">
 
-#### Common Issues and Solutions
+    Confluence blocks integrate seamlessly with other Sim.ai components for documentation automation:
 
-| Issue | Description | Solution |
-|-------|-------------|----------|
-| **Invalid Domain** | Incorrect Confluence URL format | Ensure domain is like `company.atlassian.net` without protocol |
-| **Page ID Not Found** | Wrong or non-existent page ID | Verify page ID from Confluence URL or API |
-| **Authentication Failed** | Missing or invalid credentials | Check API token and user permissions in Sim.ai settings |
-| **Version Conflict** | Outdated version number for updates | Fetch current version before updating |
-| **Cloud ID Mismatch** | Incorrect Cloud ID specified | Leave `cloudId` empty for auto-detection |
-| **Permission Denied** | User lacks page access rights | Ensure API user has read/write permissions |
+    #### Common Workflow Patterns
 
-Check the workflow execution logs for specific error messages from the Confluence API.
+    ##### 1. **Documentation Analysis**
+    ```
+    Webhook → Confluence → Agent → Telegram
+    ```
+    Retrieve page content, analyze with AI, and send summaries to team channels.
 
-### How can I build automated workflows that process Confluence documentation?
+    ##### 2. **Content Updates**
+    ```
+    Scheduled → API → Function → Confluence
+    ```
+    Fetch external data, transform it, and automatically update documentation pages.
 
-Confluence blocks integrate seamlessly with other Sim.ai components for documentation automation:
+    ##### 3. **Multi-page Processing**
+    ```
+    Start → Function → Confluence → Agent → Confluence
+    ```
+    Use Function block to iterate through page IDs, retrieve content, process with AI, then update pages.
 
-#### Common Workflow Patterns
+    ##### 4. **Search and Extract**
+    ```
+    Confluence → Agent → Condition → Function
+    ```
+    Retrieve documentation, extract specific information with AI, conditionally process results.
+  </Accordion>
+  <Accordion title="How do I handle Confluence page versioning when updating content programmatically?">
 
-##### 1. **Documentation Analysis**
-```
-Webhook → Confluence → Agent → Telegram
-```
-Retrieve page content, analyze with AI, and send summaries to team channels.
+    When updating Confluence pages, proper version management prevents conflicts:
 
-##### 2. **Content Updates**
-```
-Scheduled → API → Function → Confluence
-```
-Fetch external data, transform it, and automatically update documentation pages.
+    #### Version Handling Strategy
 
-##### 3. **Multi-page Processing**
-```
-Start → Function → Confluence → Agent → Confluence
-```
-Use Function block to iterate through page IDs, retrieve content, process with AI, then update pages.
+    1. **Retrieve current page** first using `confluence_retrieve`
+    2. **Extract version number** from page metadata 
+    3. **Increment version** in Function block
+    4. **Use updated version** in `confluence_update` operation
 
-##### 4. **Search and Extract**
-```
-Confluence → Agent → Condition → Function
-```
-Retrieve documentation, extract specific information with AI, conditionally process results.
+    #### Example Version Workflow
 
-### How do I handle Confluence page versioning when updating content programmatically?
+    ```json
+    {
+      "domain": "<start.domain>",
+      "pageId": "<start.pageId>",
+      "content": "<agent1.processedContent>",
+      "version": "<function1.incrementedVersion>"
+    }
+    ```
 
-When updating Confluence pages, proper version management prevents conflicts:
-
-#### Version Handling Strategy
-
-1. **Retrieve current page** first using `confluence_retrieve`
-2. **Extract version number** from page metadata 
-3. **Increment version** in Function block
-4. **Use updated version** in `confluence_update` operation
-
-#### Example Version Workflow
-
-```json
-{
-  "domain": "<start.domain>",
-  "pageId": "<start.pageId>",
-  "content": "<agent1.processedContent>",
-  "version": "<function1.incrementedVersion>"
-}
-```
-
-This ensures your updates don't overwrite concurrent changes and maintains proper change tracking in Confluence.
+    This ensures your updates don't overwrite concurrent changes and maintains proper change tracking in Confluence.
+  </Accordion>
+</Accordions>
 {/* MANUAL-CONTENT-END */}

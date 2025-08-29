@@ -4,6 +4,8 @@ description: Convert TTS using ElevenLabs
 ---
 
 import { BlockInfoCard } from "@/components/ui/block-info-card"
+import { Accordion, Accordions } from "fumadocs-ui/components/accordion"
+
 
 <BlockInfoCard 
   type="elevenlabs"
@@ -114,123 +116,126 @@ Pre-select and validate voice IDs during workflow setup rather than dynamic sele
 ## FAQ
 
 {/* MANUAL-CONTENT-START:faq */}
-### How do I convert text to speech using ElevenLabs in my workflow?
+<Accordions type="single">
+  <Accordion title="How do I convert text to speech using ElevenLabs in my workflow?">
 
-To convert text to speech with ElevenLabs, add an **ElevenLabs block** to your Sim.ai workflow and configure its required inputs:
+    To convert text to speech with ElevenLabs, add an **ElevenLabs block** to your Sim.ai workflow and configure its required inputs:
 
-#### Required Inputs
+    #### Required Inputs
 
-| Input | Description | Example |
-|-------|-------------|---------|
-| `text` | The text content to convert to speech | `<agent1.content>` or `<start.message>` |
-| `voiceId` | ElevenLabs voice identifier | `<start.voiceId>` or static ID like `21m00Tcm4TlvDq8ikWAM` |
-| `apiKey` | Your ElevenLabs API key | `<start.apiKey>` or environment variable |
+    | Input | Description | Example |
+    |-------|-------------|---------|
+    | `text` | The text content to convert to speech | `<agent1.content>` or `<start.message>` |
+    | `voiceId` | ElevenLabs voice identifier | `<start.voiceId>` or static ID like `21m00Tcm4TlvDq8ikWAM` |
+    | `apiKey` | Your ElevenLabs API key | `<start.apiKey>` or environment variable |
 
-#### Optional Input
+    #### Optional Input
 
-| Input | Description | Default |
-|-------|-------------|---------|
-| `modelId` | ElevenLabs model to use | `eleven_monolingual_v1` |
+    | Input | Description | Default |
+    |-------|-------------|---------|
+    | `modelId` | ElevenLabs model to use | `eleven_monolingual_v1` |
+  </Accordion>
+  <Accordion title="How do I get an ElevenLabs API key and voice ID for my workflow?">
 
-### How do I get an ElevenLabs API key and voice ID for my workflow?
+    To authenticate with ElevenLabs and select voices:
 
-To authenticate with ElevenLabs and select voices:
+    1. **Get API Key**: Sign up at ElevenLabs and copy your API key from the profile settings
+    2. **Find Voice IDs**: Use the ElevenLabs dashboard or API to list available voices
+    3. **Configure in Workflow**: Add these as inputs to your start block or directly in the ElevenLabs block
 
-1. **Get API Key**: Sign up at ElevenLabs and copy your API key from the profile settings
-2. **Find Voice IDs**: Use the ElevenLabs dashboard or API to list available voices
-3. **Configure in Workflow**: Add these as inputs to your start block or directly in the ElevenLabs block
+    #### Popular Voice IDs
+    - Rachel: `21m00Tcm4TlvDq8ikWAM`
+    - Drew: `29vD33N1CtxCmqQRPOHJ`
+    - Clyde: `2EiwWnXFnvU5JabPnv8n`
+  </Accordion>
+  <Accordion title="What is the correct way to reference ElevenLabs block outputs in downstream blocks?">
 
-#### Popular Voice IDs
-- Rachel: `21m00Tcm4TlvDq8ikWAM`
-- Drew: `29vD33N1CtxCmqQRPOHJ`
-- Clyde: `2EiwWnXFnvU5JabPnv8n`
+    The ElevenLabs block generates one output that can be referenced using connection tags:
 
-### What is the correct way to reference ElevenLabs block outputs in downstream blocks?
+    #### Available Output
 
-The ElevenLabs block generates one output that can be referenced using connection tags:
+    | Output Tag | Type | Description |
+    |------------|------|-------------|
+    | `<elevenlabs1.audioUrl>` | String | Direct URL to the generated audio file |
 
-#### Available Output
+    This URL can be used in other blocks for audio playback, file storage, or further processing.
+  </Accordion>
+  <Accordion title="How do I connect an Agent block's response to ElevenLabs for text-to-speech conversion?">
 
-| Output Tag | Type | Description |
-|------------|------|-------------|
-| `<elevenlabs1.audioUrl>` | String | Direct URL to the generated audio file |
+    To convert AI-generated text to speech:
 
-This URL can be used in other blocks for audio playback, file storage, or further processing.
+    1. In the ElevenLabs block's `text` field, type `<>` to open the connection menu
+    2. Select `<agent1.content>` from the available connections
+    3. Configure your voice settings
 
-### How do I connect an Agent block's response to ElevenLabs for text-to-speech conversion?
+    #### Example Configuration
 
-To convert AI-generated text to speech:
+    ```json
+    {
+      "text": "<agent1.content>",
+      "voiceId": "21m00Tcm4TlvDq8ikWAM",
+      "apiKey": "<start.apiKey>"
+    }
+    ```
 
-1. In the ElevenLabs block's `text` field, type `<>` to open the connection menu
-2. Select `<agent1.content>` from the available connections
-3. Configure your voice settings
+    This automatically converts the AI agent's response into natural-sounding speech using your selected voice.
+  </Accordion>
+  <Accordion title="Why is my ElevenLabs text-to-speech conversion failing?">
 
-#### Example Configuration
+    Troubleshoot common issues with this checklist:
 
-```json
-{
-  "text": "<agent1.content>",
-  "voiceId": "21m00Tcm4TlvDq8ikWAM",
-  "apiKey": "<start.apiKey>"
-}
-```
+    #### Common Issues and Solutions
 
-This automatically converts the AI agent's response into natural-sounding speech using your selected voice.
+    | Issue | Description | Solution |
+    |-------|-------------|----------|
+    | **Invalid API Key** | Authentication failed | Verify `<start.apiKey>` matches your ElevenLabs key |
+    | **Voice ID Not Found** | Specified voice doesn't exist | Check voice ID format and availability in your account |
+    | **Empty Text Input** | No content to convert | Ensure `text` field is populated (e.g., `<agent1.content>`) |
+    | **Character Limit Exceeded** | Text too long for conversion | Split long text or check your plan's character limits |
+    | **Model ID Error** | Invalid model specified | Use default or verify model ID exists |
+  </Accordion>
+  <Accordion title="Can I combine ElevenLabs with other blocks for complete voice workflows?">
 
-### Why is my ElevenLabs text-to-speech conversion failing?
+    Yes! ElevenLabs blocks integrate seamlessly with other Sim.ai workflow components:
 
-Troubleshoot common issues with this checklist:
+    #### Common Workflow Patterns
 
-#### Common Issues and Solutions
+    ##### 1. **Webhook → Agent → ElevenLabs**
+    Convert incoming text messages into AI responses and then to speech.
 
-| Issue | Description | Solution |
-|-------|-------------|----------|
-| **Invalid API Key** | Authentication failed | Verify `<start.apiKey>` matches your ElevenLabs key |
-| **Voice ID Not Found** | Specified voice doesn't exist | Check voice ID format and availability in your account |
-| **Empty Text Input** | No content to convert | Ensure `text` field is populated (e.g., `<agent1.content>`) |
-| **Character Limit Exceeded** | Text too long for conversion | Split long text or check your plan's character limits |
-| **Model ID Error** | Invalid model specified | Use default or verify model ID exists |
+    ##### 2. **API → Function → ElevenLabs**
+    Fetch content from external sources, process it, and convert to audio.
 
-### Can I combine ElevenLabs with other blocks for complete voice workflows?
+    ##### 3. **Schedule → Agent → ElevenLabs**
+    Generate periodic voice announcements or reports.
 
-Yes! ElevenLabs blocks integrate seamlessly with other Sim.ai workflow components:
+    ##### 4. **ElevenLabs → File Storage**
+    Convert text to speech and save the audio file:
+    ```
+    text → ElevenLabs → use `<elevenlabs1.audioUrl>` in file storage block
+    ```
+  </Accordion>
+  <Accordion title="How do I create dynamic voice selection based on user preferences in my workflow?">
 
-#### Common Workflow Patterns
+    To allow users to choose different voices dynamically:
 
-##### 1. **Webhook → Agent → ElevenLabs**
-Convert incoming text messages into AI responses and then to speech.
+    #### Setup Dynamic Voice Selection
 
-##### 2. **API → Function → ElevenLabs**
-Fetch content from external sources, process it, and convert to audio.
+    1. **Start Block**: Include a `voicePreference` input field
+    2. **Condition Block**: Map user preferences to voice IDs
+    3. **ElevenLabs Block**: Use conditional output as `voiceId`
 
-##### 3. **Schedule → Agent → ElevenLabs**
-Generate periodic voice announcements or reports.
+    #### Example Mapping
 
-##### 4. **ElevenLabs → File Storage**
-Convert text to speech and save the audio file:
-```
-text → ElevenLabs → use `<elevenlabs1.audioUrl>` in file storage block
-```
+    ```json
+    {
+      "text": "<agent1.content>",
+      "voiceId": "<condition1.selectedVoiceId>",
+      "apiKey": "<start.apiKey>"
+    }
+    ```
 
-### How do I create dynamic voice selection based on user preferences in my workflow?
-
-To allow users to choose different voices dynamically:
-
-#### Setup Dynamic Voice Selection
-
-1. **Start Block**: Include a `voicePreference` input field
-2. **Condition Block**: Map user preferences to voice IDs
-3. **ElevenLabs Block**: Use conditional output as `voiceId`
-
-#### Example Mapping
-
-```json
-{
-  "text": "<agent1.content>",
-  "voiceId": "<condition1.selectedVoiceId>",
-  "apiKey": "<start.apiKey>"
-}
-```
-
-This allows users to specify voice preferences that get translated into the appropriate ElevenLabs voice identifier.
+    This allows users to specify voice preferences that get translated into the appropriate ElevenLabs voice identifier.
+  </Accordion>
+</Accordions>
 {/* MANUAL-CONTENT-END */}

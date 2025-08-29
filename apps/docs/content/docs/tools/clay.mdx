@@ -4,6 +4,8 @@ description: Populate Clay workbook
 ---
 
 import { BlockInfoCard } from "@/components/ui/block-info-card"
+import { Accordion, Accordions } from "fumadocs-ui/components/accordion"
+
 
 <BlockInfoCard 
   type="clay"
@@ -189,7 +191,6 @@ Learn how to use the Clay Tool in Sim to seamlessly insert data into a Clay work
 With Clay, you can:
 
 - **Enrich agent outputs**: Automatically feed your Sim agent data into Clay tables for structured tracking and analysis
-- **Trigger workflows via webhooks**: Use Clay’s webhook support to initiate Sim agent tasks from within Clay
 - **Leverage data loops**: Seamlessly iterate over enriched data rows with agents that operate across dynamic datasets
 
 In Sim, the Clay integration allows your agents to push structured data into Clay tables via webhooks. This makes it easy to collect, enrich, and manage dynamic outputs such as leads, research summaries, or action items—all in a collaborative, spreadsheet-like interface. Your agents can populate rows in real time, enabling asynchronous workflows where AI-generated insights are captured, reviewed, and used by your team. Whether you're automating research, enriching CRM data, or tracking operational outcomes, Clay becomes a living data layer that interacts intelligently with your agents. By connecting Sim with Clay, you gain a powerful way to operationalize agent results, loop over datasets with precision, and maintain a clean, auditable record of AI-driven work.
@@ -279,137 +280,140 @@ Structure your data transformation pipeline to minimize processing overhead befo
 ## FAQ
 
 {/* MANUAL-CONTENT-START:faq */}
-### How do I populate a Clay workbook from my Sim.ai workflow?
+<Accordions type="single">
+  <Accordion title="How do I populate a Clay workbook from my Sim.ai workflow?">
 
-To populate Clay workbooks from your workflow, add a **Clay block** and configure its required inputs:
+    To populate Clay workbooks from your workflow, add a **Clay block** and configure its required inputs:
 
-#### Required Inputs
+    #### Required Inputs
 
-| Input | Description | Example |
-|-------|-------------|---------|
-| `webhookURL` | Your Clay webhook URL for data population | `<start.webhookURL>` or static URL |
-| `data` | JSON data to populate in Clay workbook | `<agent1.structuredOutput>` or `<api1.response>` |
-| `authToken` | Authentication token for Clay webhook | `<start.authToken>` or environment variable |
+    | Input | Description | Example |
+    |-------|-------------|---------|
+    | `webhookURL` | Your Clay webhook URL for data population | `<start.webhookURL>` or static URL |
+    | `data` | JSON data to populate in Clay workbook | `<agent1.structuredOutput>` or `<api1.response>` |
+    | `authToken` | Authentication token for Clay webhook | `<start.authToken>` or environment variable |
+  </Accordion>
+  <Accordion title="What is the correct way to reference Clay block outputs in downstream blocks?">
 
-### What is the correct way to reference Clay block outputs in downstream blocks?
+    Every Clay block exposes outputs that can be referenced using connection tags:
 
-Every Clay block exposes outputs that can be referenced using connection tags:
+    #### Available Outputs
 
-#### Available Outputs
+    | Output Tag | Type | Description |
+    |------------|------|-------------|
+    | `<clay1.success>` | Boolean | `true` if Clay population was successful |
+    | `<clay1.output>` | JSON | Complete response data from Clay webhook |
+    | `<clay1.data>` | JSON | Response data from the Clay operation |
 
-| Output Tag | Type | Description |
-|------------|------|-------------|
-| `<clay1.success>` | Boolean | `true` if Clay population was successful |
-| `<clay1.output>` | JSON | Complete response data from Clay webhook |
-| `<clay1.data>` | JSON | Response data from the Clay operation |
+    These values can be connected to inputs of downstream blocks for further processing or validation.
+  </Accordion>
+  <Accordion title="How do I connect an Agent block's structured output to Clay for data population?">
 
-These values can be connected to inputs of downstream blocks for further processing or validation.
+    To route an agent's structured response to Clay workbooks:
 
-### How do I connect an Agent block's structured output to Clay for data population?
+    1. Configure your Agent block to output structured JSON data
+    2. In the Clay block's `data` field, connect the agent's output using `<agent1.structuredOutput>`
 
-To route an agent's structured response to Clay workbooks:
+    #### Example Configuration
 
-1. Configure your Agent block to output structured JSON data
-2. In the Clay block's `data` field, connect the agent's output using `<agent1.structuredOutput>`
+    ```json
+    {
+      "webhookURL": "https://hooks.clay.run/api/v1/webhook/your-webhook-id",
+      "data": "<agent1.structuredOutput>",
+      "authToken": "<start.clayToken>"
+    }
+    ```
 
-#### Example Configuration
+    This configuration automatically populates your Clay workbook with AI-generated structured data.
+  </Accordion>
+  <Accordion title="Why is my Clay workbook population failing?">
 
-```json
-{
-  "webhookURL": "https://hooks.clay.run/api/v1/webhook/your-webhook-id",
-  "data": "<agent1.structuredOutput>",
-  "authToken": "<start.clayToken>"
-}
-```
+    Troubleshoot common Clay integration issues with this checklist:
 
-This configuration automatically populates your Clay workbook with AI-generated structured data.
+    #### Common Issues and Solutions
 
-### Why is my Clay workbook population failing?
+    | Issue | Description | Solution |
+    |-------|-------------|----------|
+    | **Invalid Webhook URL** | Incorrect Clay webhook endpoint | Verify webhook URL format and Clay workbook settings |
+    | **Authentication Error** | Wrong or missing auth token | Check `<start.authToken>` matches your Clay API credentials |
+    | **Data Format Mismatch** | JSON structure doesn't match Clay schema | Ensure `data` field contains properly formatted JSON |
+    | **Webhook Permissions** | Insufficient permissions for Clay webhook | Verify webhook has write access to target workbook |
+    | **Rate Limiting** | Too many requests to Clay API | Add delays between Clay operations or batch requests |
+  </Accordion>
+  <Accordion title="How do I create automated workflows that populate Clay workbooks with external data?">
 
-Troubleshoot common Clay integration issues with this checklist:
+    Clay blocks integrate seamlessly with other Sim.ai components for automated data population:
 
-#### Common Issues and Solutions
+    #### Common Workflow Patterns
 
-| Issue | Description | Solution |
-|-------|-------------|----------|
-| **Invalid Webhook URL** | Incorrect Clay webhook endpoint | Verify webhook URL format and Clay workbook settings |
-| **Authentication Error** | Wrong or missing auth token | Check `<start.authToken>` matches your Clay API credentials |
-| **Data Format Mismatch** | JSON structure doesn't match Clay schema | Ensure `data` field contains properly formatted JSON |
-| **Webhook Permissions** | Insufficient permissions for Clay webhook | Verify webhook has write access to target workbook |
-| **Rate Limiting** | Too many requests to Clay API | Add delays between Clay operations or batch requests |
+    ##### 1. **Webhook → Agent → Clay**
+    Process incoming webhook data with AI and populate Clay workbooks:
+    ```
+    Webhook (receives data) → Agent (structures data) → Clay (populates workbook)
+    ```
 
-### How do I create automated workflows that populate Clay workbooks with external data?
+    ##### 2. **API → Function → Clay**
+    Fetch external data, transform it, and populate Clay:
+    ```
+    API (fetch data) → Function (transform) → Clay (populate)
+    ```
 
-Clay blocks integrate seamlessly with other Sim.ai components for automated data population:
+    ##### 3. **Scheduled Trigger → Multiple APIs → Clay**
+    Create periodic data syncing workflows:
+    ```
+    Schedule → API calls → Clay (batch populate)
+    ```
 
-#### Common Workflow Patterns
+    ##### 4. **Condition → Clay**
+    Populate different Clay workbooks based on conditional logic:
+    ```
+    if `<condition1.result>` is "high_priority":
+      → Clay (urgent workbook)
+    else:
+      → Clay (standard workbook)
+    ```
+  </Accordion>
+  <Accordion title="How do I handle Clay webhook authentication in my workflows?">
 
-##### 1. **Webhook → Agent → Clay**
-Process incoming webhook data with AI and populate Clay workbooks:
-```
-Webhook (receives data) → Agent (structures data) → Clay (populates workbook)
-```
+    Clay webhook authentication requires proper token management:
 
-##### 2. **API → Function → Clay**
-Fetch external data, transform it, and populate Clay:
-```
-API (fetch data) → Function (transform) → Clay (populate)
-```
+    #### Authentication Setup
 
-##### 3. **Scheduled Trigger → Multiple APIs → Clay**
-Create periodic data syncing workflows:
-```
-Schedule → API calls → Clay (batch populate)
-```
+    1. **Store tokens securely**: Use environment variables or secure input fields
+    2. **Reference in workflows**: Connect auth tokens using `<start.authToken>`
+    3. **Validate responses**: Check `<clay1.success>` to confirm authentication worked
 
-##### 4. **Condition → Clay**
-Populate different Clay workbooks based on conditional logic:
-```
-if `<condition1.result>` is "high_priority":
-  → Clay (urgent workbook)
-else:
-  → Clay (standard workbook)
-```
+    #### Example Authentication Pattern
 
-### How do I handle Clay webhook authentication in my workflows?
+    ```json
+    {
+      "webhookURL": "https://hooks.clay.run/api/v1/webhook/abc123",
+      "authToken": "<start.CLAY_AUTH_TOKEN>",
+      "data": "<api1.transformedData>"
+    }
+    ```
+  </Accordion>
+  <Accordion title="Can I validate Clay population results and handle errors in my workflow?">
 
-Clay webhook authentication requires proper token management:
+    Yes! Use Clay block outputs to create error handling and validation workflows:
 
-#### Authentication Setup
+    #### Error Handling Pattern
 
-1. **Store tokens securely**: Use environment variables or secure input fields
-2. **Reference in workflows**: Connect auth tokens using `<start.authToken>`
-3. **Validate responses**: Check `<clay1.success>` to confirm authentication worked
+    ##### 1. **Check Success Status**
+    ```
+    Clay → Condition (check `<clay1.success>`)
+    ```
 
-#### Example Authentication Pattern
+    ##### 2. **Branch Based on Results**
+    ```
+    if `<clay1.success>` is true:
+      → Telegram (send success notification)
+    else:
+      → Email (send error alert with `<clay1.output>`)
+    ```
 
-```json
-{
-  "webhookURL": "https://hooks.clay.run/api/v1/webhook/abc123",
-  "authToken": "<start.CLAY_AUTH_TOKEN>",
-  "data": "<api1.transformedData>"
-}
-```
-
-### Can I validate Clay population results and handle errors in my workflow?
-
-Yes! Use Clay block outputs to create error handling and validation workflows:
-
-#### Error Handling Pattern
-
-##### 1. **Check Success Status**
-```
-Clay → Condition (check `<clay1.success>`)
-```
-
-##### 2. **Branch Based on Results**
-```
-if `<clay1.success>` is true:
-  → Telegram (send success notification)
-else:
-  → Email (send error alert with `<clay1.output>`)
-```
-
-##### 3. **Log Population Details**
-Reference `<clay1.data>` to capture detailed response information for debugging and audit trails.
+    ##### 3. **Log Population Details**
+    Reference `<clay1.data>` to capture detailed response information for debugging and audit trails.
+  </Accordion>
+</Accordions>
 {/* MANUAL-CONTENT-END */}

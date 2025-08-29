@@ -4,6 +4,8 @@ description: Manage Notion pages
 ---
 
 import { BlockInfoCard } from "@/components/ui/block-info-card"
+import { Accordion, Accordions } from "fumadocs-ui/components/accordion"
+
 
 <BlockInfoCard 
   type="notion"
@@ -247,132 +249,135 @@ For high-frequency workflows, implement operation queuing using schedule trigger
 ## FAQ
 
 {/* MANUAL-CONTENT-START:faq */}
-### How do I read content from a Notion page in my workflow?
+<Accordions type="single">
+  <Accordion title="How do I read content from a Notion page in my workflow?">
 
-To read content from a Notion page, add a **Notion block** to your Sim.ai workflow and configure the `notion_read` operation:
+    To read content from a Notion page, add a **Notion block** to your Sim.ai workflow and configure the `notion_read` operation:
 
-#### Required Input
+    #### Required Input
 
-| Input | Description | Example |
-|-------|-------------|---------|
-| `pageId` | The ID of the Notion page to read | `<start.pageId>` or static ID like `abc123def456` |
+    | Input | Description | Example |
+    |-------|-------------|---------|
+    | `pageId` | The ID of the Notion page to read | `<start.pageId>` or static ID like `abc123def456` |
 
-The block outputs `<notion1.content>` containing the page content in markdown format and `<notion1.metadata>` with page details like title, URL, and timestamps.
+    The block outputs `<notion1.content>` containing the page content in markdown format and `<notion1.metadata>` with page details like title, URL, and timestamps.
+  </Accordion>
+  <Accordion title="How do I append new content to an existing Notion page?">
 
-### How do I append new content to an existing Notion page?
+    To add content to a Notion page, use the `notion_write` operation with these required inputs:
 
-To add content to a Notion page, use the `notion_write` operation with these required inputs:
+    #### Configuration Example
 
-#### Configuration Example
+    | Input | Value | Source |
+    |-------|-------|--------|
+    | `pageId` | Target page identifier | `<start.pageId>` or `<notion1.metadata.id>` |
+    | `content` | Content to append | `<agent1.content>` or any markdown text |
 
-| Input | Value | Source |
-|-------|-------|--------|
-| `pageId` | Target page identifier | `<start.pageId>` or `<notion1.metadata.id>` |
-| `content` | Content to append | `<agent1.content>` or any markdown text |
+    The operation appends content to the end of the specified page and returns a success confirmation in `<notion1.content>`.
+  </Accordion>
+  <Accordion title="What is the correct way to reference Notion block outputs in downstream blocks?">
 
-The operation appends content to the end of the specified page and returns a success confirmation in `<notion1.content>`.
+    Every Notion block exposes standardized outputs that can be referenced using connection tags:
 
-### What is the correct way to reference Notion block outputs in downstream blocks?
+    #### Available Output Tags
 
-Every Notion block exposes standardized outputs that can be referenced using connection tags:
+    | Output Tag | Type | Description |
+    |------------|------|-------------|
+    | `<notion1.content>` | String | Page content, search results, or operation confirmations |
+    | `<notion1.metadata>` | Object | Operation-specific metadata with page/database details |
+    | `<notion1.metadata.title>` | String | Page or database title |
+    | `<notion1.metadata.id>` | String | Unique page or database identifier |
+    | `<notion1.metadata.url>` | String | Direct URL to the Notion resource |
 
-#### Available Output Tags
+    These outputs can be connected to inputs of other blocks for further processing or analysis.
+  </Accordion>
+  <Accordion title="How do I create a new Notion page from my workflow?">
 
-| Output Tag | Type | Description |
-|------------|------|-------------|
-| `<notion1.content>` | String | Page content, search results, or operation confirmations |
-| `<notion1.metadata>` | Object | Operation-specific metadata with page/database details |
-| `<notion1.metadata.title>` | String | Page or database title |
-| `<notion1.metadata.id>` | String | Unique page or database identifier |
-| `<notion1.metadata.url>` | String | Direct URL to the Notion resource |
+    To create new pages programmatically, use the `notion_create_page` operation:
 
-These outputs can be connected to inputs of other blocks for further processing or analysis.
+    #### Required and Optional Inputs
 
-### How do I create a new Notion page from my workflow?
+    | Input | Required | Description | Example |
+    |-------|----------|-------------|---------|
+    | `parentId` | Yes | ID of parent page | `<start.parentPageId>` |
+    | `title` | No | Page title | `<agent1.title>` or "Meeting Notes" |
+    | `content` | No | Initial page content | `<function1.summary>` or markdown text |
 
-To create new pages programmatically, use the `notion_create_page` operation:
+    The operation returns `<notion1.content>` with a success message and `<notion1.metadata>` containing the new page's ID, URL, and creation details.
+  </Accordion>
+  <Accordion title="How do I query and filter data from a Notion database?">
 
-#### Required and Optional Inputs
+    Use the `notion_query_database` operation to retrieve filtered database entries:
 
-| Input | Required | Description | Example |
-|-------|----------|-------------|---------|
-| `parentId` | Yes | ID of parent page | `<start.parentPageId>` |
-| `title` | No | Page title | `<agent1.title>` or "Meeting Notes" |
-| `content` | No | Initial page content | `<function1.summary>` or markdown text |
+    #### Input Configuration
 
-The operation returns `<notion1.content>` with a success message and `<notion1.metadata>` containing the new page's ID, URL, and creation details.
+    | Input | Type | Description | Example |
+    |-------|------|-------------|---------|
+    | `databaseId` | String (required) | Target database ID | `<start.databaseId>` |
+    | `filter` | String (optional) | JSON filter conditions | `{"property": "Status", "select": {"equals": "Done"}}` |
+    | `sorts` | String (optional) | JSON sort criteria | `[{"property": "Created", "direction": "descending"}]` |
+    | `pageSize` | Number (optional) | Results limit (max 100) | `50` or `<start.limit>` |
 
-### How do I query and filter data from a Notion database?
+    The block returns formatted results in `<notion1.content>` and detailed metadata including pagination info in `<notion1.metadata>`.
+  </Accordion>
+  <Accordion title="Why am I getting authentication errors with my Notion block?">
 
-Use the `notion_query_database` operation to retrieve filtered database entries:
+    Troubleshoot Notion integration issues with this checklist:
 
-#### Input Configuration
+    #### Common Authentication Problems
 
-| Input | Type | Description | Example |
-|-------|------|-------------|---------|
-| `databaseId` | String (required) | Target database ID | `<start.databaseId>` |
-| `filter` | String (optional) | JSON filter conditions | `{"property": "Status", "select": {"equals": "Done"}}` |
-| `sorts` | String (optional) | JSON sort criteria | `[{"property": "Created", "direction": "descending"}]` |
-| `pageSize` | Number (optional) | Results limit (max 100) | `50` or `<start.limit>` |
+    | Issue | Cause | Solution |
+    |-------|-------|---------|
+    | **Invalid Integration Token** | Missing or expired API token | Verify your Notion integration token in workflow settings |
+    | **Insufficient Permissions** | Integration lacks page access | Grant your integration access to specific pages/databases |
+    | **Wrong Page/Database ID** | Incorrect resource identifier | Use full UUID format (32 characters with hyphens) |
+    | **Parent Page Access** | No access to parent for new pages | Ensure integration can access the parent page specified |
 
-The block returns formatted results in `<notion1.content>` and detailed metadata including pagination info in `<notion1.metadata>`.
+    Check your Notion integration settings and ensure proper permissions are configured for all target resources.
+  </Accordion>
+  <Accordion title="Can I combine Notion blocks with AI agents for content generation?">
 
-### Why am I getting authentication errors with my Notion block?
+    Yes! Notion blocks work seamlessly with Agent blocks for intelligent content workflows:
 
-Troubleshoot Notion integration issues with this checklist:
+    #### Common Integration Patterns
 
-#### Common Authentication Problems
+    ##### 1. **Agent → Notion Write**
+    Generate AI content and append to existing pages:
+    ```
+    Connect: <agent1.content> → notion.content
+    ```
 
-| Issue | Cause | Solution |
-|-------|-------|---------|
-| **Invalid Integration Token** | Missing or expired API token | Verify your Notion integration token in workflow settings |
-| **Insufficient Permissions** | Integration lacks page access | Grant your integration access to specific pages/databases |
-| **Wrong Page/Database ID** | Incorrect resource identifier | Use full UUID format (32 characters with hyphens) |
-| **Parent Page Access** | No access to parent for new pages | Ensure integration can access the parent page specified |
+    ##### 2. **Notion Read → Agent → Notion Write**
+    Process existing content with AI and update pages:
+    ```
+    <notion1.content> → agent.userPrompt → <agent1.content> → notion2.content
+    ```
 
-Check your Notion integration settings and ensure proper permissions are configured for all target resources.
+    ##### 3. **Webhook → Agent → Notion Create Page**
+    Create new pages with AI-generated content from external triggers:
+    ```
+    <start.data> → agent.userPrompt → <agent1.content> → notion.content
+    ```
 
-### Can I combine Notion blocks with AI agents for content generation?
+    ##### 4. **Notion Query Database → Function → Agent**
+    Analyze database entries and generate insights:
+    ```
+    <notion1.content> → function.data → <function1.summary> → agent.userPrompt
+    ```
+  </Accordion>
+  <Accordion title="How do I search across my entire Notion workspace from a workflow?">
 
-Yes! Notion blocks work seamlessly with Agent blocks for intelligent content workflows:
+    Use the `notion_search` operation to find pages and databases across your workspace:
 
-#### Common Integration Patterns
+    #### Search Configuration
 
-##### 1. **Agent → Notion Write**
-Generate AI content and append to existing pages:
-```
-Connect: <agent1.content> → notion.content
-```
+    | Input | Required | Description | Example |
+    |-------|----------|-------------|---------|
+    | `query` | No | Search terms (empty = all pages) | `<start.searchTerm>` or "project updates" |
+    | `filterType` | No | Object type filter | "page", "database", or leave empty |
+    | `pageSize` | No | Results limit (default: 100) | `25` or `<start.maxResults>` |
 
-##### 2. **Notion Read → Agent → Notion Write**
-Process existing content with AI and update pages:
-```
-<notion1.content> → agent.userPrompt → <agent1.content> → notion2.content
-```
-
-##### 3. **Webhook → Agent → Notion Create Page**
-Create new pages with AI-generated content from external triggers:
-```
-<start.data> → agent.userPrompt → <agent1.content> → notion.content
-```
-
-##### 4. **Notion Query Database → Function → Agent**
-Analyze database entries and generate insights:
-```
-<notion1.content> → function.data → <function1.summary> → agent.userPrompt
-```
-
-### How do I search across my entire Notion workspace from a workflow?
-
-Use the `notion_search` operation to find pages and databases across your workspace:
-
-#### Search Configuration
-
-| Input | Required | Description | Example |
-|-------|----------|-------------|---------|
-| `query` | No | Search terms (empty = all pages) | `<start.searchTerm>` or "project updates" |
-| `filterType` | No | Object type filter | "page", "database", or leave empty |
-| `pageSize` | No | Results limit (default: 100) | `25` or `<start.maxResults>` |
-
-The search returns formatted results in `<notion1.content>` and comprehensive metadata in `<notion1.metadata>` including total count and pagination details for processing large result sets.
+    The search returns formatted results in `<notion1.content>` and comprehensive metadata in `<notion1.metadata>` including total count and pagination details for processing large result sets.
+  </Accordion>
+</Accordions>
 {/* MANUAL-CONTENT-END */}

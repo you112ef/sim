@@ -4,6 +4,8 @@ description: Generate images
 ---
 
 import { BlockInfoCard } from "@/components/ui/block-info-card"
+import { Accordion, Accordions } from "fumadocs-ui/components/accordion"
+
 
 <BlockInfoCard 
   type="image_generator"
@@ -130,140 +132,143 @@ Monitor API response times and implement timeout handling for generation request
 ## FAQ
 
 {/* MANUAL-CONTENT-START:faq */}
-### How do I generate images from my workflow using the Image Generator block?
+<Accordions type="single">
+  <Accordion title="How do I generate images from my workflow using the Image Generator block?">
 
-To generate images in your Sim.ai workflow, add an **Image Generator block** and configure its required inputs:
+    To generate images in your Sim.ai workflow, add an **Image Generator block** and configure its required inputs:
 
-#### Required Inputs
+    #### Required Inputs
 
-| Input | Description | Example |
-|-------|-------------|---------|
-| `model` | OpenAI model to use | `dall-e-3` or `gpt-image-1` |
-| `prompt` | Text description of desired image | `<agent1.content>` or static text |
-| `size` | Image dimensions | `1024x1024`, `1024x1792`, or `1792x1024` |
-| `apiKey` | Your OpenAI API key | `<start.apiKey>` or environment variable |
+    | Input | Description | Example |
+    |-------|-------------|---------|
+    | `model` | OpenAI model to use | `dall-e-3` or `gpt-image-1` |
+    | `prompt` | Text description of desired image | `<agent1.content>` or static text |
+    | `size` | Image dimensions | `1024x1024`, `1024x1792`, or `1792x1024` |
+    | `apiKey` | Your OpenAI API key | `<start.apiKey>` or environment variable |
 
-#### Optional Inputs
-- `quality`: Set to `hd` for higher quality (default: `standard`)
-- `style`: Choose `vivid` or `natural` styling
-- `n`: Number of images to generate (1-10)
+    #### Optional Inputs
+    - `quality`: Set to `hd` for higher quality (default: `standard`)
+    - `style`: Choose `vivid` or `natural` styling
+    - `n`: Number of images to generate (1-10)
+  </Accordion>
+  <Accordion title="How do I connect an Agent block's output to the Image Generator prompt?">
 
-### How do I connect an Agent block's output to the Image Generator prompt?
+    To use AI-generated descriptions for image creation:
 
-To use AI-generated descriptions for image creation:
+    1. In the Image Generator block's `prompt` field, type `<>` to open the connection menu
+    2. Select `<agent1.content>` from your Agent block's outputs
 
-1. In the Image Generator block's `prompt` field, type `<>` to open the connection menu
-2. Select `<agent1.content>` from your Agent block's outputs
+    #### Example Configuration
+    ```json
+    {
+      "model": "dall-e-3",
+      "prompt": "<agent1.content>",
+      "size": "1024x1024",
+      "quality": "hd"
+    }
+    ```
 
-#### Example Configuration
-```json
-{
-  "model": "dall-e-3",
-  "prompt": "<agent1.content>",
-  "size": "1024x1024",
-  "quality": "hd"
-}
-```
+    This automatically uses the agent's response as the image generation prompt.
+  </Accordion>
+  <Accordion title="What outputs can I reference from the Image Generator block in my workflow?">
 
-This automatically uses the agent's response as the image generation prompt.
+    Every Image Generator block provides multiple outputs for downstream connections:
 
-### What outputs can I reference from the Image Generator block in my workflow?
+    #### Available Output Tags
 
-Every Image Generator block provides multiple outputs for downstream connections:
+    | Output Tag | Type | Description |
+    |------------|------|-------------|
+    | `<image_generator1.success>` | Boolean | `true` if image generation succeeded |
+    | `<image_generator1.content>` | String | Generation response text |
+    | `<image_generator1.image>` | String | Direct URL to the generated image |
+    | `<image_generator1.metadata>` | JSON | Generation metadata including model used |
 
-#### Available Output Tags
+    Use `<image_generator1.image>` to display or process the generated image in other blocks.
+  </Accordion>
+  <Accordion title="How do I set up authentication for the Image Generator block?">
 
-| Output Tag | Type | Description |
-|------------|------|-------------|
-| `<image_generator1.success>` | Boolean | `true` if image generation succeeded |
-| `<image_generator1.content>` | String | Generation response text |
-| `<image_generator1.image>` | String | Direct URL to the generated image |
-| `<image_generator1.metadata>` | JSON | Generation metadata including model used |
+    The Image Generator requires an OpenAI API key for authentication:
 
-Use `<image_generator1.image>` to display or process the generated image in other blocks.
+    #### Setup Methods
 
-### How do I set up authentication for the Image Generator block?
+    1. **Environment Variable** (Recommended)
+       - Store your API key as an environment variable
+       - Reference it in the workflow start block
 
-The Image Generator requires an OpenAI API key for authentication:
+    2. **Direct Input Connection**
+       - Connect from a secure input: `<start.openaiApiKey>`
+       - Pass from another block that handles credentials
 
-#### Setup Methods
+    #### Security Best Practice
+    Never hardcode API keys directly in the workflow. Always use secure input connections or environment variables.
+  </Accordion>
+  <Accordion title="Can I generate multiple images with different prompts in one workflow?">
 
-1. **Environment Variable** (Recommended)
-   - Store your API key as an environment variable
-   - Reference it in the workflow start block
+    Yes! Create multiple Image Generator blocks or use the `n` parameter:
 
-2. **Direct Input Connection**
-   - Connect from a secure input: `<start.openaiApiKey>`
-   - Pass from another block that handles credentials
+    #### Method 1: Multiple Blocks
+    ```
+    Agent1 → Image Generator1 (portrait)
+    Agent2 → Image Generator2 (landscape)
+    ```
 
-#### Security Best Practice
-Never hardcode API keys directly in the workflow. Always use secure input connections or environment variables.
+    #### Method 2: Batch Generation
+    Set the `n` input to generate multiple variations of the same prompt:
+    ```json
+    {
+      "prompt": "<agent1.content>",
+      "n": 3
+    }
+    ```
 
-### Can I generate multiple images with different prompts in one workflow?
+    Each approach provides `<blockName.image>` outputs for downstream processing.
+  </Accordion>
+  <Accordion title="Why is my Image Generator block failing to create images?">
 
-Yes! Create multiple Image Generator blocks or use the `n` parameter:
+    Troubleshoot common image generation issues with this checklist:
 
-#### Method 1: Multiple Blocks
-```
-Agent1 → Image Generator1 (portrait)
-Agent2 → Image Generator2 (landscape)
-```
+    #### Common Issues and Solutions
 
-#### Method 2: Batch Generation
-Set the `n` input to generate multiple variations of the same prompt:
-```json
-{
-  "prompt": "<agent1.content>",
-  "n": 3
-}
-```
+    | Issue | Description | Solution |
+    |-------|-------------|----------|
+    | **Invalid API Key** | OpenAI authentication failed | Verify `<start.apiKey>` is correct OpenAI token |
+    | **Prompt Too Long** | Description exceeds model limits | Shorten prompt or use `<agent1.content>` summary |
+    | **Invalid Size** | Unsupported dimensions | Use `1024x1024`, `1024x1792`, or `1792x1024` |
+    | **Model Mismatch** | Wrong model for parameters | Use `dall-e-3` for quality/style, `gpt-image-1` for background |
+    | **Rate Limits** | Too many requests | Check OpenAI usage limits and implement delays |
+  </Accordion>
+  <Accordion title="How do I integrate Image Generator with other blocks for automated workflows?">
 
-Each approach provides `<blockName.image>` outputs for downstream processing.
+    Image Generator blocks work seamlessly with other Sim.ai components:
 
-### Why is my Image Generator block failing to create images?
+    #### Popular Workflow Patterns
 
-Troubleshoot common image generation issues with this checklist:
+    ##### 1. **Webhook → Agent → Image Generator**
+    Generate images from user descriptions in real-time:
+    ```
+    User input → AI enhancement → Image creation
+    ```
 
-#### Common Issues and Solutions
+    ##### 2. **API → Function → Image Generator → Telegram**
+    Fetch data, create descriptions, generate images, and share:
+    ```
+    <api1.data> → <function1.description> → <image_generator1.image> → Telegram
+    ```
 
-| Issue | Description | Solution |
-|-------|-------------|----------|
-| **Invalid API Key** | OpenAI authentication failed | Verify `<start.apiKey>` is correct OpenAI token |
-| **Prompt Too Long** | Description exceeds model limits | Shorten prompt or use `<agent1.content>` summary |
-| **Invalid Size** | Unsupported dimensions | Use `1024x1024`, `1024x1792`, or `1792x1024` |
-| **Model Mismatch** | Wrong model for parameters | Use `dall-e-3` for quality/style, `gpt-image-1` for background |
-| **Rate Limits** | Too many requests | Check OpenAI usage limits and implement delays |
+    ##### 3. **Condition → Image Generator**
+    Generate different images based on logic:
+    ```
+    if `<condition1.result>` is "landscape":
+      → Image Generator (nature prompt)
+    else:
+      → Image Generator (urban prompt)
+    ```
 
-### How do I integrate Image Generator with other blocks for automated workflows?
-
-Image Generator blocks work seamlessly with other Sim.ai components:
-
-#### Popular Workflow Patterns
-
-##### 1. **Webhook → Agent → Image Generator**
-Generate images from user descriptions in real-time:
-```
-User input → AI enhancement → Image creation
-```
-
-##### 2. **API → Function → Image Generator → Telegram**
-Fetch data, create descriptions, generate images, and share:
-```
-<api1.data> → <function1.description> → <image_generator1.image> → Telegram
-```
-
-##### 3. **Condition → Image Generator**
-Generate different images based on logic:
-```
-if `<condition1.result>` is "landscape":
-  → Image Generator (nature prompt)
-else:
-  → Image Generator (urban prompt)
-```
-
-##### 4. **Image Generator → Function → Database**
-Generate and store images with metadata:
-```
-<image_generator1.image> → Process URL → Save to database
-```
+    ##### 4. **Image Generator → Function → Database**
+    Generate and store images with metadata:
+    ```
+    <image_generator1.image> → Process URL → Save to database
+    ```
+  </Accordion>
+</Accordions>
 {/* MANUAL-CONTENT-END */}

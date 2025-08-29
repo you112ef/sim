@@ -4,6 +4,8 @@ description: Extract text from PDF documents
 ---
 
 import { BlockInfoCard } from "@/components/ui/block-info-card"
+import { Accordion, Accordions } from "fumadocs-ui/components/accordion"
+
 
 <BlockInfoCard 
   type="mistral_parse"
@@ -174,160 +176,163 @@ Cache frequently accessed PDF content when appropriate, using the document URL a
 ## FAQ
 
 {/* MANUAL-CONTENT-START:faq */}
-### How do I extract text from a PDF document using the Mistral Parser block in my workflow?
+<Accordions type="single">
+  <Accordion title="How do I extract text from a PDF document using the Mistral Parser block in my workflow?">
 
-To extract text from PDFs using the Mistral Parser block, add it to your Sim.ai workflow and configure the required inputs:
+    To extract text from PDFs using the Mistral Parser block, add it to your Sim.ai workflow and configure the required inputs:
 
-#### Required Inputs
+    #### Required Inputs
 
-| Input | Description | Example |
-|-------|-------------|---------|
-| `filePath` | Direct URL to a publicly accessible PDF | `<start.pdfUrl>` or `https://example.com/document.pdf` |
-| `apiKey` | Your Mistral API key | `<start.mistralApiKey>` or environment variable |
+    | Input | Description | Example |
+    |-------|-------------|---------|
+    | `filePath` | Direct URL to a publicly accessible PDF | `<start.pdfUrl>` or `https://example.com/document.pdf` |
+    | `apiKey` | Your Mistral API key | `<start.mistralApiKey>` or environment variable |
 
-#### Optional Configuration
+    #### Optional Configuration
 
-| Input | Description | Default |
-|-------|-------------|---------|
-| `resultType` | Output format: `markdown`, `text`, or `json` | `markdown` |
-| `includeImageBase64` | Include extracted images as base64 | `false` |
-| `pages` | Specific pages to process (0-indexed array) | All pages |
+    | Input | Description | Default |
+    |-------|-------------|---------|
+    | `resultType` | Output format: `markdown`, `text`, or `json` | `markdown` |
+    | `includeImageBase64` | Include extracted images as base64 | `false` |
+    | `pages` | Specific pages to process (0-indexed array) | All pages |
+  </Accordion>
+  <Accordion title="What is the correct way to reference Mistral Parser outputs in downstream blocks?">
 
-### What is the correct way to reference Mistral Parser outputs in downstream blocks?
+    Every Mistral Parser block exposes outputs that can be connected to other blocks using connection tags:
 
-Every Mistral Parser block exposes outputs that can be connected to other blocks using connection tags:
+    #### Available Outputs
 
-#### Available Outputs
+    | Output Tag | Type | Description |
+    |------------|------|-------------|
+    | `<mistral_parse1.success>` | Boolean | `true` if PDF parsing completed successfully |
+    | `<mistral_parse1.content>` | String | Extracted text content in specified format |
+    | `<mistral_parse1.metadata>` | Object | Processing details including page count and job ID |
+    | `<mistral_parse1.metadata.pageCount>` | Number | Total number of pages processed |
+    | `<mistral_parse1.metadata.jobId>` | String | Unique identifier for the parsing job |
+    | `<mistral_parse1.metadata.usage>` | Object | API usage statistics |
 
-| Output Tag | Type | Description |
-|------------|------|-------------|
-| `<mistral_parse1.success>` | Boolean | `true` if PDF parsing completed successfully |
-| `<mistral_parse1.content>` | String | Extracted text content in specified format |
-| `<mistral_parse1.metadata>` | Object | Processing details including page count and job ID |
-| `<mistral_parse1.metadata.pageCount>` | Number | Total number of pages processed |
-| `<mistral_parse1.metadata.jobId>` | String | Unique identifier for the parsing job |
-| `<mistral_parse1.metadata.usage>` | Object | API usage statistics |
+    Connect `<mistral_parse1.content>` to Agent blocks or other processing components.
+  </Accordion>
+  <Accordion title="How do I upload a PDF file directly instead of using a URL?">
 
-Connect `<mistral_parse1.content>` to Agent blocks or other processing components.
+    To process uploaded files in your Mistral Parser workflow:
 
-### How do I upload a PDF file directly instead of using a URL?
+    1. **Add a File Upload component** to your workflow's start trigger
+    2. **Connect the upload data** to the Mistral Parser block's `fileUpload` input
+    3. **Leave `filePath` empty** when using file uploads
 
-To process uploaded files in your Mistral Parser workflow:
+    #### Example Configuration
 
-1. **Add a File Upload component** to your workflow's start trigger
-2. **Connect the upload data** to the Mistral Parser block's `fileUpload` input
-3. **Leave `filePath` empty** when using file uploads
+    ```json
+    {
+      "fileUpload": "<start.uploadedFile>",
+      "apiKey": "<start.mistralApiKey>",
+      "resultType": "markdown"
+    }
+    ```
 
-#### Example Configuration
+    The block will automatically process the uploaded PDF without requiring a public URL.
+  </Accordion>
+  <Accordion title="How do I combine Mistral Parser with Agent blocks for document analysis?">
 
-```json
-{
-  "fileUpload": "<start.uploadedFile>",
-  "apiKey": "<start.mistralApiKey>",
-  "resultType": "markdown"
-}
-```
+    Create intelligent document processing workflows by connecting Mistral Parser outputs to AI agents:
 
-The block will automatically process the uploaded PDF without requiring a public URL.
+    #### Common Workflow Pattern
 
-### How do I combine Mistral Parser with Agent blocks for document analysis?
+    ```
+    Start → Mistral Parser → Agent → Response
+    ```
 
-Create intelligent document processing workflows by connecting Mistral Parser outputs to AI agents:
+    #### Configuration Steps
 
-#### Common Workflow Pattern
+    1. **Configure Mistral Parser** with PDF source:
+       ```json
+       {
+         "filePath": "<start.documentUrl>",
+         "resultType": "markdown"
+       }
+       ```
 
-```
-Start → Mistral Parser → Agent → Response
-```
+    2. **Connect to Agent block** using the extracted content:
+       ```json
+       {
+         "userPrompt": "Analyze this document: <mistral_parse1.content>",
+         "systemPrompt": "You are a document analyst. Summarize key points."
+       }
+       ```
 
-#### Configuration Steps
+    3. **Reference Agent output** for final results: `<agent1.content>`
+  </Accordion>
+  <Accordion title="What PDF URL formats are supported and which ones should I avoid?">
 
-1. **Configure Mistral Parser** with PDF source:
-   ```json
-   {
-     "filePath": "<start.documentUrl>",
-     "resultType": "markdown"
-   }
-   ```
+    The Mistral Parser requires direct, publicly accessible PDF URLs:
 
-2. **Connect to Agent block** using the extracted content:
-   ```json
-   {
-     "userPrompt": "Analyze this document: <mistral_parse1.content>",
-     "systemPrompt": "You are a document analyst. Summarize key points."
-   }
-   ```
+    #### ✅ Supported URL Formats
 
-3. **Reference Agent output** for final results: `<agent1.content>`
+    - Direct web server URLs: `https://example.com/document.pdf`
+    - CDN-hosted files: `https://cdn.example.com/files/report.pdf`
+    - Static hosting services: `https://yoursite.github.io/docs/file.pdf`
 
-### What PDF URL formats are supported and which ones should I avoid?
+    #### ❌ Unsupported URL Formats
 
-The Mistral Parser requires direct, publicly accessible PDF URLs:
+    | Service | Example | Issue |
+    |---------|---------|-------|
+    | Google Drive | `drive.google.com/file/d/...` | Requires authentication |
+    | Dropbox | `dropbox.com/s/...` | Sharing link, not direct URL |
+    | OneDrive | `onedrive.live.com/...` | Access restrictions |
+    | Password-protected | `site.com/secure/file.pdf` | Authentication required |
 
-#### ✅ Supported URL Formats
+    Use `<start.directPdfUrl>` for user-provided direct URLs or host files on accessible web servers.
+  </Accordion>
+  <Accordion title="Why is my Mistral Parser block failing to process PDFs?">
 
-- Direct web server URLs: `https://example.com/document.pdf`
-- CDN-hosted files: `https://cdn.example.com/files/report.pdf`
-- Static hosting services: `https://yoursite.github.io/docs/file.pdf`
+    Troubleshoot common PDF parsing issues with this diagnostic checklist:
 
-#### ❌ Unsupported URL Formats
+    #### Common Issues and Solutions
 
-| Service | Example | Issue |
-|---------|---------|-------|
-| Google Drive | `drive.google.com/file/d/...` | Requires authentication |
-| Dropbox | `dropbox.com/s/...` | Sharing link, not direct URL |
-| OneDrive | `onedrive.live.com/...` | Access restrictions |
-| Password-protected | `site.com/secure/file.pdf` | Authentication required |
+    | Issue | Symptoms | Solution |
+    |-------|----------|----------|
+    | **Invalid API Key** | Authentication errors | Verify `<start.mistralApiKey>` is correct |
+    | **Inaccessible URL** | Connection timeout | Ensure `<start.pdfUrl>` is publicly accessible |
+    | **File Format Error** | Parsing failure | Confirm URL points to valid PDF, not HTML page |
+    | **Large File Size** | Processing timeout | Consider using `pages` parameter for specific sections |
+    | **Cloud Storage Links** | Access denied | Use direct download URLs, not sharing links |
+    | **Network Issues** | Intermittent failures | Check workflow logs for specific API error messages |
 
-Use `<start.directPdfUrl>` for user-provided direct URLs or host files on accessible web servers.
+    #### Debugging Steps
 
-### Why is my Mistral Parser block failing to process PDFs?
+    1. Test URL accessibility in browser
+    2. Verify PDF file opens correctly
+    3. Check API key permissions in Mistral dashboard
+    4. Review workflow logs for detailed error messages
+  </Accordion>
+  <Accordion title="Can I process only specific pages from a large PDF document?">
 
-Troubleshoot common PDF parsing issues with this diagnostic checklist:
+    Yes! Use the `pages` parameter to extract content from specific pages and improve processing efficiency:
 
-#### Common Issues and Solutions
+    #### Page Selection Configuration
 
-| Issue | Symptoms | Solution |
-|-------|----------|----------|
-| **Invalid API Key** | Authentication errors | Verify `<start.mistralApiKey>` is correct |
-| **Inaccessible URL** | Connection timeout | Ensure `<start.pdfUrl>` is publicly accessible |
-| **File Format Error** | Parsing failure | Confirm URL points to valid PDF, not HTML page |
-| **Large File Size** | Processing timeout | Consider using `pages` parameter for specific sections |
-| **Cloud Storage Links** | Access denied | Use direct download URLs, not sharing links |
-| **Network Issues** | Intermittent failures | Check workflow logs for specific API error messages |
+    ```json
+    {
+      "filePath": "<start.documentUrl>",
+      "pages": [0, 1, 4],
+      "resultType": "markdown"
+    }
+    ```
 
-#### Debugging Steps
+    #### Page Numbering Rules
 
-1. Test URL accessibility in browser
-2. Verify PDF file opens correctly
-3. Check API key permissions in Mistral dashboard
-4. Review workflow logs for detailed error messages
+    - **Zero-indexed**: First page is `0`, second page is `1`
+    - **Array format**: `[0, 2, 5]` processes pages 1, 3, and 6
+    - **Sequential processing**: Pages are processed in the order specified
 
-### Can I process only specific pages from a large PDF document?
+    #### Use Cases
 
-Yes! Use the `pages` parameter to extract content from specific pages and improve processing efficiency:
+    - **Executive summaries**: `[0, 1]` for first two pages
+    - **Specific sections**: Connect `<start.targetPages>` for dynamic page selection
+    - **Large document optimization**: Process key pages to reduce API usage
 
-#### Page Selection Configuration
-
-```json
-{
-  "filePath": "<start.documentUrl>",
-  "pages": [0, 1, 4],
-  "resultType": "markdown"
-}
-```
-
-#### Page Numbering Rules
-
-- **Zero-indexed**: First page is `0`, second page is `1`
-- **Array format**: `[0, 2, 5]` processes pages 1, 3, and 6
-- **Sequential processing**: Pages are processed in the order specified
-
-#### Use Cases
-
-- **Executive summaries**: `[0, 1]` for first two pages
-- **Specific sections**: Connect `<start.targetPages>` for dynamic page selection
-- **Large document optimization**: Process key pages to reduce API usage
-
-Connect `<mistral_parse1.content>` to downstream blocks for targeted document analysis.
+    Connect `<mistral_parse1.content>` to downstream blocks for targeted document analysis.
+  </Accordion>
+</Accordions>
 {/* MANUAL-CONTENT-END */}

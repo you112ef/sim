@@ -4,6 +4,8 @@ description: View S3 files
 ---
 
 import { BlockInfoCard } from "@/components/ui/block-info-card"
+import { Accordion, Accordions } from "fumadocs-ui/components/accordion"
+
 
 <BlockInfoCard 
   type="s3"
@@ -139,127 +141,130 @@ Track presigned URL usage patterns to optimize caching strategies and identify p
 ## FAQ
 
 {/* MANUAL-CONTENT-START:faq */}
-### How do I retrieve files from an S3 bucket in my Sim.ai workflow?
+<Accordions type="single">
+  <Accordion title="How do I retrieve files from an S3 bucket in my Sim.ai workflow?">
 
-To retrieve files from Amazon S3, add an **S3 block** to your workflow and configure the required authentication and file location inputs:
+    To retrieve files from Amazon S3, add an **S3 block** to your workflow and configure the required authentication and file location inputs:
 
-#### Required Inputs
+    #### Required Inputs
 
-| Input | Description | Example |
-|-------|-------------|---------|
-| `accessKeyId` | Your AWS Access Key ID | `<start.awsAccessKey>` or environment variable |
-| `secretAccessKey` | Your AWS Secret Access Key | `<start.awsSecretKey>` or environment variable |
-| `s3Uri` | Full S3 object path | `<start.s3Uri>` or `s3://bucket-name/path/file.pdf` |
+    | Input | Description | Example |
+    |-------|-------------|---------|
+    | `accessKeyId` | Your AWS Access Key ID | `<start.awsAccessKey>` or environment variable |
+    | `secretAccessKey` | Your AWS Secret Access Key | `<start.awsSecretKey>` or environment variable |
+    | `s3Uri` | Full S3 object path | `<start.s3Uri>` or `s3://bucket-name/path/file.pdf` |
+  </Accordion>
+  <Accordion title="What is the correct format for the S3 URI input when connecting blocks?">
 
-### What is the correct format for the S3 URI input when connecting blocks?
+    The S3 URI must follow the standard S3 format: `s3://bucket-name/path/to/file`. You can provide this in several ways:
 
-The S3 URI must follow the standard S3 format: `s3://bucket-name/path/to/file`. You can provide this in several ways:
+    #### Input Methods
 
-#### Input Methods
+    ```
+    Static URI: s3://my-bucket/documents/report.pdf
+    From webhook: <start.s3Uri>
+    From function: <function1.generatedPath>
+    Concatenated: s3://my-bucket/<start.fileName>
+    ```
 
-```
-Static URI: s3://my-bucket/documents/report.pdf
-From webhook: <start.s3Uri>
-From function: <function1.generatedPath>
-Concatenated: s3://my-bucket/<start.fileName>
-```
+    The S3 block will parse this URI to extract the bucket name and object key for the AWS API call.
+  </Accordion>
+  <Accordion title="How do I reference the S3 block's outputs in downstream blocks?">
 
-The S3 block will parse this URI to extract the bucket name and object key for the AWS API call.
+    Every S3 block exposes two main outputs that can be referenced using connection tags:
 
-### How do I reference the S3 block's outputs in downstream blocks?
+    #### Available Outputs
 
-Every S3 block exposes two main outputs that can be referenced using connection tags:
+    | Output Tag | Type | Description |
+    |------------|------|-------------|
+    | `<s31.url>` | String | Presigned URL for direct file download/access |
+    | `<s31.metadata>` | Object | File information including size, type, and timestamps |
+    | `<s31.metadata.contentType>` | String | MIME type of the retrieved file |
+    | `<s31.metadata.contentLength>` | Number | File size in bytes |
+    | `<s31.metadata.lastModified>` | String | When the file was last modified |
 
-#### Available Outputs
+    These outputs can be connected to Agent blocks for file analysis or Webhook responses for file sharing.
+  </Accordion>
+  <Accordion title="How do I connect an S3 block with an Agent block to analyze retrieved files?">
 
-| Output Tag | Type | Description |
-|------------|------|-------------|
-| `<s31.url>` | String | Presigned URL for direct file download/access |
-| `<s31.metadata>` | Object | File information including size, type, and timestamps |
-| `<s31.metadata.contentType>` | String | MIME type of the retrieved file |
-| `<s31.metadata.contentLength>` | Number | File size in bytes |
-| `<s31.metadata.lastModified>` | String | When the file was last modified |
+    To have an AI agent analyze S3 files, connect the S3 block's outputs to the Agent block's inputs:
 
-These outputs can be connected to Agent blocks for file analysis or Webhook responses for file sharing.
+    #### Example Configuration
 
-### How do I connect an S3 block with an Agent block to analyze retrieved files?
+    1. **S3 Block**: Retrieves the file and generates presigned URL
+    2. **Agent Block**: Configure with:
+       - `userPrompt`: `"Analyze this file: <s31.url>"`
+       - `systemPrompt`: `"You are a file analysis assistant. Download and analyze the provided file."`
 
-To have an AI agent analyze S3 files, connect the S3 block's outputs to the Agent block's inputs:
+    #### Workflow Pattern
+    ```
+    Webhook → S3 → Agent → Response
+    ```
 
-#### Example Configuration
+    The agent can access the file directly using `<s31.url>` and provide analysis based on the content.
+  </Accordion>
+  <Accordion title="Why is my S3 block failing to retrieve files?">
 
-1. **S3 Block**: Retrieves the file and generates presigned URL
-2. **Agent Block**: Configure with:
-   - `userPrompt`: `"Analyze this file: <s31.url>"`
-   - `systemPrompt`: `"You are a file analysis assistant. Download and analyze the provided file."`
+    Troubleshoot common S3 access issues with this checklist:
 
-#### Workflow Pattern
-```
-Webhook → S3 → Agent → Response
-```
+    #### Common Issues and Solutions
 
-The agent can access the file directly using `<s31.url>` and provide analysis based on the content.
+    | Issue | Description | Solution |
+    |-------|-------------|----------|
+    | **Access Denied** | Invalid AWS credentials | Verify `<start.accessKeyId>` and `<start.secretAccessKey>` are correct |
+    | **Bucket Not Found** | Incorrect bucket name in URI | Check S3 URI format: `s3://correct-bucket-name/file.txt` |
+    | **Object Not Found** | File doesn't exist at specified path | Verify the complete object key in your S3 URI |
+    | **Permission Error** | IAM user lacks S3 GetObject permission | Ensure AWS credentials have `s3:GetObject` permission for the bucket |
+    | **Region Mismatch** | Bucket in different AWS region | AWS credentials must have access to the bucket's region |
+  </Accordion>
+  <Accordion title="Can I use the S3 block with file processing workflows?">
 
-### Why is my S3 block failing to retrieve files?
+    Yes! The S3 block integrates well with other Sim.ai blocks for comprehensive file processing:
 
-Troubleshoot common S3 access issues with this checklist:
+    #### Common Workflow Patterns
 
-#### Common Issues and Solutions
+    ##### 1. **Webhook → S3 → Agent → Response**
+    Process uploaded files with AI analysis and return results.
 
-| Issue | Description | Solution |
-|-------|-------------|----------|
-| **Access Denied** | Invalid AWS credentials | Verify `<start.accessKeyId>` and `<start.secretAccessKey>` are correct |
-| **Bucket Not Found** | Incorrect bucket name in URI | Check S3 URI format: `s3://correct-bucket-name/file.txt` |
-| **Object Not Found** | File doesn't exist at specified path | Verify the complete object key in your S3 URI |
-| **Permission Error** | IAM user lacks S3 GetObject permission | Ensure AWS credentials have `s3:GetObject` permission for the bucket |
-| **Region Mismatch** | Bucket in different AWS region | AWS credentials must have access to the bucket's region |
+    ##### 2. **Scheduled Trigger → S3 → Function → Notification**
+    Regularly check S3 files and process new uploads automatically.
 
-### Can I use the S3 block with file processing workflows?
+    ##### 3. **S3 → Condition → Multiple Paths**
+    Route different file types to specialized processing:
+    ```
+    if `<s31.metadata.contentType>` contains "image":
+      → Image Processing Agent
+    else:
+      → Document Processing Agent
+    ```
 
-Yes! The S3 block integrates well with other Sim.ai blocks for comprehensive file processing:
+    ##### 4. **API → S3 → Agent → Database**
+    Fetch file references from external APIs, retrieve from S3, analyze with AI, and store results.
+  </Accordion>
+  <Accordion title="How do I handle different file types when retrieving from S3?">
 
-#### Common Workflow Patterns
+    Use the S3 block's metadata output to determine file processing logic:
 
-##### 1. **Webhook → S3 → Agent → Response**
-Process uploaded files with AI analysis and return results.
+    #### File Type Detection
 
-##### 2. **Scheduled Trigger → S3 → Function → Notification**
-Regularly check S3 files and process new uploads automatically.
+    The `<s31.metadata.contentType>` output provides MIME type information:
 
-##### 3. **S3 → Condition → Multiple Paths**
-Route different file types to specialized processing:
-```
-if `<s31.metadata.contentType>` contains "image":
-  → Image Processing Agent
-else:
-  → Document Processing Agent
-```
+    ```json
+    {
+      "contentType": "application/pdf",
+      "contentLength": 2048576,
+      "lastModified": "2024-01-15T10:30:00Z"
+    }
+    ```
 
-##### 4. **API → S3 → Agent → Database**
-Fetch file references from external APIs, retrieve from S3, analyze with AI, and store results.
+    #### Conditional Processing Example
 
-### How do I handle different file types when retrieving from S3?
+    Connect `<s31.metadata.contentType>` to a Condition block to route different file types:
+    - PDFs → Document analysis agent
+    - Images → Vision analysis agent  
+    - CSV files → Data processing function
 
-Use the S3 block's metadata output to determine file processing logic:
-
-#### File Type Detection
-
-The `<s31.metadata.contentType>` output provides MIME type information:
-
-```json
-{
-  "contentType": "application/pdf",
-  "contentLength": 2048576,
-  "lastModified": "2024-01-15T10:30:00Z"
-}
-```
-
-#### Conditional Processing Example
-
-Connect `<s31.metadata.contentType>` to a Condition block to route different file types:
-- PDFs → Document analysis agent
-- Images → Vision analysis agent  
-- CSV files → Data processing function
-
-This allows your workflow to automatically handle various file formats retrieved from S3.
+    This allows your workflow to automatically handle various file formats retrieved from S3.
+  </Accordion>
+</Accordions>
 {/* MANUAL-CONTENT-END */}

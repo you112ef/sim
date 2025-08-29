@@ -4,6 +4,7 @@ description: Use vector search
 ---
 
 import { BlockInfoCard } from "@/components/ui/block-info-card"
+import { Accordion, Accordions } from "fumadocs-ui/components/accordion"
 
 <BlockInfoCard 
   type="knowledge"
@@ -172,162 +173,155 @@ Batch document creation and chunk upload operations when possible to reduce API 
 ## FAQ
 
 {/* MANUAL-CONTENT-START:faq */}
-### How do I search for relevant content in my knowledge base using a workflow?
+<Accordions type="single">
+  <Accordion title="How do I search for relevant content in my knowledge base using a workflow?">
+    To search your knowledge base in Sim.ai workflows, add a <strong>Knowledge block</strong> and configure the search operation:
 
-To search your knowledge base in Sim.ai workflows, add a **Knowledge block** and configure the search operation:
+    #### Required Inputs
 
-#### Required Inputs
+    | Input | Description | Example |
+    |-------|-------------|---------|
+    | `knowledgeBaseId` | Your knowledge base identifier | `<start.knowledgeBaseId>` or static ID |
+    | `query` | Search text to find similar content | `<agent1.content>` or `<start.userQuery>` |
+    | `topK` | Number of results to return (1-100) | `5` or `<start.resultLimit>` |
+    | `tagFilters` | Filter by document tags | `<start.filters>` or JSON array |
 
-| Input | Description | Example |
-|-------|-------------|---------|
-| `knowledgeBaseId` | Your knowledge base identifier | `<start.knowledgeBaseId>` or static ID |
-| `query` | Search text to find similar content | `<agent1.content>` or `<start.userQuery>` |
-| `topK` | Number of results to return (1-100) | `5` or `<start.resultLimit>` |
-| `tagFilters` | Filter by document tags | `<start.filters>` or JSON array |
+    The Knowledge block uses semantic vector search to find contextually similar content, not just keyword matches.
+  </Accordion>
+  <Accordion title="How do I reference Knowledge block search results in other parts of my workflow?">
+    Every Knowledge block exposes structured outputs that can be referenced using connection tags:
 
-The Knowledge block uses semantic vector search to find contextually similar content, not just keyword matches.
+    #### Available Search Outputs
 
-### How do I reference Knowledge block search results in other parts of my workflow?
+    | Output Tag | Type | Description |
+    |------------|------|-------------|
+    | `<knowledge1.results>` | Array | Complete array of search results with content and metadata |
+    | `<knowledge1.query>` | String | The actual search query that was executed |
+    | `<knowledge1.totalResults>` | Number | Total count of results returned from the search |
 
-Every Knowledge block exposes structured outputs that can be referenced using connection tags:
+    #### Accessing Individual Results
 
-#### Available Search Outputs
+    To use specific search results in downstream blocks:
+    - Connect `<knowledge1.results>` to an Agent's context for AI processing
+    - Use `<knowledge1.results[0].content>` in Function blocks for the top result
+    - Reference `<knowledge1.totalResults>` in Condition blocks to check if results exist
+  </Accordion>
+  <Accordion title="What is the correct way to connect Knowledge search results to an Agent block for contextual responses?">
+    To provide search results as context to an AI agent:
 
-| Output Tag | Type | Description |
-|------------|------|-------------|
-| `<knowledge1.results>` | Array | Complete array of search results with content and metadata |
-| `<knowledge1.query>` | String | The actual search query that was executed |
-| `<knowledge1.totalResults>` | Number | Total count of results returned from the search |
+    1. <strong>Configure Knowledge Search</strong> with user's question: `<start.userQuery>`
+    2. <strong>Connect Results to Agent</strong> in the context or system prompt field
+    3. <strong>Structure the Prompt</strong> to utilize the retrieved information
 
-#### Accessing Individual Results
+    #### Example Workflow Configuration
 
-To use specific search results in downstream blocks:
-- Connect `<knowledge1.results>` to an Agent's context for AI processing
-- Use `<knowledge1.results[0].content>` in Function blocks for the top result
-- Reference `<knowledge1.totalResults>` in Condition blocks to check if results exist
+    ```
+    Knowledge Block:
+    - knowledgeBaseId: "kb_12345"
+    - query: "<start.userQuery>"
+    - topK: 3
 
-### What is the correct way to connect Knowledge search results to an Agent block for contextual responses?
+    Agent Block:
+    - systemPrompt: "Answer based on this context: <knowledge1.results>"
+    - userPrompt: "<start.userQuery>"
+    ```
+    This pattern creates a Retrieval-Augmented Generation (RAG) system where the agent answers questions using your specific knowledge base content.
+  </Accordion>
+  <Accordion title="How do I upload new content chunks to existing documents in my knowledge base?">
+    To add content to existing documents using the `knowledge_upload_chunk` operation:
 
-To provide search results as context to an AI agent:
+    #### Required Upload Inputs
 
-1. **Configure Knowledge Search** with user's question: `<start.userQuery>`
-2. **Connect Results to Agent** in the context or system prompt field
-3. **Structure the Prompt** to utilize the retrieved information
+    | Input | Description | Example |
+    |-------|-------------|---------|
+    | `knowledgeBaseId` | Target knowledge base ID | `<start.kbId>` or static value |
+    | `documentId` | Existing document identifier | `<start.docId>` or from previous operations |
+    | `content` | Text content to add as new chunk | `<agent1.content>` or `<start.newContent>` |
 
-#### Example Workflow Configuration
+    #### Example Upload Workflow
+    ```
+    Webhook → Function (prepare content) → Knowledge (upload chunk)
+    ```
+    The uploaded chunk becomes searchable immediately and integrates with your existing document structure.
+  </Accordion>
+  <Accordion title="How do I create new documents with tags in my knowledge base programmatically?">
+    To create documents with the `knowledge_create_document` operation:
 
-```
-Knowledge Block:
-- knowledgeBaseId: "kb_12345"
-- query: "<start.userQuery>"
-- topK: 3
+    #### Document Creation Inputs
 
-Agent Block:
-- systemPrompt: "Answer based on this context: <knowledge1.results>"
-- userPrompt: "<start.userQuery>"
-```
+    | Input | Required | Description | Example |
+    |-------|----------|-------------|---------|
+    | `knowledgeBaseId` | Yes | Knowledge base identifier | `<start.kbId>` |
+    | `name` | Yes | Document display name | `<start.docName>` or "Customer FAQ" |
+    | `content` | Yes | Document text content | `<agent1.generatedContent>` |
+    | `tag1` through `tag7` | No | Individual tag values | `<start.category>` or "support" |
+    | `documentTagsData` | No | Structured tag array | Complex tag objects |
 
-This pattern creates a Retrieval-Augmented Generation (RAG) system where the agent answers questions using your specific knowledge base content.
+    #### Example Creation Workflow
+    ```json
+    {
+      "knowledgeBaseId": "<start.kbId>",
+      "name": "Generated Report - <start.date>",
+      "content": "<agent1.reportContent>",
+      "tag1": "<start.department>",
+      "tag2": "<start.priority>"
+    }
+    ```
+  </Accordion>
+  <Accordion title="Why is my Knowledge block returning empty results or failing to find relevant content?">
+    Troubleshoot search issues with this diagnostic approach:
 
-### How do I upload new content chunks to existing documents in my knowledge base?
+    #### Common Search Problems
 
-To add content to existing documents using the `knowledge_upload_chunk` operation:
+    | Issue | Description | Solution |
+    |-------|-------------|----------|
+    | **Empty Query** | No search text provided | Ensure `query` field contains text like `<start.userInput>` |
+    | **Wrong Knowledge Base ID** | Invalid or missing `knowledgeBaseId` | Verify the ID matches your actual knowledge base |
+    | **No Results Found** | Query doesn't match any content | Try broader search terms or check if documents exist |
+    | **Tag Filter Mismatch** | `tagFilters` exclude all documents | Review filter syntax and available tag values |
+    | **Low topK Value** | `topK` set too low (like 1) | Increase to 5-10 for better result coverage |
 
-#### Required Upload Inputs
+    #### Debugging Steps
 
-| Input | Description | Example |
-|-------|-------------|---------|
-| `knowledgeBaseId` | Target knowledge base ID | `<start.kbId>` or static value |
-| `documentId` | Existing document identifier | `<start.docId>` or from previous operations |
-| `content` | Text content to add as new chunk | `<agent1.content>` or `<start.newContent>` |
+    1. **Check Input Connections**: Verify `<knowledge1.query>` shows expected search text
+    2. **Validate Knowledge Base**: Confirm documents exist in the specified knowledge base
+    3. **Test Without Filters**: Remove `tagFilters` to see if filtering is too restrictive
+    4. **Monitor totalResults**: Use `<knowledge1.totalResults>` to confirm search execution
+  </Accordion>
+  <Accordion title="Can I combine multiple Knowledge blocks to search across different knowledge bases?">
+    Yes! You can search multiple knowledge bases in parallel or sequence:
 
-#### Example Upload Workflow
-```
-Webhook → Function (prepare content) → Knowledge (upload chunk)
-```
+    #### Parallel Multi-Base Search
+    ```
+    Start → Knowledge Block 1 (KB-A) → Merge Results
+         → Knowledge Block 2 (KB-B) ↗
+    ```
 
-The uploaded chunk becomes searchable immediately and integrates with your existing document structure.
+    #### Sequential Search with Fallback
+    ```
+    Knowledge 1 → Condition (check results) → Knowledge 2 (if needed)
+    ```
 
-### How do I create new documents with tags in my knowledge base programmatically?
+    #### Example Multi-Base Configuration
 
-To create documents with the `knowledge_create_document` operation:
+    **Knowledge Block 1:**
+    ```json
+    {
+      "knowledgeBaseId": "customer_support_kb",
+      "query": "<start.userQuery>",
+      "topK": 5
+    }
+    ```
 
-#### Document Creation Inputs
-
-| Input | Required | Description | Example |
-|-------|----------|-------------|---------|
-| `knowledgeBaseId` | Yes | Knowledge base identifier | `<start.kbId>` |
-| `name` | Yes | Document display name | `<start.docName>` or `"Customer FAQ"` |
-| `content` | Yes | Document text content | `<agent1.generatedContent>` |
-| `tag1` through `tag7` | No | Individual tag values | `<start.category>` or `"support"` |
-| `documentTagsData` | No | Structured tag array | Complex tag objects |
-
-#### Example Creation Workflow
-```json
-{
-  "knowledgeBaseId": "<start.kbId>",
-  "name": "Generated Report - <start.date>",
-  "content": "<agent1.reportContent>",
-  "tag1": "<start.department>",
-  "tag2": "<start.priority>"
-}
-```
-
-### Why is my Knowledge block returning empty results or failing to find relevant content?
-
-Troubleshoot search issues with this diagnostic approach:
-
-#### Common Search Problems
-
-| Issue | Description | Solution |
-|-------|-------------|----------|
-| **Empty Query** | No search text provided | Ensure `query` field contains text like `<start.userInput>` |
-| **Wrong Knowledge Base ID** | Invalid or missing `knowledgeBaseId` | Verify the ID matches your actual knowledge base |
-| **No Results Found** | Query doesn't match any content | Try broader search terms or check if documents exist |
-| **Tag Filter Mismatch** | `tagFilters` exclude all documents | Review filter syntax and available tag values |
-| **Low topK Value** | `topK` set too low (like 1) | Increase to 5-10 for better result coverage |
-
-#### Debugging Steps
-
-1. **Check Input Connections**: Verify `<knowledge1.query>` shows expected search text
-2. **Validate Knowledge Base**: Confirm documents exist in the specified knowledge base
-3. **Test Without Filters**: Remove `tagFilters` to see if filtering is too restrictive
-4. **Monitor totalResults**: Use `<knowledge1.totalResults>` to confirm search execution
-
-### Can I combine multiple Knowledge blocks to search across different knowledge bases?
-
-Yes! You can search multiple knowledge bases in parallel or sequence:
-
-#### Parallel Multi-Base Search
-```
-Start → Knowledge Block 1 (KB-A) → Merge Results
-     → Knowledge Block 2 (KB-B) ↗
-```
-
-#### Sequential Search with Fallback
-```
-Knowledge 1 → Condition (check results) → Knowledge 2 (if needed)
-```
-
-#### Example Multi-Base Configuration
-
-**Knowledge Block 1:**
-```json
-{
-  "knowledgeBaseId": "customer_support_kb",
-  "query": "<start.userQuery>",
-  "topK": 5
-}
-```
-
-**Knowledge Block 2:**
-```json
-{
-  "knowledgeBaseId": "technical_docs_kb", 
-  "query": "<start.userQuery>",
-  "topK": 5
-}
-```
-
-Use a Function block to merge `<knowledge1.results>` and `<knowledge2.results>` before passing to an Agent for comprehensive responses.
+    **Knowledge Block 2:**
+    ```json
+    {
+      "knowledgeBaseId": "technical_docs_kb", 
+      "query": "<start.userQuery>",
+      "topK": 5
+    }
+    ```
+    Use a Function block to merge `<knowledge1.results>` and `<knowledge2.results>` before passing to an Agent for comprehensive responses.
+  </Accordion>
+</Accordions>
 {/* MANUAL-CONTENT-END */}

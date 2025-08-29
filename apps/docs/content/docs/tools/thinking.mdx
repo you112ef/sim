@@ -4,6 +4,8 @@ description: Forces model to outline its thought process.
 ---
 
 import { BlockInfoCard } from "@/components/ui/block-info-card"
+import { Accordion, Accordions } from "fumadocs-ui/components/accordion"
+
 
 <BlockInfoCard 
   type="thinking"
@@ -44,180 +46,132 @@ Research has shown that prompting language models to "think step by step" can si
 - **More nuanced responses**: Considering multiple angles before arriving at conclusions
 
 In Sim, the Thinking tool creates a structured opportunity for your agents to engage in this kind of deliberate reasoning. By incorporating thinking steps into your workflows, you can help your agents tackle complex tasks more effectively, avoid common reasoning pitfalls, and produce higher-quality outputs. This is particularly valuable for tasks involving multi-step reasoning, complex decision-making, or situations where accuracy is critical.
+
+Important: The Thinking tool is not a standalone block in the canvas. It is only available inside an Agent block, where you add it as one of the Agent's tools. Configure it from the Agent block's Tools panel; it does not expose separate inputs/outputs on the canvas.
 {/* MANUAL-CONTENT-END */}
 
 
-## Operations
+## Usage in Agent Block
 
-### `thinking_tool`
+Use the Agent block's Tools tab to add the Thinking tool. Provide a short internal instruction that guides how the model should deliberate before responding. This instruction is private to the Agent and does not produce separate outputs.
 
-Processes a provided thought/instruction, making it available for subsequent steps.
+Configuration
 
-#### Input
-
-| Parameter | Type | Required | Description |
-| --------- | ---- | -------- | ----------- |
-| `thought` | string | Yes | The thought process or instruction provided by the user in the Thinking Step block. |
-
-#### Output
-
-| Parameter | Type | Description |
-| --------- | ---- | ----------- |
-| `acknowledgedThought` | string | The thought that was processed and acknowledged |
+| Field | Type | Required | Description |
+| ----- | ---- | -------- | ----------- |
+| `instruction` | string | No | Internal guidance for how the Agent should think (e.g., "Think step-by-step. List assumptions. Consider edge cases.") |
 
 
 
 ## Best Practices
 
 {/* MANUAL-CONTENT-START:bestPractices */}
-When integrating the Thinking block into your Sim.ai workflows, following established best practices ensures enhanced reasoning quality and transparent decision-making processes. The Thinking block serves as a crucial cognitive enhancement component that forces AI models to explicitly articulate their thought processes, leading to more structured and logical outputs in complex workflows.
+When using the Thinking tool inside an Agent block, follow these practices to improve reasoning quality without leaking internal deliberation to end users.
 
-**Connection Tag Usage and Data Flow**
+**Enable and scope the tool correctly**
 
-The Thinking block's connection tag structure centers around the `<thinking1.acknowledgedThought>` output, which captures the processed reasoning chain for downstream consumption. This output serves as both a transparency mechanism and a quality assurance checkpoint in your workflows. When connecting the Thinking block to subsequent Agent blocks, use `<thinking1.acknowledgedThought>` as contextual input to maintain reasoning continuity across processing steps.
+- Add the Thinking tool from the Agent block's Tools panel; it is not a separate canvas block.
+- Keep the `instruction` concise and action-oriented (e.g., "Think step by step; list assumptions; check edge cases").
+- Treat the instruction as private guidance. The tool does not expose separate outputs and should not be surfaced to users.
 
-For optimal data flow, structure your connections to preserve the reasoning chain throughout the workflow. The `thought` input parameter accepts complex reasoning instructions, multi-step analysis requirements, and structured thinking frameworks. This enables sophisticated cognitive patterns where the Thinking block processes elaborate reasoning structures and makes them available for systematic consumption by downstream blocks.
+**Craft effective internal instructions**
 
-**Workflow Architecture Patterns**
+- Use structured guidance: numbered steps or bullet points that the model can follow.
+- Emphasize verification: ask the model to double-check calculations and look for contradictions.
+- Constrain verbosity: instruct the model to keep private reasoning brief to reduce latency.
 
-The most effective Thinking block implementations follow deliberate architectural patterns that maximize reasoning quality. The **Agent → Thinking → Agent** pattern represents the gold standard for complex reasoning workflows, where initial AI processing generates preliminary thoughts, the Thinking block structures and validates the reasoning, and a final Agent block produces refined outputs based on acknowledged thought processes.
+**Combine with Agent prompts cleanly**
 
-For analytical workflows, implement **Data Input → Thinking → Analysis Agent → Output** patterns, where the Thinking block processes raw analytical requirements before specialized analysis occurs. This pattern ensures systematic approach to complex data interpretation tasks. In multi-step problem-solving scenarios, consider **Thinking → Agent → Thinking → Agent** chains, where alternating thinking and processing blocks create iterative reasoning refinement.
+- Keep the Agent's system prompt focused on persona and task; put process guidance in the Thinking tool.
+- If needed, include dynamic context (e.g., `<start.userQuery>`) in the Agent prompts; avoid putting large dynamic content into the Thinking instruction itself.
 
-**Message/Data Formatting Excellence**
+**Avoid chain-of-thought leakage**
 
-Structure your thinking inputs to maximize cognitive processing effectiveness. Format complex reasoning requests using clear step-by-step instructions, logical frameworks, and explicit criteria. The Thinking block performs optimally when provided with structured thought processes that include reasoning methodologies, evaluation criteria, and expected cognitive patterns.
+- Do not ask the model to reveal its private reasoning in user-facing outputs.
+- Prefer outcome-oriented user responses (final answers, rationale summaries) while reserving detailed deliberation for the Thinking tool.
 
-When formatting the `thought` parameter, use structured approaches such as numbered analysis steps, bullet-pointed consideration lists, or framework-based reasoning templates. This structured input approach ensures the `acknowledgedThought` output contains comprehensive, well-organized reasoning chains that downstream blocks can effectively utilize.
+**Monitoring and iteration**
 
-**Advanced Reasoning Patterns**
-
-Implement sophisticated reasoning architectures by chaining multiple Thinking blocks with specialized cognitive focuses. Create parallel reasoning paths where different Thinking blocks process distinct aspects of complex problems, then merge their `<thinking1.acknowledgedThought>` and `<thinking2.acknowledgedThought>` outputs for comprehensive analysis. This pattern enables multi-perspective reasoning that captures nuanced cognitive approaches to challenging problems.
-
-For iterative reasoning improvement, establish feedback loops where Agent block outputs feed back into subsequent Thinking blocks, creating progressive reasoning refinement cycles. Use connection tags like `<agent1.content>` feeding into `<thinking2.thought>` to enable continuous cognitive enhancement throughout workflow execution.
-
-**Debugging and Monitoring**
-
-Monitor Thinking block performance by analyzing the quality and completeness of `<thinking1.acknowledgedThought>` outputs. Implement validation checks that assess reasoning chain coherence, logical progression, and completeness against expected cognitive standards. Track the relationship between input complexity and output quality to optimize thinking instruction formatting.
-
-Establish logging mechanisms that capture both input thinking instructions and acknowledged thought outputs for post-execution analysis. This enables identification of cognitive patterns that produce superior reasoning quality and allows refinement of thinking instruction templates. Monitor downstream block performance to assess how acknowledged thoughts impact subsequent processing effectiveness.
-
-**Performance Optimization**
-
-Optimize Thinking block performance by structuring thinking instructions for maximum cognitive efficiency. Avoid overly complex single-step instructions that could overwhelm the reasoning process. Instead, break complex cognitive tasks into focused thinking components that the block can process systematically.
-
-Implement thinking instruction templates that balance comprehensiveness with processing efficiency. Cache frequently used reasoning frameworks as reusable thinking instruction patterns to reduce workflow setup complexity. Position Thinking blocks strategically within workflows to maximize their cognitive impact while minimizing unnecessary processing overhead.
-
-**Quality Assurance Integration**
-
-Integrate Thinking blocks as quality checkpoints within critical reasoning workflows. Use the `<thinking1.acknowledgedThought>` output as validation input for subsequent quality assessment blocks or agents. This creates transparent reasoning audit trails that enable systematic quality improvement and cognitive process verification.
-
-Establish reasoning quality metrics by comparing thinking block outputs against expected cognitive standards. Implement automated assessment patterns where Agent blocks evaluate `<thinking1.acknowledgedThought>` outputs for logical consistency, completeness, and alignment with specified reasoning criteria.
+- If answers are inconsistent, tighten the instruction with explicit checks ("verify units", "compare against constraints").
+- Reduce or restructure the instruction if latency increases noticeably.
 {/* MANUAL-CONTENT-END */}
 
 
 ## FAQ
 
 {/* MANUAL-CONTENT-START:faq */}
-### How do I add a thinking step to improve my AI agent's reasoning quality?
+<Accordions type="single">
+  <Accordion title="How do I enable the Thinking tool for an Agent?">
 
-To add structured reasoning to your workflow, insert a **Thinking block** before your Agent block in Sim.ai:
+    Open your **Agent block**, go to the **Tools** tab, click **Add tool**, and select **Thinking**. Provide a concise internal instruction (e.g., "Think step by step; list assumptions; check edge cases"). The tool runs privately inside the Agent and does not add new inputs/outputs to the canvas.
+  </Accordion>
+  <Accordion title="Does the Thinking tool expose outputs I can connect to other blocks?">
 
-1. **Add the Thinking block** to your workflow canvas
-2. **Connect the input** by setting the `thought` field to your reasoning prompt
-3. **Chain to Agent block** using the thinking output
+    No. The Thinking tool is internal to the Agent and does not expose a separate output. It influences how the Agent reasons before generating its final response.
+  </Accordion>
+  <Accordion title="How do I provide dynamic context with the Thinking tool?">
 
-#### Required Input
+    Prefer passing dynamic context through the Agent's prompts (system/user) using connection tags (e.g., `<start.userQuery>`). Keep the Thinking instruction stable and process-oriented; use prompts to inject variable content.
+  </Accordion>
+  <Accordion title="Can I use dynamic reasoning prompts based on user input or other block outputs?">
 
-| Input | Description | Example |
-|-------|-------------|---------|
-| `thought` | The reasoning instruction or prompt | `<start.reasoningPrompt>` or static text like "Think step by step about this problem" |
+    Yes! The Thinking block's `thought` input accepts connection tags from any upstream block:
 
-### What is the correct way to reference Thinking block outputs in downstream blocks?
+    #### Dynamic Reasoning Examples
 
-Every Thinking block exposes one primary output that can be referenced using connection tags:
+    | Scenario | Input Configuration |
+    |----------|-------------------|
+    | **User-provided reasoning** | `<start.thinkingInstruction>` |
+    | **Context-aware reasoning** | `"Consider this data: <api1.response> and think through the implications"` |
+    | **Conditional reasoning** | `<condition1.reasoningPrompt>` |
+    | **Multi-step reasoning** | `"Building on previous analysis: <thinking0.acknowledgedThought>, now consider..."` |
+  </Accordion>
+  <Accordion title="How does the Thinking tool improve AI agent performance?">
 
-#### Available Output
+    The Thinking block enhances reasoning by forcing explicit step-by-step analysis before final responses:
 
-| Output Tag | Type | Description |
-|------------|------|-------------|
-| `<thinking1.acknowledgedThought>` | String | The processed and acknowledged thought process |
+    #### Benefits in Workflow Design
 
-Use this output to pass the structured thinking to Agent blocks or other workflow components that benefit from explicit reasoning context.
+    1. **Structured Problem Solving**: Models break down complex queries into logical steps
+    2. **Improved Accuracy**: Explicit reasoning reduces impulsive or incomplete responses  
+    3. **Transparency**: Makes the AI's thought process visible and traceable
+    4. **Chain of Thought**: Enables multi-stage reasoning across workflow steps
 
-### How do I connect a Thinking block between user input and an AI agent?
+    #### Best Practice Pattern
+    ```
+    Input → Thinking (analysis) → Agent (response) → Output
+    ```
+  </Accordion>
+  <Accordion title="Why isn't the Thinking tool producing the expected improvement?">
 
-To create a reasoning pipeline in your Sim.ai workflow:
+    Troubleshoot common issues with this checklist:
 
-1. **Configure the Thinking block's input** with your reasoning instruction
-2. **Connect to Agent block** using the thinking output
+    #### Common Issues and Solutions
 
-#### Example Workflow Pattern
-```
-Start → Thinking → Agent → Response
-```
+    | Issue | Description | Solution |
+    |-------|-------------|----------|
+    | **Empty Thought Input** | No reasoning instruction provided | Ensure `thought` field is populated with clear instructions |
+    | **Generic Reasoning** | Vague or unclear thinking prompts | Use specific, actionable reasoning instructions |
+    | **Missing Connections** | Output not connected to downstream blocks | Connect `<thinking1.acknowledgedThought>` to Agent or other blocks |
+    | **Redundant Instructions** | Thinking prompt conflicts with agent instructions | Align thinking prompts with downstream block requirements |
+  </Accordion>
+  <Accordion title="Can I chain multiple Thinking tools or steps?">
 
-#### Configuration Example
-- Thinking `thought`: `"Analyze this step by step: <start.userQuery>"`
-- Agent `systemPrompt`: `"You are a logical assistant. Consider this reasoning: <thinking1.acknowledgedThought>"`
+    For sophisticated reasoning workflows, connect multiple Thinking blocks in sequence:
 
-### Can I use dynamic reasoning prompts based on user input or other block outputs?
+    #### Multi-Stage Reasoning Pattern
 
-Yes! The Thinking block's `thought` input accepts connection tags from any upstream block:
+    ```
+    Input → Thinking1 (initial analysis) → Thinking2 (deeper analysis) → Agent → Output
+    ```
 
-#### Dynamic Reasoning Examples
+    #### Configuration Example
 
-| Scenario | Input Configuration |
-|----------|-------------------|
-| **User-provided reasoning** | `<start.thinkingInstruction>` |
-| **Context-aware reasoning** | `"Consider this data: <api1.response> and think through the implications"` |
-| **Conditional reasoning** | `<condition1.reasoningPrompt>` |
-| **Multi-step reasoning** | `"Building on previous analysis: <thinking0.acknowledgedThought>, now consider..."` |
+    1. **First Thinking block**: `"Analyze the core problem: <start.query>"`
+    2. **Second Thinking block**: `"Based on initial analysis: <thinking1.acknowledgedThought>, identify potential solutions"`  
+    3. **Agent block**: `"Using this reasoning: <thinking2.acknowledgedThought>, provide a comprehensive response"`
 
-### How does the Thinking block improve AI agent performance in workflows?
-
-The Thinking block enhances reasoning by forcing explicit step-by-step analysis before final responses:
-
-#### Benefits in Workflow Design
-
-1. **Structured Problem Solving**: Models break down complex queries into logical steps
-2. **Improved Accuracy**: Explicit reasoning reduces impulsive or incomplete responses  
-3. **Transparency**: Makes the AI's thought process visible and traceable
-4. **Chain of Thought**: Enables multi-stage reasoning across workflow steps
-
-#### Best Practice Pattern
-```
-Input → Thinking (analysis) → Agent (response) → Output
-```
-
-### Why isn't my Thinking block producing the expected reasoning output?
-
-Troubleshoot common issues with this checklist:
-
-#### Common Issues and Solutions
-
-| Issue | Description | Solution |
-|-------|-------------|----------|
-| **Empty Thought Input** | No reasoning instruction provided | Ensure `thought` field is populated with clear instructions |
-| **Generic Reasoning** | Vague or unclear thinking prompts | Use specific, actionable reasoning instructions |
-| **Missing Connections** | Output not connected to downstream blocks | Connect `<thinking1.acknowledgedThought>` to Agent or other blocks |
-| **Redundant Instructions** | Thinking prompt conflicts with agent instructions | Align thinking prompts with downstream block requirements |
-
-### How do I chain multiple Thinking blocks for complex multi-stage reasoning?
-
-For sophisticated reasoning workflows, connect multiple Thinking blocks in sequence:
-
-#### Multi-Stage Reasoning Pattern
-
-```
-Input → Thinking1 (initial analysis) → Thinking2 (deeper analysis) → Agent → Output
-```
-
-#### Configuration Example
-
-1. **First Thinking block**: `"Analyze the core problem: <start.query>"`
-2. **Second Thinking block**: `"Based on initial analysis: <thinking1.acknowledgedThought>, identify potential solutions"`  
-3. **Agent block**: `"Using this reasoning: <thinking2.acknowledgedThought>, provide a comprehensive response"`
-
-This approach enables layered reasoning where each thinking step builds upon previous analysis, resulting in more thorough and well-structured responses.
+    This approach enables layered reasoning where each thinking step builds upon previous analysis, resulting in more thorough and well-structured responses.
+  </Accordion>
+</Accordions>
 {/* MANUAL-CONTENT-END */}

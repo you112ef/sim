@@ -4,6 +4,8 @@ description: Interact with X
 ---
 
 import { BlockInfoCard } from "@/components/ui/block-info-card"
+import { Accordion, Accordions } from "fumadocs-ui/components/accordion"
+
 
 <BlockInfoCard 
   type="x"
@@ -178,175 +180,178 @@ Cache frequently accessed data like user profiles and popular tweets in Database
 ## FAQ
 
 {/* MANUAL-CONTENT-START:faq */}
-### How do I post a tweet from my Sim.ai workflow using the X block?
+<Accordions type="single">
+  <Accordion title="How do I post a tweet from my Sim.ai workflow using the X block?">
 
-To post tweets from your workflow, add an **X block** to your Sim.ai workflow and configure the `x_write` operation with required inputs:
+    To post tweets from your workflow, add an **X block** to your Sim.ai workflow and configure the `x_write` operation with required inputs:
 
-#### Required Configuration
+    #### Required Configuration
 
-| Input | Description | Example Connection |
-|-------|-------------|-------------------|
-| `text` | Tweet content (max 280 characters) | `<agent1.content>` or `<start.message>` |
+    | Input | Description | Example Connection |
+    |-------|-------------|-------------------|
+    | `text` | Tweet content (max 280 characters) | `<agent1.content>` or `<start.message>` |
 
-#### Optional Parameters
+    #### Optional Parameters
 
-| Input | Description | Example |
-|-------|-------------|---------|
-| `replyTo` | Tweet ID to reply to | `<webhook1.tweet.id>` |
-| `mediaIds` | Array of media attachments | `<upload1.mediaIds>` |
-| `poll` | Poll configuration object | `<function1.pollData>` |
+    | Input | Description | Example |
+    |-------|-------------|---------|
+    | `replyTo` | Tweet ID to reply to | `<webhook1.tweet.id>` |
+    | `mediaIds` | Array of media attachments | `<upload1.mediaIds>` |
+    | `poll` | Poll configuration object | `<function1.pollData>` |
 
-The block outputs `<x1.tweet>` containing the newly created tweet data with ID, text, and metadata.
+    The block outputs `<x1.tweet>` containing the newly created tweet data with ID, text, and metadata.
+  </Accordion>
+  <Accordion title="How do I search for tweets about specific topics using the X search operation?">
 
-### How do I search for tweets about specific topics using the X search operation?
+    To search X for relevant content, configure the `x_search` operation with your search parameters:
 
-To search X for relevant content, configure the `x_search` operation with your search parameters:
+    #### Search Configuration
 
-#### Search Configuration
+    ```json
+    {
+      "query": "<start.searchTerm>",
+      "maxResults": 50,
+      "sortOrder": "recency"
+    }
+    ```
 
-```json
-{
-  "query": "<start.searchTerm>",
-  "maxResults": 50,
-  "sortOrder": "recency"
-}
-```
+    #### Advanced Search Examples
 
-#### Advanced Search Examples
+    | Query Type | Input Example | Description |
+    |------------|---------------|-------------|
+    | Hashtags | `#AI #MachineLearning` | Search specific hashtags |
+    | User mentions | `@username keyword` | Find mentions of users |
+    | Exact phrases | `"artificial intelligence"` | Search exact phrase |
+    | Date ranges | Use `startTime` and `endTime` | Filter by time period |
 
-| Query Type | Input Example | Description |
-|------------|---------------|-------------|
-| Hashtags | `#AI #MachineLearning` | Search specific hashtags |
-| User mentions | `@username keyword` | Find mentions of users |
-| Exact phrases | `"artificial intelligence"` | Search exact phrase |
-| Date ranges | Use `startTime` and `endTime` | Filter by time period |
+    Access results using `<x1.tweets>` for the tweet array and `<x1.meta>` for search metadata.
+  </Accordion>
+  <Accordion title="What outputs can I reference from the X block in downstream workflow blocks?">
 
-Access results using `<x1.tweets>` for the tweet array and `<x1.meta>` for search metadata.
+    Every X block operation exposes different outputs depending on the operation used:
 
-### What outputs can I reference from the X block in downstream workflow blocks?
+    #### Core Outputs Available
 
-Every X block operation exposes different outputs depending on the operation used:
+    | Output Tag | Operation | Type | Description |
+    |------------|-----------|------|-------------|
+    | `<x1.tweet>` | x_write, x_read | Object | Single tweet data |
+    | `<x1.tweets>` | x_search | Array | Multiple tweets from search |
+    | `<x1.user>` | x_user | Object | User profile information |
+    | `<x1.recentTweets>` | x_user | Array | User's recent tweets |
+    | `<x1.replies>` | x_read | Array | Tweet replies (when `includeReplies: true`) |
+    | `<x1.context>` | x_read | Object | Conversation context |
+    | `<x1.meta>` | x_search | Object | Search metadata and pagination |
+    | `<x1.includes>` | All operations | Object | Additional referenced data |
 
-#### Core Outputs Available
+    These can be connected to Agent blocks, Condition blocks, or other downstream components.
+  </Accordion>
+  <Accordion title="How do I create a workflow that monitors X mentions and responds automatically?">
 
-| Output Tag | Operation | Type | Description |
-|------------|-----------|------|-------------|
-| `<x1.tweet>` | x_write, x_read | Object | Single tweet data |
-| `<x1.tweets>` | x_search | Array | Multiple tweets from search |
-| `<x1.user>` | x_user | Object | User profile information |
-| `<x1.recentTweets>` | x_user | Array | User's recent tweets |
-| `<x1.replies>` | x_read | Array | Tweet replies (when `includeReplies: true`) |
-| `<x1.context>` | x_read | Object | Conversation context |
-| `<x1.meta>` | x_search | Object | Search metadata and pagination |
-| `<x1.includes>` | All operations | Object | Additional referenced data |
+    Build an automated X monitoring system using this workflow pattern:
 
-These can be connected to Agent blocks, Condition blocks, or other downstream components.
+    #### Workflow Structure
+    ```
+    Webhook/Timer → X (search) → Condition → Agent → X (write)
+    ```
 
-### How do I create a workflow that monitors X mentions and responds automatically?
+    #### Step-by-Step Implementation
 
-Build an automated X monitoring system using this workflow pattern:
+    1. **Search for mentions**: Configure X block with `x_search` operation
+       - `query`: `"@yourbrand OR #yourbrand"`
+       - `maxResults`: `10`
 
-#### Workflow Structure
-```
-Webhook/Timer → X (search) → Condition → Agent → X (write)
-```
+    2. **Filter new mentions**: Use Condition block to check `<x1.tweets>` for unprocessed items
 
-#### Step-by-Step Implementation
+    3. **Generate responses**: Connect `<x1.tweets[0].text>` to Agent block's `userPrompt`
 
-1. **Search for mentions**: Configure X block with `x_search` operation
-   - `query`: `"@yourbrand OR #yourbrand"`
-   - `maxResults`: `10`
+    4. **Reply automatically**: Use second X block with `x_write` operation
+       - `text`: `<agent1.content>`
+       - `replyTo`: `<x1.tweets[0].id>`
+  </Accordion>
+  <Accordion title="Why is my X block failing to authenticate or post content?">
 
-2. **Filter new mentions**: Use Condition block to check `<x1.tweets>` for unprocessed items
+    Troubleshoot common X integration issues with this diagnostic approach:
 
-3. **Generate responses**: Connect `<x1.tweets[0].text>` to Agent block's `userPrompt`
+    #### Authentication Problems
 
-4. **Reply automatically**: Use second X block with `x_write` operation
-   - `text`: `<agent1.content>`
-   - `replyTo`: `<x1.tweets[0].id>`
+    | Issue | Symptoms | Solution |
+    |-------|----------|----------|
+    | **Missing API Keys** | 401 Unauthorized errors | Verify X API credentials in environment variables |
+    | **Invalid Permissions** | 403 Forbidden responses | Check API key has write permissions for posting |
+    | **Rate Limiting** | 429 Too Many Requests | Implement delays between requests |
+    | **Suspended Account** | Account-related errors | Verify X account status and compliance |
 
-### Why is my X block failing to authenticate or post content?
+    #### Content Issues
 
-Troubleshoot common X integration issues with this diagnostic approach:
+    | Problem | Description | Fix |
+    |---------|-------------|-----|
+    | **Text Too Long** | Tweet exceeds 280 characters | Use `<function1.truncate>` to limit length |
+    | **Invalid Media IDs** | Media attachment failures | Ensure media uploaded before referencing |
+    | **Malformed Replies** | Reply-to tweet not found | Validate `<x1.tweet.id>` exists before replying |
+  </Accordion>
+  <Accordion title="How do I analyze X user profiles and their recent activity?">
 
-#### Authentication Problems
+    To gather comprehensive user intelligence, use the `x_user` operation with profile analysis:
 
-| Issue | Symptoms | Solution |
-|-------|----------|----------|
-| **Missing API Keys** | 401 Unauthorized errors | Verify X API credentials in environment variables |
-| **Invalid Permissions** | 403 Forbidden responses | Check API key has write permissions for posting |
-| **Rate Limiting** | 429 Too Many Requests | Implement delays between requests |
-| **Suspended Account** | Account-related errors | Verify X account status and compliance |
+    #### User Research Configuration
 
-#### Content Issues
+    ```json
+    {
+      "username": "<start.targetUser>"
+    }
+    ```
 
-| Problem | Description | Fix |
-|---------|-------------|-----|
-| **Text Too Long** | Tweet exceeds 280 characters | Use `<function1.truncate>` to limit length |
-| **Invalid Media IDs** | Media attachment failures | Ensure media uploaded before referencing |
-| **Malformed Replies** | Reply-to tweet not found | Validate `<x1.tweet.id>` exists before replying |
+    #### Available User Data
 
-### How do I analyze X user profiles and their recent activity?
+    | Output Field | Description | Example Usage |
+    |--------------|-------------|---------------|
+    | `<x1.user.name>` | Display name | Connect to Agent for personalization |
+    | `<x1.user.followers_count>` | Follower count | Use in Condition for influence scoring |
+    | `<x1.user.verified>` | Verification status | Filter for verified accounts only |
+    | `<x1.user.description>` | Bio/description | Analyze with Agent for categorization |
+    | `<x1.recentTweets>` | Latest tweets | Content analysis and sentiment tracking |
 
-To gather comprehensive user intelligence, use the `x_user` operation with profile analysis:
+    #### Analysis Workflow Pattern
+    ```
+    Start → X (user) → Agent (analyze) → Function (score) → Database (store)
+    ```
 
-#### User Research Configuration
+    This enables automated prospect research, influencer identification, and social media intelligence gathering.
+  </Accordion>
+  <Accordion title="Can I combine the X block with Agent blocks for intelligent social media automation?">
 
-```json
-{
-  "username": "<start.targetUser>"
-}
-```
+    Yes! X blocks integrate seamlessly with AI agents for sophisticated social media workflows:
 
-#### Available User Data
+    #### Common Integration Patterns
 
-| Output Field | Description | Example Usage |
-|--------------|-------------|---------------|
-| `<x1.user.name>` | Display name | Connect to Agent for personalization |
-| `<x1.user.followers_count>` | Follower count | Use in Condition for influence scoring |
-| `<x1.user.verified>` | Verification status | Filter for verified accounts only |
-| `<x1.user.description>` | Bio/description | Analyze with Agent for categorization |
-| `<x1.recentTweets>` | Latest tweets | Content analysis and sentiment tracking |
+    ##### 1. **Content Generation and Publishing**
+    ```
+    Agent (generate content) → X (post tweet)
+    ```
+    - Input: `<agent1.content>` → `text` field
+    - Generate tweets with specific tone, hashtags, or topics
 
-#### Analysis Workflow Pattern
-```
-Start → X (user) → Agent (analyze) → Function (score) → Database (store)
-```
+    ##### 2. **Intelligent Reply Generation**
+    ```
+    X (read mentions) → Agent (analyze sentiment) → X (reply)
+    ```
+    - Analyze incoming mentions with `<x1.tweets>` → Agent
+    - Generate contextual responses with `<agent1.content>` → reply tweet
 
-This enables automated prospect research, influencer identification, and social media intelligence gathering.
+    ##### 3. **Trend Analysis and Reporting**
+    ```
+    X (search trends) → Agent (summarize) → Telegram (notify)
+    ```
+    - Search trending topics with `<x1.tweets>`
+    - Create summaries with Agent using tweet data
+    - Send insights to team channels
 
-### Can I combine the X block with Agent blocks for intelligent social media automation?
-
-Yes! X blocks integrate seamlessly with AI agents for sophisticated social media workflows:
-
-#### Common Integration Patterns
-
-##### 1. **Content Generation and Publishing**
-```
-Agent (generate content) → X (post tweet)
-```
-- Input: `<agent1.content>` → `text` field
-- Generate tweets with specific tone, hashtags, or topics
-
-##### 2. **Intelligent Reply Generation**
-```
-X (read mentions) → Agent (analyze sentiment) → X (reply)
-```
-- Analyze incoming mentions with `<x1.tweets>` → Agent
-- Generate contextual responses with `<agent1.content>` → reply tweet
-
-##### 3. **Trend Analysis and Reporting**
-```
-X (search trends) → Agent (summarize) → Telegram (notify)
-```
-- Search trending topics with `<x1.tweets>`
-- Create summaries with Agent using tweet data
-- Send insights to team channels
-
-##### 4. **User Engagement Scoring**
-```
-X (user profile) → Function (calculate metrics) → Agent (recommendations)
-```
-- Combine `<x1.user>` data with engagement calculations
-- Generate personalized outreach strategies
+    ##### 4. **User Engagement Scoring**
+    ```
+    X (user profile) → Function (calculate metrics) → Agent (recommendations)
+    ```
+    - Combine `<x1.user>` data with engagement calculations
+    - Generate personalized outreach strategies
+  </Accordion>
+</Accordions>
 {/* MANUAL-CONTENT-END */}

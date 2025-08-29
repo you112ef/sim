@@ -4,6 +4,8 @@ description: Send WhatsApp messages
 ---
 
 import { BlockInfoCard } from "@/components/ui/block-info-card"
+import { Accordion, Accordions } from "fumadocs-ui/components/accordion"
+
 
 <BlockInfoCard 
   type="whatsapp"
@@ -34,6 +36,74 @@ WhatsApp Business API provides organizations with powerful capabilities to:
 In Sim, the WhatsApp integration enables your agents to leverage these messaging capabilities as part of their workflows. This creates opportunities for sophisticated customer engagement scenarios like appointment reminders, verification codes, alerts, and interactive conversations. The integration bridges the gap between your AI workflows and customer communication channels, allowing your agents to deliver timely, relevant information directly to users' mobile devices. By connecting Sim with WhatsApp, you can build intelligent agents that engage customers through their preferred messaging platform, enhancing user experience while automating routine messaging tasks.
 {/* MANUAL-CONTENT-END */}
 
+
+## Webhook
+
+Trigger workflows from new WhatsApp messages via the Meta WhatsApp Business Webhook. You can use the WhatsApp block in trigger mode to start a workflow when your WhatsApp Business account receives an incoming message. Click the lightning bolt icon to enable trigger mode, then configure the WhatsApp webhook in the Meta Developer Console to point to your workflow URL.
+
+### Configuration Inputs
+
+| Input | Type | Required | Description |
+|------|------|----------|-------------|
+| `verifyToken` | string | Yes | Token used to verify the webhook during setup (`hub.verify_token`). |
+| `appSecret` | string | No | App secret to validate `X-Hub-Signature-256` for payload integrity. |
+| `includeMessage` | boolean | No | Include parsed message content (from, to, text) in outputs. Defaults to `true`. |
+
+### Outputs
+
+| Output | Type | Description |
+|--------|------|-------------|
+| `payloads` | array | The raw WhatsApp webhook payloads received. |
+| `latestPayload` | object | Convenience object of the latest webhook payload. |
+| `whatsappEvent` | object | Parsed fields (phone_number_id, from, message id, text, type). |
+
+#### `latestPayload` shape
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `entry[].changes[].field` | string | Should be `messages`. |
+| `entry[].changes[].value.metadata.phone_number_id` | string | Business phone number ID. |
+| `entry[].changes[].value.messages[].from` | string | Sender phone number. |
+| `entry[].changes[].value.messages[].id` | string | Message ID. |
+| `entry[].changes[].value.messages[].timestamp` | string | Message timestamp. |
+| `entry[].changes[].value.messages[].text.body` | string | Message text (for text messages). |
+
+### Example webhook event body (raw WhatsApp payload)
+
+```json
+{
+  "object": "whatsapp_business_account",
+  "entry": [
+    {
+      "id": "WHATSAPP_BUSINESS_ACCOUNT_ID",
+      "changes": [
+        {
+          "field": "messages",
+          "value": {
+            "messaging_product": "whatsapp",
+            "metadata": {
+              "display_phone_number": "+1 234 567 8900",
+              "phone_number_id": "123456789012345"
+            },
+            "contacts": [ { "wa_id": "15551234567", "profile": { "name": "Alice" } } ],
+            "messages": [
+              {
+                "from": "15551234567",
+                "id": "wamid.HBgLN...",
+                "timestamp": "1704067200",
+                "type": "text",
+                "text": { "body": "Hello!" }
+              }
+            ]
+          }
+        }
+      ]
+    }
+  ]
+}
+```
+
+Method: `POST`  •  Headers: `Content-Type: application/json`, `X-Hub-Signature-256`
 
 ## Operations
 
@@ -119,153 +189,156 @@ Monitor `<whatsapp1.timestamp>` patterns to identify optimal sending times for d
 ## FAQ
 
 {/* MANUAL-CONTENT-START:faq */}
-### How do I send a WhatsApp message from my workflow?
+<Accordions type="single">
+  <Accordion title="How do I send a WhatsApp message from my workflow?">
 
-To send WhatsApp messages from your workflow, add a **WhatsApp block** to your Sim.ai workflow and configure its required inputs:
+    To send WhatsApp messages from your workflow, add a **WhatsApp block** to your Sim.ai workflow and configure its required inputs:
 
-#### Required Inputs
+    #### Required Inputs
 
-| Input | Description | Example |
-|-------|-------------|---------|
-| `phoneNumberId` | Your WhatsApp Business Phone Number ID | `<start.phoneNumberId>` or static ID |
-| `phoneNumber` | Recipient's phone number with country code | `<start.phoneNumber>` or `+1234567890` |
-| `message` | The message content to send | `<agent1.content>` or any string |
+    | Input | Description | Example |
+    |-------|-------------|---------|
+    | `phoneNumberId` | Your WhatsApp Business Phone Number ID | `<start.phoneNumberId>` or static ID |
+    | `phoneNumber` | Recipient's phone number with country code | `<start.phoneNumber>` or `+1234567890` |
+    | `message` | The message content to send | `<agent1.content>` or any string |
+  </Accordion>
+  <Accordion title="How do I get the WhatsApp Business Phone Number ID required for this block?">
 
-### How do I get the WhatsApp Business Phone Number ID required for this block?
+    The `phoneNumberId` is obtained from your WhatsApp Business API configuration:
 
-The `phoneNumberId` is obtained from your WhatsApp Business API configuration:
+    1. **Access Meta Developer Console** and navigate to your WhatsApp Business app
+    2. **Go to WhatsApp > Getting Started** in the left sidebar
+    3. **Copy the Phone Number ID** from the test phone number section
+    4. **Use this ID** in the `phoneNumberId` field of your WhatsApp block
 
-1. **Access Meta Developer Console** and navigate to your WhatsApp Business app
-2. **Go to WhatsApp > Getting Started** in the left sidebar
-3. **Copy the Phone Number ID** from the test phone number section
-4. **Use this ID** in the `phoneNumberId` field of your WhatsApp block
+    Store this ID as an environment variable or pass it from your workflow's start block using `<start.phoneNumberId>`.
+  </Accordion>
+  <Accordion title="What is the correct way to reference WhatsApp block outputs in my workflow?">
 
-Store this ID as an environment variable or pass it from your workflow's start block using `<start.phoneNumberId>`.
+    Every WhatsApp block exposes outputs that can be referenced using connection tags:
 
-### What is the correct way to reference WhatsApp block outputs in my workflow?
+    #### Available Outputs
 
-Every WhatsApp block exposes outputs that can be referenced using connection tags:
+    | Output Tag | Type | Description |
+    |------------|------|-------------|
+    | `<whatsapp1.success>` | Boolean | `true` if message was delivered successfully |
+    | `<whatsapp1.messageId>` | String | Unique WhatsApp message identifier |
+    | `<whatsapp1.phoneNumber>` | String | Recipient's phone number |
+    | `<whatsapp1.status>` | String | Message delivery status (sent, delivered, read) |
+    | `<whatsapp1.timestamp>` | String | ISO timestamp when message was sent |
+    | `<whatsapp1.from>` | String | Sender's phone number |
+    | `<whatsapp1.to>` | String | Recipient's phone number |
+    | `<whatsapp1.text>` | String | The message content that was sent |
+    | `<whatsapp1.type>` | String | Message type (typically "text") |
+    | `<whatsapp1.error>` | String | Error details if sending failed |
+  </Accordion>
+  <Accordion title="How do I connect an Agent block's response to send via WhatsApp?">
 
-#### Available Outputs
+    To route an AI agent's response to WhatsApp:
 
-| Output Tag | Type | Description |
-|------------|------|-------------|
-| `<whatsapp1.success>` | Boolean | `true` if message was delivered successfully |
-| `<whatsapp1.messageId>` | String | Unique WhatsApp message identifier |
-| `<whatsapp1.phoneNumber>` | String | Recipient's phone number |
-| `<whatsapp1.status>` | String | Message delivery status (sent, delivered, read) |
-| `<whatsapp1.timestamp>` | String | ISO timestamp when message was sent |
-| `<whatsapp1.from>` | String | Sender's phone number |
-| `<whatsapp1.to>` | String | Recipient's phone number |
-| `<whatsapp1.text>` | String | The message content that was sent |
-| `<whatsapp1.type>` | String | Message type (typically "text") |
-| `<whatsapp1.error>` | String | Error details if sending failed |
+    1. In the WhatsApp block's `message` field, type `<>` to open the connection menu
+    2. Select `<agent1.content>` from the available connections
 
-### How do I connect an Agent block's response to send via WhatsApp?
+    #### Example Configuration
 
-To route an AI agent's response to WhatsApp:
+    ```json
+    {
+      "phoneNumberId": "<start.phoneNumberId>",
+      "phoneNumber": "<start.customerPhone>",
+      "message": "<agent1.content>"
+    }
+    ```
 
-1. In the WhatsApp block's `message` field, type `<>` to open the connection menu
-2. Select `<agent1.content>` from the available connections
+    This configuration sends the AI-generated response to the specified customer's WhatsApp number.
+  </Accordion>
+  <Accordion title="How do I create a WhatsApp chatbot that responds to incoming messages?">
 
-#### Example Configuration
+    To build a WhatsApp chatbot in Sim.ai:
 
-```json
-{
-  "phoneNumberId": "<start.phoneNumberId>",
-  "phoneNumber": "<start.customerPhone>",
-  "message": "<agent1.content>"
-}
-```
+    1. **Add a Webhook Trigger block** as your workflow's entry point
+    2. **Configure WhatsApp webhook** in your Meta Developer Console to point to your Sim.ai webhook URL
+    3. **Map incoming message data** to process user inputs:
 
-This configuration sends the AI-generated response to the specified customer's WhatsApp number.
+    #### Example Workflow Pattern
+    ```
+    Webhook → Agent → WhatsApp
+    ```
 
-### How do I create a WhatsApp chatbot that responds to incoming messages?
+    #### Input Mapping
+    - Connect `<start.entry.changes[0].value.messages[0].text.body>` to Agent's `userPrompt`
+    - Connect `<start.entry.changes[0].value.messages[0].from>` to WhatsApp's `phoneNumber`
+  </Accordion>
+  <Accordion title="Why is my WhatsApp message failing to send?">
 
-To build a WhatsApp chatbot in Sim.ai:
+    Troubleshoot common WhatsApp integration issues:
 
-1. **Add a Webhook Trigger block** as your workflow's entry point
-2. **Configure WhatsApp webhook** in your Meta Developer Console to point to your Sim.ai webhook URL
-3. **Map incoming message data** to process user inputs:
+    #### Common Issues and Solutions
 
-#### Example Workflow Pattern
-```
-Webhook → Agent → WhatsApp
-```
+    | Issue | Description | Solution |
+    |-------|-------------|----------|
+    | **Invalid Phone Number ID** | Incorrect WhatsApp Business Phone Number ID | Verify `phoneNumberId` in Meta Developer Console |
+    | **Phone Number Format** | Missing country code or incorrect format | Ensure format like `+1234567890` with country code |
+    | **API Permissions** | WhatsApp Business API not properly configured | Check Meta Business verification status |
+    | **Rate Limiting** | Too many messages sent too quickly | Implement delays between messages |
+    | **Empty Message** | No content in message field | Ensure `message` field is populated |
+    | **Authentication** | Missing or invalid access token | Verify WhatsApp Business API credentials |
+  </Accordion>
+  <Accordion title="Can I send WhatsApp messages based on conditional logic in my workflow?">
 
-#### Input Mapping
-- Connect `<start.entry.changes[0].value.messages[0].text.body>` to Agent's `userPrompt`
-- Connect `<start.entry.changes[0].value.messages[0].from>` to WhatsApp's `phoneNumber`
+    Yes! Use Condition blocks to send different WhatsApp messages based on workflow logic:
 
-### Why is my WhatsApp message failing to send?
+    #### Example: Conditional WhatsApp Notifications
 
-Troubleshoot common WhatsApp integration issues:
+    ```
+    API Call → Condition → WhatsApp (Success)
+                       → WhatsApp (Error)
+    ```
 
-#### Common Issues and Solutions
+    #### Configuration
+    - **If** `<api1.status>` equals `200`: Send success message
+    - **Else**: Send error notification with `<api1.error>` details
 
-| Issue | Description | Solution |
-|-------|-------------|----------|
-| **Invalid Phone Number ID** | Incorrect WhatsApp Business Phone Number ID | Verify `phoneNumberId` in Meta Developer Console |
-| **Phone Number Format** | Missing country code or incorrect format | Ensure format like `+1234567890` with country code |
-| **API Permissions** | WhatsApp Business API not properly configured | Check Meta Business verification status |
-| **Rate Limiting** | Too many messages sent too quickly | Implement delays between messages |
-| **Empty Message** | No content in message field | Ensure `message` field is populated |
-| **Authentication** | Missing or invalid access token | Verify WhatsApp Business API credentials |
+    #### Success Message Configuration
+    ```json
+    {
+      "phoneNumber": "<start.adminPhone>",
+      "message": "✅ Process completed successfully: <api1.data.result>"
+    }
+    ```
 
-### Can I send WhatsApp messages based on conditional logic in my workflow?
+    #### Error Message Configuration
+    ```json
+    {
+      "phoneNumber": "<start.adminPhone>",
+      "message": "❌ Process failed: <api1.error>"
+    }
+    ```
+  </Accordion>
+  <Accordion title="How do I integrate WhatsApp with scheduled workflows for automated notifications?">
 
-Yes! Use Condition blocks to send different WhatsApp messages based on workflow logic:
+    Create automated WhatsApp notifications using Scheduled Trigger blocks:
 
-#### Example: Conditional WhatsApp Notifications
+    #### Example: Daily Report Automation
 
-```
-API Call → Condition → WhatsApp (Success)
-                   → WhatsApp (Error)
-```
+    ```
+    Scheduled Trigger → API → Function → WhatsApp
+    ```
 
-#### Configuration
-- **If** `<api1.status>` equals `200`: Send success message
-- **Else**: Send error notification with `<api1.error>` details
+    1. **Scheduled Trigger**: Set daily execution time
+    2. **API Block**: Fetch data from your system
+    3. **Function Block**: Format data into readable message
+    4. **WhatsApp Block**: Send formatted report
 
-#### Success Message Configuration
-```json
-{
-  "phoneNumber": "<start.adminPhone>",
-  "message": "✅ Process completed successfully: <api1.data.result>"
-}
-```
+    #### WhatsApp Configuration
+    ```json
+    {
+      "phoneNumberId": "<start.phoneNumberId>",
+      "phoneNumber": "<start.managerPhone>",
+      "message": "<function1.formattedReport>"
+    }
+    ```
 
-#### Error Message Configuration
-```json
-{
-  "phoneNumber": "<start.adminPhone>",
-  "message": "❌ Process failed: <api1.error>"
-}
-```
-
-### How do I integrate WhatsApp with scheduled workflows for automated notifications?
-
-Create automated WhatsApp notifications using Scheduled Trigger blocks:
-
-#### Example: Daily Report Automation
-
-```
-Scheduled Trigger → API → Function → WhatsApp
-```
-
-1. **Scheduled Trigger**: Set daily execution time
-2. **API Block**: Fetch data from your system
-3. **Function Block**: Format data into readable message
-4. **WhatsApp Block**: Send formatted report
-
-#### WhatsApp Configuration
-```json
-{
-  "phoneNumberId": "<start.phoneNumberId>",
-  "phoneNumber": "<start.managerPhone>",
-  "message": "<function1.formattedReport>"
-}
-```
-
-This pattern enables automated daily reports, alerts, or status updates via WhatsApp.
+    This pattern enables automated daily reports, alerts, or status updates via WhatsApp.
+  </Accordion>
+</Accordions>
 {/* MANUAL-CONTENT-END */}

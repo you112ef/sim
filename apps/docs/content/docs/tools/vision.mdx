@@ -4,6 +4,8 @@ description: Analyze images with vision models
 ---
 
 import { BlockInfoCard } from "@/components/ui/block-info-card"
+import { Accordion, Accordions } from "fumadocs-ui/components/accordion"
+
 
 <BlockInfoCard 
   type="vision"
@@ -131,142 +133,145 @@ Test Vision blocks with diverse image samples representing your typical use case
 ## FAQ
 
 {/* MANUAL-CONTENT-START:faq */}
-### How do I analyze images in my workflow using the Vision block?
+<Accordions type="single">
+  <Accordion title="How do I analyze images in my workflow using the Vision block?">
 
-To analyze images with the Vision block in Sim.ai, add a **Vision block** to your workflow and configure these required inputs:
+    To analyze images with the Vision block in Sim.ai, add a **Vision block** to your workflow and configure these required inputs:
 
-#### Required Inputs
+    #### Required Inputs
 
-| Input | Description | Example |
-|-------|-------------|---------|
-| `apiKey` | Your model provider's API key | `<start.apiKey>` or environment variable |
-| `imageUrl` | Publicly accessible URL of the image to analyze | `<start.imageUrl>` or `<webhook.body.image_url>` |
+    | Input | Description | Example |
+    |-------|-------------|---------|
+    | `apiKey` | Your model provider's API key | `<start.apiKey>` or environment variable |
+    | `imageUrl` | Publicly accessible URL of the image to analyze | `<start.imageUrl>` or `<webhook.body.image_url>` |
 
-#### Optional Inputs
+    #### Optional Inputs
 
-| Input | Description | Example |
-|-------|-------------|---------|
-| `model` | Vision model to use | `gpt-4o` or `claude-3-opus-20240229` |
-| `prompt` | Custom analysis instructions | `"Describe the objects and text in this image"` |
+    | Input | Description | Example |
+    |-------|-------------|---------|
+    | `model` | Vision model to use | `gpt-4o` or `claude-3-opus-20240229` |
+    | `prompt` | Custom analysis instructions | `"Describe the objects and text in this image"` |
+  </Accordion>
+  <Accordion title="What outputs can I reference from the Vision block in downstream workflow steps?">
 
-### What outputs can I reference from the Vision block in downstream workflow steps?
+    Every Vision block exposes outputs that can be connected to other blocks using connection tags:
 
-Every Vision block exposes outputs that can be connected to other blocks using connection tags:
+    #### Available Outputs
 
-#### Available Outputs
+    | Output Tag | Type | Description |
+    |------------|------|-------------|
+    | `<vision1.content>` | String | The complete analysis and description of the image |
+    | `<vision1.model>` | String | The vision model that performed the analysis |
+    | `<vision1.tokens>` | Number | Total tokens consumed during image processing |
+    | `<vision1.usage>` | Object | Detailed breakdown of token usage and costs |
 
-| Output Tag | Type | Description |
-|------------|------|-------------|
-| `<vision1.content>` | String | The complete analysis and description of the image |
-| `<vision1.model>` | String | The vision model that performed the analysis |
-| `<vision1.tokens>` | Number | Total tokens consumed during image processing |
-| `<vision1.usage>` | Object | Detailed breakdown of token usage and costs |
+    These outputs can be dragged into inputs of Agent blocks, Telegram blocks, or any other downstream components.
+  </Accordion>
+  <Accordion title="How do I connect a webhook containing image URLs to the Vision block for automatic processing?">
 
-These outputs can be dragged into inputs of Agent blocks, Telegram blocks, or any other downstream components.
+    To process images from webhook payloads:
 
-### How do I connect a webhook containing image URLs to the Vision block for automatic processing?
+    1. **Add a Webhook Trigger block** as your workflow entry point
+    2. **Connect the webhook's image URL** to the Vision block's `imageUrl` input
+    3. **Map the analysis result** to downstream blocks
 
-To process images from webhook payloads:
+    #### Example Workflow Configuration
 
-1. **Add a Webhook Trigger block** as your workflow entry point
-2. **Connect the webhook's image URL** to the Vision block's `imageUrl` input
-3. **Map the analysis result** to downstream blocks
+    ```json
+    {
+      "apiKey": "<start.openai_key>",
+      "imageUrl": "<start.image_url>",
+      "prompt": "Extract all text and identify any objects in this image"
+    }
+    ```
 
-#### Example Workflow Configuration
+    Connect `<vision1.content>` to an Agent block's `userPrompt` for further processing of the analysis results.
+  </Accordion>
+  <Accordion title="Can I combine Vision analysis with AI agents for intelligent image processing workflows?">
 
-```json
-{
-  "apiKey": "<start.openai_key>",
-  "imageUrl": "<start.image_url>",
-  "prompt": "Extract all text and identify any objects in this image"
-}
-```
+    Yes! Vision blocks work seamlessly with Agent blocks to create sophisticated image understanding pipelines:
 
-Connect `<vision1.content>` to an Agent block's `userPrompt` for further processing of the analysis results.
+    #### Common Integration Patterns
 
-### Can I combine Vision analysis with AI agents for intelligent image processing workflows?
+    ##### 1. **Webhook → Vision → Agent → Response**
+    Process uploaded images and generate intelligent responses:
+    ```
+    Vision analyzes image → Agent processes findings → Generate structured output
+    ```
 
-Yes! Vision blocks work seamlessly with Agent blocks to create sophisticated image understanding pipelines:
+    ##### 2. **Vision → Agent → Telegram**
+    Analyze images and send summaries to Telegram:
+    ```
+    Connect: <vision1.content> → Agent's userPrompt
+    Connect: <agent1.content> → Telegram's text
+    ```
 
-#### Common Integration Patterns
+    ##### 3. **API → Vision → Function → Database**
+    Fetch images from external APIs, analyze them, and store results:
+    ```
+    API provides imageUrl → Vision processes → Function formats → Store results
+    ```
+  </Accordion>
+  <Accordion title="What should I do when my Vision block fails to process an image?">
 
-##### 1. **Webhook → Vision → Agent → Response**
-Process uploaded images and generate intelligent responses:
-```
-Vision analyzes image → Agent processes findings → Generate structured output
-```
+    Troubleshoot Vision block issues with this systematic approach:
 
-##### 2. **Vision → Agent → Telegram**
-Analyze images and send summaries to Telegram:
-```
-Connect: <vision1.content> → Agent's userPrompt
-Connect: <agent1.content> → Telegram's text
-```
+    #### Common Issues and Solutions
 
-##### 3. **API → Vision → Function → Database**
-Fetch images from external APIs, analyze them, and store results:
-```
-API provides imageUrl → Vision processes → Function formats → Store results
-```
+    | Issue | Description | Solution |
+    |-------|-------------|----------|
+    | **Invalid API Key** | Authentication failure | Verify `<start.apiKey>` matches your provider's key |
+    | **Inaccessible Image URL** | URL returns 404 or requires authentication | Ensure `<vision1.imageUrl>` is publicly accessible |
+    | **Unsupported Format** | Image format not supported | Convert to JPG, PNG, or WebP format |
+    | **Image Too Large** | File size exceeds model limits | Resize image or use compression |
+    | **Rate Limiting** | API quota exceeded | Implement delays or upgrade plan |
+    | **Invalid Model** | Specified model doesn't exist | Use supported models like `gpt-4o` or `claude-3-opus-20240229` |
 
-### What should I do when my Vision block fails to process an image?
+    Check workflow logs for specific error messages and API response details.
+  </Accordion>
+  <Accordion title="How do I create custom prompts for specific image analysis tasks?">
 
-Troubleshoot Vision block issues with this systematic approach:
+    Customize the Vision block's analysis by providing targeted prompts in the `prompt` field:
 
-#### Common Issues and Solutions
+    #### Effective Prompt Examples
 
-| Issue | Description | Solution |
-|-------|-------------|----------|
-| **Invalid API Key** | Authentication failure | Verify `<start.apiKey>` matches your provider's key |
-| **Inaccessible Image URL** | URL returns 404 or requires authentication | Ensure `<vision1.imageUrl>` is publicly accessible |
-| **Unsupported Format** | Image format not supported | Convert to JPG, PNG, or WebP format |
-| **Image Too Large** | File size exceeds model limits | Resize image or use compression |
-| **Rate Limiting** | API quota exceeded | Implement delays or upgrade plan |
-| **Invalid Model** | Specified model doesn't exist | Use supported models like `gpt-4o` or `claude-3-opus-20240229` |
+    | Task | Prompt Example |
+    |------|----------------|
+    | **Text Extraction** | `"Extract all visible text from this image, maintaining original formatting"` |
+    | **Object Detection** | `"List all objects visible in this image with their approximate locations"` |
+    | **Safety Analysis** | `"Identify any safety hazards or compliance issues in this workplace image"` |
+    | **Document Processing** | `"Summarize the key information from this document or form"` |
+    | **Quality Control** | `"Assess the quality and condition of the product shown in this image"` |
 
-Check workflow logs for specific error messages and API response details.
+    Connect dynamic prompts using `<agent1.content>` or `<start.instructions>` for variable analysis requirements.
+  </Accordion>
+  <Accordion title="What are the best practices for integrating Vision blocks with other Sim.ai workflow components?">
 
-### How do I create custom prompts for specific image analysis tasks?
+    Optimize your Vision-powered workflows with these integration patterns:
 
-Customize the Vision block's analysis by providing targeted prompts in the `prompt` field:
+    #### 1. **Error Handling Chain**
+    ```
+    Vision → Condition → Success Path / Error Path
+    ```
+    Use `<vision1.content>` in a Condition block to check for successful analysis before proceeding.
 
-#### Effective Prompt Examples
+    #### 2. **Multi-Model Analysis**
+    ```
+    Vision (Model A) → Agent → Vision (Model B) → Comparison
+    ```
+    Compare results from different vision models for enhanced accuracy.
 
-| Task | Prompt Example |
-|------|----------------|
-| **Text Extraction** | `"Extract all visible text from this image, maintaining original formatting"` |
-| **Object Detection** | `"List all objects visible in this image with their approximate locations"` |
-| **Safety Analysis** | `"Identify any safety hazards or compliance issues in this workplace image"` |
-| **Document Processing** | `"Summarize the key information from this document or form"` |
-| **Quality Control** | `"Assess the quality and condition of the product shown in this image"` |
+    #### 3. **Batch Processing**
+    ```
+    Function (split URLs) → Vision → Function (aggregate) → Summary
+    ```
+    Process multiple images and combine results into comprehensive reports.
 
-Connect dynamic prompts using `<agent1.content>` or `<start.instructions>` for variable analysis requirements.
-
-### What are the best practices for integrating Vision blocks with other Sim.ai workflow components?
-
-Optimize your Vision-powered workflows with these integration patterns:
-
-#### 1. **Error Handling Chain**
-```
-Vision → Condition → Success Path / Error Path
-```
-Use `<vision1.content>` in a Condition block to check for successful analysis before proceeding.
-
-#### 2. **Multi-Model Analysis**
-```
-Vision (Model A) → Agent → Vision (Model B) → Comparison
-```
-Compare results from different vision models for enhanced accuracy.
-
-#### 3. **Batch Processing**
-```
-Function (split URLs) → Vision → Function (aggregate) → Summary
-```
-Process multiple images and combine results into comprehensive reports.
-
-#### 4. **Real-time Monitoring**
-```
-Webhook → Vision → Condition → Alert/Archive
-```
-Automatically analyze incoming images and trigger alerts based on content analysis.
+    #### 4. **Real-time Monitoring**
+    ```
+    Webhook → Vision → Condition → Alert/Archive
+    ```
+    Automatically analyze incoming images and trigger alerts based on content analysis.
+  </Accordion>
+</Accordions>
 {/* MANUAL-CONTENT-END */}

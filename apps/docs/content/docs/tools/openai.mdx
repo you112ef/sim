@@ -4,6 +4,8 @@ description: Generate Open AI embeddings
 ---
 
 import { BlockInfoCard } from "@/components/ui/block-info-card"
+import { Accordion, Accordions } from "fumadocs-ui/components/accordion"
+
 
 <BlockInfoCard 
   type="openai"
@@ -113,137 +115,140 @@ Monitor vector generation latency and implement parallel processing patterns for
 ## FAQ
 
 {/* MANUAL-CONTENT-START:faq */}
-### How do I generate embeddings from text in my Sim.ai workflow?
+<Accordions type="single">
+  <Accordion title="How do I generate embeddings from text in my Sim.ai workflow?">
 
-To generate embeddings from text, add an **Embeddings block** to your Sim.ai workflow and configure its required inputs:
+    To generate embeddings from text, add an **Embeddings block** to your Sim.ai workflow and configure its required inputs:
 
-#### Required Inputs
+    #### Required Inputs
 
-| Input | Description | Example |
-|-------|-------------|---------|
-| `input` | The text to convert to embeddings | `<start.text>` or `<agent1.content>` |
-| `apiKey` | Your OpenAI API key | `<start.apiKey>` or environment variable |
+    | Input | Description | Example |
+    |-------|-------------|---------|
+    | `input` | The text to convert to embeddings | `<start.text>` or `<agent1.content>` |
+    | `apiKey` | Your OpenAI API key | `<start.apiKey>` or environment variable |
 
-#### Optional Inputs
+    #### Optional Inputs
 
-| Input | Description | Default |
-|-------|-------------|---------|
-| `model` | OpenAI embedding model to use | `text-embedding-ada-002` |
-| `encodingFormat` | Format for returned embeddings | `float` |
+    | Input | Description | Default |
+    |-------|-------------|---------|
+    | `model` | OpenAI embedding model to use | `text-embedding-ada-002` |
+    | `encodingFormat` | Format for returned embeddings | `float` |
+  </Accordion>
+  <Accordion title="What outputs can I reference from an Embeddings block in my workflow?">
 
-### What outputs can I reference from an Embeddings block in my workflow?
+    Every Embeddings block exposes outputs that can be referenced using connection tags:
 
-Every Embeddings block exposes outputs that can be referenced using connection tags:
+    #### Available Outputs
 
-#### Available Outputs
+    | Output Tag | Type | Description |
+    |------------|------|-------------|
+    | `<openai1.embeddings>` | Array | The generated embedding vectors |
+    | `<openai1.model>` | String | The model used for generation |
+    | `<openai1.usage>` | Object | Token usage statistics |
+    | `<openai1.success>` | Boolean | `true` if embeddings were generated successfully |
+    | `<openai1.output>` | Object | Complete embeddings generation results |
 
-| Output Tag | Type | Description |
-|------------|------|-------------|
-| `<openai1.embeddings>` | Array | The generated embedding vectors |
-| `<openai1.model>` | String | The model used for generation |
-| `<openai1.usage>` | Object | Token usage statistics |
-| `<openai1.success>` | Boolean | `true` if embeddings were generated successfully |
-| `<openai1.output>` | Object | Complete embeddings generation results |
+    These values can be connected to downstream blocks for vector operations, similarity calculations, or storage.
+  </Accordion>
+  <Accordion title="How do I connect text from other blocks to generate embeddings?">
 
-These values can be connected to downstream blocks for vector operations, similarity calculations, or storage.
+    To process text from upstream blocks:
 
-### How do I connect text from other blocks to generate embeddings?
+    1. In the Embeddings block's `input` field, type `<>` to open the connection menu
+    2. Select the text source from available connections
 
-To process text from upstream blocks:
+    #### Common Connection Patterns
 
-1. In the Embeddings block's `input` field, type `<>` to open the connection menu
-2. Select the text source from available connections
+    ```json
+    {
+      "input": "<agent1.content>",
+      "apiKey": "<start.openaiKey>"
+    }
+    ```
 
-#### Common Connection Patterns
+    This configuration generates embeddings from an AI agent's response for semantic analysis or vector storage.
+  </Accordion>
+  <Accordion title="How do I use embeddings with vector databases or similarity calculations?">
 
-```json
-{
-  "input": "<agent1.content>",
-  "apiKey": "<start.openaiKey>"
-}
-```
+    Connect Embeddings block outputs to downstream processing blocks:
 
-This configuration generates embeddings from an AI agent's response for semantic analysis or vector storage.
+    #### Example Workflow Patterns
 
-### How do I use embeddings with vector databases or similarity calculations?
+    ##### 1. **Text → Embeddings → Function (Similarity)**
+    ```
+    Agent → Embeddings → Function
+    ```
+    Use `<openai1.embeddings>` in a Function block to calculate cosine similarity between vectors.
 
-Connect Embeddings block outputs to downstream processing blocks:
+    ##### 2. **API → Embeddings → Database Storage**
+    ```
+    API → Embeddings → HTTP
+    ```
+    Store `<openai1.embeddings>` in vector databases like Pinecone or Weaviate using HTTP requests.
 
-#### Example Workflow Patterns
+    ##### 3. **Webhook → Embeddings → Condition**
+    ```
+    Webhook → Embeddings → Condition
+    ```
+    Generate embeddings and use conditional logic based on vector properties.
+  </Accordion>
+  <Accordion title="Why are my embeddings not generating properly?">
 
-##### 1. **Text → Embeddings → Function (Similarity)**
-```
-Agent → Embeddings → Function
-```
-Use `<openai1.embeddings>` in a Function block to calculate cosine similarity between vectors.
+    Troubleshoot common issues with this checklist:
 
-##### 2. **API → Embeddings → Database Storage**
-```
-API → Embeddings → HTTP
-```
-Store `<openai1.embeddings>` in vector databases like Pinecone or Weaviate using HTTP requests.
+    #### Common Issues and Solutions
 
-##### 3. **Webhook → Embeddings → Condition**
-```
-Webhook → Embeddings → Condition
-```
-Generate embeddings and use conditional logic based on vector properties.
+    | Issue | Description | Solution |
+    |-------|-------------|----------|
+    | **Invalid API Key** | OpenAI authentication failed | Verify `<start.apiKey>` is valid and has embedding permissions |
+    | **Empty Input Text** | No text provided for embedding | Ensure `input` field contains text (e.g., `<agent1.content>`) |
+    | **Model Not Found** | Invalid model specified | Use valid models like `text-embedding-ada-002` or `text-embedding-3-small` |
+    | **Rate Limiting** | Too many API requests | Implement delays between requests or check usage limits |
+    | **Token Limit Exceeded** | Input text too long | Split large texts into smaller chunks before embedding |
+  </Accordion>
+  <Accordion title="How do I process multiple texts for batch embedding generation?">
 
-### Why are my embeddings not generating properly?
+    For processing multiple texts, use workflow patterns with iteration or multiple Embeddings blocks:
 
-Troubleshoot common issues with this checklist:
+    #### Batch Processing Pattern
 
-#### Common Issues and Solutions
+    ##### 1. **Function → Multiple Embeddings**
+    Use a Function block to split text into chunks, then process each with separate Embeddings blocks.
 
-| Issue | Description | Solution |
-|-------|-------------|----------|
-| **Invalid API Key** | OpenAI authentication failed | Verify `<start.apiKey>` is valid and has embedding permissions |
-| **Empty Input Text** | No text provided for embedding | Ensure `input` field contains text (e.g., `<agent1.content>`) |
-| **Model Not Found** | Invalid model specified | Use valid models like `text-embedding-ada-002` or `text-embedding-3-small` |
-| **Rate Limiting** | Too many API requests | Implement delays between requests or check usage limits |
-| **Token Limit Exceeded** | Input text too long | Split large texts into smaller chunks before embedding |
+    ##### 2. **Webhook Array → Embeddings Loop**
+    ```
+    Webhook → Function (iterate) → Embeddings → Function (collect)
+    ```
+    Process arrays of text inputs by iterating through each item.
 
-### How do I process multiple texts for batch embedding generation?
+    ##### 3. **API Response → Embeddings → Aggregation**
+    ```
+    API → Function (parse) → Embeddings → Function (combine)
+    ```
+    Extract multiple texts from API responses and generate embeddings for each.
+  </Accordion>
+  <Accordion title="Can I use different OpenAI embedding models in my workflow?">
 
-For processing multiple texts, use workflow patterns with iteration or multiple Embeddings blocks:
+    Yes! Configure the `model` parameter to use different OpenAI embedding models:
 
-#### Batch Processing Pattern
+    #### Available Models
 
-##### 1. **Function → Multiple Embeddings**
-Use a Function block to split text into chunks, then process each with separate Embeddings blocks.
+    | Model | Description | Use Case |
+    |-------|-------------|----------|
+    | `text-embedding-3-small` | Latest small model | Fast, cost-effective embeddings |
+    | `text-embedding-3-large` | Latest large model | High-quality embeddings |
+    | `text-embedding-ada-002` | Previous generation | Legacy applications |
 
-##### 2. **Webhook Array → Embeddings Loop**
-```
-Webhook → Function (iterate) → Embeddings → Function (collect)
-```
-Process arrays of text inputs by iterating through each item.
+    #### Example Configuration
+    ```json
+    {
+      "input": "<start.text>",
+      "model": "text-embedding-3-small",
+      "apiKey": "<start.openaiKey>"
+    }
+    ```
 
-##### 3. **API Response → Embeddings → Aggregation**
-```
-API → Function (parse) → Embeddings → Function (combine)
-```
-Extract multiple texts from API responses and generate embeddings for each.
-
-### Can I use different OpenAI embedding models in my workflow?
-
-Yes! Configure the `model` parameter to use different OpenAI embedding models:
-
-#### Available Models
-
-| Model | Description | Use Case |
-|-------|-------------|----------|
-| `text-embedding-3-small` | Latest small model | Fast, cost-effective embeddings |
-| `text-embedding-3-large` | Latest large model | High-quality embeddings |
-| `text-embedding-ada-002` | Previous generation | Legacy applications |
-
-#### Example Configuration
-```json
-{
-  "input": "<start.text>",
-  "model": "text-embedding-3-small",
-  "apiKey": "<start.openaiKey>"
-}
-```
-
-Reference the chosen model in downstream blocks using `<openai1.model>` for tracking and validation.
+    Reference the chosen model in downstream blocks using `<openai1.model>` for tracking and validation.
+  </Accordion>
+</Accordions>
 {/* MANUAL-CONTENT-END */}

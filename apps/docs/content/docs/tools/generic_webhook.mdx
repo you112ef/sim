@@ -4,6 +4,8 @@ description: Receive webhooks from any service
 ---
 
 import { BlockInfoCard } from "@/components/ui/block-info-card"
+import { Accordion, Accordions } from "fumadocs-ui/components/accordion"
+
 
 <BlockInfoCard 
   type="generic_webhook"
@@ -88,152 +90,155 @@ For high-volume webhook endpoints, implement circuit breaker patterns that monit
 ## FAQ
 
 {/* MANUAL-CONTENT-START:faq */}
-### How do I trigger a workflow when an external service sends a webhook?
+<Accordions type="single">
+  <Accordion title="How do I trigger a workflow when an external service sends a webhook?">
 
-To receive webhooks from external services in Sim.ai, add a **Webhook block** as your workflow's entry point:
+    To receive webhooks from external services in Sim.ai, add a **Webhook block** as your workflow's entry point:
 
-1. **Add a Webhook Trigger block** as the first block in your workflow
-2. **Copy the generated webhook URL** from the block configuration
-3. **Configure your external service** to send webhooks to this URL
-4. **Map webhook data** to downstream blocks using connection tags
+    1. **Add a Webhook Trigger block** as the first block in your workflow
+    2. **Copy the generated webhook URL** from the block configuration
+    3. **Configure your external service** to send webhooks to this URL
+    4. **Map webhook data** to downstream blocks using connection tags
 
-The Webhook block automatically captures all incoming HTTP requests and makes the data available to subsequent blocks in your workflow.
+    The Webhook block automatically captures all incoming HTTP requests and makes the data available to subsequent blocks in your workflow.
+  </Accordion>
+  <Accordion title="What webhook data can I access in my workflow using connection tags?">
 
-### What webhook data can I access in my workflow using connection tags?
+    Every Webhook block exposes comprehensive request data through these output connection tags:
 
-Every Webhook block exposes comprehensive request data through these output connection tags:
+    #### Available Outputs
 
-#### Available Outputs
+    | Output Tag | Type | Description |
+    |------------|------|-------------|
+    | `<generic_webhook1.payload>` | JSON | Complete webhook payload data |
+    | `<generic_webhook1.headers>` | JSON | All HTTP request headers |
+    | `<generic_webhook1.method>` | String | HTTP method (GET, POST, PUT, etc.) |
+    | `<generic_webhook1.url>` | String | Complete request URL with query parameters |
+    | `<generic_webhook1.timestamp>` | String | ISO timestamp when webhook was received |
+    | `<generic_webhook1.event>` | String | Event type extracted from payload |
+    | `<generic_webhook1.id>` | String | Event ID extracted from payload |
+    | `<generic_webhook1.data>` | JSON | Event data extracted from payload |
 
-| Output Tag | Type | Description |
-|------------|------|-------------|
-| `<generic_webhook1.payload>` | JSON | Complete webhook payload data |
-| `<generic_webhook1.headers>` | JSON | All HTTP request headers |
-| `<generic_webhook1.method>` | String | HTTP method (GET, POST, PUT, etc.) |
-| `<generic_webhook1.url>` | String | Complete request URL with query parameters |
-| `<generic_webhook1.timestamp>` | String | ISO timestamp when webhook was received |
-| `<generic_webhook1.event>` | String | Event type extracted from payload |
-| `<generic_webhook1.id>` | String | Event ID extracted from payload |
-| `<generic_webhook1.data>` | JSON | Event data extracted from payload |
+    These connection tags can be dragged into any downstream block's input fields for processing.
+  </Accordion>
+  <Accordion title="How do I connect webhook payload data to an Agent block for processing?">
 
-These connection tags can be dragged into any downstream block's input fields for processing.
+    To process incoming webhook data with AI:
 
-### How do I connect webhook payload data to an Agent block for processing?
+    1. **Connect payload to Agent's userPrompt**: Use `<generic_webhook1.payload>` in the Agent's `userPrompt` field
+    2. **Add context from headers**: Reference `<generic_webhook1.headers>` for additional request context
+    3. **Include event information**: Use `<generic_webhook1.event>` to help the Agent understand the webhook type
 
-To process incoming webhook data with AI:
+    #### Example Agent Configuration
 
-1. **Connect payload to Agent's userPrompt**: Use `<generic_webhook1.payload>` in the Agent's `userPrompt` field
-2. **Add context from headers**: Reference `<generic_webhook1.headers>` for additional request context
-3. **Include event information**: Use `<generic_webhook1.event>` to help the Agent understand the webhook type
+    ```json
+    {
+      "userPrompt": "Process this webhook event: <generic_webhook1.event>. Payload: <generic_webhook1.payload>",
+      "systemPrompt": "You are a webhook processing assistant. Analyze the incoming data and provide insights."
+    }
+    ```
 
-#### Example Agent Configuration
+    This allows the AI agent to intelligently process and respond to webhook events.
+  </Accordion>
+  <Accordion title="Can I filter webhook events before processing them in my workflow?">
 
-```json
-{
-  "userPrompt": "Process this webhook event: <generic_webhook1.event>. Payload: <generic_webhook1.payload>",
-  "systemPrompt": "You are a webhook processing assistant. Analyze the incoming data and provide insights."
-}
-```
+    Yes! Use a **Condition block** after your Webhook block to filter events:
 
-This allows the AI agent to intelligently process and respond to webhook events.
+    #### Example Filtering Pattern
 
-### Can I filter webhook events before processing them in my workflow?
+    ```
+    Webhook → Condition → Agent → Response
+    ```
 
-Yes! Use a **Condition block** after your Webhook block to filter events:
+    1. **Connect event type**: Set condition input to `<generic_webhook1.event>`
+    2. **Define filter logic**: Check if event equals specific values (e.g., "payment.success")
+    3. **Route accordingly**: Process only matching events through subsequent blocks
 
-#### Example Filtering Pattern
+    #### Condition Configuration Example
 
-```
-Webhook → Condition → Agent → Response
-```
+    ```json
+    {
+      "value1": "<generic_webhook1.event>",
+      "operator": "equals",
+      "value2": "user.created"
+    }
+    ```
 
-1. **Connect event type**: Set condition input to `<generic_webhook1.event>`
-2. **Define filter logic**: Check if event equals specific values (e.g., "payment.success")
-3. **Route accordingly**: Process only matching events through subsequent blocks
+    This ensures your workflow only processes relevant webhook events.
+  </Accordion>
+  <Accordion title="How do I extract specific data from nested webhook payloads?">
 
-#### Condition Configuration Example
+    For complex webhook payloads, use a **Function block** to extract specific fields:
 
-```json
-{
-  "value1": "<generic_webhook1.event>",
-  "operator": "equals",
-  "value2": "user.created"
-}
-```
+    #### Example Workflow Pattern
 
-This ensures your workflow only processes relevant webhook events.
+    ```
+    Webhook → Function → Agent
+    ```
 
-### How do I extract specific data from nested webhook payloads?
+    1. **Connect payload data**: Input `<generic_webhook1.payload>` to the Function block
+    2. **Write extraction logic**: Use JavaScript to parse nested JSON structures
+    3. **Output specific fields**: Return only the data needed for downstream processing
 
-For complex webhook payloads, use a **Function block** to extract specific fields:
+    #### Function Code Example
 
-#### Example Workflow Pattern
+    ```javascript
+    // Extract user data from GitHub webhook
+    const payload = inputs.webhookPayload;
+    return {
+      userId: payload.sender?.id,
+      username: payload.sender?.login,
+      action: payload.action,
+      repositoryName: payload.repository?.name
+    };
+    ```
 
-```
-Webhook → Function → Agent
-```
+    Connect these extracted values to subsequent blocks using `<function1.userId>`, `<function1.username>`, etc.
+  </Accordion>
+  <Accordion title="Why isn't my webhook receiving data from external services?">
 
-1. **Connect payload data**: Input `<generic_webhook1.payload>` to the Function block
-2. **Write extraction logic**: Use JavaScript to parse nested JSON structures
-3. **Output specific fields**: Return only the data needed for downstream processing
+    Troubleshoot webhook connectivity issues with this checklist:
 
-#### Function Code Example
+    #### Common Issues and Solutions
 
-```javascript
-// Extract user data from GitHub webhook
-const payload = inputs.webhookPayload;
-return {
-  userId: payload.sender?.id,
-  username: payload.sender?.login,
-  action: payload.action,
-  repositoryName: payload.repository?.name
-};
-```
+    | Issue | Description | Solution |
+    |-------|-------------|----------|
+    | **URL Not Configured** | External service pointing to wrong endpoint | Copy exact webhook URL from Sim.ai block settings |
+    | **HTTP Method Mismatch** | Service sends GET, expecting POST | Check `<generic_webhook1.method>` in logs |
+    | **Content-Type Issues** | Service sends unsupported format | Verify `<generic_webhook1.headers>` for content-type |
+    | **Authentication Required** | Service requires webhook validation | Implement signature verification in Function block |
+    | **Payload Empty** | No data in `<generic_webhook1.payload>` | Check service webhook configuration and test payload |
+    | **Network Restrictions** | Firewall blocking requests | Ensure external service can reach Sim.ai endpoints |
 
-Connect these extracted values to subsequent blocks using `<function1.userId>`, `<function1.username>`, etc.
+    Check workflow execution logs to see actual webhook data received.
+  </Accordion>
+  <Accordion title="How do I respond to webhook senders with custom HTTP responses?">
 
-### Why isn't my webhook receiving data from external services?
+    To send custom responses back to webhook senders:
 
-Troubleshoot webhook connectivity issues with this checklist:
+    1. **Add an HTTP Response block** at the end of your workflow
+    2. **Configure response data**: Set status code, headers, and body content
+    3. **Use processed data**: Include results from Agent or Function blocks
 
-#### Common Issues and Solutions
+    #### Example Response Workflow
 
-| Issue | Description | Solution |
-|-------|-------------|----------|
-| **URL Not Configured** | External service pointing to wrong endpoint | Copy exact webhook URL from Sim.ai block settings |
-| **HTTP Method Mismatch** | Service sends GET, expecting POST | Check `<generic_webhook1.method>` in logs |
-| **Content-Type Issues** | Service sends unsupported format | Verify `<generic_webhook1.headers>` for content-type |
-| **Authentication Required** | Service requires webhook validation | Implement signature verification in Function block |
-| **Payload Empty** | No data in `<generic_webhook1.payload>` | Check service webhook configuration and test payload |
-| **Network Restrictions** | Firewall blocking requests | Ensure external service can reach Sim.ai endpoints |
+    ```
+    Webhook → Agent → HTTP Response
+    ```
 
-Check workflow execution logs to see actual webhook data received.
+    #### HTTP Response Configuration
 
-### How do I respond to webhook senders with custom HTTP responses?
+    ```json
+    {
+      "statusCode": 200,
+      "body": "{\"status\": \"processed\", \"result\": \"<agent1.content>\"}",
+      "headers": {
+        "Content-Type": "application/json"
+      }
+    }
+    ```
 
-To send custom responses back to webhook senders:
-
-1. **Add an HTTP Response block** at the end of your workflow
-2. **Configure response data**: Set status code, headers, and body content
-3. **Use processed data**: Include results from Agent or Function blocks
-
-#### Example Response Workflow
-
-```
-Webhook → Agent → HTTP Response
-```
-
-#### HTTP Response Configuration
-
-```json
-{
-  "statusCode": 200,
-  "body": "{\"status\": \"processed\", \"result\": \"<agent1.content>\"}",
-  "headers": {
-    "Content-Type": "application/json"
-  }
-}
-```
-
-This pattern is essential for webhook services that expect acknowledgment responses.
+    This pattern is essential for webhook services that expect acknowledgment responses.
+  </Accordion>
+</Accordions>
 {/* MANUAL-CONTENT-END */}
