@@ -26,10 +26,12 @@ import { cn } from '@/lib/utils'
 import { useCurrentWorkflow } from '@/app/workspace/[workspaceId]/w/[workflowId]/hooks/use-current-workflow'
 import { useWorkflowExecution } from '@/app/workspace/[workspaceId]/w/[workflowId]/hooks/use-workflow-execution'
 import { getBlock } from '@/blocks'
+import { useDebugCanvasStore } from '@/stores/execution/debug-canvas/store'
 import { useDebugSnapshotStore } from '@/stores/execution/debug-snapshots/store'
 import { useExecutionStore } from '@/stores/execution/store'
 import { useVariablesStore } from '@/stores/panel/variables/store'
 import { useEnvironmentStore } from '@/stores/settings/environment/store'
+import { useWorkflowDiffStore } from '@/stores/workflow-diff/store'
 import { useWorkflowRegistry } from '@/stores/workflows/registry/store'
 import { useSubBlockStore } from '@/stores/workflows/subblock/store'
 import { mergeSubblockState } from '@/stores/workflows/utils'
@@ -38,7 +40,6 @@ import { getTool } from '@/tools/utils'
 import { getTrigger, getTriggersByProvider } from '@/triggers'
 import { useParams } from 'next/navigation'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
-import { useDebugCanvasStore } from '@/stores/execution/debug-canvas/store'
 import type { WorkflowState } from '@/stores/workflows/workflow/types'
 
 // Token render cache (LRU-style)
@@ -1737,13 +1738,30 @@ export function DebugPanel() {
     return Object.entries(allEnvVars).filter(([key]) => blockEnvVarRefs.has(key))
   }, [allEnvVars, scopedVariables, focusedBlock, focusedBlockId, activeWorkflowId, blocksList])
 
-  // Reset hasStartedRef when debug mode is deactivated
+  // Reset hasStartedRef and clear debug canvas when debug mode is deactivated
   useEffect(() => {
     if (!isDebugging) {
       hasStartedRef.current = false
       setPanelFocusedBlockId(null)
+      setSelectedExecutionKey(undefined)
+      // Clear debug canvas when exiting debug mode
+      console.log('[Debug] Clearing debug canvas - debug mode deactivated')
+      useDebugCanvasStore.getState().clear()
+      
+      // Restore original subblock values
+      if (originalSubblockValuesRef.current && activeWorkflowId) {
+        const valuesToRestore = originalSubblockValuesRef.current
+        console.log('[Debug] Restoring original subblock values on debug exit')
+        useSubBlockStore.setState((state) => ({
+          workflowValues: {
+            ...state.workflowValues,
+            [activeWorkflowId]: valuesToRestore
+          }
+        }))
+        originalSubblockValuesRef.current = null
+      }
     }
-  }, [isDebugging, setPanelFocusedBlockId])
+  }, [isDebugging, setPanelFocusedBlockId, activeWorkflowId])
 
   // Clear init pending when debug context and initial pending arrive
   useEffect(() => {
@@ -1752,9 +1770,29 @@ export function DebugPanel() {
     }
   }, [debugContext, pendingBlocks])
 
+  // Cleanup debug canvas on unmount
+  useEffect(() => {
+    return () => {
+      console.log('[Debug] Component unmounting - clearing debug canvas')
+      useDebugCanvasStore.getState().clear()
+      
+      // Restore original subblock values on unmount
+      if (originalSubblockValuesRef.current && activeWorkflowId) {
+        const valuesToRestore = originalSubblockValuesRef.current
+        console.log('[Debug] Restoring original subblock values on unmount')
+        useSubBlockStore.setState((state) => ({
+          workflowValues: {
+            ...state.workflowValues,
+            [activeWorkflowId]: valuesToRestore
+          }
+        }))
+      }
+    }
+  }, [activeWorkflowId])
+
   // Load recent executions for this workflow
   useEffect(() => {
-    if (!workspaceId || !workflowId) return
+    if (!isDebugging || !workspaceId || !workflowId) return
     let canceled = false
     const load = async () => {
       try {
@@ -1777,9 +1815,6 @@ export function DebugPanel() {
             }))
           : []
         setExecutions(items)
-        if (!selectedExecutionKey && items.length > 0) {
-          setSelectedExecutionKey(items[0].id)
-        }
       } catch {
       } finally {
         if (!canceled) setIsLoadingExecutions(false)
@@ -1789,27 +1824,173 @@ export function DebugPanel() {
     return () => {
       canceled = true
     }
-  }, [workspaceId, workflowId])
+  }, [isDebugging, workspaceId, workflowId])
 
+  // Track original subblock values to restore when clearing debug canvas
+  const originalSubblockValuesRef = useRef<Record<string, Record<string, any>> | null>(null)
+  
   // Load selected execution's workflow into debug canvas
   useEffect(() => {
-    if (!selectedExecutionKey) return
+    if (!selectedExecutionKey) {
+      // Clear debug canvas and restore original subblock values when no execution is selected
+      console.log('[Debug] Clearing debug canvas - no selection')
+      useDebugCanvasStore.getState().clear()
+      
+      // Restore original subblock values if we saved them
+      if (originalSubblockValuesRef.current && activeWorkflowId) {
+        const valuesToRestore = originalSubblockValuesRef.current
+        console.log('[Debug] Restoring original subblock values')
+        useSubBlockStore.setState((state) => ({
+          workflowValues: {
+            ...state.workflowValues,
+            [activeWorkflowId]: valuesToRestore
+          }
+        }))
+        originalSubblockValuesRef.current = null
+      }
+      return
+    }
     const selected = executions.find((e) => e.id === selectedExecutionKey)
     const execId = selected?.executionId
-    if (!execId) return
+    if (!execId) {
+      console.log('[Debug] No executionId for selected item')
+      return
+    }
 
     let canceled = false
     const load = async () => {
       try {
+        console.log('[Debug] Loading frozen canvas for execution:', execId)
         const response = await fetch(`/api/logs/${encodeURIComponent(execId)}/frozen-canvas`)
+        if (!response.ok) {
+          console.error('[Debug] Failed to fetch frozen canvas:', response.status)
+          return
+        }
         const json = await response.json()
         if (canceled) return
-        const state = json?.data?.workflowState as WorkflowState | undefined
-        if (state) {
+        
+        // Try multiple possible response formats
+        const state = (json?.workflowState || json?.data?.workflowState || json) as WorkflowState | undefined
+        console.log('[Debug] Parsed workflow state:', { 
+          hasState: !!state, 
+          hasBlocks: !!(state?.blocks),
+          blockCount: state?.blocks ? Object.keys(state.blocks).length : 0,
+          hasEdges: !!(state?.edges),
+          edgeCount: state?.edges ? state.edges.length : 0
+        })
+        console.log('[Debug] Blocks:', state?.blocks)
+        console.log('[Debug] Edges:', state?.edges)
+        console.log('[Debug] Full state:', state)
+        
+        if (state && state.blocks && Object.keys(state.blocks).length > 0) {
+          // Ensure edges array exists (it might be missing from old snapshots)
+          if (!state.edges) {
+            console.log('[Debug] No edges in state, creating empty array')
+            state.edges = []
+          }
+          
+          // Ensure loops and parallels exist
+          if (!state.loops) state.loops = {}
+          if (!state.parallels) state.parallels = {}
+          
+          // Clear any active diff mode first
+          try { 
+            const diffStore = useWorkflowDiffStore.getState()
+            if (diffStore.isShowingDiff) {
+              diffStore.clearDiff()
+            }
+          } catch (e) {
+            console.error('[Debug] Error clearing diff:', e)
+          }
+
+          // Activate debug canvas with the fetched workflow state
+          console.log('[Debug] Activating debug canvas with state')
+          console.log('[Debug] State to activate:', {
+            blocks: Object.keys(state.blocks),
+            edges: state.edges,
+            loops: state.loops,
+            parallels: state.parallels
+          })
+          
+          // Extract and load subblock values from the frozen state
+          const subblockValues: Record<string, Record<string, any>> = {}
+          Object.entries(state.blocks).forEach(([blockId, block]) => {
+            const blockState = block as any
+            if (blockState.subBlocks) {
+              subblockValues[blockId] = {}
+              Object.entries(blockState.subBlocks).forEach(([subblockId, subblock]) => {
+                const subblockData = subblock as any
+                if (subblockData && 'value' in subblockData) {
+                  subblockValues[blockId][subblockId] = subblockData.value
+                }
+              })
+            }
+          })
+          
+          console.log('[Debug] Extracted subblock values:', subblockValues)
+          
+          // Load subblock values into the store for the current workflow
+          if (activeWorkflowId && Object.keys(subblockValues).length > 0) {
+            // Save original values if not already saved
+            if (!originalSubblockValuesRef.current) {
+              const currentValues = useSubBlockStore.getState().workflowValues[activeWorkflowId]
+              if (currentValues) {
+                originalSubblockValuesRef.current = { ...currentValues }
+                console.log('[Debug] Saved original subblock values')
+              }
+            }
+            
+            console.log('[Debug] Loading subblock values for workflow:', activeWorkflowId)
+            useSubBlockStore.setState((state) => ({
+              workflowValues: {
+                ...state.workflowValues,
+                [activeWorkflowId]: subblockValues
+              }
+            }))
+          }
+          
           useDebugCanvasStore.getState().activate(state)
+
+          // Reset debug execution state to align with the new canvas
+          useDebugSnapshotStore.getState().clear()
+          
+          const execStore = useExecutionStore.getState()
+          execStore.setIsExecuting(false)
+          execStore.setIsDebugging(true)
+          execStore.setExecutor(null)
+          execStore.setDebugContext(null)
+          execStore.setExecutingBlockIds(new Set())
+          execStore.setActiveBlocks(new Set())
+
+          // Determine starter block from the loaded state and set as pending/focused
+          const blocks = Object.values(state.blocks || {}) as any[]
+          const starterBlock = blocks.find((b: any) => b?.type === 'starter' || b?.metadata?.id === 'starter') as any
+          const starterIdFromState = starterBlock?.id as string | undefined
+          console.log('[Debug] Setting starter as pending:', starterIdFromState)
+          execStore.setPendingBlocks(starterIdFromState ? [starterIdFromState] : [])
+          execStore.setPanelFocusedBlockId(starterIdFromState || null)
+          
+          // Verify the canvas was activated and trigger a re-render
+          setTimeout(() => {
+            const debugState = useDebugCanvasStore.getState()
+            console.log('[Debug] Debug canvas state after activation:', { 
+              isActive: debugState.isActive,
+              hasWorkflowState: !!debugState.workflowState,
+              workflowStateBlocks: debugState.workflowState?.blocks ? Object.keys(debugState.workflowState.blocks) : null,
+              workflowStateEdges: debugState.workflowState?.edges
+            })
+            
+            // Try to trigger a re-render by updating the debug canvas again
+            if (debugState.isActive && debugState.workflowState) {
+              console.log('[Debug] Re-activating to force re-render')
+              useDebugCanvasStore.getState().setWorkflowState(debugState.workflowState)
+            }
+          }, 100)
+        } else {
+          console.warn('[Debug] Invalid or empty workflow state received')
         }
       } catch (err) {
-        // Silently ignore load errors
+        console.error('[Debug] Error loading frozen canvas:', err)
       }
     }
     load()
@@ -2124,13 +2305,7 @@ export function DebugPanel() {
             <Select value={selectedExecutionKey} onValueChange={(v) => setSelectedExecutionKey(v)}>
               <SelectTrigger className='h-8 w-[220px] text-[11px] leading-4'>
                 <SelectValue
-                  placeholder={
-                    isLoadingExecutions
-                      ? 'Loading executions...'
-                      : executions.length > 0
-                        ? 'Select execution'
-                        : 'No executions'
-                  }
+                  placeholder={isLoadingExecutions ? 'Loading executions...' : 'Select execution'}
                 />
               </SelectTrigger>
               <SelectContent>

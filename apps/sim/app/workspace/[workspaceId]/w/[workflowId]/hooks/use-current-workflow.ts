@@ -57,6 +57,12 @@ export function useCurrentWorkflow(): CurrentWorkflow {
 		// Prefer debug canvas if active
 		const hasDebugCanvas = !!debugCanvas.isActive && !!debugCanvas.workflowState
 		if (hasDebugCanvas) {
+			console.log('[useCurrentWorkflow] Using debug canvas state', {
+				isActive: debugCanvas.isActive,
+				hasWorkflowState: !!debugCanvas.workflowState,
+				blockCount: debugCanvas.workflowState ? Object.keys(debugCanvas.workflowState.blocks || {}).length : 0,
+				edgeCount: debugCanvas.workflowState ? (debugCanvas.workflowState.edges || []).length : 0
+			})
 			const activeWorkflow = debugCanvas.workflowState as WorkflowState
 			return {
 				blocks: activeWorkflow.blocks,
@@ -85,6 +91,13 @@ export function useCurrentWorkflow(): CurrentWorkflow {
 		const hasDiffBlocks = !!diffWorkflow && Object.keys((diffWorkflow as any).blocks || {}).length > 0
 		const shouldUseDiff = isShowingDiff && isDiffReady && hasDiffBlocks
 		const activeWorkflow = shouldUseDiff ? diffWorkflow : normalWorkflow
+		
+		console.log('[useCurrentWorkflow] Not using debug canvas', {
+			debugCanvasIsActive: debugCanvas.isActive,
+			debugCanvasHasState: !!debugCanvas.workflowState,
+			usingDiff: shouldUseDiff,
+			normalBlockCount: Object.keys(normalWorkflow.blocks || {}).length
+		})
 
 		return {
 			// Current workflow state

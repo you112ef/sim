@@ -16,7 +16,7 @@ import { TraceSpansDisplay } from '@/app/workspace/[workspaceId]/logs/components
 import { formatDate } from '@/app/workspace/[workspaceId]/logs/utils/format-date'
 import { formatCost } from '@/providers/utils'
 import type { WorkflowLog } from '@/stores/logs/filters/types'
-import { useRouter } from 'next/navigation'
+import { useParams, useRouter } from 'next/navigation'
 
 interface LogSidebarProps {
   log: WorkflowLog | null
@@ -200,6 +200,8 @@ export function Sidebar({
   const [isModelsExpanded, setIsModelsExpanded] = useState(false)
   const [isFrozenCanvasOpen, setIsFrozenCanvasOpen] = useState(false)
   const scrollAreaRef = useRef<HTMLDivElement>(null)
+  const router = useRouter()
+  const params = useParams() as { workspaceId?: string }
 
   // Update currentLogId when log changes
   useEffect(() => {
@@ -545,8 +547,7 @@ export function Sidebar({
                         size='sm'
                         onClick={() => {
                           try {
-                            const router = useRouter()
-                            const href = `/workspace/${encodeURIComponent(String(log.workflowId || ''))}/w/${encodeURIComponent(String(log.workflowId || ''))}`
+                            const href = `/workspace/${encodeURIComponent(String(params?.workspaceId || ''))}/w/${encodeURIComponent(String(log.workflowId || ''))}`
                             router.push(href)
                           } catch {}
                         }}
