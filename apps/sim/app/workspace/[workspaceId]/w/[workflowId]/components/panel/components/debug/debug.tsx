@@ -1477,7 +1477,7 @@ export function DebugPanel() {
                       className={cn(
                         'h-4 w-4',
                         breakpointId === focusedBlockId
-                          ? 'fill-red-600/20 text-red-600'
+                          ? 'fill-orange-600/20 text-orange-600'
                           : 'text-muted-foreground/50'
                       )}
                     />

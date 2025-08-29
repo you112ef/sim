@@ -693,7 +693,7 @@ export function WorkflowBlock({ id, data }: NodeProps<WorkflowBlockProps>) {
 
         {/* Show breakpoint indicator */}
         {isDebugModeEnabled && breakpointId === id && (
-          <div className='-bottom-6 -translate-x-1/2 absolute left-1/2 z-10 transform rounded-b-md bg-red-500 px-2 py-0.5 text-white text-xs'>
+          <div className='-bottom-6 -translate-x-1/2 absolute left-1/2 z-10 transform rounded-b-md bg-orange-500 px-2 py-0.5 text-white text-xs'>
             Breakpoint
           </div>
         )}
