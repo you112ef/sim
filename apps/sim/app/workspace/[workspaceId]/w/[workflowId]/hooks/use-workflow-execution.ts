@@ -17,6 +17,7 @@ import { useGeneralStore } from '@/stores/settings/general/store'
 import { useWorkflowRegistry } from '@/stores/workflows/registry/store'
 import { mergeSubblockState } from '@/stores/workflows/utils'
 import { useCurrentWorkflow } from './use-current-workflow'
+import { BlockPathCalculator } from '@/lib/block-path-calculator'
 
 const logger = createLogger('useWorkflowExecution')
 
@@ -63,6 +64,7 @@ export function useWorkflowExecution() {
     setDebugContext,
     setActiveBlocks,
     setExecutingBlockIds,
+    startPositionIds,
   } = useExecutionStore()
   const [executionResult, setExecutionResult] = useState<ExecutionResult | null>(null)
 
@@ -71,7 +73,7 @@ export function useWorkflowExecution() {
    */
   const validateDebugState = useCallback((): DebugValidationResult => {
     if (!executor || !debugContext || pendingBlocks.length === 0) {
-      const missing = []
+      const missing = [] as string[]
       if (!executor) missing.push('executor')
       if (!debugContext) missing.push('debugContext')
       if (pendingBlocks.length === 0) missing.push('pendingBlocks')
@@ -400,7 +402,7 @@ export function useWorkflowExecution() {
             }
 
             try {
-              const result = await executeWorkflow(workflowInput, onStream, executionId)
+              const result = await executeWorkflow(workflowInput, onStream, executionId, false)
 
               // Check if execution was cancelled
               if (
@@ -470,11 +472,17 @@ export function useWorkflowExecution() {
       // For manual (non-streaming) execution including debug and non-chat
       const executionId = uuidv4()
       try {
-        const result = await executeWorkflow(workflowInput, undefined, executionId)
+        const result = await executeWorkflow(workflowInput, undefined, executionId, enableDebug)
         if (result && 'metadata' in result && result.metadata?.isDebugSession) {
           setDebugContext(result.metadata.context || null)
           if (result.metadata.pendingBlocks) {
-            setPendingBlocks(result.metadata.pendingBlocks)
+            // If start positions are set, override pending blocks with those
+            if (startPositionIds && startPositionIds.size > 0) {
+              const next = Array.from(startPositionIds)
+              setPendingBlocks(next)
+            } else {
+              setPendingBlocks(result.metadata.pendingBlocks)
+            }
           }
         } else if (result && 'success' in result) {
           setExecutionResult(result)
@@ -517,13 +525,15 @@ export function useWorkflowExecution() {
       setExecutor,
       setPendingBlocks,
       setActiveBlocks,
+      startPositionIds,
     ]
   )
 
   const executeWorkflow = async (
     workflowInput?: any,
     onStream?: (se: StreamingExecution) => Promise<void>,
-    executionId?: string
+    executionId?: string,
+    debugRequested?: boolean
   ): Promise<ExecutionResult | StreamingExecution> => {
     // Use currentWorkflow but check if we're in diff mode
     const {
@@ -611,7 +621,7 @@ export function useWorkflowExecution() {
     const envVars = getAllVariables()
     const envVarValues = Object.entries(envVars).reduce(
       (acc, [key, variable]) => {
-        acc[key] = variable.value
+        acc[key] = (variable as any).value
         return acc
       },
       {} as Record<string, string>
@@ -681,7 +691,51 @@ export function useWorkflowExecution() {
     setExecutor(newExecutor)
 
     // Execute workflow
-    return newExecutor.execute(activeWorkflowId || '')
+    const execResult = await newExecutor.execute(activeWorkflowId || '')
+
+    // If we have start positions for debug, update context/pending accordingly
+    if (
+      debugRequested === true &&
+      execResult &&
+      'metadata' in execResult &&
+      (execResult as any).metadata?.isDebugSession &&
+      startPositionIds &&
+      startPositionIds.size > 0
+    ) {
+      try {
+        const ctx = (execResult as any).metadata.context
+        // Build forward adjacency from serialized connections
+        const forwardAdj: Record<string, string[]> = {}
+        for (const c of workflow.connections as Array<{ source: string; target: string }>) {
+          if (!forwardAdj[c.source]) forwardAdj[c.source] = []
+          forwardAdj[c.source].push(c.target)
+        }
+        // Add all downstream nodes from each start to active execution path
+        const addDownstream = (startId: string) => {
+          const visited = new Set<string>()
+          const q: string[] = [startId]
+          while (q.length) {
+            const n = q.shift() as string
+            if (visited.has(n)) continue
+            visited.add(n)
+            ctx.activeExecutionPath.add(n)
+            const next = forwardAdj[n] || []
+            for (const m of next) if (!visited.has(m)) q.push(m)
+          }
+        }
+        for (const startId of Array.from(startPositionIds)) {
+          addDownstream(startId)
+        }
+        // Pending blocks should be exactly the chosen start positions
+        setPendingBlocks(Array.from(startPositionIds))
+        ;(execResult as any).metadata.pendingBlocks = Array.from(startPositionIds)
+        setDebugContext(ctx)
+      } catch (e) {
+        logger.warn('Failed to apply start positions', e)
+      }
+    }
+
+    return execResult
   }
 
   const handleExecutionError = (error: any) => {

@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState, useCallback } from 'react'
 import {
   AlertCircle,
   Check,
@@ -11,6 +11,7 @@ import {
   RotateCcw,
   Square,
   X,
+  Flag,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Checkbox } from '@/components/ui/checkbox'
@@ -48,6 +49,8 @@ export function DebugPanel() {
     setPendingBlocks,
     breakpointId,
     setBreakpointId,
+    startPositionIds,
+    toggleStartPosition,
   } = useExecutionStore()
   const { activeWorkflowId, workflows } = useWorkflowRegistry()
   const { handleStepDebug, handleResumeDebug, handleCancelDebug, handleRunWorkflow } =
@@ -69,6 +72,37 @@ export function DebugPanel() {
   const [highlightedEnvVar, setHighlightedEnvVar] = useState<string | null>(null)
   const refVarRowRefs = useRef<Map<string, HTMLTableRowElement>>(new Map())
   const [highlightedRefVar, setHighlightedRefVar] = useState<string | null>(null)
+
+  // Graph helpers for start position constraints
+  const edgesList = currentWorkflow.edges || []
+  const forwardAdj = useMemo(() => {
+    const adj: Record<string, string[]> = {}
+    for (const e of edgesList) {
+      const s = (e as any).source
+      const t = (e as any).target
+      if (!adj[s]) adj[s] = []
+      adj[s].push(t)
+    }
+    return adj
+  }, [edgesList])
+  const hasPath = useCallback(
+    (from: string, to: string) => {
+      if (!from || !to) return false
+      if (from === to) return true
+      const visited = new Set<string>()
+      const q: string[] = [from]
+      while (q.length) {
+        const n = q.shift() as string
+        if (n === to) return true
+        if (visited.has(n)) continue
+        visited.add(n)
+        const next = forwardAdj[n] || []
+        for (const m of next) if (!visited.has(m)) q.push(m)
+      }
+      return false
+    },
+    [forwardAdj]
+  )
 
   // Helper to format strings with clickable var/env tokens
   const renderWithTokens = (text: string, options?: { truncateAt?: number }) => {
@@ -356,6 +390,29 @@ export function DebugPanel() {
 
   // Get the focused block from our consistent data source
   const focusedBlock = focusedBlockId ? blockById.get(focusedBlockId) : null
+
+  // Start position toggle with path constraint enforcement
+  const isStartPosActive = !!(focusedBlockId && startPositionIds.has(focusedBlockId))
+  const hasStartPosConflict = useMemo(() => {
+    if (!focusedBlockId) return false
+    for (const id of startPositionIds) {
+      if (id === focusedBlockId) continue
+      if (hasPath(focusedBlockId, id) || hasPath(id, focusedBlockId)) return true
+    }
+    return false
+  }, [focusedBlockId, startPositionIds, hasPath])
+  const handleToggleStartPos = () => {
+    if (!focusedBlockId) return
+    if (!startPositionIds.has(focusedBlockId)) {
+      // adding: enforce no upstream/downstream conflicts
+      for (const id of startPositionIds) {
+        if (hasPath(focusedBlockId, id) || hasPath(id, focusedBlockId)) {
+          return
+        }
+      }
+    }
+    toggleStartPosition(focusedBlockId)
+  }
 
   // Compute visible subblock values for the focused block based on block state (conditions),
   // not UI modes
@@ -1485,6 +1542,35 @@ export function DebugPanel() {
                 </TooltipTrigger>
                 <TooltipContent>
                   {breakpointId === focusedBlockId ? 'Remove breakpoint' : 'Set breakpoint'}
+                </TooltipContent>
+              </Tooltip>
+
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <button
+                    type='button'
+                    onClick={handleToggleStartPos}
+                    className='rounded p-0.5 transition-colors hover:bg-muted/50'
+                    aria-label='Start Position'
+                  >
+                    <Flag
+                      className={cn(
+                        'h-4 w-4',
+                        isStartPosActive
+                          ? 'text-purple-600'
+                          : hasStartPosConflict
+                            ? 'text-amber-500'
+                            : 'text-muted-foreground/50'
+                      )}
+                    />
+                  </button>
+                </TooltipTrigger>
+                <TooltipContent>
+                  {isStartPosActive
+                    ? 'Remove start position'
+                    : hasStartPosConflict
+                      ? 'Cannot set: conflicts with existing start position'
+                      : 'Set start position'}
                 </TooltipContent>
               </Tooltip>
             </TooltipProvider>

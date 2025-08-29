@@ -12,6 +12,7 @@ export interface ExecutionState {
   panelFocusedBlockId?: string | null
   executingBlockIds: Set<string>
   breakpointId: string | null
+  startPositionIds: Set<string>
 }
 
 export interface ExecutionActions {
@@ -25,6 +26,9 @@ export interface ExecutionActions {
   setPanelFocusedBlockId: (id: string | null) => void
   setExecutingBlockIds: (ids: Set<string>) => void
   setBreakpointId: (id: string | null) => void
+  setStartPositions: (ids: Set<string>) => void
+  toggleStartPosition: (id: string) => void
+  clearStartPositions: () => void
   reset: () => void
 }
 
@@ -39,6 +43,7 @@ export const initialState: ExecutionState = {
   panelFocusedBlockId: null,
   executingBlockIds: new Set(),
   breakpointId: null,
+  startPositionIds: new Set(),
 }
 
 // Types for panning functionality

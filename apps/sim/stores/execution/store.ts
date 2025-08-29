@@ -64,5 +64,20 @@ export const useExecutionStore = create<ExecutionState & ExecutionActions>()((se
   setPanelFocusedBlockId: (id) => set({ panelFocusedBlockId: id }),
   setExecutingBlockIds: (ids) => set({ executingBlockIds: new Set(ids) }),
   setBreakpointId: (id) => set({ breakpointId: id }),
+
+  setStartPositions: (ids) => set({ startPositionIds: new Set(ids) }),
+  toggleStartPosition: (id) => {
+    set((state) => {
+      const next = new Set(state.startPositionIds)
+      if (next.has(id)) {
+        next.delete(id)
+      } else {
+        next.add(id)
+      }
+      return { startPositionIds: next }
+    })
+  },
+  clearStartPositions: () => set({ startPositionIds: new Set() }),
+
   reset: () => set(initialState),
 }))
