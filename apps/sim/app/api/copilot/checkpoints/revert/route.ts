@@ -71,6 +71,7 @@ export async function POST(request: NextRequest) {
       edges: checkpointState?.edges || [],
       loops: checkpointState?.loops || {},
       parallels: checkpointState?.parallels || {},
+      whiles: checkpointState?.whiles || {},
       isDeployed: checkpointState?.isDeployed || false,
       deploymentStatuses: checkpointState?.deploymentStatuses || {},
       hasActiveWebhook: checkpointState?.hasActiveWebhook || false,

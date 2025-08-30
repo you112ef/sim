@@ -15,6 +15,7 @@ export function buildWorkflowStateForTemplate(workflowId: string) {
   // Generate loops and parallels in the same format as deployment
   const loops = workflowStore.generateLoopBlocks()
   const parallels = workflowStore.generateParallelBlocks()
+  const whiles = workflowStore.generateWhileBlocks()
 
   // Build the state object in the same format as deployment
   const state = {
@@ -22,6 +23,7 @@ export function buildWorkflowStateForTemplate(workflowId: string) {
     edges,
     loops,
     parallels,
+    whiles,
     lastSaved: Date.now(),
   }
 

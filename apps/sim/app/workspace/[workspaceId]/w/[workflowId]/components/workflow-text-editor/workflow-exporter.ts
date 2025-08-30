@@ -58,6 +58,7 @@ export function generateFullWorkflowData() {
       edges: workflowState.edges,
       loops: workflowState.loops,
       parallels: workflowState.parallels,
+      whiles: workflowState.whiles,
     },
     subBlockValues,
     exportedAt: new Date().toISOString(),

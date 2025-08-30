@@ -136,12 +136,40 @@ describe('SubflowNodeComponent', () => {
       }).not.toThrow()
     })
 
+    it.concurrent('should accept while kind in NodeProps data', () => {
+      const validProps = {
+        id: 'test-id-while',
+        type: 'subflowNode' as const,
+        data: {
+          width: 400,
+          height: 300,
+          isPreview: false,
+          kind: 'while' as const,
+        },
+        selected: false,
+        zIndex: 1,
+        isConnectable: true,
+        xPos: 0,
+        yPos: 0,
+        dragging: false,
+      }
+
+      expect(() => {
+        const _component: typeof SubflowNodeComponent = SubflowNodeComponent
+        expect(_component).toBeDefined()
+        expect(validProps.type).toBe('subflowNode')
+      }).not.toThrow()
+    })
+
     it.concurrent('should handle different data configurations', () => {
       const configurations = [
         { width: 500, height: 300, isPreview: false, kind: 'loop' as const },
         { width: 800, height: 600, isPreview: true, kind: 'parallel' as const },
+        { width: 500, height: 300, isPreview: false, kind: 'while' as const },
         { width: 0, height: 0, isPreview: false, kind: 'loop' as const },
+        { width: 0, height: 0, isPreview: false, kind: 'while' as const },
         { kind: 'loop' as const },
+        { kind: 'while' as const },
       ]
 
       configurations.forEach((data) => {
@@ -306,16 +334,49 @@ describe('SubflowNodeComponent', () => {
     })
 
     it.concurrent('should generate correct handle IDs for parallel kind', () => {
-      type SubflowKind = 'loop' | 'parallel'
+      type SubflowKind = 'loop' | 'parallel' | 'while'
       const testHandleGeneration = (kind: SubflowKind) => {
-        const startHandleId = kind === 'loop' ? 'loop-start-source' : 'parallel-start-source'
-        const endHandleId = kind === 'loop' ? 'loop-end-source' : 'parallel-end-source'
+        const startHandleId =
+          kind === 'loop'
+            ? 'loop-start-source'
+            : kind === 'parallel'
+              ? 'parallel-start-source'
+              : 'while-start-source'
+        const endHandleId =
+          kind === 'loop'
+            ? 'loop-end-source'
+            : kind === 'parallel'
+              ? 'parallel-end-source'
+              : 'while-end-source'
         return { startHandleId, endHandleId }
       }
 
       const result = testHandleGeneration('parallel')
       expect(result.startHandleId).toBe('parallel-start-source')
       expect(result.endHandleId).toBe('parallel-end-source')
+    })
+
+    it.concurrent('should generate correct handle IDs for while kind', () => {
+      type SubflowKind = 'loop' | 'parallel' | 'while'
+      const testHandleGeneration = (kind: SubflowKind) => {
+        const startHandleId =
+          kind === 'loop'
+            ? 'loop-start-source'
+            : kind === 'parallel'
+              ? 'parallel-start-source'
+              : 'while-start-source'
+        const endHandleId =
+          kind === 'loop'
+            ? 'loop-end-source'
+            : kind === 'parallel'
+              ? 'parallel-end-source'
+              : 'while-end-source'
+        return { startHandleId, endHandleId }
+      }
+
+      const result = testHandleGeneration('while')
+      expect(result.startHandleId).toBe('while-start-source')
+      expect(result.endHandleId).toBe('while-end-source')
     })
 
     it.concurrent('should generate correct background colors for loop kind', () => {
@@ -326,21 +387,41 @@ describe('SubflowNodeComponent', () => {
     })
 
     it.concurrent('should generate correct background colors for parallel kind', () => {
-      type SubflowKind = 'loop' | 'parallel'
+      type SubflowKind = 'loop' | 'parallel' | 'while'
       const testBgGeneration = (kind: SubflowKind) => {
-        return kind === 'loop' ? '#2FB3FF' : '#FEE12B'
+        return kind === 'loop' ? '#2FB3FF' : kind === 'parallel' ? '#FEE12B' : '#57D9A3'
       }
 
       const startBg = testBgGeneration('parallel')
       expect(startBg).toBe('#FEE12B')
     })
 
+    it.concurrent('should generate correct background colors for while kind', () => {
+      type SubflowKind = 'loop' | 'parallel' | 'while'
+      const testBgGeneration = (kind: SubflowKind) => {
+        return kind === 'loop' ? '#2FB3FF' : kind === 'parallel' ? '#FEE12B' : '#57D9A3'
+      }
+
+      const startBg = testBgGeneration('while')
+      expect(startBg).toBe('#57D9A3')
+    })
+
     it.concurrent('should demonstrate handle ID generation for any kind', () => {
-      type SubflowKind = 'loop' | 'parallel'
+      type SubflowKind = 'loop' | 'parallel' | 'while'
       const testKind = (kind: SubflowKind) => {
         const data = { kind }
-        const startHandleId = data.kind === 'loop' ? 'loop-start-source' : 'parallel-start-source'
-        const endHandleId = data.kind === 'loop' ? 'loop-end-source' : 'parallel-end-source'
+        const startHandleId =
+          data.kind === 'loop'
+            ? 'loop-start-source'
+            : data.kind === 'parallel'
+              ? 'parallel-start-source'
+              : 'while-start-source'
+        const endHandleId =
+          data.kind === 'loop'
+            ? 'loop-end-source'
+            : data.kind === 'parallel'
+              ? 'parallel-end-source'
+              : 'while-end-source'
         return { startHandleId, endHandleId }
       }
 
@@ -351,6 +432,10 @@ describe('SubflowNodeComponent', () => {
       const parallelResult = testKind('parallel')
       expect(parallelResult.startHandleId).toBe('parallel-start-source')
       expect(parallelResult.endHandleId).toBe('parallel-end-source')
+
+      const whileResult = testKind('while')
+      expect(whileResult.startHandleId).toBe('while-start-source')
+      expect(whileResult.endHandleId).toBe('while-end-source')
     })
 
     it.concurrent('should pass correct iterationType to IterationBadges for loop', () => {
@@ -368,25 +453,49 @@ describe('SubflowNodeComponent', () => {
       expect(parallelProps.data.kind).toBe('parallel')
     })
 
-    it.concurrent('should handle both kinds in configuration arrays', () => {
-      const bothKinds = ['loop', 'parallel'] as const
-      bothKinds.forEach((kind) => {
+    it.concurrent('should pass correct iterationType to IterationBadges for while', () => {
+      const whileProps = {
+        ...defaultProps,
+        data: { ...defaultProps.data, kind: 'while' as const },
+      }
+      // Mock IterationBadges should receive the kind as iterationType
+      expect(whileProps.data.kind).toBe('while')
+    })
+
+    it.concurrent('should handle loop, parallel, and while kinds in configuration arrays', () => {
+      const allKinds = ['loop', 'parallel', 'while'] as const
+      allKinds.forEach((kind) => {
         const data = { ...defaultProps.data, kind }
-        expect(['loop', 'parallel']).toContain(data.kind)
+        expect(['loop', 'parallel', 'while']).toContain(data.kind)
 
         // Test handle ID generation for both kinds
-        const startHandleId = data.kind === 'loop' ? 'loop-start-source' : 'parallel-start-source'
-        const endHandleId = data.kind === 'loop' ? 'loop-end-source' : 'parallel-end-source'
-        const startBg = data.kind === 'loop' ? '#2FB3FF' : '#FEE12B'
+        const startHandleId =
+          data.kind === 'loop'
+            ? 'loop-start-source'
+            : data.kind === 'parallel'
+              ? 'parallel-start-source'
+              : 'while-start-source'
+        const endHandleId =
+          data.kind === 'loop'
+            ? 'loop-end-source'
+            : data.kind === 'parallel'
+              ? 'parallel-end-source'
+              : 'while-end-source'
+        const startBg =
+          data.kind === 'loop' ? '#2FB3FF' : data.kind === 'parallel' ? '#FEE12B' : '#57D9A3'
 
         if (kind === 'loop') {
           expect(startHandleId).toBe('loop-start-source')
           expect(endHandleId).toBe('loop-end-source')
           expect(startBg).toBe('#2FB3FF')
-        } else {
+        } else if (kind === 'parallel') {
           expect(startHandleId).toBe('parallel-start-source')
           expect(endHandleId).toBe('parallel-end-source')
           expect(startBg).toBe('#FEE12B')
+        } else {
+          expect(startHandleId).toBe('while-start-source')
+          expect(endHandleId).toBe('while-end-source')
+          expect(startBg).toBe('#57D9A3')
         }
       })
     })
@@ -433,10 +542,15 @@ describe('SubflowNodeComponent', () => {
         ...defaultProps,
         data: { ...defaultProps.data, kind: 'parallel' as const },
       }
+      const whileProps = {
+        ...defaultProps,
+        data: { ...defaultProps.data, kind: 'while' as const },
+      }
 
       // The iterationType should match the kind
       expect(loopProps.data.kind).toBe('loop')
       expect(parallelProps.data.kind).toBe('parallel')
+      expect(whileProps.data.kind).toBe('while')
     })
   })
 

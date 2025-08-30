@@ -230,6 +230,7 @@ export async function GET() {
               const edges = normalizedData.edges
               const loops = normalizedData.loops
               const parallels = normalizedData.parallels
+              const whiles = normalizedData.whiles
               logger.info(
                 `[${requestId}] Loaded scheduled workflow ${schedule.workflowId} from normalized tables`
               )
@@ -384,6 +385,7 @@ export async function GET() {
                 edges,
                 loops,
                 parallels,
+                whiles,
                 true // Enable validation during execution
               )
 

@@ -4,7 +4,11 @@ import { simAgentClient } from '@/lib/sim-agent'
 import { getAllBlocks } from '@/blocks/registry'
 import type { BlockConfig } from '@/blocks/types'
 import { resolveOutputType } from '@/blocks/utils'
-import { generateLoopBlocks, generateParallelBlocks } from '@/stores/workflows/workflow/utils'
+import {
+  generateLoopBlocks,
+  generateParallelBlocks,
+  generateWhileBlocks,
+} from '@/stores/workflows/workflow/utils'
 
 const logger = createLogger('WorkflowYamlAPI')
 
@@ -50,6 +54,7 @@ export async function POST(request: NextRequest) {
           generateLoopBlocks: generateLoopBlocks.toString(),
           generateParallelBlocks: generateParallelBlocks.toString(),
           resolveOutputType: resolveOutputType.toString(),
+          generateWhileBlocks: generateWhileBlocks.toString(),
         },
       },
     })

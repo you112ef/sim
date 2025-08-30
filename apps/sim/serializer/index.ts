@@ -3,7 +3,7 @@ import { createLogger } from '@/lib/logs/console/logger'
 import { getBlock } from '@/blocks'
 import type { SubBlockConfig } from '@/blocks/types'
 import type { SerializedBlock, SerializedWorkflow } from '@/serializer/types'
-import type { BlockState, Loop, Parallel } from '@/stores/workflows/workflow/types'
+import type { BlockState, Loop, Parallel, While } from '@/stores/workflows/workflow/types'
 import { getTool } from '@/tools/utils'
 
 const logger = createLogger('Serializer')
@@ -27,6 +27,7 @@ export class Serializer {
     edges: Edge[],
     loops: Record<string, Loop>,
     parallels?: Record<string, Parallel>,
+    whiles?: Record<string, While>,
     validateRequired = false
   ): SerializedWorkflow {
     return {
@@ -40,12 +41,13 @@ export class Serializer {
       })),
       loops,
       parallels,
+      whiles,
     }
   }
 
   private serializeBlock(block: BlockState, validateRequired = false): SerializedBlock {
     // Special handling for subflow blocks (loops, parallels, etc.)
-    if (block.type === 'loop' || block.type === 'parallel') {
+    if (block.type === 'loop' || block.type === 'parallel' || block.type === 'while') {
       return {
         id: block.id,
         position: block.position,
@@ -58,9 +60,15 @@ export class Serializer {
         metadata: {
           id: block.type,
           name: block.name,
-          description: block.type === 'loop' ? 'Loop container' : 'Parallel container',
+          description:
+            block.type === 'loop'
+              ? 'Loop container'
+              : block.type === 'parallel'
+                ? 'Parallel container'
+                : 'While container',
           category: 'subflow',
-          color: block.type === 'loop' ? '#3b82f6' : '#8b5cf6',
+          color:
+            block.type === 'loop' ? '#3b82f6' : block.type === 'parallel' ? '#8b5cf6' : '#FF9F43', // Orange color for while blocks
         },
         enabled: block.enabled,
       }
@@ -211,8 +219,8 @@ export class Serializer {
 
   private extractParams(block: BlockState): Record<string, any> {
     // Special handling for subflow blocks (loops, parallels, etc.)
-    if (block.type === 'loop' || block.type === 'parallel') {
-      return {} // Loop and parallel blocks don't have traditional params
+    if (block.type === 'loop' || block.type === 'parallel' || block.type === 'while') {
+      return {} // Loop, parallel, and while blocks don't have traditional params
     }
 
     const blockConfig = getBlock(block.type)
@@ -359,13 +367,15 @@ export class Serializer {
     }
 
     // Special handling for subflow blocks (loops, parallels, etc.)
-    if (blockType === 'loop' || blockType === 'parallel') {
+    if (blockType === 'loop' || blockType === 'parallel' || blockType === 'while') {
       return {
         id: serializedBlock.id,
         type: blockType,
-        name: serializedBlock.metadata?.name || (blockType === 'loop' ? 'Loop' : 'Parallel'),
+        name:
+          serializedBlock.metadata?.name ||
+          (blockType === 'loop' ? 'Loop' : blockType === 'parallel' ? 'Parallel' : 'While'),
         position: serializedBlock.position,
-        subBlocks: {}, // Loops and parallels don't have traditional subBlocks
+        subBlocks: {}, // Loops, parallels, and whiles don't have traditional subBlocks
         outputs: serializedBlock.outputs,
         enabled: serializedBlock.enabled ?? true,
         data: serializedBlock.config.params, // Preserve the data (parallelType, count, etc.)

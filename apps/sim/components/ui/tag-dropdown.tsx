@@ -55,6 +55,7 @@ const BLOCK_COLORS = {
   DEFAULT: '#2F55FF',
   LOOP: '#2FB3FF',
   PARALLEL: '#FEE12B',
+  WHILE: '#57D9A3',
 } as const
 
 const TAG_PREFIXES = {
@@ -294,6 +295,7 @@ export const TagDropdown: React.FC<TagDropdownProps> = ({
   const blocks = useWorkflowStore((state) => state.blocks)
   const loops = useWorkflowStore((state) => state.loops)
   const parallels = useWorkflowStore((state) => state.parallels)
+  const whiles = useWorkflowStore((state) => state.whiles)
   const edges = useWorkflowStore((state) => state.edges)
   const workflowId = useWorkflowRegistry((state) => state.activeWorkflowId)
 
@@ -321,7 +323,11 @@ export const TagDropdown: React.FC<TagDropdownProps> = ({
       const blockConfig = getBlock(sourceBlock.type)
 
       if (!blockConfig) {
-        if (sourceBlock.type === 'loop' || sourceBlock.type === 'parallel') {
+        if (
+          sourceBlock.type === 'loop' ||
+          sourceBlock.type === 'parallel' ||
+          sourceBlock.type === 'while'
+        ) {
           const mockConfig = {
             outputs: {
               results: 'array',
@@ -467,12 +473,25 @@ export const TagDropdown: React.FC<TagDropdownProps> = ({
     }
 
     const serializer = new Serializer()
-    const serializedWorkflow = serializer.serializeWorkflow(blocks, edges, loops, parallels)
+    const serializedWorkflow = serializer.serializeWorkflow(blocks, edges, loops, parallels, whiles)
 
     const accessibleBlockIds = BlockPathCalculator.findAllPathNodes(
       serializedWorkflow.connections,
       blockId
     )
+
+    // If editing a while block condition, also include children inside the while container
+    const sourceBlock = blocks[blockId]
+    if (sourceBlock && sourceBlock.type === 'while') {
+      const whileCfg = whiles[blockId]
+      if (whileCfg && Array.isArray(whileCfg.nodes)) {
+        whileCfg.nodes.forEach((childId: string) => {
+          if (!accessibleBlockIds.includes(childId)) {
+            accessibleBlockIds.push(childId)
+          }
+        })
+      }
+    }
 
     const starterBlock = Object.values(blocks).find((block) => block.type === 'starter')
     if (starterBlock && !accessibleBlockIds.includes(starterBlock.id)) {
@@ -551,6 +570,7 @@ export const TagDropdown: React.FC<TagDropdownProps> = ({
     }
 
     let parallelBlockGroup: BlockTagGroup | null = null
+    let whileBlockGroup: BlockTagGroup | null = null
     const containingParallel = Object.entries(parallels || {}).find(([_, parallel]) =>
       parallel.nodes.includes(blockId)
     )
@@ -579,6 +599,27 @@ export const TagDropdown: React.FC<TagDropdownProps> = ({
       }
     }
 
+    const containingWhile = Object.entries(whiles || {}).find(([_, w]) => w.nodes.includes(blockId))
+    let containingWhileBlockId: string | null = null
+    if (containingWhile) {
+      const [whileId] = containingWhile
+      containingWhileBlockId = whileId
+      const contextualTags: string[] = ['index']
+
+      const containingWhileBlock = blocks[whileId]
+      if (containingWhileBlock) {
+        const whileBlockName = containingWhileBlock.name || containingWhileBlock.type
+
+        whileBlockGroup = {
+          blockName: whileBlockName,
+          blockId: whileId,
+          blockType: 'while',
+          tags: contextualTags,
+          distance: 0,
+        }
+      }
+    }
+
     const blockTagGroups: BlockTagGroup[] = []
     const allBlockTags: string[] = []
 
@@ -589,11 +630,16 @@ export const TagDropdown: React.FC<TagDropdownProps> = ({
       const blockConfig = getBlock(accessibleBlock.type)
 
       if (!blockConfig) {
-        if (accessibleBlock.type === 'loop' || accessibleBlock.type === 'parallel') {
+        if (
+          accessibleBlock.type === 'loop' ||
+          accessibleBlock.type === 'parallel' ||
+          accessibleBlock.type === 'while'
+        ) {
           // Skip this block if it's the containing loop/parallel block - we'll handle it with contextual tags
           if (
             accessibleBlockId === containingLoopBlockId ||
-            accessibleBlockId === containingParallelBlockId
+            accessibleBlockId === containingParallelBlockId ||
+            accessibleBlockId === containingWhileBlockId
           ) {
             continue
           }
@@ -729,6 +775,9 @@ export const TagDropdown: React.FC<TagDropdownProps> = ({
     if (parallelBlockGroup) {
       finalBlockTagGroups.push(parallelBlockGroup)
     }
+    if (whileBlockGroup) {
+      finalBlockTagGroups.push(whileBlockGroup)
+    }
 
     blockTagGroups.sort((a, b) => a.distance - b.distance)
     finalBlockTagGroups.push(...blockTagGroups)
@@ -740,13 +789,16 @@ export const TagDropdown: React.FC<TagDropdownProps> = ({
     if (parallelBlockGroup) {
       contextualTags.push(...parallelBlockGroup.tags)
     }
+    if (whileBlockGroup) {
+      contextualTags.push(...whileBlockGroup.tags)
+    }
 
     return {
       tags: [...variableTags, ...contextualTags, ...allBlockTags],
       variableInfoMap,
       blockTagGroups: finalBlockTagGroups,
     }
-  }, [blocks, edges, loops, parallels, blockId, activeSourceBlockId, workflowVariables])
+  }, [blocks, edges, loops, parallels, whiles, blockId, activeSourceBlockId, workflowVariables])
 
   const filteredTags = useMemo(() => {
     if (!searchTerm) return tags
@@ -806,9 +858,11 @@ export const TagDropdown: React.FC<TagDropdownProps> = ({
           })
         } else {
           const path = tagParts.slice(1).join('.')
-          // Handle contextual tags for loop/parallel blocks (single words like 'index', 'currentItem')
+          // Handle contextual tags for loop/parallel/while blocks (single words like 'index', 'currentItem')
           if (
-            (group.blockType === 'loop' || group.blockType === 'parallel') &&
+            (group.blockType === 'loop' ||
+              group.blockType === 'parallel' ||
+              group.blockType === 'while') &&
             tagParts.length === 1
           ) {
             directTags.push({
@@ -912,7 +966,9 @@ export const TagDropdown: React.FC<TagDropdownProps> = ({
         }
       } else if (
         blockGroup &&
-        (blockGroup.blockType === 'loop' || blockGroup.blockType === 'parallel')
+        (blockGroup.blockType === 'loop' ||
+          blockGroup.blockType === 'parallel' ||
+          blockGroup.blockType === 'while')
       ) {
         if (!tag.includes('.') && ['index', 'currentItem', 'items'].includes(tag)) {
           processedTag = `${blockGroup.blockType}.${tag}`
@@ -1283,6 +1339,8 @@ export const TagDropdown: React.FC<TagDropdownProps> = ({
                     blockColor = BLOCK_COLORS.LOOP
                   } else if (group.blockType === 'parallel') {
                     blockColor = BLOCK_COLORS.PARALLEL
+                  } else if (group.blockType === 'while') {
+                    blockColor = BLOCK_COLORS.WHILE
                   }
 
                   return (
@@ -1305,7 +1363,9 @@ export const TagDropdown: React.FC<TagDropdownProps> = ({
                           let tagIcon = group.blockName.charAt(0).toUpperCase()
 
                           if (
-                            (group.blockType === 'loop' || group.blockType === 'parallel') &&
+                            (group.blockType === 'loop' ||
+                              group.blockType === 'parallel' ||
+                              group.blockType === 'while') &&
                             !nestedTag.key.includes('.')
                           ) {
                             if (nestedTag.key === 'index') {

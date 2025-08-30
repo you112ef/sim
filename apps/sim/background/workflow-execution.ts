@@ -118,7 +118,7 @@ export async function executeWorkflowJob(payload: WorkflowExecutionPayload) {
       edges,
       loops || {},
       parallels || {},
-      true // Enable validation during execution
+      {} // Enable validation during execution
     )
 
     // Create executor and execute

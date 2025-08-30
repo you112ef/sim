@@ -106,32 +106,34 @@ export function ActionBar({ blockId, blockType, disabled = false }: ActionBarPro
         </Tooltip>
       )}
 
-      {/* Remove from subflow - only show when inside loop/parallel */}
-      {!isStarterBlock && parentId && (parentType === 'loop' || parentType === 'parallel') && (
-        <Tooltip>
-          <TooltipTrigger asChild>
-            <Button
-              variant='ghost'
-              size='sm'
-              onClick={() => {
-                if (!disabled && userPermissions.canEdit) {
-                  window.dispatchEvent(
-                    new CustomEvent('remove-from-subflow', { detail: { blockId } })
-                  )
-                }
-              }}
-              className={cn(
-                'text-gray-500',
-                (disabled || !userPermissions.canEdit) && 'cursor-not-allowed opacity-50'
-              )}
-              disabled={disabled || !userPermissions.canEdit}
-            >
-              <LogOut className='h-4 w-4' />
-            </Button>
-          </TooltipTrigger>
-          <TooltipContent side='right'>{getTooltipMessage('Remove From Subflow')}</TooltipContent>
-        </Tooltip>
-      )}
+      {/* Remove from subflow - only show when inside loop/parallel/while */}
+      {!isStarterBlock &&
+        parentId &&
+        (parentType === 'loop' || parentType === 'parallel' || parentType === 'while') && (
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button
+                variant='ghost'
+                size='sm'
+                onClick={() => {
+                  if (!disabled && userPermissions.canEdit) {
+                    window.dispatchEvent(
+                      new CustomEvent('remove-from-subflow', { detail: { blockId } })
+                    )
+                  }
+                }}
+                className={cn(
+                  'text-gray-500',
+                  (disabled || !userPermissions.canEdit) && 'cursor-not-allowed opacity-50'
+                )}
+                disabled={disabled || !userPermissions.canEdit}
+              >
+                <LogOut className='h-4 w-4' />
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent side='right'>{getTooltipMessage('Remove From Subflow')}</TooltipContent>
+          </Tooltip>
+        )}
 
       <Tooltip>
         <TooltipTrigger asChild>

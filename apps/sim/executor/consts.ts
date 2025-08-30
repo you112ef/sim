@@ -5,6 +5,7 @@
 export enum BlockType {
   PARALLEL = 'parallel',
   LOOP = 'loop',
+  WHILE = 'while',
   ROUTER = 'router',
   CONDITION = 'condition',
   FUNCTION = 'function',

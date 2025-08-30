@@ -26,6 +26,12 @@ const SubflowNodeStyles: React.FC = () => {
         100% { box-shadow: 0 0 0 0 rgba(139, 195, 74, 0); }
       }
 
+      @keyframes while-node-pulse {
+        0% { box-shadow: 0 0 0 0 rgba(255, 159, 67, 0.3); }
+        70% { box-shadow: 0 0 0 6px rgba(255, 159, 67, 0); }
+        100% { box-shadow: 0 0 0 0 rgba(255, 159, 67, 0); }
+      }
+
       .loop-node-drag-over {
         animation: loop-node-pulse 1.2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
         border-style: solid !important;
@@ -38,6 +44,13 @@ const SubflowNodeStyles: React.FC = () => {
         border-style: solid !important;
         background-color: rgba(139, 195, 74, 0.08) !important;
         box-shadow: 0 0 0 8px rgba(139, 195, 74, 0.1);
+      }
+
+      .while-node-drag-over {
+        animation: while-node-pulse 1.2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+        border-style: solid !important;
+        background-color: rgba(255, 159, 67, 0.08) !important;
+        box-shadow: 0 0 0 8px rgba(255, 159, 67, 0.1);
       }
 
       .react-flow__node-group:hover,
@@ -69,7 +82,7 @@ export interface SubflowNodeData {
   extent?: 'parent'
   hasNestedError?: boolean
   isPreview?: boolean
-  kind: 'loop' | 'parallel'
+  kind: 'loop' | 'parallel' | 'while'
 }
 
 export const SubflowNodeComponent = memo(({ data, id }: NodeProps<SubflowNodeData>) => {
@@ -114,9 +127,26 @@ export const SubflowNodeComponent = memo(({ data, id }: NodeProps<SubflowNodeDat
 
   const nestedStyles = getNestedStyles()
 
-  const startHandleId = data.kind === 'loop' ? 'loop-start-source' : 'parallel-start-source'
-  const endHandleId = data.kind === 'loop' ? 'loop-end-source' : 'parallel-end-source'
-  const startBg = data.kind === 'loop' ? '#2FB3FF' : '#FEE12B'
+  const startHandleId =
+    data.kind === 'loop'
+      ? 'loop-start-source'
+      : data.kind === 'parallel'
+        ? 'parallel-start-source'
+        : 'while-start-source'
+  const endHandleId =
+    data.kind === 'loop'
+      ? 'loop-end-source'
+      : data.kind === 'parallel'
+        ? 'parallel-end-source'
+        : 'while-end-source'
+  const startBg =
+    data.kind === 'loop'
+      ? '#2FB3FF'
+      : data.kind === 'parallel'
+        ? '#FEE12B'
+        : data.kind === 'while'
+          ? '#FF9F43'
+          : '#2FB3FF'
 
   return (
     <>

@@ -23,6 +23,7 @@ export class InputResolver {
   private blockByNormalizedName: Map<string, SerializedBlock>
   private loopsByBlockId: Map<string, string> // Maps block ID to containing loop ID
   private parallelsByBlockId: Map<string, string> // Maps block ID to containing parallel ID
+  // private whilesByBlockId: Map<string, string> // Maps block ID to containing while ID
 
   constructor(
     private workflow: SerializedWorkflow,
@@ -70,6 +71,14 @@ export class InputResolver {
         this.parallelsByBlockId.set(blockId, parallelId)
       }
     }
+
+    // Create efficient while lookup map
+    // this.whilesByBlockId = new Map()
+    // for (const [whileId, whileCfg] of Object.entries(workflow.whiles || {})) {
+    //   for (const blockId of whileCfg.nodes) {
+    //     this.whilesByBlockId.set(blockId, whileId)
+    //   }
+    // }
   }
 
   /**
@@ -1103,6 +1112,17 @@ export class InputResolver {
       }
     }
 
+    // Special case: blocks in the same while can reference each other
+    // const currentBlockWhile = this.whilesByBlockId.get(currentBlockId)
+    // if (currentBlockWhile) {
+    //   const whileCfg = this.workflow.whiles?.[currentBlockWhile]
+    //   if (whileCfg) {
+    //     for (const nodeId of whileCfg.nodes) {
+    //       accessibleBlocks.add(nodeId)
+    //     }
+    //   }
+    // }
+
     return accessibleBlocks
   }
 
@@ -1866,5 +1886,15 @@ export class InputResolver {
    */
   getContainingParallelId(blockId: string): string | undefined {
     return this.parallelsByBlockId.get(blockId)
+  }
+
+  /**
+   * Get the containing while ID for a block
+   * @param blockId - The ID of the block
+   * @returns The containing while ID or undefined if not in a while
+   */
+  getContainingWhileId(blockId: string): string | undefined {
+    // return this.whilesByBlockId.get(blockId)
+    return undefined
   }
 }

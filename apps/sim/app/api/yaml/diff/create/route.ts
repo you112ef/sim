@@ -9,10 +9,12 @@ import { resolveOutputType } from '@/blocks/utils'
 import {
   convertLoopBlockToLoop,
   convertParallelBlockToParallel,
+  convertWhileBlockToWhile,
   findAllDescendantNodes,
   findChildNodes,
   generateLoopBlocks,
   generateParallelBlocks,
+  generateWhileBlocks,
 } from '@/stores/workflows/workflow/utils'
 
 const logger = createLogger('YamlDiffCreateAPI')
@@ -130,8 +132,10 @@ export async function POST(request: NextRequest) {
           resolveOutputType: resolveOutputType.toString(),
           convertLoopBlockToLoop: convertLoopBlockToLoop.toString(),
           convertParallelBlockToParallel: convertParallelBlockToParallel.toString(),
+          convertWhileBlockToWhile: convertWhileBlockToWhile.toString(),
           findChildNodes: findChildNodes.toString(),
           findAllDescendantNodes: findAllDescendantNodes.toString(),
+          generateWhileBlocks: generateWhileBlocks.toString(),
         },
         options,
       }),
@@ -168,7 +172,7 @@ export async function POST(request: NextRequest) {
             dataKeys: block.data ? Object.keys(block.data) : [],
           })
         }
-        if (block.type === 'loop' || block.type === 'parallel') {
+        if (block.type === 'loop' || block.type === 'parallel' || block.type === 'while') {
           logger.info(`[${requestId}] Container block ${blockId} (${block.name}):`, {
             type: block.type,
             hasData: !!block.data,
@@ -180,8 +184,10 @@ export async function POST(request: NextRequest) {
       // Log existing loops/parallels from sim-agent
       const loops = result.diff?.proposedState?.loops || result.loops || {}
       const parallels = result.diff?.proposedState?.parallels || result.parallels || {}
+      const whiles = result.diff?.proposedState?.whiles || result.whiles || {}
       logger.info(`[${requestId}] Sim agent loops:`, loops)
       logger.info(`[${requestId}] Sim agent parallels:`, parallels)
+      logger.info(`[${requestId}] Sim agent whiles:`, whiles)
     }
 
     // Log diff analysis specifically
@@ -207,7 +213,7 @@ export async function POST(request: NextRequest) {
 
       // Find all loop and parallel blocks
       const containerBlocks = Object.values(blocks).filter(
-        (block: any) => block.type === 'loop' || block.type === 'parallel'
+        (block: any) => block.type === 'loop' || block.type === 'parallel' || block.type === 'while'
       )
 
       // For each container, find its children based on loop-start edges
@@ -251,16 +257,22 @@ export async function POST(request: NextRequest) {
       // Now regenerate loops and parallels with the fixed relationships
       const loops = generateLoopBlocks(result.diff.proposedState.blocks)
       const parallels = generateParallelBlocks(result.diff.proposedState.blocks)
-
+      const whiles = generateWhileBlocks(result.diff.proposedState.blocks)
       result.diff.proposedState.loops = loops
       result.diff.proposedState.parallels = parallels
+      result.diff.proposedState.whiles = whiles
 
       logger.info(`[${requestId}] Regenerated loops and parallels after fixing parent-child:`, {
         loopsCount: Object.keys(loops).length,
         parallelsCount: Object.keys(parallels).length,
+        whilesCount: Object.keys(whiles).length,
         loops: Object.keys(loops).map((id) => ({
           id,
           nodes: loops[id].nodes,
+        })),
+        whiles: Object.keys(whiles).map((id) => ({
+          id,
+          nodes: whiles[id].nodes,
         })),
       })
     }
@@ -309,7 +321,7 @@ export async function POST(request: NextRequest) {
       // Generate loops and parallels for the blocks with fixed relationships
       const loops = generateLoopBlocks(result.blocks)
       const parallels = generateParallelBlocks(result.blocks)
-
+      const whiles = generateWhileBlocks(result.blocks)
       const transformedResult = {
         success: result.success,
         diff: {
@@ -318,6 +330,7 @@ export async function POST(request: NextRequest) {
             edges: result.edges || [],
             loops: loops,
             parallels: parallels,
+            whiles: whiles,
           },
           diffAnalysis: diffAnalysis,
           metadata: result.metadata || {

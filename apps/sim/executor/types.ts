@@ -145,6 +145,17 @@ export interface ExecutionContext {
     }
   >
 
+  // While execution tracking
+  whileExecutions?: Map<
+    string,
+    {
+      maxIterations: number
+      loopType: 'while' | 'doWhile'
+      executionResults: Map<string, any> // iteration_0, iteration_1, etc.
+      currentIteration: number
+    }
+  >
+
   // Mapping for virtual parallel block IDs to their original blocks
   parallelBlockMapping?: Map<
     string,

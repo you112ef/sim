@@ -12,9 +12,10 @@ import { useWorkflowStore } from '@/stores/workflows/workflow/store'
 import 'prismjs/components/prism-javascript'
 import 'prismjs/themes/prism.css'
 
-type IterationType = 'loop' | 'parallel'
+type IterationType = 'loop' | 'parallel' | 'while'
 type LoopType = 'for' | 'forEach'
 type ParallelType = 'count' | 'collection'
+type WhileType = 'while' | 'doWhile'
 
 interface IterationNodeData {
   width?: number
@@ -25,9 +26,11 @@ interface IterationNodeData {
   extent?: 'parent'
   loopType?: LoopType
   parallelType?: ParallelType
+  whileType?: WhileType
   // Common
   count?: number
   collection?: string | any[] | Record<string, any>
+  condition?: string
   isPreview?: boolean
   executionState?: {
     currentIteration?: number
@@ -65,6 +68,12 @@ const CONFIG = {
       items: 'distribution' as const,
     },
   },
+  while: {
+    typeLabels: { while: 'While Loop', doWhile: 'Do While' },
+    typeKey: 'whileType' as const,
+    storeKey: 'whiles' as const,
+    maxIterations: 100,
+  },
 } as const
 
 export function IterationBadges({ nodeId, data, iterationType }: IterationBadgesProps) {
@@ -77,9 +86,21 @@ export function IterationBadges({ nodeId, data, iterationType }: IterationBadges
 
   // Determine current type and values
   const currentType = (data?.[config.typeKey] ||
-    (iterationType === 'loop' ? 'for' : 'count')) as any
-  const configIterations = (nodeConfig as any)?.[config.configKeys.iterations] ?? data?.count ?? 5
-  const configCollection = (nodeConfig as any)?.[config.configKeys.items] ?? data?.collection ?? ''
+    (iterationType === 'loop' ? 'for' : iterationType === 'parallel' ? 'count' : 'while')) as any
+
+  const configIterations =
+    iterationType === 'loop'
+      ? ((nodeConfig as any)?.[CONFIG.loop.configKeys.iterations] ?? data?.count ?? 5)
+      : iterationType === 'parallel'
+        ? ((nodeConfig as any)?.[CONFIG.parallel.configKeys.iterations] ?? data?.count ?? 5)
+        : ((nodeConfig as any)?.iterations ?? data?.count ?? 5)
+
+  const configCollection =
+    iterationType === 'loop'
+      ? ((nodeConfig as any)?.[CONFIG.loop.configKeys.items] ?? data?.collection ?? '')
+      : iterationType === 'parallel'
+        ? ((nodeConfig as any)?.[CONFIG.parallel.configKeys.items] ?? data?.collection ?? '')
+        : ''
 
   const iterations = configIterations
   const collectionString =
@@ -87,8 +108,10 @@ export function IterationBadges({ nodeId, data, iterationType }: IterationBadges
 
   // State management
   const [tempInputValue, setTempInputValue] = useState<string | null>(null)
+  const isWhile = iterationType === 'while'
+  const [whileValue, setWhileValue] = useState<string>(data?.condition || '')
   const inputValue = tempInputValue ?? iterations.toString()
-  const editorValue = collectionString
+  const editorValue = isWhile ? whileValue : collectionString
   const [typePopoverOpen, setTypePopoverOpen] = useState(false)
   const [configPopoverOpen, setConfigPopoverOpen] = useState(false)
   const [showTagDropdown, setShowTagDropdown] = useState(false)
@@ -100,6 +123,7 @@ export function IterationBadges({ nodeId, data, iterationType }: IterationBadges
   const {
     collaborativeUpdateLoopType,
     collaborativeUpdateParallelType,
+    collaborativeUpdateWhileType,
     collaborativeUpdateIterationCount,
     collaborativeUpdateIterationCollection,
   } = useCollaborativeWorkflow()
@@ -110,12 +134,21 @@ export function IterationBadges({ nodeId, data, iterationType }: IterationBadges
       if (isPreview) return
       if (iterationType === 'loop') {
         collaborativeUpdateLoopType(nodeId, newType)
-      } else {
+      } else if (iterationType === 'parallel') {
         collaborativeUpdateParallelType(nodeId, newType)
+      } else {
+        collaborativeUpdateWhileType(nodeId, newType)
       }
       setTypePopoverOpen(false)
     },
-    [nodeId, iterationType, collaborativeUpdateLoopType, collaborativeUpdateParallelType, isPreview]
+    [
+      nodeId,
+      iterationType,
+      collaborativeUpdateLoopType,
+      collaborativeUpdateParallelType,
+      collaborativeUpdateWhileType,
+      isPreview,
+    ]
   )
 
   // Handle iterations input change
@@ -141,7 +174,9 @@ export function IterationBadges({ nodeId, data, iterationType }: IterationBadges
 
     if (!Number.isNaN(value)) {
       const newValue = Math.min(config.maxIterations, Math.max(1, value))
-      collaborativeUpdateIterationCount(nodeId, iterationType, newValue)
+      if (iterationType === 'loop' || iterationType === 'parallel') {
+        collaborativeUpdateIterationCount(nodeId, iterationType, newValue)
+      }
     }
     setTempInputValue(null)
     setConfigPopoverOpen(false)
@@ -158,7 +193,11 @@ export function IterationBadges({ nodeId, data, iterationType }: IterationBadges
   const handleEditorChange = useCallback(
     (value: string) => {
       if (isPreview) return
-      collaborativeUpdateIterationCollection(nodeId, iterationType, value)
+      if (iterationType === 'loop' || iterationType === 'parallel') {
+        collaborativeUpdateIterationCollection(nodeId, iterationType, value)
+      } else if (isWhile) {
+        setWhileValue(value)
+      }
 
       const textarea = editorContainerRef.current?.querySelector('textarea')
       if (textarea) {
@@ -170,14 +209,18 @@ export function IterationBadges({ nodeId, data, iterationType }: IterationBadges
         setShowTagDropdown(triggerCheck.show)
       }
     },
-    [nodeId, iterationType, collaborativeUpdateIterationCollection, isPreview]
+    [nodeId, iterationType, collaborativeUpdateIterationCollection, isPreview, isWhile]
   )
 
   // Handle tag selection
   const handleTagSelect = useCallback(
     (newValue: string) => {
       if (isPreview) return
-      collaborativeUpdateIterationCollection(nodeId, iterationType, newValue)
+      if (iterationType === 'loop' || iterationType === 'parallel') {
+        collaborativeUpdateIterationCollection(nodeId, iterationType, newValue)
+      } else if (isWhile) {
+        setWhileValue(newValue)
+      }
       setShowTagDropdown(false)
 
       setTimeout(() => {
@@ -187,7 +230,7 @@ export function IterationBadges({ nodeId, data, iterationType }: IterationBadges
         }
       }, 0)
     },
-    [nodeId, iterationType, collaborativeUpdateIterationCollection, isPreview]
+    [nodeId, iterationType, collaborativeUpdateIterationCollection, isPreview, isWhile]
   )
 
   // Determine if we're in count mode or collection mode
@@ -223,7 +266,11 @@ export function IterationBadges({ nodeId, data, iterationType }: IterationBadges
           <PopoverContent className='w-48 p-3' align='center' onClick={(e) => e.stopPropagation()}>
             <div className='space-y-2'>
               <div className='font-medium text-muted-foreground text-xs'>
-                {iterationType === 'loop' ? 'Loop Type' : 'Parallel Type'}
+                {iterationType === 'loop'
+                  ? 'Loop Type'
+                  : iterationType === 'parallel'
+                    ? 'Parallel Type'
+                    : 'While Type'}
               </div>
               <div className='space-y-1'>
                 {typeOptions.map(([typeValue, typeLabel]) => (
@@ -259,24 +306,63 @@ export function IterationBadges({ nodeId, data, iterationType }: IterationBadges
             )}
             style={{ pointerEvents: isPreview ? 'none' : 'auto' }}
           >
-            {isCountMode ? `Iterations: ${iterations}` : 'Items'}
+            {isWhile ? 'Condition' : isCountMode ? `Iterations: ${iterations}` : 'Items'}
             {!isPreview && <ChevronDown className='h-3 w-3 text-muted-foreground' />}
           </Badge>
         </PopoverTrigger>
         {!isPreview && (
           <PopoverContent
-            className={cn('p-3', !isCountMode ? 'w-72' : 'w-48')}
+            className={cn('p-3', isWhile || !isCountMode ? 'w-72' : 'w-48')}
             align='center'
             onClick={(e) => e.stopPropagation()}
           >
             <div className='space-y-2'>
               <div className='font-medium text-muted-foreground text-xs'>
-                {isCountMode
-                  ? `${iterationType === 'loop' ? 'Loop' : 'Parallel'} Iterations`
-                  : `${iterationType === 'loop' ? 'Collection' : 'Parallel'} Items`}
+                {isWhile
+                  ? 'While Condition'
+                  : isCountMode
+                    ? `${iterationType === 'loop' ? 'Loop' : 'Parallel'} Iterations`
+                    : `${iterationType === 'loop' ? 'Collection' : 'Parallel'} Items`}
               </div>
 
-              {isCountMode ? (
+              {isWhile ? (
+                // Code editor for while condition
+                <div ref={editorContainerRef} className='relative'>
+                  <div className='relative min-h-[80px] rounded-md border border-input bg-background px-3 pt-2 pb-3 font-mono text-sm'>
+                    {editorValue === '' && (
+                      <div className='pointer-events-none absolute top-[8.5px] left-3 select-none text-muted-foreground/50'>
+                        condition === true
+                      </div>
+                    )}
+                    <Editor
+                      value={editorValue}
+                      onValueChange={handleEditorChange}
+                      highlight={(code) => highlight(code, languages.javascript, 'javascript')}
+                      padding={0}
+                      style={{
+                        fontFamily: 'monospace',
+                        lineHeight: '21px',
+                      }}
+                      className='w-full focus:outline-none'
+                      textareaClassName='focus:outline-none focus:ring-0 bg-transparent resize-none w-full overflow-hidden whitespace-pre-wrap'
+                    />
+                  </div>
+                  <div className='mt-2 text-[10px] text-muted-foreground'>
+                    Enter a boolean expression.
+                  </div>
+                  {showTagDropdown && (
+                    <TagDropdown
+                      visible={showTagDropdown}
+                      onSelect={handleTagSelect}
+                      blockId={nodeId}
+                      activeSourceBlockId={null}
+                      inputValue={editorValue}
+                      cursorPosition={cursorPosition}
+                      onClose={() => setShowTagDropdown(false)}
+                    />
+                  )}
+                </div>
+              ) : isCountMode ? (
                 // Number input for count-based mode
                 <div className='flex items-center gap-2'>
                   <Input

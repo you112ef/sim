@@ -15,6 +15,7 @@
 
 .workflow-container .react-flow__node-loopNode,
 .workflow-container .react-flow__node-parallelNode,
+.workflow-container .react-flow__node-whileNode,
 .workflow-container .react-flow__node-subflowNode {
   z-index: -1 !important;
 }

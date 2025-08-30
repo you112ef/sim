@@ -52,6 +52,7 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
       edgesCount: deployedState.edges.length,
       loopsCount: Object.keys(deployedState.loops || {}).length,
       parallelsCount: Object.keys(deployedState.parallels || {}).length,
+      whilesCount: Object.keys(deployedState.whiles || {}).length,
     })
 
     // Save deployed state to normalized tables
@@ -60,6 +61,7 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
       edges: deployedState.edges,
       loops: deployedState.loops || {},
       parallels: deployedState.parallels || {},
+      whiles: deployedState.whiles || {},
       lastSaved: Date.now(),
       isDeployed: workflowData.isDeployed,
       deployedAt: workflowData.deployedAt,

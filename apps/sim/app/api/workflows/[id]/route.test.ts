@@ -96,6 +96,7 @@ describe('Workflow By ID API Route', () => {
         edges: [],
         loops: {},
         parallels: {},
+        whiles: {},
         isFromNormalizedTables: true,
       }
 
@@ -145,6 +146,7 @@ describe('Workflow By ID API Route', () => {
         edges: [],
         loops: {},
         parallels: {},
+        whiles: {},
         isFromNormalizedTables: true,
       }
 
@@ -241,6 +243,7 @@ describe('Workflow By ID API Route', () => {
         edges: [{ id: 'edge-1', source: 'block-1', target: 'block-2' }],
         loops: {},
         parallels: {},
+        whiles: {},
         isFromNormalizedTables: true,
       }
 

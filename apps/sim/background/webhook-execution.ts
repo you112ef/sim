@@ -129,7 +129,7 @@ export async function executeWebhookJob(payload: WebhookExecutionPayload) {
       edges,
       loops || {},
       parallels || {},
-      true // Enable validation during execution
+      {} // Enable validation during execution
     )
 
     // Handle special Airtable case

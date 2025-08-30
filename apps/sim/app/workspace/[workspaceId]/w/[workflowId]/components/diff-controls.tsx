@@ -83,6 +83,7 @@ export function DiffControls() {
         edges: rawState.edges || [],
         loops: rawState.loops || {},
         parallels: rawState.parallels || {},
+        whiles: rawState.whiles || {},
         lastSaved: rawState.lastSaved || Date.now(),
         isDeployed: rawState.isDeployed || false,
         deploymentStatuses: rawState.deploymentStatuses || {},
@@ -98,6 +99,7 @@ export function DiffControls() {
         edgesCount: workflowState.edges.length,
         loopsCount: Object.keys(workflowState.loops).length,
         parallelsCount: Object.keys(workflowState.parallels).length,
+        whilesCount: Object.keys(workflowState.whiles).length,
         hasRequiredFields: Object.values(workflowState.blocks).every(
           (block) => block.id && block.type && block.name && block.position
         ),
@@ -146,6 +148,7 @@ export function DiffControls() {
           workflowId: activeWorkflowId,
           chatId: currentChat.id,
           messageId,
+          whiles: workflowState.whiles,
           workflowState: JSON.stringify(workflowState),
         }),
       })

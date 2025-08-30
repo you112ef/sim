@@ -18,7 +18,11 @@ import type {
   SyncControl,
   WorkflowState,
 } from '@/stores/workflows/workflow/types'
-import { generateLoopBlocks, generateParallelBlocks } from '@/stores/workflows/workflow/utils'
+import {
+  generateLoopBlocks,
+  generateParallelBlocks,
+  generateWhileBlocks,
+} from '@/stores/workflows/workflow/utils'
 
 const logger = createLogger('WorkflowStore')
 
@@ -35,6 +39,7 @@ const initialState = {
   deploymentStatuses: {},
   needsRedeployment: false,
   hasActiveWebhook: false,
+  whiles: {},
   history: {
     past: [],
     present: {
@@ -43,6 +48,7 @@ const initialState = {
         edges: [],
         loops: {},
         parallels: {},
+        whiles: {},
         isDeployed: false,
         isPublished: false,
       },
@@ -106,8 +112,8 @@ export const useWorkflowStore = create<WorkflowStoreWithHistory>()(
         }
       ) => {
         const blockConfig = getBlock(type)
-        // For custom nodes like loop and parallel that don't use BlockConfig
-        if (!blockConfig && (type === 'loop' || type === 'parallel')) {
+        // For custom nodes like loop, parallel, and while that don't use BlockConfig
+        if (!blockConfig && (type === 'loop' || type === 'parallel' || type === 'while')) {
           // Merge parentId and extent into data if provided
           const nodeData = {
             ...data,
@@ -136,6 +142,7 @@ export const useWorkflowStore = create<WorkflowStoreWithHistory>()(
             edges: [...get().edges],
             loops: get().generateLoopBlocks(),
             parallels: get().generateParallelBlocks(),
+            whiles: get().generateWhileBlocks(),
           }
 
           set(newState)
@@ -187,6 +194,7 @@ export const useWorkflowStore = create<WorkflowStoreWithHistory>()(
           edges: [...get().edges],
           loops: get().generateLoopBlocks(),
           parallels: get().generateParallelBlocks(),
+          whiles: get().generateWhileBlocks(),
         }
 
         set(newState)
@@ -287,6 +295,7 @@ export const useWorkflowStore = create<WorkflowStoreWithHistory>()(
           edges: [...get().edges],
           loops: { ...get().loops },
           parallels: { ...get().parallels },
+          whiles: { ...get().whiles },
         }
 
         logger.info('[WorkflowStore/updateParentId] Updated parentId relationship:', {
@@ -316,6 +325,7 @@ export const useWorkflowStore = create<WorkflowStoreWithHistory>()(
           edges: [...get().edges].filter((edge) => edge.source !== id && edge.target !== id),
           loops: { ...get().loops },
           parallels: { ...get().parallels },
+          whiles: { ...get().whiles },
         }
 
         // Find and remove all child blocks if this is a parent node
@@ -407,6 +417,7 @@ export const useWorkflowStore = create<WorkflowStoreWithHistory>()(
           edges: newEdges,
           loops: generateLoopBlocks(get().blocks),
           parallels: get().generateParallelBlocks(),
+          whiles: get().generateWhileBlocks(),
         }
 
         set(newState)
@@ -430,6 +441,7 @@ export const useWorkflowStore = create<WorkflowStoreWithHistory>()(
           edges: newEdges,
           loops: generateLoopBlocks(get().blocks),
           parallels: get().generateParallelBlocks(),
+          whiles: get().generateWhileBlocks(),
         }
 
         set(newState)
@@ -452,6 +464,7 @@ export const useWorkflowStore = create<WorkflowStoreWithHistory>()(
                 edges: [],
                 loops: {},
                 parallels: {},
+                whiles: {},
                 isDeployed: false,
                 isPublished: false,
               },
@@ -484,6 +497,7 @@ export const useWorkflowStore = create<WorkflowStoreWithHistory>()(
           edges: state.edges,
           loops: state.loops,
           parallels: state.parallels,
+          whiles: state.whiles,
           lastSaved: state.lastSaved,
           isDeployed: state.isDeployed,
           deployedAt: state.deployedAt,
@@ -505,6 +519,7 @@ export const useWorkflowStore = create<WorkflowStoreWithHistory>()(
           edges: [...get().edges],
           loops: { ...get().loops },
           parallels: { ...get().parallels },
+          whiles: { ...get().whiles },
         }
 
         set(newState)
@@ -557,6 +572,7 @@ export const useWorkflowStore = create<WorkflowStoreWithHistory>()(
           edges: [...get().edges],
           loops: get().generateLoopBlocks(),
           parallels: get().generateParallelBlocks(),
+          whiles: get().generateWhileBlocks(),
         }
 
         // Update the subblock store with the duplicated values
@@ -641,6 +657,7 @@ export const useWorkflowStore = create<WorkflowStoreWithHistory>()(
           edges: [...get().edges],
           loops: { ...get().loops },
           parallels: { ...get().parallels },
+          whiles: { ...get().whiles },
         }
 
         // Update references in subblock store
@@ -914,6 +931,7 @@ export const useWorkflowStore = create<WorkflowStoreWithHistory>()(
           edges: deployedState.edges,
           loops: deployedState.loops || {},
           parallels: deployedState.parallels || {},
+          whiles: deployedState.whiles || {},
           isDeployed: true,
           needsRedeployment: false,
           hasActiveWebhook: false, // Reset webhook status
@@ -1037,6 +1055,7 @@ export const useWorkflowStore = create<WorkflowStoreWithHistory>()(
           edges: filteredEdges,
           loops: { ...get().loops },
           parallels: { ...get().parallels },
+          whiles: { ...get().whiles },
         }
 
         set(newState)
@@ -1106,6 +1125,7 @@ export const useWorkflowStore = create<WorkflowStoreWithHistory>()(
           edges: [...get().edges],
           loops: { ...get().loops },
           parallels: generateParallelBlocks(newBlocks), // Regenerate parallels
+          whiles: { ...get().whiles },
         }
 
         set(newState)
@@ -1134,6 +1154,7 @@ export const useWorkflowStore = create<WorkflowStoreWithHistory>()(
           edges: [...get().edges],
           loops: { ...get().loops },
           parallels: generateParallelBlocks(newBlocks), // Regenerate parallels
+          whiles: { ...get().whiles },
         }
 
         set(newState)
@@ -1162,6 +1183,7 @@ export const useWorkflowStore = create<WorkflowStoreWithHistory>()(
           edges: [...get().edges],
           loops: { ...get().loops },
           parallels: generateParallelBlocks(newBlocks), // Regenerate parallels
+          whiles: { ...get().whiles },
         }
 
         set(newState)
@@ -1173,6 +1195,39 @@ export const useWorkflowStore = create<WorkflowStoreWithHistory>()(
       // Function to convert UI parallel blocks to execution format
       generateParallelBlocks: () => {
         return generateParallelBlocks(get().blocks)
+      },
+
+      // While block methods implementation (UI-only toggle)
+      updateWhileType: (whileId: string, whileType) => {
+        const block = get().blocks[whileId]
+        if (!block || block.type !== 'while') return
+
+        const newBlocks = {
+          ...get().blocks,
+          [whileId]: {
+            ...block,
+            data: {
+              ...block.data,
+              whileType,
+            },
+          },
+        }
+
+        const newState = {
+          blocks: newBlocks,
+          edges: [...get().edges],
+          loops: { ...get().loops },
+          parallels: { ...get().parallels },
+          whiles: get().generateWhileBlocks(),
+        }
+
+        set(newState)
+        pushHistory(set, get, newState, `Update while type`)
+        get().updateLastSaved()
+      },
+
+      generateWhileBlocks: () => {
+        return generateWhileBlocks(get().blocks)
       },
     })),
     { name: 'workflow-store' }

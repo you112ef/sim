@@ -750,6 +750,7 @@ describe('Executor', () => {
         ],
         loops: {},
         parallels: {},
+        whiles: {},
       }
 
       const executor = new Executor(routerWorkflow)
@@ -1066,6 +1067,7 @@ describe('Executor', () => {
           ],
           loops: {},
           parallels: {},
+          whiles: {},
         }
 
         const executor = new Executor(workflow)

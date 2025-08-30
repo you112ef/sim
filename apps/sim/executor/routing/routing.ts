@@ -78,6 +78,7 @@ export class Routing {
     // Flow control blocks
     [BlockType.PARALLEL]: BlockCategory.FLOW_CONTROL,
     [BlockType.LOOP]: BlockCategory.FLOW_CONTROL,
+    [BlockType.WHILE]: BlockCategory.FLOW_CONTROL,
     [BlockType.WORKFLOW]: BlockCategory.FLOW_CONTROL,
 
     // Routing blocks
@@ -139,6 +140,8 @@ export class Routing {
       'parallel-end-source',
       'loop-start-source',
       'loop-end-source',
+      'while-start-source',
+      'while-end-source',
     ]
 
     if (flowControlHandles.includes(sourceHandle || '')) {

@@ -6,6 +6,7 @@ import { FunctionBlockHandler } from '@/executor/handlers/function/function-hand
 import { GenericBlockHandler } from '@/executor/handlers/generic/generic-handler'
 import { LoopBlockHandler } from '@/executor/handlers/loop/loop-handler'
 import { ParallelBlockHandler } from '@/executor/handlers/parallel/parallel-handler'
+// import { WhileBlockHandler } from '@/executor/handlers/while/while-handler'
 import { ResponseBlockHandler } from '@/executor/handlers/response/response-handler'
 import { RouterBlockHandler } from '@/executor/handlers/router/router-handler'
 import { TriggerBlockHandler } from '@/executor/handlers/trigger/trigger-handler'
@@ -20,6 +21,7 @@ export {
   GenericBlockHandler,
   LoopBlockHandler,
   ParallelBlockHandler,
+  // WhileBlockHandler,
   ResponseBlockHandler,
   RouterBlockHandler,
   TriggerBlockHandler,

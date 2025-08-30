@@ -143,6 +143,7 @@ export const sampleWorkflowState = {
   ],
   loops: {},
   parallels: {},
+  whiles: {},
   lastSaved: Date.now(),
   isDeployed: false,
 }

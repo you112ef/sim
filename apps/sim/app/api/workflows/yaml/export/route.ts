@@ -10,7 +10,11 @@ import type { BlockConfig } from '@/blocks/types'
 import { resolveOutputType } from '@/blocks/utils'
 import { db } from '@/db'
 import { workflow } from '@/db/schema'
-import { generateLoopBlocks, generateParallelBlocks } from '@/stores/workflows/workflow/utils'
+import {
+  generateLoopBlocks,
+  generateParallelBlocks,
+  generateWhileBlocks,
+} from '@/stores/workflows/workflow/utils'
 
 const logger = createLogger('WorkflowYamlExportAPI')
 
@@ -144,6 +148,7 @@ export async function GET(request: NextRequest) {
           generateLoopBlocks: generateLoopBlocks.toString(),
           generateParallelBlocks: generateParallelBlocks.toString(),
           resolveOutputType: resolveOutputType.toString(),
+          generateWhileBlocks: generateWhileBlocks.toString(),
         },
       },
     })

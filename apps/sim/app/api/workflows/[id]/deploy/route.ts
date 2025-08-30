@@ -109,6 +109,7 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
           edges: normalizedData.edges,
           loops: normalizedData.loops,
           parallels: normalizedData.parallels,
+          whiles: normalizedData.whiles,
         }
 
         const { hasWorkflowChanged } = await import('@/lib/workflows/utils')
@@ -192,6 +193,7 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
     const blocksMap: Record<string, any> = {}
     const loops: Record<string, any> = {}
     const parallels: Record<string, any> = {}
+    const whiles: Record<string, any> = {}
 
     // Process blocks
     blocks.forEach((block) => {
@@ -206,7 +208,7 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
       }
     })
 
-    // Process subflows (loops and parallels)
+    // Process subflows (loops, parallels, and whiles)
     subflows.forEach((subflow) => {
       const config = (subflow.config as any) || {}
       if (subflow.type === 'loop') {
@@ -224,6 +226,13 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
           count: config.count || 2,
           distribution: config.distribution || '',
           parallelType: config.parallelType || 'count',
+        }
+      } else if (subflow.type === 'while') {
+        whiles[subflow.id] = {
+          id: subflow.id,
+          nodes: config.nodes || [],
+          iterations: config.iterations || 1,
+          whileType: config.whileType || 'while',
         }
       }
     })
@@ -244,6 +253,7 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
       edges: edgesArray,
       loops,
       parallels,
+      whiles,
       lastSaved: Date.now(),
     }
 

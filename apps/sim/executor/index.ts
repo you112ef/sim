@@ -12,6 +12,7 @@ import {
   GenericBlockHandler,
   LoopBlockHandler,
   ParallelBlockHandler,
+  // WhileBlockHandler,
   ResponseBlockHandler,
   RouterBlockHandler,
   TriggerBlockHandler,
@@ -19,6 +20,7 @@ import {
 } from '@/executor/handlers'
 import { LoopManager } from '@/executor/loops/loops'
 import { ParallelManager } from '@/executor/parallels/parallels'
+// import { WhileManager } from '@/executor/whiles/whiles'
 import { PathTracker } from '@/executor/path/path'
 import { InputResolver } from '@/executor/resolver/resolver'
 import type {
@@ -73,6 +75,7 @@ export class Executor {
   private resolver: InputResolver
   private loopManager: LoopManager
   private parallelManager: ParallelManager
+  // private whileManager: WhileManager
   private pathTracker: PathTracker
   private blockHandlers: BlockHandler[]
   private workflowInput: any
@@ -134,6 +137,7 @@ export class Executor {
 
     this.loopManager = new LoopManager(this.actualWorkflow.loops || {})
     this.parallelManager = new ParallelManager(this.actualWorkflow.parallels || {})
+    // this.whileManager = new WhileManager(this.actualWorkflow.whiles || {})
 
     // Calculate accessible blocks for consistent reference resolution
     const accessibleBlocksMap = BlockPathCalculator.calculateAccessibleBlocksForWorkflow(
@@ -159,6 +163,7 @@ export class Executor {
       new ApiBlockHandler(),
       new LoopBlockHandler(this.resolver, this.pathTracker),
       new ParallelBlockHandler(this.resolver, this.pathTracker),
+      // new WhileBlockHandler(this.resolver, this.pathTracker),
       new ResponseBlockHandler(),
       new WorkflowBlockHandler(),
       new GenericBlockHandler(),
@@ -417,6 +422,9 @@ export class Executor {
             // Process parallel iterations - similar to loops but conceptually for parallel execution
             await this.parallelManager.processParallelIterations(context)
 
+            // Process while iterations - similar concept to loops but condition-driven
+            // await this.whileManager.processWhileIterations(context)
+
             // Continue execution for any newly activated paths
             // Only stop execution if there are no more blocks to execute
             const updatedNextLayer = this.getNextExecutionLayer(context)
@@ -560,6 +568,7 @@ export class Executor {
       }
       await this.loopManager.processLoopIterations(context)
       await this.parallelManager.processParallelIterations(context)
+      // await this.whileManager.processWhileIterations(context)
       const nextLayer = this.getNextExecutionLayer(context)
       setPendingBlocks(nextLayer)
 
@@ -756,6 +765,13 @@ export class Executor {
       for (const loopId of Object.keys(this.actualWorkflow.loops)) {
         // Start all loops at iteration 0
         context.loopIterations.set(loopId, 0)
+      }
+    }
+
+    // Initialize while iterations
+    if (this.actualWorkflow.whiles) {
+      for (const whileId of Object.keys(this.actualWorkflow.whiles)) {
+        context.loopIterations.set(whileId, 0)
       }
     }
 
@@ -1207,6 +1223,20 @@ export class Executor {
         return loopCompleted
       }
 
+      // Special handling for while-start-source connections
+      if (conn.sourceHandle === 'while-start-source') {
+        // Activated when while block executes
+        return sourceExecuted
+      }
+
+      // Special handling for while-end-source connections
+      if (conn.sourceHandle === 'while-end-source') {
+        // Activated when while block has completed (condition false or max iterations)
+        const whileState = context.blockStates.get(conn.source)
+        const whileCompleted = Boolean(whileState?.output?.completed)
+        return sourceExecuted && whileCompleted
+      }
+
       // Special handling for parallel-start-source connections
       if (conn.sourceHandle === 'parallel-start-source') {
         // This block is connected to a parallel's start output
@@ -1643,7 +1673,11 @@ export class Executor {
       context.blockLogs.push(blockLog)
 
       // Skip console logging for infrastructure blocks like loops and parallels
-      if (block.metadata?.id !== BlockType.LOOP && block.metadata?.id !== BlockType.PARALLEL) {
+      if (
+        block.metadata?.id !== BlockType.LOOP &&
+        block.metadata?.id !== BlockType.PARALLEL &&
+        block.metadata?.id !== BlockType.WHILE
+      ) {
         // Determine iteration context for this block
         let iterationCurrent: number | undefined
         let iterationTotal: number | undefined
@@ -1755,7 +1789,11 @@ export class Executor {
       context.blockLogs.push(blockLog)
 
       // Skip console logging for infrastructure blocks like loops and parallels
-      if (block.metadata?.id !== BlockType.LOOP && block.metadata?.id !== BlockType.PARALLEL) {
+      if (
+        block.metadata?.id !== BlockType.LOOP &&
+        block.metadata?.id !== BlockType.PARALLEL
+        // block.metadata?.id !== BlockType.WHILE
+      ) {
         // Determine iteration context for this block
         let iterationCurrent: number | undefined
         let iterationTotal: number | undefined
@@ -1927,6 +1965,7 @@ export class Executor {
       block?.metadata?.id === BlockType.CONDITION ||
       block?.metadata?.id === BlockType.LOOP ||
       block?.metadata?.id === BlockType.PARALLEL
+      // block?.metadata?.id === BlockType.WHILE
     ) {
       return false
     }

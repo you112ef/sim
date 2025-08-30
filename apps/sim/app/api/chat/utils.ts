@@ -420,7 +420,7 @@ export async function executeWorkflowForChat(
 
   // Use deployed state for chat execution (this is the stable, deployed version)
   const deployedState = workflowResult[0].deployedState as WorkflowState
-  const { blocks, edges, loops, parallels } = deployedState
+  const { blocks, edges, loops, parallels, whiles } = deployedState
 
   // Prepare for execution, similar to use-workflow-execution.ts
   const mergedStates = mergeSubblockState(blocks)
@@ -497,6 +497,7 @@ export async function executeWorkflowForChat(
     filteredEdges,
     loops,
     parallels,
+    whiles,
     true // Enable validation during execution
   )
 

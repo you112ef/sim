@@ -69,6 +69,7 @@ describe('Workflow Deployment API Route', () => {
         edges: [],
         loops: {},
         parallels: {},
+        whiles: {},
         isFromNormalizedTables: true,
       }),
     }))

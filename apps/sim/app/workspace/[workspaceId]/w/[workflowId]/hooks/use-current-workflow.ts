@@ -3,7 +3,13 @@ import type { Edge } from 'reactflow'
 import { useWorkflowDiffStore } from '@/stores/workflow-diff/store'
 import type { DeploymentStatus } from '@/stores/workflows/registry/types'
 import { useWorkflowStore } from '@/stores/workflows/workflow/store'
-import type { BlockState, Loop, Parallel, WorkflowState } from '@/stores/workflows/workflow/types'
+import type {
+  BlockState,
+  Loop,
+  Parallel,
+  While,
+  WorkflowState,
+} from '@/stores/workflows/workflow/types'
 
 /**
  * Interface for the current workflow abstraction
@@ -14,6 +20,7 @@ export interface CurrentWorkflow {
   edges: Edge[]
   loops: Record<string, Loop>
   parallels: Record<string, Parallel>
+  whiles: Record<string, While>
   lastSaved?: number
   isDeployed?: boolean
   deployedAt?: Date
@@ -61,6 +68,7 @@ export function useCurrentWorkflow(): CurrentWorkflow {
       edges: activeWorkflow.edges,
       loops: activeWorkflow.loops || {},
       parallels: activeWorkflow.parallels || {},
+      whiles: activeWorkflow.whiles || {},
       lastSaved: activeWorkflow.lastSaved,
       isDeployed: activeWorkflow.isDeployed,
       deployedAt: activeWorkflow.deployedAt,

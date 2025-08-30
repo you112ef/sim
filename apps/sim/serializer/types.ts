@@ -7,6 +7,7 @@ export interface SerializedWorkflow {
   connections: SerializedConnection[]
   loops: Record<string, SerializedLoop>
   parallels?: Record<string, SerializedParallel>
+  whiles?: Record<string, SerializedWhile>
 }
 
 export interface SerializedConnection {
@@ -54,4 +55,11 @@ export interface SerializedParallel {
   distribution?: any[] | Record<string, any> | string // Items to distribute or expression to evaluate
   count?: number // Number of parallel executions for count-based parallel
   parallelType?: 'count' | 'collection' // Explicit parallel type to avoid inference bugs
+}
+
+export interface SerializedWhile {
+  id: string
+  nodes: string[]
+  iterations: number
+  whileType?: 'while' | 'doWhile'
 }

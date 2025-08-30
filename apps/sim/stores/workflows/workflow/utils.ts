@@ -1,6 +1,7 @@
-import type { BlockState, Loop, Parallel } from '@/stores/workflows/workflow/types'
+import type { BlockState, Loop, Parallel, While } from '@/stores/workflows/workflow/types'
 
 const DEFAULT_LOOP_ITERATIONS = 5
+const DEFAULT_WHILE_ITERATIONS = 1000
 
 /**
  * Convert UI loop block to executor Loop format
@@ -36,6 +37,37 @@ export function convertLoopBlockToLoop(
     iterations: loopBlock.data?.count || DEFAULT_LOOP_ITERATIONS,
     loopType: loopBlock.data?.loopType || 'for',
     forEachItems,
+  }
+}
+
+/**
+ * Convert UI while block to executor While format
+ *
+ * @param whileBlockId - ID of the while block to convert
+ * @param blocks - Record of all blocks in the workflow
+ * @returns While object for execution engine or undefined if not a valid while
+ */
+export function convertWhileBlockToWhile(
+  whileBlockId: string,
+  blocks: Record<string, BlockState>
+): While | undefined {
+  const whileBlock = blocks[whileBlockId]
+  if (!whileBlock || whileBlock.type !== 'while') return undefined
+
+  // Default iterations as a safety cap; higher for whiles
+  const iterations =
+    (whileBlock.data as any)?.iterations ||
+    (whileBlock.data as any)?.count ||
+    DEFAULT_WHILE_ITERATIONS
+
+  // Default whileType to 'while' when not provided
+  const whileType = (whileBlock.data as any)?.whileType || 'while'
+
+  return {
+    id: whileBlockId,
+    nodes: findChildNodes(whileBlockId, blocks),
+    iterations,
+    whileType,
   }
 }
 
@@ -161,4 +193,26 @@ export function generateParallelBlocks(
     })
 
   return parallels
+}
+
+/**
+ * Builds a complete collection of while blocks from the UI blocks
+ *
+ * @param blocks - Record of all blocks in the workflow
+ * @returns Record of While objects for execution engine
+ */
+export function generateWhileBlocks(blocks: Record<string, BlockState>): Record<string, While> {
+  const whiles: Record<string, While> = {}
+
+  // Find all while nodes
+  Object.entries(blocks)
+    .filter(([_, block]) => block.type === 'while')
+    .forEach(([id]) => {
+      const whileCfg = convertWhileBlockToWhile(id, blocks)
+      if (whileCfg) {
+        whiles[id] = whileCfg
+      }
+    })
+
+  return whiles
 }

@@ -148,7 +148,7 @@ export function SearchModal({
         })
       )
 
-    // Add special blocks (loop and parallel)
+    // Add special blocks (loop, parallel, and while)
     const specialBlocks: BlockItem[] = [
       {
         id: 'loop',
@@ -165,6 +165,14 @@ export function SearchModal({
         icon: SplitIcon,
         bgColor: '#FEE12B',
         type: 'parallel',
+      },
+      {
+        id: 'while',
+        name: 'While',
+        description: 'While Loop',
+        icon: RepeatIcon,
+        bgColor: '#FF9F43',
+        type: 'while',
       },
     ]
 

@@ -121,6 +121,7 @@ describe('Workflow Execution API Route', () => {
         ],
         loops: {},
         parallels: {},
+        whiles: {},
         isFromNormalizedTables: false, // Changed to false since it's from deployed state
       }),
     }))
@@ -559,6 +560,7 @@ describe('Workflow Execution API Route', () => {
         ],
         loops: {},
         parallels: {},
+        whiles: {},
         isFromNormalizedTables: false, // Changed to false since it's from deployed state
       }),
     }))

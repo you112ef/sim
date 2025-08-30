@@ -7,6 +7,7 @@ import { ScrollArea } from '@/components/ui/scroll-area'
 import { ToolbarBlock } from '@/app/workspace/[workspaceId]/w/components/sidebar/components/toolbar/components/toolbar-block/toolbar-block'
 import LoopToolbarItem from '@/app/workspace/[workspaceId]/w/components/sidebar/components/toolbar/components/toolbar-loop-block/toolbar-loop-block'
 import ParallelToolbarItem from '@/app/workspace/[workspaceId]/w/components/sidebar/components/toolbar/components/toolbar-parallel-block/toolbar-parallel-block'
+import WhileToolbarItem from '@/app/workspace/[workspaceId]/w/components/sidebar/components/toolbar/components/toolbar-while-block/toolbar-while-block'
 import { getAllBlocks } from '@/blocks'
 import type { WorkspaceUserPermissions } from '@/hooks/use-user-permissions'
 
@@ -54,7 +55,7 @@ export function Toolbar({ userPermissions, isWorkspaceSelectorVisible = false }:
       }))
       .sort((a, b) => a.name.localeCompare(b.name))
 
-    // Create special blocks (loop and parallel) if they match search
+    // Create special blocks (loop, parallel, and while) if they match search
     const specialBlockItems: BlockItem[] = []
 
     if (!searchQuery.trim() || 'loop'.toLowerCase().includes(searchQuery.toLowerCase())) {
@@ -69,6 +70,14 @@ export function Toolbar({ userPermissions, isWorkspaceSelectorVisible = false }:
       specialBlockItems.push({
         name: 'Parallel',
         type: 'parallel',
+        isCustom: true,
+      })
+    }
+
+    if (!searchQuery.trim() || 'while'.toLowerCase().includes(searchQuery.toLowerCase())) {
+      specialBlockItems.push({
+        name: 'While',
+        type: 'while',
         isCustom: true,
       })
     }
@@ -128,13 +137,16 @@ export function Toolbar({ userPermissions, isWorkspaceSelectorVisible = false }:
             />
           ))}
 
-          {/* Special Blocks Section (Loop & Parallel) */}
+          {/* Special Blocks Section (Loop, Parallel, and While) */}
           {specialBlocks.map((block) => {
             if (block.type === 'loop') {
               return <LoopToolbarItem key={block.type} disabled={!userPermissions.canEdit} />
             }
             if (block.type === 'parallel') {
               return <ParallelToolbarItem key={block.type} disabled={!userPermissions.canEdit} />
+            }
+            if (block.type === 'while') {
+              return <WhileToolbarItem key={block.type} disabled={!userPermissions.canEdit} />
             }
             return null
           })}

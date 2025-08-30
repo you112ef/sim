@@ -79,7 +79,7 @@ export function ConnectionBlocks({
     const blockConfig = getBlock(connection.type)
     const displayName = connection.name // Use the actual block name instead of transforming it
 
-    // Handle special blocks that aren't in the registry (loop and parallel)
+    // Handle special blocks that aren't in the registry (loop, parallel, while)
     let Icon = blockConfig?.icon
     let bgColor = blockConfig?.bgColor || '#6B7280' // Fallback to gray
 
@@ -90,6 +90,9 @@ export function ConnectionBlocks({
       } else if (connection.type === 'parallel') {
         Icon = SplitIcon as typeof Icon
         bgColor = '#FEE12B' // Yellow color for parallel blocks
+      } else if (connection.type === 'while') {
+        Icon = RepeatIcon as typeof Icon
+        bgColor = '#FF9F43' // Orange color for while blocks
       }
     }
 

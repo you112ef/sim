@@ -330,6 +330,32 @@ export function hasWorkflowChanged(
     }
   }
 
+  // 6. Compare whiles
+
+  const currentWhiles = currentState.whiles || {}
+  const deployedWhiles = deployedState.whiles || {}
+
+  const currentWhileIds = Object.keys(currentWhiles).sort()
+  const deployedWhileIds = Object.keys(deployedWhiles).sort()
+
+  if (
+    currentWhileIds.length !== deployedWhileIds.length ||
+    normalizedStringify(currentWhileIds) !== normalizedStringify(deployedWhileIds)
+  ) {
+    return true
+  }
+
+  // Compare each while with normalized values
+  for (const whileId of currentWhileIds) {
+    const normalizedCurrentWhile = normalizeValue(currentWhiles[whileId])
+    const normalizedDeployedWhile = normalizeValue(deployedWhiles[whileId])
+
+    if (
+      normalizedStringify(normalizedCurrentWhile) !== normalizedStringify(normalizedDeployedWhile)
+    ) {
+      return true
+    }
+  }
   return false
 }
 

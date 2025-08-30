@@ -98,7 +98,7 @@ const WorkflowContent = React.memo(() => {
   useStreamCleanup(copilotCleanup)
 
   // Extract workflow data from the abstraction
-  const { blocks, edges, loops, parallels, isDiffMode } = currentWorkflow
+  const { blocks, edges, isDiffMode } = currentWorkflow
 
   // Get diff analysis for edge reconstruction
   const { diffAnalysis, isShowingDiff, isDiffReady } = useWorkflowDiffStore()
@@ -462,6 +462,8 @@ const WorkflowContent = React.memo(() => {
       sourceHandle = 'loop-end-source'
     } else if (block.type === 'parallel') {
       sourceHandle = 'parallel-end-source'
+    } else if (block.type === 'while') {
+      sourceHandle = 'while-end-source'
     }
 
     return sourceHandle
@@ -481,14 +483,19 @@ const WorkflowContent = React.memo(() => {
       if (type === 'connectionBlock') return
 
       // Special handling for container nodes (loop or parallel)
-      if (type === 'loop' || type === 'parallel') {
+      if (type === 'loop' || type === 'parallel' || type === 'while') {
         // Create a unique ID and name for the container
         const id = crypto.randomUUID()
 
         // Auto-number the blocks based on existing blocks of the same type
         const existingBlocksOfType = Object.values(blocks).filter((b) => b.type === type)
         const blockNumber = existingBlocksOfType.length + 1
-        const name = type === 'loop' ? `Loop ${blockNumber}` : `Parallel ${blockNumber}`
+        const name =
+          type === 'loop'
+            ? `Loop ${blockNumber}`
+            : type === 'parallel'
+              ? `Parallel ${blockNumber}`
+              : `While ${blockNumber}`
 
         // Calculate the center position of the viewport
         const centerPosition = project({
@@ -615,21 +622,30 @@ const WorkflowContent = React.memo(() => {
 
         // Clear any drag-over styling
         document
-          .querySelectorAll('.loop-node-drag-over, .parallel-node-drag-over')
+          .querySelectorAll('.loop-node-drag-over, .parallel-node-drag-over, .while-node-drag-over')
           .forEach((el) => {
-            el.classList.remove('loop-node-drag-over', 'parallel-node-drag-over')
+            el.classList.remove(
+              'loop-node-drag-over',
+              'parallel-node-drag-over',
+              'while-node-drag-over'
+            )
           })
         document.body.style.cursor = ''
 
         // Special handling for container nodes (loop or parallel)
-        if (data.type === 'loop' || data.type === 'parallel') {
+        if (data.type === 'loop' || data.type === 'parallel' || data.type === 'while') {
           // Create a unique ID and name for the container
           const id = crypto.randomUUID()
 
           // Auto-number the blocks based on existing blocks of the same type
           const existingBlocksOfType = Object.values(blocks).filter((b) => b.type === data.type)
           const blockNumber = existingBlocksOfType.length + 1
-          const name = data.type === 'loop' ? `Loop ${blockNumber}` : `Parallel ${blockNumber}`
+          const name =
+            data.type === 'loop'
+              ? `Loop ${blockNumber}`
+              : data.type === 'parallel'
+                ? `Parallel ${blockNumber}`
+                : `While ${blockNumber}`
 
           // Check if we're dropping inside another container
           if (containerInfo) {
@@ -691,7 +707,12 @@ const WorkflowContent = React.memo(() => {
         }
 
         const blockConfig = getBlock(data.type)
-        if (!blockConfig && data.type !== 'loop' && data.type !== 'parallel') {
+        if (
+          !blockConfig &&
+          data.type !== 'loop' &&
+          data.type !== 'parallel' &&
+          data.type !== 'while'
+        ) {
           logger.error('Invalid block type:', { data })
           return
         }
@@ -703,7 +724,9 @@ const WorkflowContent = React.memo(() => {
             ? `Loop ${Object.values(blocks).filter((b) => b.type === 'loop').length + 1}`
             : data.type === 'parallel'
               ? `Parallel ${Object.values(blocks).filter((b) => b.type === 'parallel').length + 1}`
-              : `${blockConfig!.name} ${Object.values(blocks).filter((b) => b.type === data.type).length + 1}`
+              : data.type === 'while'
+                ? `While ${Object.values(blocks).filter((b) => b.type === 'while').length + 1}`
+                : `${blockConfig!.name} ${Object.values(blocks).filter((b) => b.type === data.type).length + 1}`
 
         if (containerInfo) {
           // Calculate position relative to the container node
@@ -762,7 +785,9 @@ const WorkflowContent = React.memo(() => {
               const startSourceHandle =
                 (containerNode?.data as any)?.kind === 'loop'
                   ? 'loop-start-source'
-                  : 'parallel-start-source'
+                  : data.type === 'parallel'
+                    ? 'parallel-start-source'
+                    : 'while-start-source'
 
               addEdge({
                 id: crypto.randomUUID(),
@@ -833,9 +858,13 @@ const WorkflowContent = React.memo(() => {
 
         // Clear any previous highlighting
         document
-          .querySelectorAll('.loop-node-drag-over, .parallel-node-drag-over')
+          .querySelectorAll('.loop-node-drag-over, .parallel-node-drag-over, .while-node-drag-over')
           .forEach((el) => {
-            el.classList.remove('loop-node-drag-over', 'parallel-node-drag-over')
+            el.classList.remove(
+              'loop-node-drag-over',
+              'parallel-node-drag-over',
+              'while-node-drag-over'
+            )
           })
 
         // If hovering over a container node, highlight it
@@ -854,6 +883,11 @@ const WorkflowContent = React.memo(() => {
               (containerNode.data as any)?.kind === 'parallel'
             ) {
               containerElement.classList.add('parallel-node-drag-over')
+            } else if (
+              containerNode?.type === 'subflowNode' &&
+              (containerNode.data as any)?.kind === 'while'
+            ) {
+              containerElement.classList.add('while-node-drag-over')
             }
             document.body.style.cursor = 'copy'
           }
@@ -983,7 +1017,7 @@ const WorkflowContent = React.memo(() => {
       }
 
       // Handle container nodes differently
-      if (block.type === 'loop' || block.type === 'parallel') {
+      if (block.type === 'loop' || block.type === 'parallel' || block.type === 'while') {
         const hasNestedError = nestedSubflowErrors.has(block.id)
         nodeArray.push({
           id: block.id,
@@ -997,7 +1031,7 @@ const WorkflowContent = React.memo(() => {
             width: block.data?.width || 500,
             height: block.data?.height || 300,
             hasNestedError,
-            kind: block.type === 'loop' ? 'loop' : 'parallel',
+            kind: block.type === 'loop' ? 'loop' : block.type === 'parallel' ? 'parallel' : 'while',
           },
         })
         return
@@ -1144,7 +1178,8 @@ const WorkflowContent = React.memo(() => {
         const sourceParentId =
           sourceNode.parentId ||
           (connection.sourceHandle === 'loop-start-source' ||
-          connection.sourceHandle === 'parallel-start-source'
+          connection.sourceHandle === 'parallel-start-source' ||
+          connection.sourceHandle === 'while-start-source'
             ? connection.source
             : undefined)
         const targetParentId = targetNode.parentId
@@ -1155,7 +1190,8 @@ const WorkflowContent = React.memo(() => {
         // Special case for container start source: Always allow connections to nodes within the same container
         if (
           (connection.sourceHandle === 'loop-start-source' ||
-            connection.sourceHandle === 'parallel-start-source') &&
+            connection.sourceHandle === 'parallel-start-source' ||
+            connection.sourceHandle === 'while-start-source') &&
           targetNode.parentId === sourceNode.id
         ) {
           // This is a connection from container start to a node inside the container - always allow
@@ -1222,7 +1258,11 @@ const WorkflowContent = React.memo(() => {
         if (potentialParentId) {
           const prevElement = document.querySelector(`[data-id="${potentialParentId}"]`)
           if (prevElement) {
-            prevElement.classList.remove('loop-node-drag-over', 'parallel-node-drag-over')
+            prevElement.classList.remove(
+              'loop-node-drag-over',
+              'parallel-node-drag-over',
+              'while-node-drag-over'
+            )
           }
           setPotentialParentId(null)
           document.body.style.cursor = ''
@@ -1342,6 +1382,11 @@ const WorkflowContent = React.memo(() => {
             (bestContainerMatch.container.data as any)?.kind === 'parallel'
           ) {
             containerElement.classList.add('parallel-node-drag-over')
+          } else if (
+            bestContainerMatch.container.type === 'subflowNode' &&
+            (bestContainerMatch.container.data as any)?.kind === 'while'
+          ) {
+            containerElement.classList.add('while-node-drag-over')
           }
           document.body.style.cursor = 'copy'
         }
@@ -1350,7 +1395,11 @@ const WorkflowContent = React.memo(() => {
         if (potentialParentId) {
           const prevElement = document.querySelector(`[data-id="${potentialParentId}"]`)
           if (prevElement) {
-            prevElement.classList.remove('loop-node-drag-over', 'parallel-node-drag-over')
+            prevElement.classList.remove(
+              'loop-node-drag-over',
+              'parallel-node-drag-over',
+              'while-node-drag-over'
+            )
           }
           setPotentialParentId(null)
           document.body.style.cursor = ''
@@ -1382,9 +1431,15 @@ const WorkflowContent = React.memo(() => {
   const onNodeDragStop = useCallback(
     (_event: React.MouseEvent, node: any) => {
       // Clear UI effects
-      document.querySelectorAll('.loop-node-drag-over, .parallel-node-drag-over').forEach((el) => {
-        el.classList.remove('loop-node-drag-over', 'parallel-node-drag-over')
-      })
+      document
+        .querySelectorAll('.loop-node-drag-over, .parallel-node-drag-over, .while-node-drag-over')
+        .forEach((el) => {
+          el.classList.remove(
+            'loop-node-drag-over',
+            'parallel-node-drag-over',
+            'while-node-drag-over'
+          )
+        })
       document.body.style.cursor = ''
 
       // Emit collaborative position update for the final position
@@ -1477,7 +1532,9 @@ const WorkflowContent = React.memo(() => {
             const startSourceHandle =
               (containerNode?.data as any)?.kind === 'loop'
                 ? 'loop-start-source'
-                : 'parallel-start-source'
+                : (containerNode?.data as any)?.kind === 'parallel'
+                  ? 'parallel-start-source'
+                  : 'while-start-source'
 
             addEdge({
               id: crypto.randomUUID(),

@@ -153,6 +153,7 @@ describe('Webhook Trigger API Route', () => {
         edges: [],
         loops: {},
         parallels: {},
+        whiles: {},
         isFromNormalizedTables: true,
       }),
     }))

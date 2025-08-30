@@ -23,6 +23,7 @@ describe('Scheduled Workflow Execution API Route', () => {
         edges: sampleWorkflowState.edges || [],
         loops: sampleWorkflowState.loops || {},
         parallels: {},
+        whiles: {},
         isFromNormalizedTables: true,
       }),
     }))

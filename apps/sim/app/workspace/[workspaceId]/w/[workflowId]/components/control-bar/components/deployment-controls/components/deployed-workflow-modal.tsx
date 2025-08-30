@@ -46,6 +46,7 @@ export function DeployedWorkflowModal({
     edges: state.edges,
     loops: state.loops,
     parallels: state.parallels,
+    whiles: state.whiles,
   }))
 
   const handleRevert = () => {

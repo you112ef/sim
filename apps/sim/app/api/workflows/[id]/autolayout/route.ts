@@ -11,7 +11,11 @@ import type { BlockConfig } from '@/blocks/types'
 import { resolveOutputType } from '@/blocks/utils'
 import { db } from '@/db'
 import { workflow as workflowTable } from '@/db/schema'
-import { generateLoopBlocks, generateParallelBlocks } from '@/stores/workflows/workflow/utils'
+import {
+  generateLoopBlocks,
+  generateParallelBlocks,
+  generateWhileBlocks,
+} from '@/stores/workflows/workflow/utils'
 
 export const dynamic = 'force-dynamic'
 
@@ -125,6 +129,7 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
       edges: currentWorkflowData.edges,
       loops: currentWorkflowData.loops || {},
       parallels: currentWorkflowData.parallels || {},
+      whiles: currentWorkflowData.whiles || {},
     }
 
     const autoLayoutOptions = {
@@ -166,6 +171,7 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
         utilities: {
           generateLoopBlocks: generateLoopBlocks.toString(),
           generateParallelBlocks: generateParallelBlocks.toString(),
+          generateWhileBlocks: generateWhileBlocks.toString(),
           resolveOutputType: resolveOutputType.toString(),
         },
       },

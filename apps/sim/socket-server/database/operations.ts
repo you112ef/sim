@@ -61,6 +61,7 @@ async function insertAutoConnectEdge(
 enum SubflowType {
   LOOP = 'loop',
   PARALLEL = 'parallel',
+  WHILE = 'while',
 }
 
 // Helper function to check if a block type is a subflow type
@@ -134,6 +135,7 @@ export async function getWorkflowState(workflowId: string) {
         edges: normalizedData.edges,
         loops: normalizedData.loops,
         parallels: normalizedData.parallels,
+        whiles: normalizedData.whiles,
         lastSaved: Date.now(),
         isDeployed: workflowData[0].isDeployed || false,
         deployedAt: workflowData[0].deployedAt,
@@ -280,7 +282,7 @@ async function handleBlockOperationTx(
         throw insertError
       }
 
-      // Auto-create subflow entry for loop/parallel blocks
+      // Auto-create subflow entry for loop/parallel/while blocks
       if (isSubflowBlockType(payload.type)) {
         try {
           const subflowConfig =
@@ -672,7 +674,7 @@ async function handleBlockOperationTx(
         throw insertError
       }
 
-      // Auto-create subflow entry for loop/parallel blocks
+      // Auto-create subflow entry for loop/parallel/while blocks
       if (isSubflowBlockType(payload.type)) {
         try {
           const subflowConfig =
@@ -832,7 +834,7 @@ async function handleSubflowOperationTx(
             updatedAt: new Date(),
           })
           .where(and(eq(workflowBlocks.id, payload.id), eq(workflowBlocks.workflowId, workflowId)))
-      } else if (payload.type === 'parallel') {
+      } else if (payload.type === 'parallel' || payload.type === 'while') {
         // Update the parallel block's data properties
         const blockData = {
           ...payload.config,

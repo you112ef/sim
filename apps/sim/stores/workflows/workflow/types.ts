@@ -5,7 +5,15 @@ import type { DeploymentStatus } from '@/stores/workflows/registry/types'
 export const SUBFLOW_TYPES = {
   LOOP: 'loop',
   PARALLEL: 'parallel',
+  WHILE: 'while',
 } as const
+
+export const WHILE_TYPES = {
+  WHILE: 'while',
+  DO_WHILE: 'doWhile',
+} as const
+
+export type WhileType = (typeof WHILE_TYPES)[keyof typeof WHILE_TYPES]
 
 export type SubflowType = (typeof SUBFLOW_TYPES)[keyof typeof SUBFLOW_TYPES]
 
@@ -26,12 +34,18 @@ export interface ParallelConfig {
   parallelType?: 'count' | 'collection'
 }
 
+export interface WhileConfig {
+  nodes: string[]
+  iterations: number
+  whileType: WhileType
+}
+
 // Generic subflow interface
 export interface Subflow {
   id: string
   workflowId: string
   type: SubflowType
-  config: LoopConfig | ParallelConfig
+  config: LoopConfig | ParallelConfig | WhileConfig
   createdAt: Date
   updatedAt: Date
 }
@@ -57,6 +71,9 @@ export interface BlockData {
 
   // Parallel-specific properties
   parallelType?: 'collection' | 'count' // Type of parallel execution
+
+  // While-specific properties
+  whileType?: WhileType
 
   // Container node type (for ReactFlow node type determination)
   type?: string
@@ -112,6 +129,13 @@ export interface ParallelBlock {
   }
 }
 
+export interface While {
+  id: string
+  nodes: string[]
+  iterations: number
+  whileType: WhileType
+}
+
 export interface Loop {
   id: string
   nodes: string[]
@@ -134,6 +158,7 @@ export interface WorkflowState {
   lastSaved?: number
   loops: Record<string, Loop>
   parallels: Record<string, Parallel>
+  whiles: Record<string, While>
   lastUpdate?: number
   // Legacy deployment fields (keeping for compatibility)
   isDeployed?: boolean
@@ -196,8 +221,10 @@ export interface WorkflowActions {
   updateParallelCount: (parallelId: string, count: number) => void
   updateParallelCollection: (parallelId: string, collection: string) => void
   updateParallelType: (parallelId: string, parallelType: 'count' | 'collection') => void
+  updateWhileType: (whileId: string, whileType: WhileType) => void
   generateLoopBlocks: () => Record<string, Loop>
   generateParallelBlocks: () => Record<string, Parallel>
+  generateWhileBlocks: () => Record<string, While>
   setNeedsRedeploymentFlag: (needsRedeployment: boolean) => void
   setWebhookStatus: (hasActiveWebhook: boolean) => void
   revertToDeployedState: (deployedState: WorkflowState) => void

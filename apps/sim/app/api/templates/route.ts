@@ -68,6 +68,7 @@ const CreateTemplateSchema = z.object({
     edges: z.array(z.any()),
     loops: z.record(z.any()),
     parallels: z.record(z.any()),
+    whiles: z.record(z.any()),
   }),
 })
 

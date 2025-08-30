@@ -126,6 +126,7 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
         edgesCount: normalizedData.edges.length,
         loopsCount: Object.keys(normalizedData.loops).length,
         parallelsCount: Object.keys(normalizedData.parallels).length,
+        whilesCount: Object.keys(normalizedData.whiles).length,
         loops: normalizedData.loops,
       })
 
@@ -141,6 +142,7 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
           edges: normalizedData.edges,
           loops: normalizedData.loops,
           parallels: normalizedData.parallels,
+          whiles: normalizedData.whiles,
           lastSaved: Date.now(),
           isDeployed: workflowData.isDeployed || false,
           deployedAt: workflowData.deployedAt,

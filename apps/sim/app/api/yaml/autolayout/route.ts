@@ -9,10 +9,12 @@ import { resolveOutputType } from '@/blocks/utils'
 import {
   convertLoopBlockToLoop,
   convertParallelBlockToParallel,
+  convertWhileBlockToWhile,
   findAllDescendantNodes,
   findChildNodes,
   generateLoopBlocks,
   generateParallelBlocks,
+  generateWhileBlocks,
 } from '@/stores/workflows/workflow/utils'
 
 const logger = createLogger('YamlAutoLayoutAPI')
@@ -26,6 +28,7 @@ const AutoLayoutRequestSchema = z.object({
     edges: z.array(z.any()),
     loops: z.record(z.any()).optional().default({}),
     parallels: z.record(z.any()).optional().default({}),
+    whiles: z.record(z.any()).optional().default({}),
   }),
   options: z
     .object({
@@ -36,10 +39,17 @@ const AutoLayoutRequestSchema = z.object({
           horizontal: z.number().optional(),
           vertical: z.number().optional(),
           layer: z.number().optional(),
+          while: z.number().optional(),
         })
         .optional(),
       alignment: z.enum(['start', 'center', 'end']).optional(),
       padding: z
+        .object({
+          x: z.number().optional(),
+          y: z.number().optional(),
+        })
+        .optional(),
+      while: z
         .object({
           x: z.number().optional(),
           y: z.number().optional(),
@@ -133,8 +143,10 @@ export async function POST(request: NextRequest) {
           resolveOutputType: resolveOutputType.toString(),
           convertLoopBlockToLoop: convertLoopBlockToLoop.toString(),
           convertParallelBlockToParallel: convertParallelBlockToParallel.toString(),
+          convertWhileBlockToWhile: convertWhileBlockToWhile.toString(),
           findChildNodes: findChildNodes.toString(),
           findAllDescendantNodes: findAllDescendantNodes.toString(),
+          generateWhileBlocks: generateWhileBlocks.toString(),
         },
       }),
     })
@@ -192,6 +204,7 @@ export async function POST(request: NextRequest) {
         edges: workflowState.edges || [],
         loops: workflowState.loops || {},
         parallels: workflowState.parallels || {},
+        whiles: workflowState.whiles || {},
       },
       errors: result.errors,
     }

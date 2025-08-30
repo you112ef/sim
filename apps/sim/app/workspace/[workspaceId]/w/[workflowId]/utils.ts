@@ -15,7 +15,8 @@ const isContainerType = (blockType: string): boolean => {
     blockType === 'parallel' ||
     blockType === 'loopNode' ||
     blockType === 'parallelNode' ||
-    blockType === 'subflowNode'
+    blockType === 'subflowNode' ||
+    blockType === 'while'
   )
 }
 
@@ -302,7 +303,7 @@ export const calculateRelativePosition = (
  * @param getNodes Function to retrieve all nodes from ReactFlow
  * @param updateBlockPosition Function to update the position of a block
  * @param updateParentId Function to update the parent ID of a block
- * @param resizeLoopNodes Function to resize loop nodes after parent update
+ * @param resizeLoopNodes Function to resize loop or parallel or while nodes after parent update
  */
 export const updateNodeParent = (
   nodeId: string,
@@ -336,7 +337,7 @@ export const updateNodeParent = (
 }
 
 /**
- * Checks if a point is inside a loop or parallel node
+ * Checks if a point is inside a loop or parallel or while node
  * @param position Position coordinates to check
  * @param getNodes Function to retrieve all nodes from ReactFlow
  * @returns The smallest container node containing the point, or null if none
@@ -390,7 +391,7 @@ export const isPointInLoopNode = (
 }
 
 /**
- * Calculates appropriate dimensions for a loop or parallel node based on its children
+ * Calculates appropriate dimensions for a loop or parallel or while node based on its children
  * @param nodeId ID of the container node
  * @param getNodes Function to retrieve all nodes from ReactFlow
  * @param blocks Block states from workflow store

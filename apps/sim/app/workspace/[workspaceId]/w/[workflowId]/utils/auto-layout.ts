@@ -47,6 +47,7 @@ export async function applyAutoLayoutToWorkflow(
   edges: any[],
   loops: Record<string, any> = {},
   parallels: Record<string, any> = {},
+  whiles: Record<string, any> = {},
   options: AutoLayoutOptions = {}
 ): Promise<{
   success: boolean
@@ -152,7 +153,7 @@ export async function applyAutoLayoutAndUpdateStore(
     const { useWorkflowStore } = await import('@/stores/workflows/workflow/store')
 
     const workflowStore = useWorkflowStore.getState()
-    const { blocks, edges, loops = {}, parallels = {} } = workflowStore
+    const { blocks, edges, loops = {}, parallels = {}, whiles = {} } = workflowStore
 
     logger.info('Auto layout store data:', {
       workflowId,
@@ -160,6 +161,7 @@ export async function applyAutoLayoutAndUpdateStore(
       edgeCount: edges.length,
       loopCount: Object.keys(loops).length,
       parallelCount: Object.keys(parallels).length,
+      whileCount: Object.keys(whiles).length,
     })
 
     if (Object.keys(blocks).length === 0) {
@@ -174,6 +176,7 @@ export async function applyAutoLayoutAndUpdateStore(
       edges,
       loops,
       parallels,
+      whiles,
       options
     )
 
@@ -265,5 +268,5 @@ export async function applyAutoLayoutToBlocks(
   layoutedBlocks?: Record<string, any>
   error?: string
 }> {
-  return applyAutoLayoutToWorkflow('preview', blocks, edges, {}, {}, options)
+  return applyAutoLayoutToWorkflow('preview', blocks, edges, {}, {}, {}, options)
 }

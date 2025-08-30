@@ -24,6 +24,7 @@ const BlockDataSchema = z.object({
   count: z.number().optional(),
   loopType: z.enum(['for', 'forEach']).optional(),
   parallelType: z.enum(['collection', 'count']).optional(),
+  whileType: z.enum(['while', 'doWhile']).optional(),
   type: z.string().optional(),
 })
 
@@ -87,6 +88,13 @@ const ParallelSchema = z.object({
   parallelType: z.enum(['count', 'collection']).optional(),
 })
 
+const WhileSchema = z.object({
+  id: z.string(),
+  nodes: z.array(z.string()),
+  iterations: z.number(),
+  whileType: z.enum(['while', 'doWhile']),
+})
+
 const DeploymentStatusSchema = z.object({
   id: z.string(),
   status: z.enum(['deploying', 'deployed', 'failed', 'stopping', 'stopped']),
@@ -99,6 +107,7 @@ const WorkflowStateSchema = z.object({
   edges: z.array(EdgeSchema),
   loops: z.record(LoopSchema).optional(),
   parallels: z.record(ParallelSchema).optional(),
+  whiles: z.record(WhileSchema).optional(),
   lastSaved: z.number().optional(),
   isDeployed: z.boolean().optional(),
   deployedAt: z.date().optional(),
@@ -197,6 +206,7 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
       edges: state.edges,
       loops: state.loops || {},
       parallels: state.parallels || {},
+      whiles: state.whiles || {},
       lastSaved: state.lastSaved || Date.now(),
       isDeployed: state.isDeployed || false,
       deployedAt: state.deployedAt,
@@ -231,6 +241,9 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
         success: true,
         blocksCount: Object.keys(filteredBlocks).length,
         edgesCount: state.edges.length,
+        loopsCount: Object.keys(state.loops || {}).length,
+        parallelsCount: Object.keys(state.parallels || {}).length,
+        whilesCount: Object.keys(state.whiles || {}).length,
       },
       { status: 200 }
     )

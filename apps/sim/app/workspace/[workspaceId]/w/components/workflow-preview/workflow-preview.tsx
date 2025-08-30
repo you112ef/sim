@@ -83,6 +83,14 @@ export function WorkflowPreview({
     }
   }, [workflowState.parallels, isValidWorkflowState])
 
+  const whilesStructure = useMemo(() => {
+    if (!isValidWorkflowState) return { count: 0, ids: '' }
+    return {
+      count: Object.keys(workflowState.whiles || {}).length,
+      ids: Object.keys(workflowState.whiles || {}).join(','),
+    }
+  }, [workflowState.whiles, isValidWorkflowState])
+
   const edgesStructure = useMemo(() => {
     if (!isValidWorkflowState) return { count: 0, ids: '' }
     return {
@@ -166,6 +174,26 @@ export function WorkflowPreview({
         return
       }
 
+      if (block.type === 'while') {
+        nodeArray.push({
+          id: block.id,
+          type: 'subflowNode',
+          position: absolutePosition,
+          parentId: block.data?.parentId,
+          extent: block.data?.extent || undefined,
+          draggable: false,
+          data: {
+            ...block.data,
+            width: block.data?.width || 500,
+            height: block.data?.height || 300,
+            state: 'valid',
+            isPreview: true,
+            kind: 'while',
+          },
+        })
+        return
+      }
+
       const blockConfig = getBlock(block.type)
       if (!blockConfig) {
         logger.error(`No configuration found for block type: ${block.type}`, { blockId })
@@ -229,6 +257,7 @@ export function WorkflowPreview({
     blocksStructure,
     loopsStructure,
     parallelsStructure,
+    whilesStructure,
     showSubBlocks,
     workflowState.blocks,
     isValidWorkflowState,

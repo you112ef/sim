@@ -115,13 +115,14 @@ async function executeWorkflow(workflow: any, requestId: string, input?: any): P
     const deployedData = await loadDeployedWorkflowState(workflowId)
 
     // Use deployed data as primary source for API executions
-    const { blocks, edges, loops, parallels } = deployedData
+    const { blocks, edges, loops, parallels, whiles } = deployedData
     logger.info(`[${requestId}] Using deployed state for workflow execution: ${workflowId}`)
     logger.debug(`[${requestId}] Deployed data loaded:`, {
       blocksCount: Object.keys(blocks || {}).length,
       edgesCount: (edges || []).length,
       loopsCount: Object.keys(loops || {}).length,
       parallelsCount: Object.keys(parallels || {}).length,
+      whilesCount: Object.keys(whiles || {}).length,
     })
 
     // Use the same execution flow as in scheduled executions
@@ -275,6 +276,7 @@ async function executeWorkflow(workflow: any, requestId: string, input?: any): P
       edges,
       loops,
       parallels,
+      whiles,
       true // Enable validation during execution
     )
 

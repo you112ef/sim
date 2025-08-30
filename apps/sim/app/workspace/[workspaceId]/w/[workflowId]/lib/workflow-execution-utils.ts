@@ -104,6 +104,7 @@ export async function executeWorkflowWithLogging(
     edges: workflowEdges,
     loops: workflowLoops,
     parallels: workflowParallels,
+    whiles: workflowWhiles,
   } = currentWorkflow
 
   // Filter out blocks without type (these are layout-only blocks)
@@ -201,7 +202,8 @@ export async function executeWorkflowWithLogging(
     filteredStates,
     filteredEdges,
     workflowLoops,
-    workflowParallels
+    workflowParallels,
+    workflowWhiles
   )
 
   // If this is a chat execution, get the selected outputs

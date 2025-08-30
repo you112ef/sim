@@ -16,7 +16,11 @@ import type { BlockConfig } from '@/blocks/types'
 import { resolveOutputType } from '@/blocks/utils'
 import { db } from '@/db'
 import { workflowCheckpoints, workflow as workflowTable } from '@/db/schema'
-import { generateLoopBlocks, generateParallelBlocks } from '@/stores/workflows/workflow/utils'
+import {
+  generateLoopBlocks,
+  generateParallelBlocks,
+  generateWhileBlocks,
+} from '@/stores/workflows/workflow/utils'
 
 const SIM_AGENT_API_URL = env.SIM_AGENT_API_URL || SIM_AGENT_API_URL_DEFAULT
 
@@ -80,6 +84,7 @@ async function createWorkflowCheckpoint(
             generateLoopBlocks: generateLoopBlocks.toString(),
             generateParallelBlocks: generateParallelBlocks.toString(),
             resolveOutputType: resolveOutputType.toString(),
+            generateWhileBlocks: generateWhileBlocks.toString(),
           },
         }),
       })
@@ -293,6 +298,7 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
           generateLoopBlocks: generateLoopBlocks.toString(),
           generateParallelBlocks: generateParallelBlocks.toString(),
           resolveOutputType: resolveOutputType.toString(),
+          generateWhileBlocks: generateWhileBlocks.toString(),
         },
         options: {
           generateNewIds: false, // We'll handle ID generation manually for now
@@ -373,6 +379,7 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
       edges: [] as any[],
       loops: {} as Record<string, any>,
       parallels: {} as Record<string, any>,
+      whiles: {} as Record<string, any>,
       lastSaved: Date.now(),
       isDeployed: false,
       deployedAt: undefined,
@@ -391,7 +398,10 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
       // Get block configuration for proper setup
       const blockConfig = getBlock(block.type)
 
-      if (!blockConfig && (block.type === 'loop' || block.type === 'parallel')) {
+      if (
+        !blockConfig &&
+        (block.type === 'loop' || block.type === 'parallel' || block.type === 'while')
+      ) {
         // Handle loop/parallel blocks (they don't have regular block configs)
         // Preserve parentId if it exists (though loop/parallel shouldn't have parents)
         const containerData = block.data || {}
@@ -414,7 +424,7 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
           height: 0,
           data: containerData,
         }
-        logger.debug(`[${requestId}] Processed loop/parallel block: ${block.id} -> ${newId}`)
+        logger.debug(`[${requestId}] Processed loop/parallel/while block: ${block.id} -> ${newId}`)
       } else if (blockConfig) {
         // Handle regular blocks with proper configuration
         const subBlocks: Record<string, any> = {}
@@ -545,14 +555,17 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
     // Generate loop and parallel configurations
     const loops = generateLoopBlocks(newWorkflowState.blocks)
     const parallels = generateParallelBlocks(newWorkflowState.blocks)
+    const whiles = generateWhileBlocks(newWorkflowState.blocks)
     newWorkflowState.loops = loops
     newWorkflowState.parallels = parallels
+    newWorkflowState.whiles = whiles
 
     logger.info(`[${requestId}] Generated workflow state`, {
       blocksCount: Object.keys(newWorkflowState.blocks).length,
       edgesCount: newWorkflowState.edges.length,
       loopsCount: Object.keys(loops).length,
       parallelsCount: Object.keys(parallels).length,
+      whilesCount: Object.keys(whiles).length,
     })
 
     // Apply intelligent autolayout if requested
@@ -566,6 +579,7 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
           edges: newWorkflowState.edges,
           loops: newWorkflowState.loops || {},
           parallels: newWorkflowState.parallels || {},
+          whiles: newWorkflowState.whiles || {},
         }
 
         const autoLayoutOptions = {
@@ -608,6 +622,7 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
               generateLoopBlocks: generateLoopBlocks.toString(),
               generateParallelBlocks: generateParallelBlocks.toString(),
               resolveOutputType: resolveOutputType.toString(),
+              generateWhileBlocks: generateWhileBlocks.toString(),
             },
           },
         })
@@ -685,6 +700,7 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
         edgesCount: newWorkflowState.edges.length,
         loopsCount: Object.keys(loops).length,
         parallelsCount: Object.keys(parallels).length,
+        whilesCount: Object.keys(whiles).length,
       },
       errors: [],
       warnings,

@@ -38,7 +38,7 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
       const blocksMap: Record<string, any> = {}
       const loops: Record<string, any> = {}
       const parallels: Record<string, any> = {}
-
+      const whiles: Record<string, any> = {}
       // Process blocks
       blocks.forEach((block) => {
         blocksMap[block.id] = {
@@ -71,6 +71,13 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
             distribution: config.distribution || '',
             parallelType: config.parallelType || 'count',
           }
+        } else if (subflow.type === 'while') {
+          whiles[subflow.id] = {
+            id: subflow.id,
+            nodes: config.nodes || [],
+            iterations: config.iterations || 1,
+            whileType: config.whileType || 'while',
+          }
         }
       })
 
@@ -90,6 +97,7 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
         edges: edgesArray,
         loops,
         parallels,
+        whiles,
         lastSaved: Date.now(),
       }
 

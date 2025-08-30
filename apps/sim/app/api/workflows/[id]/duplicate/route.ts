@@ -7,7 +7,7 @@ import { createLogger } from '@/lib/logs/console/logger'
 import { getUserEntityPermissions } from '@/lib/permissions/utils'
 import { db } from '@/db'
 import { workflow, workflowBlocks, workflowEdges, workflowSubflows } from '@/db/schema'
-import type { LoopConfig, ParallelConfig } from '@/stores/workflows/workflow/types'
+import type { LoopConfig, ParallelConfig, WhileConfig } from '@/stores/workflows/workflow/types'
 
 const logger = createLogger('WorkflowDuplicateAPI')
 
@@ -209,16 +209,16 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
             })
 
             // Update block references in subflow config
-            let updatedConfig: LoopConfig | ParallelConfig = subflow.config as
+            let updatedConfig: LoopConfig | ParallelConfig | WhileConfig = subflow.config as
               | LoopConfig
               | ParallelConfig
+              | WhileConfig
             if (subflow.config && typeof subflow.config === 'object') {
               updatedConfig = JSON.parse(JSON.stringify(subflow.config)) as
                 | LoopConfig
                 | ParallelConfig
-
+                | WhileConfig
               // Update the config ID to match the new subflow ID
-
               ;(updatedConfig as any).id = newSubflowId
 
               // Update node references in config if they exist

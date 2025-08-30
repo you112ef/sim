@@ -562,8 +562,8 @@ export function useCollaborativeWorkflow() {
 
       const blockConfig = getBlock(type)
 
-      // Handle loop/parallel blocks that don't use BlockConfig
-      if (!blockConfig && (type === 'loop' || type === 'parallel')) {
+      // Handle loop/parallel/while blocks that don't use BlockConfig
+      if (!blockConfig && (type === 'loop' || type === 'parallel' || type === 'while')) {
         // For loop/parallel blocks, use empty subBlocks and outputs
         const completeBlockData = {
           id,
@@ -1129,6 +1129,16 @@ export function useCollaborativeWorkflow() {
     [executeQueuedOperation, workflowStore]
   )
 
+  // UI-only while type toggle (no server op yet)
+  const collaborativeUpdateWhileType = useCallback(
+    (whileId: string, whileType: 'while' | 'doWhile') => {
+      const currentBlock = workflowStore.blocks[whileId]
+      if (!currentBlock || currentBlock.type !== 'while') return
+      workflowStore.updateWhileType(whileId, whileType)
+    },
+    [workflowStore]
+  )
+
   // Unified iteration management functions - count and collection only
   const collaborativeUpdateIterationCount = useCallback(
     (nodeId: string, iterationType: 'loop' | 'parallel', count: number) => {
@@ -1321,6 +1331,7 @@ export function useCollaborativeWorkflow() {
     // Collaborative loop/parallel operations
     collaborativeUpdateLoopType,
     collaborativeUpdateParallelType,
+    collaborativeUpdateWhileType,
 
     // Unified iteration operations
     collaborativeUpdateIterationCount,

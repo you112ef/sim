@@ -12,6 +12,7 @@ export interface NormalizedWorkflowData {
   edges: any[]
   loops: Record<string, any>
   parallels: Record<string, any>
+  whiles: Record<string, any>
   isFromNormalizedTables: boolean // Flag to indicate source (true = normalized tables, false = deployed state)
 }
 
@@ -49,6 +50,7 @@ export async function loadDeployedWorkflowState(
       edges: deployedState.edges || [],
       loops: deployedState.loops || {},
       parallels: deployedState.parallels || {},
+      whiles: deployedState.whiles || {},
       isFromNormalizedTables: false, // Flag to indicate this came from deployed state
     }
   } catch (error) {
@@ -126,6 +128,7 @@ export async function loadWorkflowFromNormalizedTables(
     // Convert subflows to loops and parallels
     const loops: Record<string, any> = {}
     const parallels: Record<string, any> = {}
+    const whiles: Record<string, any> = {}
 
     subflows.forEach((subflow) => {
       const config = subflow.config || {}
@@ -140,6 +143,11 @@ export async function loadWorkflowFromNormalizedTables(
           id: subflow.id,
           ...config,
         }
+      } else if (subflow.type === SUBFLOW_TYPES.WHILE) {
+        whiles[subflow.id] = {
+          id: subflow.id,
+          ...config,
+        }
       } else {
         logger.warn(`Unknown subflow type: ${subflow.type} for subflow ${subflow.id}`)
       }
@@ -150,6 +158,7 @@ export async function loadWorkflowFromNormalizedTables(
       edges: edgesArray,
       loops,
       parallels,
+      whiles,
       isFromNormalizedTables: true,
     }
   } catch (error) {
@@ -238,6 +247,15 @@ export async function saveWorkflowToNormalizedTables(
         })
       })
 
+      Object.values(state.whiles || {}).forEach((whileSubflow) => {
+        subflowInserts.push({
+          id: whileSubflow.id,
+          workflowId: workflowId,
+          type: SUBFLOW_TYPES.WHILE,
+          config: whileSubflow,
+        })
+      })
+
       if (subflowInserts.length > 0) {
         await tx.insert(workflowSubflows).values(subflowInserts)
       }
@@ -251,6 +269,7 @@ export async function saveWorkflowToNormalizedTables(
       edges: state.edges,
       loops: state.loops || {},
       parallels: state.parallels || {},
+      whiles: state.whiles || {},
       lastSaved: Date.now(),
       isDeployed: state.isDeployed,
       deployedAt: state.deployedAt,
@@ -303,6 +322,7 @@ export async function migrateWorkflowToNormalizedTables(
       edges: jsonState.edges || [],
       loops: jsonState.loops || {},
       parallels: jsonState.parallels || {},
+      whiles: jsonState.whiles || {},
       lastSaved: jsonState.lastSaved,
       isDeployed: jsonState.isDeployed,
       deployedAt: jsonState.deployedAt,
