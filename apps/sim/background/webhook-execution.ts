@@ -100,6 +100,9 @@ export async function executeWebhookJob(payload: WebhookExecutionPayload) {
       workspaceId: '', // TODO: Get from workflow if needed
       variables: decryptedEnvVars,
       initialInput: payload.body || {},
+      triggerData: { provider: payload.provider, blockId: payload.blockId },
+      startBlockId: payload.blockId,
+      executionType: 'webhook',
     })
 
     // Merge subblock states (matching workflow-execution pattern)

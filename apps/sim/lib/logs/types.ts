@@ -111,6 +111,11 @@ export interface WorkflowExecutionLog {
     }
     // Newly added: persist the original triggering input (starter/chat/api/webhook)
     initialInput?: Record<string, unknown>
+    // Newly added: where execution began and type metadata
+    startedFromBlockId?: string
+    executionType?: 'api' | 'webhook' | 'schedule' | 'manual' | 'chat'
+    // Optional precomputed block execution summaries
+    blockExecutions?: any[]
   }
   // Top-level cost information
   cost?: {

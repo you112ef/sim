@@ -400,6 +400,8 @@ export async function GET() {
                 workspaceId: workflowRecord.workspaceId || '',
                 variables: variables || {},
                 initialInput: input,
+                startBlockId: schedule.blockId || undefined,
+                executionType: 'schedule',
               })
 
               const executor = new Executor({
@@ -479,6 +481,8 @@ export async function GET() {
                   workspaceId: workflowRecord.workspaceId || '',
                   variables: {},
                   initialInput: input,
+                  startBlockId: schedule.blockId || undefined,
+                  executionType: 'schedule',
                 })
 
                 await loggingSession.safeCompleteWithError({

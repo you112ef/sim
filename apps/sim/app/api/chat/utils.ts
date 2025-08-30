@@ -544,6 +544,7 @@ export async function executeWorkflowForChat(
     workspaceId: '', // TODO: Get from workflow
     variables: workflowVariables,
     initialInput: { input, conversationId },
+    executionType: 'chat',
   })
 
   const stream = new ReadableStream({

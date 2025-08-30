@@ -22,6 +22,8 @@ export interface SessionStartParams {
   variables?: Record<string, string>
   triggerData?: Record<string, unknown>
   initialInput?: Record<string, unknown>
+  startBlockId?: string
+  executionType?: 'api' | 'webhook' | 'schedule' | 'manual' | 'chat'
 }
 
 export interface SessionCompleteParams {
@@ -62,7 +64,7 @@ export class LoggingSession {
   }
 
   async start(params: SessionStartParams = {}): Promise<void> {
-    const { userId, workspaceId, variables, triggerData, initialInput } = params
+    const { userId, workspaceId, variables, triggerData, initialInput, startBlockId, executionType } = params
 
     try {
       this.trigger = createTriggerObject(this.triggerType, triggerData)
@@ -82,6 +84,8 @@ export class LoggingSession {
         environment: this.environment,
         workflowState: this.workflowState,
         initialInput,
+        startedFromBlockId: startBlockId,
+        executionType: executionType || this.triggerType,
       })
 
       if (this.requestId) {

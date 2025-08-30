@@ -37,11 +37,13 @@ export class ExecutionLogger implements IExecutionLoggerService {
     environment: ExecutionEnvironment
     workflowState: WorkflowState
     initialInput?: Record<string, unknown>
+    startedFromBlockId?: string
+    executionType?: 'api' | 'webhook' | 'schedule' | 'manual' | 'chat'
   }): Promise<{
     workflowLog: WorkflowExecutionLog
     snapshot: WorkflowExecutionSnapshot
   }> {
-    const { workflowId, executionId, trigger, environment, workflowState, initialInput } = params
+    const { workflowId, executionId, trigger, environment, workflowState, initialInput, startedFromBlockId, executionType } = params
 
     logger.debug(`Starting workflow execution ${executionId} for workflow ${workflowId}`)
 
@@ -68,6 +70,8 @@ export class ExecutionLogger implements IExecutionLoggerService {
           environment,
           trigger,
           initialInput: initialInput || {},
+          startedFromBlockId: startedFromBlockId || undefined,
+          executionType: executionType || trigger.type,
         },
       })
       .returning()
@@ -148,6 +152,30 @@ export class ExecutionLogger implements IExecutionLoggerService {
 
     const existingExecutionData = (existing?.executionData as any) || {}
 
+    // Build simple block execution summaries from trace spans (flat list)
+    const blockExecutions: any[] = []
+    const collectBlocks = (spans?: any[]) => {
+      if (!Array.isArray(spans)) return
+      spans.forEach((span) => {
+        if (span?.blockId) {
+          blockExecutions.push({
+            id: span.id,
+            blockId: span.blockId,
+            blockName: span.name,
+            blockType: span.type,
+            startedAt: span.startTime,
+            endedAt: span.endTime,
+            durationMs: span.duration,
+            status: span.status || 'success',
+            inputData: span.input || {},
+            outputData: span.output || {},
+          })
+        }
+        if (span?.children && Array.isArray(span.children)) collectBlocks(span.children)
+      })
+    }
+    collectBlocks(traceSpans)
+
     const [updatedLog] = await db
       .update(workflowExecutionLogs)
       .set({
@@ -159,6 +187,7 @@ export class ExecutionLogger implements IExecutionLoggerService {
           ...existingExecutionData,
           traceSpans,
           finalOutput,
+          blockExecutions: blockExecutions,
           tokenBreakdown: {
             prompt: costSummary.totalPromptTokens,
             completion: costSummary.totalCompletionTokens,
