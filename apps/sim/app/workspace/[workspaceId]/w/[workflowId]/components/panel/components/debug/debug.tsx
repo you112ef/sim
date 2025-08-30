@@ -1747,23 +1747,9 @@ export function DebugPanel() {
       setPanelFocusedBlockId(null)
       setSelectedExecutionKey(undefined)
       // Clear debug canvas when exiting debug mode
-      console.log('[Debug] Clearing debug canvas - debug mode deactivated')
       useDebugCanvasStore.getState().clear()
-      
-      // Restore original subblock values
-      if (originalSubblockValuesRef.current && activeWorkflowId) {
-        const valuesToRestore = originalSubblockValuesRef.current
-        console.log('[Debug] Restoring original subblock values on debug exit')
-        useSubBlockStore.setState((state) => ({
-          workflowValues: {
-            ...state.workflowValues,
-            [activeWorkflowId]: valuesToRestore
-          }
-        }))
-        originalSubblockValuesRef.current = null
-      }
     }
-  }, [isDebugging, setPanelFocusedBlockId, activeWorkflowId])
+  }, [isDebugging, setPanelFocusedBlockId])
 
   // Clear init pending when debug context and initial pending arrive
   useEffect(() => {
@@ -1775,22 +1761,9 @@ export function DebugPanel() {
   // Cleanup debug canvas on unmount
   useEffect(() => {
     return () => {
-      console.log('[Debug] Component unmounting - clearing debug canvas')
       useDebugCanvasStore.getState().clear()
-      
-      // Restore original subblock values on unmount
-      if (originalSubblockValuesRef.current && activeWorkflowId) {
-        const valuesToRestore = originalSubblockValuesRef.current
-        console.log('[Debug] Restoring original subblock values on unmount')
-        useSubBlockStore.setState((state) => ({
-          workflowValues: {
-            ...state.workflowValues,
-            [activeWorkflowId]: valuesToRestore
-          }
-        }))
-      }
     }
-  }, [activeWorkflowId])
+  }, [])
 
   // Load recent executions for this workflow
   useEffect(() => {
@@ -1828,584 +1801,152 @@ export function DebugPanel() {
     }
   }, [isDebugging, workspaceId, workflowId])
 
-  // Track original subblock values to restore when clearing debug canvas
-  const originalSubblockValuesRef = useRef<Record<string, Record<string, any>> | null>(null)
-  
   // Load selected execution's workflow into debug canvas
   useEffect(() => {
     if (!selectedExecutionKey) {
-      // Clear debug canvas and restore original subblock values when no execution is selected
-      console.log('[Debug] Clearing debug canvas - no selection')
+      // Clear debug canvas when no execution is selected
       useDebugCanvasStore.getState().clear()
-      
-      // Restore original subblock values if we saved them
-      if (originalSubblockValuesRef.current && activeWorkflowId) {
-        const valuesToRestore = originalSubblockValuesRef.current
-        console.log('[Debug] Restoring original subblock values')
-        useSubBlockStore.setState((state) => ({
-          workflowValues: {
-            ...state.workflowValues,
-            [activeWorkflowId]: valuesToRestore
-          }
-        }))
-        originalSubblockValuesRef.current = null
-      }
       return
     }
     const selected = executions.find((e) => e.id === selectedExecutionKey)
     const execId = selected?.executionId
     if (!execId) {
-      console.log('[Debug] No executionId for selected item')
       return
     }
 
     let canceled = false
     const load = async () => {
       try {
-        console.log('[Debug] Loading frozen canvas for execution:', execId)
         const response = await fetch(`/api/logs/${encodeURIComponent(execId)}/frozen-canvas`)
         if (!response.ok) {
-          console.error('[Debug] Failed to fetch frozen canvas:', response.status)
           return
         }
         const json = await response.json()
         if (canceled) return
-        
-        // Try multiple possible response formats
-        const state = (json?.workflowState || json?.data?.workflowState || json) as WorkflowState | undefined
-        const executionData = json?.executionData || json?.data?.executionData || {}
-        
-        console.log('[Debug] Parsed workflow state:', { 
-          hasState: !!state, 
-          hasBlocks: !!(state?.blocks),
-          blockCount: state?.blocks ? Object.keys(state.blocks).length : 0,
-          hasEdges: !!(state?.edges),
-          edgeCount: state?.edges ? state.edges.length : 0
-        })
-                  console.log('[Debug] Blocks:', state?.blocks)
-          console.log('[Debug] Edges:', state?.edges)
-          console.log('[Debug] Execution data:', executionData)
-          
-          // Log the starter block details specifically
-          if (state?.blocks) {
-            const starterBlock = Object.values(state.blocks).find((b: any) => b?.type === 'starter')
-            if (starterBlock) {
-              console.log('[Debug] Starter block found:', starterBlock)
-              console.log('[Debug] Starter block subBlocks:', (starterBlock as any).subBlocks)
-            }
-          }
-          
-          // Log trace spans in detail
-          if (executionData?.traceSpans && Array.isArray(executionData.traceSpans)) {
-            console.log('[Debug] Trace spans details:')
-            executionData.traceSpans.forEach((span: any, index: number) => {
-              console.log(`[Debug] Span ${index}:`, {
-                id: span.id,
-                name: span.name,
-                type: span.type,
-                status: span.status,
-                data: span.data,
-                inputData: span.inputData,
-                outputData: span.outputData,
-                children: span.children?.length || 0
-              })
-              
-              // If this span has children, log them too
-              if (span.children && Array.isArray(span.children)) {
-                span.children.forEach((child: any, childIndex: number) => {
-                  console.log(`[Debug] Child span ${index}.${childIndex}:`, {
-                    id: child.id,
-                    name: child.name,
-                    blockId: child.blockId,
-                    blockName: child.blockName,
-                    blockType: child.blockType,
-                    inputData: child.inputData,
-                    outputData: child.outputData,
-                    data: child.data
-                  })
-                })
-              }
-            })
-          }
-          
-          console.log('[Debug] Full state:', state)
-        
-        if (state && state.blocks && Object.keys(state.blocks).length > 0) {
-          // Ensure edges array exists (it might be missing from old snapshots)
-          if (!state.edges) {
-            console.log('[Debug] No edges in state, creating empty array')
-            state.edges = []
-          }
-          
-          // Ensure loops and parallels exist
-          if (!state.loops) state.loops = {}
-          if (!state.parallels) state.parallels = {}
-          
-          // Clear any active diff mode first
-          try { 
-            const diffStore = useWorkflowDiffStore.getState()
-            if (diffStore.isShowingDiff) {
-              diffStore.clearDiff()
-            }
-          } catch (e) {
-            console.error('[Debug] Error clearing diff:', e)
-          }
 
-          // Activate debug canvas with the fetched workflow state
-          console.log('[Debug] Activating debug canvas with state')
-          console.log('[Debug] State to activate:', {
-            blocks: Object.keys(state.blocks),
-            edges: state.edges,
-            loops: state.loops,
-            parallels: state.parallels
-          })
-          
-          // Extract and load subblock values from the frozen state
-          const subblockValues: Record<string, Record<string, any>> = {}
-          let starterBlockId: string | null = null
-          
-          Object.entries(state.blocks).forEach(([blockId, block]) => {
-            const blockState = block as any
-            
-            // Track the starter block ID
-            if (blockState.type === 'starter') {
-              starterBlockId = blockId
-            }
-            
-            if (blockState.subBlocks) {
-              subblockValues[blockId] = {}
-              Object.entries(blockState.subBlocks).forEach(([subblockId, subblock]) => {
-                const subblockData = subblock as any
-                if (subblockData && 'value' in subblockData) {
-                  subblockValues[blockId][subblockId] = subblockData.value
-                  
-                  // Log starter block values specifically
-                  if (blockState.type === 'starter') {
-                    console.log(`[Debug] Starter block - ${subblockId}:`, subblockData.value)
-                  }
-                }
-              })
-            }
-          })
-          
-          console.log('[Debug] Initial subblock values extracted from snapshot:', subblockValues)
-          
-          // Apply execution inputs to the starter block
-          const stateBlocks = Object.values(state.blocks || {}) as any[]
-          const stateStarterBlock = stateBlocks.find((b: any) => b?.type === 'starter' || b?.metadata?.id === 'starter') as any
-          const stateStarterId = stateStarterBlock?.id as string | undefined
-          
-          if (stateStarterId && executionData) {
-            console.log('[Debug] Applying execution inputs to starter block')
-            
-            // Check for different input sources in the execution data
-            const blockExecutions = executionData.blockExecutions || []
-            const starterExecution = blockExecutions.find((exec: any) => exec.blockId === stateStarterId)
-            
-            // Get the input from various possible sources
-            let executionInput = null
-            
-            // Look at all available data first
-            console.log('[Debug] Looking for execution input. Starter ID:', stateStarterId)
-            console.log('[Debug] Available execution data:', {
-              hasBlockExecutions: !!(executionData.blockExecutions),
-              blockExecutionsCount: executionData.blockExecutions?.length || 0,
-              hasTraceSpans: !!(executionData.traceSpans),
-              traceSpansCount: executionData.traceSpans?.length || 0,
-              hasBlockInput: !!(executionData.blockInput),
-              fullExecutionData: executionData
-            })
-            
-            // 1. Check starter block execution data - this should have the actual inputs
-            if (starterExecution) {
-              console.log('[Debug] Starter execution found:', starterExecution)
-              
-              // For starter blocks, the outputData IS the input that was provided
-              // The starter block "outputs" what it receives as input
-              if (starterExecution.outputData) {
-                executionInput = starterExecution.outputData
-                console.log('[Debug] Using starter outputData as input:', executionInput)
-              } else if (starterExecution.inputData) {
-                executionInput = starterExecution.inputData
-                console.log('[Debug] Using starter inputData:', executionInput)
-              }
-            }
-            
-            // 2. Check for blockInput in executionData (fallback)
-            if (!executionInput && executionData.blockInput) {
-              executionInput = executionData.blockInput
-              console.log('[Debug] Using blockInput:', executionInput)
-            }
-            
-            // 3. Check for newly persisted initialInput (fallback)
-            if (!executionInput && executionData.initialInput) {
-              executionInput = executionData.initialInput
-              console.log('[Debug] Using initialInput:', executionInput)
-            }
-            
-            // 4. Check trace spans for starter block (another fallback)
-            if (!executionInput && executionData.traceSpans) {
-              const starterSpan = executionData.traceSpans.find(
-                (span: any) => span.blockId === stateStarterId || span.blockName === 'Starter'
-              )
-              if (starterSpan) {
-                executionInput = starterSpan.outputData || starterSpan.inputData || starterSpan.data
-                console.log('[Debug] Using trace span data:', executionInput)
-              }
-            }
-            
-            console.log('[Debug] Final executionInput:', executionInput)
-            
-            // Apply the execution input to the starter block's subblock values
-            const startedFromBlockIdMeta = (executionData?.startedFromBlockId as string | undefined)
-            const executionTypeMeta = (executionData?.executionType as string | undefined) || (executionData?.trigger?.type as string | undefined)
-            const shouldApplyStarter = !startedFromBlockIdMeta || startedFromBlockIdMeta === stateStarterId || executionTypeMeta === 'chat' || executionTypeMeta === 'api' || executionTypeMeta === 'manual'
-            if (executionInput && shouldApplyStarter) {
-              if (!subblockValues[stateStarterId]) {
-                subblockValues[stateStarterId] = {}
-              }
-              
-              // Get the existing inputFormat structure from the starter block
-              const starterSubBlocks = stateStarterBlock?.subBlocks || {}
-              const existingInputFormat = starterSubBlocks.inputFormat?.value || []
-              const existingStartWorkflow = starterSubBlocks.startWorkflow?.value || 'manual'
-              
-              console.log('[Debug] Starter block config:', {
-                startWorkflow: existingStartWorkflow,
-                existingInputFormat,
-                starterSubBlocks
-              })
-              
-              // For chat mode, the input is typically in the 'input' field
-              if (executionInput.input !== undefined && typeof executionInput.input === 'string') {
-                // Chat mode - set the chat input
-                subblockValues[stateStarterId].chatInput = executionInput.input
-                console.log('[Debug] Set chat input:', executionInput.input)
-              }
-              
-              // For API/manual mode with structured inputs
-              if (existingInputFormat && Array.isArray(existingInputFormat) && existingInputFormat.length > 0) {
-                console.log('[Debug] Processing inputFormat. Existing format:', existingInputFormat)
-                console.log('[Debug] Execution input to apply:', executionInput)
-                
-                // Override existingInputFormat values with actual executionInput when available
-                try {
-                  const updatedFormat = (existingInputFormat as any[]).map((field: any) => {
-                    const fieldName = field?.name
-                    if (!fieldName) return field
-                    // If executionInput is string and field is named 'input', set it directly
-                    if (fieldName === 'input') {
-                      if (typeof executionInput === 'string') {
-                        return { ...field, value: executionInput }
-                      }
-                      if (executionInput && typeof executionInput === 'object' && 'input' in executionInput) {
-                        return { ...field, value: (executionInput as any).input }
-                      }
-                    }
-                    // If executionInput has a matching key, override
-                    if (executionInput && typeof executionInput === 'object' && fieldName in (executionInput as any)) {
-                      return { ...field, value: (executionInput as any)[fieldName] }
-                    }
-                    return field
-                  })
+        const state = (json?.workflowState ?? json?.data?.workflowState) as WorkflowState | undefined
+        const executionData = (json?.executionData ?? json?.data?.executionData) || {}
 
-                  // Append any extra keys from executionInput that aren't in the format
-                if (executionInput && typeof executionInput === 'object') {
-                    const existingNames = new Set(updatedFormat.map((f: any) => f?.name).filter(Boolean))
-                    Object.entries(executionInput as Record<string, any>).forEach(([key, value]) => {
-                      if (
-                        !existingNames.has(key) &&
-                        key !== 'conversationId' &&
-                        key !== 'files'
-                      ) {
-                        updatedFormat.push({
-                          id: `field-${key}`,
-                          name: key,
-                          type: typeof value === 'string' ? 'string' : 'json',
-                          value,
-                          collapsed: false,
-                        })
-                      }
-                    })
-                  }
-
-                  subblockValues[stateStarterId].inputFormat = updatedFormat
-                  console.log('[Debug] Applied execution input to inputFormat:', updatedFormat)
-                } catch (e) {
-                  console.warn('[Debug] Failed to apply execution input to inputFormat:', e)
-                }
-              } else if (typeof executionInput === 'object' && !Array.isArray(executionInput)) {
-                // If no existing format but we have an object input, create format from execution data
-                const generatedFormat = Object.entries(executionInput)
-                  .filter(([key]) => key !== 'input' && key !== 'conversationId' && key !== 'files')
-                  .map(([key, value]) => ({
-                    id: `field-${key}`,
-                    name: key,
-                    type: typeof value === 'string' ? 'string' : 'json',
-                    value: value,
-                    collapsed: false
-                  }))
-                
-                if (generatedFormat.length > 0) {
-                  subblockValues[stateStarterId].inputFormat = generatedFormat
-                  console.log('[Debug] Generated input format from execution:', generatedFormat)
-                }
-              }
-              
-              // Store the full execution input for reference
-              subblockValues[stateStarterId]._executionInput = executionInput
-              console.log('[Debug] Full execution input stored:', executionInput)
-            } else if (executionInput && !shouldApplyStarter) {
-              console.log('[Debug] Skipping applying execution input to starter because execution started from a non-starter block')
-            }
-          }
-          
-          console.log('[Debug] Extracted subblock values with inputs:', subblockValues)
-          
-                      // Load subblock values into the store for the current workflow
-            if (activeWorkflowId) {
-              // Save original values if not already saved
-              if (!originalSubblockValuesRef.current) {
-                const currentValues = useSubBlockStore.getState().workflowValues[activeWorkflowId]
-                if (currentValues) {
-                  // Deep clone to avoid reference issues
-                  originalSubblockValuesRef.current = JSON.parse(JSON.stringify(currentValues))
-                  console.log('[Debug] Saved original subblock values:', originalSubblockValuesRef.current)
-                }
-              }
-              
-              console.log('[Debug] Loading execution subblock values for workflow:', activeWorkflowId)
-              console.log('[Debug] Values to load:', subblockValues)
-              
-              // Force replace all subblock values with the execution values
-              useSubBlockStore.setState((state) => ({
-                workflowValues: {
-                  ...state.workflowValues,
-                  [activeWorkflowId]: subblockValues  // Complete replacement, not merge
-                }
-              }))
-              
-              // Verify the values were set
-              setTimeout(() => {
-                const newValues = useSubBlockStore.getState().workflowValues[activeWorkflowId]
-                console.log('[Debug] Subblock store after update:', newValues)
-                if (starterBlockId && newValues[starterBlockId]) {
-                  console.log('[Debug] Starter block values in store:', newValues[starterBlockId])
-                  
-                  // Log the specific inputFormat value
-                  if (newValues[starterBlockId].inputFormat) {
-                    console.log('[Debug] InputFormat in store:', newValues[starterBlockId].inputFormat)
-                  }
-                }
-              }, 100)
-            }
-          
-          useDebugCanvasStore.getState().activate(state)
-
-          // Reset debug execution state to align with the new canvas
-          useDebugSnapshotStore.getState().clear()
-          
-          const execStore = useExecutionStore.getState()
-          execStore.setIsExecuting(false)
-          execStore.setIsDebugging(true)
-          execStore.setExecutor(null)
-          execStore.setDebugContext(null)
-          execStore.setExecutingBlockIds(new Set())
-          execStore.setActiveBlocks(new Set())
-
-          // Determine starter block from the loaded state and set as pending/focused
-          const blocks = Object.values(state.blocks || {}) as any[]
-          const starterBlock = blocks.find((b: any) => b?.type === 'starter' || b?.metadata?.id === 'starter') as any
-          const starterIdFromState = starterBlock?.id as string | undefined
-          // Prefer webhook-triggered block if present
-          let initialBlockId: string | undefined = starterIdFromState
-          try {
-            const fromStartMeta = (executionData?.startedFromBlockId as string | undefined)
-            if (fromStartMeta && state.blocks?.[fromStartMeta]) {
-              initialBlockId = fromStartMeta
-              console.log('[Debug] Using startedFromBlockId as pending:', initialBlockId)
-            }
-            const maybeWebhookBlockId = (executionData?.trigger?.data as any)?.blockId as
-              | string
-              | undefined
-            if (maybeWebhookBlockId && state.blocks?.[maybeWebhookBlockId]) {
-              initialBlockId = maybeWebhookBlockId
-              console.log('[Debug] Using webhook-triggered block as pending:', initialBlockId)
-            } else {
-              // Fallback: find first span with a matching blockId in traceSpans
-              const spans = (executionData?.traceSpans as any[]) || []
-              const findFirstMatchingSpanBlockId = (list: any[]): string | undefined => {
-                for (const span of list) {
-                  if (span?.blockId && state.blocks?.[span.blockId]) return span.blockId as string
-                  if (span?.children && Array.isArray(span.children)) {
-                    const nested = findFirstMatchingSpanBlockId(span.children)
-                    if (nested) return nested
-                  }
-                }
-                return undefined
-              }
-              const fromSpans = findFirstMatchingSpanBlockId(spans)
-              if (fromSpans) {
-                initialBlockId = fromSpans
-                console.log('[Debug] Using first trace span block as pending:', initialBlockId)
-              }
-            }
-          } catch {}
-
-          console.log('[Debug] Setting initial pending block:', initialBlockId)
-          execStore.setPendingBlocks(initialBlockId ? [initialBlockId] : [])
-          execStore.setPanelFocusedBlockId(initialBlockId || null)
-          
-          // Build a minimal debug context so references can resolve from executed blocks
-          try {
-            const blockStates = new Map<string, any>()
-            const executedBlocks = new Set<string>()
-            const activeExecutionPath = new Set<string>()
-
-            // Helper: compute downstream path from a node using state.edges
-            const edges = (state.edges as any[]) || []
-            const forwardAdjLocal: Record<string, string[]> = {}
-            edges.forEach((e: any) => {
-              const s = e.source
-              const t = e.target
-              if (!forwardAdjLocal[s]) forwardAdjLocal[s] = []
-              forwardAdjLocal[s].push(t)
-            })
-            const addPathFrom = (id?: string) => {
-              if (!id) return
-              const q: string[] = [id]
-              const seen = new Set<string>()
-              while (q.length) {
-                const n = q.shift() as string
-                if (seen.has(n)) continue
-                seen.add(n)
-                activeExecutionPath.add(n)
-                const next = forwardAdjLocal[n] || []
-                for (const m of next) if (!seen.has(m)) q.push(m)
-              }
-            }
-
-            // Starter output from executionInput if available
-            let starterOutput: any = undefined
-            if (stateStarterId && subblockValues[stateStarterId]) {
-              const execInput = subblockValues[stateStarterId]._executionInput
-              if (execInput !== undefined) {
-                if (typeof execInput === 'string') {
-                  starterOutput = { input: execInput }
-                } else if (execInput && typeof execInput === 'object') {
-                  // Keep common keys at root if present
-                  starterOutput = { ...execInput }
-                }
-              }
-            }
-            if (stateStarterId && starterOutput !== undefined) {
-              blockStates.set(stateStarterId, {
-                output: starterOutput,
-                executed: true,
-                executionTime: 0,
-              })
-              executedBlocks.add(stateStarterId)
-              addPathFrom(stateStarterId)
-            }
-
-            // Triggered block output from trace spans
-            const spans = (executionData?.traceSpans as any[]) || []
-            const findSpanByBlockId = (list: any[], id?: string): any | undefined => {
-              if (!id) return undefined
-              for (const span of list) {
-                if (span?.blockId === id) return span
-                if (span?.children && Array.isArray(span.children)) {
-                  const nested = findSpanByBlockId(span.children, id)
-                  if (nested) return nested
-                }
-              }
-              return undefined
-            }
-            const triggerSpan = findSpanByBlockId(spans, initialBlockId)
-            const triggerOutput = triggerSpan?.output || triggerSpan?.outputData || triggerSpan?.data
-            let effectiveTriggerOutput = triggerOutput
-            if (effectiveTriggerOutput === undefined && executionData?.initialInput !== undefined) {
-              effectiveTriggerOutput = executionData.initialInput
-              console.log('[Debug] Using initialInput as trigger output fallback')
-            }
-            if (initialBlockId && effectiveTriggerOutput !== undefined) {
-              blockStates.set(initialBlockId, {
-                output: effectiveTriggerOutput,
-                executed: true,
-                executionTime: 0,
-              })
-              executedBlocks.add(initialBlockId)
-              addPathFrom(initialBlockId)
-            }
-
-            const newDebugCtx: any = {
-              blockStates,
-              blockLogs: [],
-              executedBlocks,
-              activeExecutionPath,
-              environmentVariables: (executionData?.environment?.variables as any) || {},
-              workflowVariables: {},
-              parallelBlockMapping: new Map(),
-              // Execution metadata and scaffolding needed by the executor
-              metadata: { startTime: new Date().toISOString() },
-              decisions: { router: new Map(), condition: new Map() },
-              loopIterations: new Map(),
-              loopItems: new Map(),
-              completedLoops: new Set(),
-              parallelExecutions: new Map(),
-              selectedOutputIds: [],
-            }
-            // Attach serialized workflow onto context so handlers have structure available
-            const serializer = new Serializer()
-            const serialized = serializer.serializeWorkflow(
-              (state.blocks || {}) as any,
-              (state.edges || []) as any,
-              (state.loops || {}) as any,
-              (state.parallels || {}) as any,
-              true
-            )
-            newDebugCtx.workflow = serialized
-            execStore.setDebugContext(newDebugCtx)
-
-            // Initialize an executor so handleStepDebug can continue from the selected blocks
-            try {
-              const ex = new Executor({
-                workflow: serialized,
-                envVarValues: newDebugCtx.environmentVariables,
-                contextExtensions: {
-                  edges: ((state.edges as any[]) || []).map((e: any) => ({ source: e.source, target: e.target })),
-                },
-              })
-              execStore.setExecutor(ex as any)
-            } catch (initErr) {
-              console.warn('[Debug] Executor init failed for frozen canvas stepping:', initErr)
-            }
-          } catch (ctxErr) {
-            console.warn('[Debug] Failed to synthesize debug context for frozen canvas:', ctxErr)
-          }
-          
-          // Verify the canvas was activated and trigger a re-render
-          setTimeout(() => {
-            const debugState = useDebugCanvasStore.getState()
-            console.log('[Debug] Debug canvas state after activation:', { 
-              isActive: debugState.isActive,
-              hasWorkflowState: !!debugState.workflowState,
-              workflowStateBlocks: debugState.workflowState?.blocks ? Object.keys(debugState.workflowState.blocks) : null,
-              workflowStateEdges: debugState.workflowState?.edges
-            })
-            
-            // Try to trigger a re-render by updating the debug canvas again
-            if (debugState.isActive && debugState.workflowState) {
-              console.log('[Debug] Re-activating to force re-render')
-              useDebugCanvasStore.getState().setWorkflowState(debugState.workflowState)
-            }
-          }, 100)
-        } else {
-          console.warn('[Debug] Invalid or empty workflow state received')
+        if (!state || !state.blocks || Object.keys(state.blocks).length === 0) {
+          return
         }
-      } catch (err) {
-        console.error('[Debug] Error loading frozen canvas:', err)
-      }
+
+        // Ensure structures exist
+        if (!state.edges) state.edges = []
+        if (!state.loops) state.loops = {}
+        if (!state.parallels) state.parallels = {}
+
+        // Clear any active diff mode first
+        try {
+          const diffStore = useWorkflowDiffStore.getState()
+          if (diffStore.isShowingDiff) {
+            diffStore.clearDiff()
+          }
+        } catch {}
+
+        // Activate debug canvas with the fetched workflow state
+        useDebugCanvasStore.getState().activate(state)
+
+        // Enforce single-trigger init: use only trigger.data.blockId
+        const blocksMap = state.blocks || {}
+        const triggerBlockId = executionData?.trigger?.data?.blockId as string | undefined
+        if (!triggerBlockId || !blocksMap[triggerBlockId]) {
+          return
+        }
+
+        // Initialize with trigger as pending (not executed) to match non-past-execution behavior
+        const blockStates = new Map<string, any>()
+        const executedBlocks = new Set<string>()
+        
+        // Store trigger output for when it gets executed, but don't mark it executed yet
+        const triggerOutput = (executionData?.initialInput as any) || {}
+        blockStates.set(triggerBlockId, { output: triggerOutput, executed: false, executionTime: 0 })
+
+        // Graph helpers
+        const edges = (state.edges as any[]) || []
+        const forwardAdjLocal: Record<string, string[]> = {}
+        edges.forEach((e: any) => {
+          const s = e.source
+          const t = e.target
+          if (!forwardAdjLocal[s]) forwardAdjLocal[s] = []
+          forwardAdjLocal[s].push(t)
+        })
+
+        // Trigger block is the initial pending/current block
+        const initialPending = [triggerBlockId]
+
+        const execStore = useExecutionStore.getState()
+        execStore.setPendingBlocks(initialPending)
+        execStore.setPanelFocusedBlockId(triggerBlockId)
+
+        // Active path from trigger block downstream
+        const activeExecutionPath = new Set<string>()
+        const addPathFrom = (id?: string) => {
+          if (!id) return
+          const q: string[] = [id]
+          const seen = new Set<string>()
+          while (q.length) {
+            const n = q.shift() as string
+            if (seen.has(n)) continue
+            seen.add(n)
+            activeExecutionPath.add(n)
+            const next = forwardAdjLocal[n] || []
+            for (const m of next) if (!seen.has(m)) q.push(m)
+          }
+        }
+        addPathFrom(triggerBlockId)
+
+        const newDebugCtx: any = {
+          blockStates,
+          blockLogs: [],
+          executedBlocks,
+          activeExecutionPath,
+          environmentVariables: (executionData?.environment?.variables as any) || {},
+          workflowVariables: {},
+          parallelBlockMapping: new Map(),
+          metadata: { startTime: new Date().toISOString() },
+          decisions: { router: new Map(), condition: new Map() },
+          loopIterations: new Map(),
+          loopItems: new Map(),
+          completedLoops: new Set(),
+          parallelExecutions: new Map(),
+          selectedOutputIds: [],
+        }
+
+        // Attach serialized workflow onto context so handlers have structure available
+        const serializer = new Serializer()
+        const serialized = serializer.serializeWorkflow(
+          (state.blocks || {}) as any,
+          (state.edges || []) as any,
+          (state.loops || {}) as any,
+          (state.parallels || {}) as any,
+          true
+        )
+        newDebugCtx.workflow = serialized
+
+        // Reset debug execution state to align with the new canvas
+        execStore.setIsExecuting(false)
+        execStore.setIsDebugging(true)
+        execStore.setExecutor(null)
+        execStore.setDebugContext(newDebugCtx)
+        execStore.setExecutingBlockIds(new Set())
+        execStore.setActiveBlocks(new Set())
+
+        // Initialize an executor so stepping can continue downstream from the trigger
+        try {
+          const ex = new Executor({
+            workflow: serialized,
+            envVarValues: newDebugCtx.environmentVariables,
+            contextExtensions: {
+              edges: ((state.edges as any[]) || []).map((e: any) => ({ source: e.source, target: e.target })),
+            },
+          })
+          execStore.setExecutor(ex as any)
+        } catch {}
+
+        // Clear snapshots for a fresh stepping session
+        useDebugSnapshotStore.getState().clear()
+      } catch {}
     }
     load()
     return () => {
@@ -3422,3 +2963,4 @@ export function DebugPanel() {
     </div>
   )
 }
+
