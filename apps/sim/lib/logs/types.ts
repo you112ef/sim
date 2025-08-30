@@ -109,6 +109,8 @@ export interface WorkflowExecutionLog {
       error: string
       stackTrace?: string
     }
+    // Newly added: persist the original triggering input (starter/chat/api/webhook)
+    initialInput?: Record<string, unknown>
   }
   // Top-level cost information
   cost?: {

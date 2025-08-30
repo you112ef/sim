@@ -21,6 +21,7 @@ export interface SessionStartParams {
   workspaceId?: string
   variables?: Record<string, string>
   triggerData?: Record<string, unknown>
+  initialInput?: Record<string, unknown>
 }
 
 export interface SessionCompleteParams {
@@ -61,7 +62,7 @@ export class LoggingSession {
   }
 
   async start(params: SessionStartParams = {}): Promise<void> {
-    const { userId, workspaceId, variables, triggerData } = params
+    const { userId, workspaceId, variables, triggerData, initialInput } = params
 
     try {
       this.trigger = createTriggerObject(this.triggerType, triggerData)
@@ -80,6 +81,7 @@ export class LoggingSession {
         trigger: this.trigger,
         environment: this.environment,
         workflowState: this.workflowState,
+        initialInput,
       })
 
       if (this.requestId) {

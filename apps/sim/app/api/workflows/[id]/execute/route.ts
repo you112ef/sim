@@ -146,6 +146,7 @@ async function executeWorkflow(workflow: any, requestId: string, input?: any): P
       userId: workflow.userId,
       workspaceId: workflow.workspaceId,
       variables,
+      initialInput: processedInput || {},
     })
 
     // Replace environment variables in the block states

@@ -1871,6 +1871,8 @@ export function DebugPanel() {
         
         // Try multiple possible response formats
         const state = (json?.workflowState || json?.data?.workflowState || json) as WorkflowState | undefined
+        const executionData = json?.executionData || json?.data?.executionData || {}
+        
         console.log('[Debug] Parsed workflow state:', { 
           hasState: !!state, 
           hasBlocks: !!(state?.blocks),
@@ -1878,9 +1880,53 @@ export function DebugPanel() {
           hasEdges: !!(state?.edges),
           edgeCount: state?.edges ? state.edges.length : 0
         })
-        console.log('[Debug] Blocks:', state?.blocks)
-        console.log('[Debug] Edges:', state?.edges)
-        console.log('[Debug] Full state:', state)
+                  console.log('[Debug] Blocks:', state?.blocks)
+          console.log('[Debug] Edges:', state?.edges)
+          console.log('[Debug] Execution data:', executionData)
+          
+          // Log the starter block details specifically
+          if (state?.blocks) {
+            const starterBlock = Object.values(state.blocks).find((b: any) => b?.type === 'starter')
+            if (starterBlock) {
+              console.log('[Debug] Starter block found:', starterBlock)
+              console.log('[Debug] Starter block subBlocks:', (starterBlock as any).subBlocks)
+            }
+          }
+          
+          // Log trace spans in detail
+          if (executionData?.traceSpans && Array.isArray(executionData.traceSpans)) {
+            console.log('[Debug] Trace spans details:')
+            executionData.traceSpans.forEach((span: any, index: number) => {
+              console.log(`[Debug] Span ${index}:`, {
+                id: span.id,
+                name: span.name,
+                type: span.type,
+                status: span.status,
+                data: span.data,
+                inputData: span.inputData,
+                outputData: span.outputData,
+                children: span.children?.length || 0
+              })
+              
+              // If this span has children, log them too
+              if (span.children && Array.isArray(span.children)) {
+                span.children.forEach((child: any, childIndex: number) => {
+                  console.log(`[Debug] Child span ${index}.${childIndex}:`, {
+                    id: child.id,
+                    name: child.name,
+                    blockId: child.blockId,
+                    blockName: child.blockName,
+                    blockType: child.blockType,
+                    inputData: child.inputData,
+                    outputData: child.outputData,
+                    data: child.data
+                  })
+                })
+              }
+            })
+          }
+          
+          console.log('[Debug] Full state:', state)
         
         if (state && state.blocks && Object.keys(state.blocks).length > 0) {
           // Ensure edges array exists (it might be missing from old snapshots)
@@ -1914,40 +1960,238 @@ export function DebugPanel() {
           
           // Extract and load subblock values from the frozen state
           const subblockValues: Record<string, Record<string, any>> = {}
+          let starterBlockId: string | null = null
+          
           Object.entries(state.blocks).forEach(([blockId, block]) => {
             const blockState = block as any
+            
+            // Track the starter block ID
+            if (blockState.type === 'starter') {
+              starterBlockId = blockId
+            }
+            
             if (blockState.subBlocks) {
               subblockValues[blockId] = {}
               Object.entries(blockState.subBlocks).forEach(([subblockId, subblock]) => {
                 const subblockData = subblock as any
                 if (subblockData && 'value' in subblockData) {
                   subblockValues[blockId][subblockId] = subblockData.value
+                  
+                  // Log starter block values specifically
+                  if (blockState.type === 'starter') {
+                    console.log(`[Debug] Starter block - ${subblockId}:`, subblockData.value)
+                  }
                 }
               })
             }
           })
           
-          console.log('[Debug] Extracted subblock values:', subblockValues)
+          console.log('[Debug] Initial subblock values extracted from snapshot:', subblockValues)
           
-          // Load subblock values into the store for the current workflow
-          if (activeWorkflowId && Object.keys(subblockValues).length > 0) {
-            // Save original values if not already saved
-            if (!originalSubblockValuesRef.current) {
-              const currentValues = useSubBlockStore.getState().workflowValues[activeWorkflowId]
-              if (currentValues) {
-                originalSubblockValuesRef.current = { ...currentValues }
-                console.log('[Debug] Saved original subblock values')
+          // Apply execution inputs to the starter block
+          const stateBlocks = Object.values(state.blocks || {}) as any[]
+          const stateStarterBlock = stateBlocks.find((b: any) => b?.type === 'starter' || b?.metadata?.id === 'starter') as any
+          const stateStarterId = stateStarterBlock?.id as string | undefined
+          
+          if (stateStarterId && executionData) {
+            console.log('[Debug] Applying execution inputs to starter block')
+            
+            // Check for different input sources in the execution data
+            const blockExecutions = executionData.blockExecutions || []
+            const starterExecution = blockExecutions.find((exec: any) => exec.blockId === stateStarterId)
+            
+            // Get the input from various possible sources
+            let executionInput = null
+            
+            // Look at all available data first
+            console.log('[Debug] Looking for execution input. Starter ID:', stateStarterId)
+            console.log('[Debug] Available execution data:', {
+              hasBlockExecutions: !!(executionData.blockExecutions),
+              blockExecutionsCount: executionData.blockExecutions?.length || 0,
+              hasTraceSpans: !!(executionData.traceSpans),
+              traceSpansCount: executionData.traceSpans?.length || 0,
+              hasBlockInput: !!(executionData.blockInput),
+              fullExecutionData: executionData
+            })
+            
+            // 1. Check starter block execution data - this should have the actual inputs
+            if (starterExecution) {
+              console.log('[Debug] Starter execution found:', starterExecution)
+              
+              // For starter blocks, the outputData IS the input that was provided
+              // The starter block "outputs" what it receives as input
+              if (starterExecution.outputData) {
+                executionInput = starterExecution.outputData
+                console.log('[Debug] Using starter outputData as input:', executionInput)
+              } else if (starterExecution.inputData) {
+                executionInput = starterExecution.inputData
+                console.log('[Debug] Using starter inputData:', executionInput)
               }
             }
             
-            console.log('[Debug] Loading subblock values for workflow:', activeWorkflowId)
-            useSubBlockStore.setState((state) => ({
-              workflowValues: {
-                ...state.workflowValues,
-                [activeWorkflowId]: subblockValues
+            // 2. Check for blockInput in executionData (fallback)
+            if (!executionInput && executionData.blockInput) {
+              executionInput = executionData.blockInput
+              console.log('[Debug] Using blockInput:', executionInput)
+            }
+            
+            // 3. Check for newly persisted initialInput (fallback)
+            if (!executionInput && executionData.initialInput) {
+              executionInput = executionData.initialInput
+              console.log('[Debug] Using initialInput:', executionInput)
+            }
+            
+            // 4. Check trace spans for starter block (another fallback)
+            if (!executionInput && executionData.traceSpans) {
+              const starterSpan = executionData.traceSpans.find(
+                (span: any) => span.blockId === stateStarterId || span.blockName === 'Starter'
+              )
+              if (starterSpan) {
+                executionInput = starterSpan.outputData || starterSpan.inputData || starterSpan.data
+                console.log('[Debug] Using trace span data:', executionInput)
               }
-            }))
+            }
+            
+            console.log('[Debug] Final executionInput:', executionInput)
+            
+            // Apply the execution input to the starter block's subblock values
+            if (executionInput) {
+              if (!subblockValues[stateStarterId]) {
+                subblockValues[stateStarterId] = {}
+              }
+              
+              // Get the existing inputFormat structure from the starter block
+              const starterSubBlocks = stateStarterBlock?.subBlocks || {}
+              const existingInputFormat = starterSubBlocks.inputFormat?.value || []
+              const existingStartWorkflow = starterSubBlocks.startWorkflow?.value || 'manual'
+              
+              console.log('[Debug] Starter block config:', {
+                startWorkflow: existingStartWorkflow,
+                existingInputFormat,
+                starterSubBlocks
+              })
+              
+              // For chat mode, the input is typically in the 'input' field
+              if (executionInput.input !== undefined && typeof executionInput.input === 'string') {
+                // Chat mode - set the chat input
+                subblockValues[stateStarterId].chatInput = executionInput.input
+                console.log('[Debug] Set chat input:', executionInput.input)
+              }
+              
+              // For API/manual mode with structured inputs
+              if (existingInputFormat && Array.isArray(existingInputFormat) && existingInputFormat.length > 0) {
+                console.log('[Debug] Processing inputFormat. Existing format:', existingInputFormat)
+                console.log('[Debug] Execution input to apply:', executionInput)
+                
+                // Override existingInputFormat values with actual executionInput when available
+                try {
+                  const updatedFormat = (existingInputFormat as any[]).map((field: any) => {
+                    const fieldName = field?.name
+                    if (!fieldName) return field
+                    // If executionInput is string and field is named 'input', set it directly
+                    if (fieldName === 'input') {
+                      if (typeof executionInput === 'string') {
+                        return { ...field, value: executionInput }
+                      }
+                      if (executionInput && typeof executionInput === 'object' && 'input' in executionInput) {
+                        return { ...field, value: (executionInput as any).input }
+                      }
+                    }
+                    // If executionInput has a matching key, override
+                    if (executionInput && typeof executionInput === 'object' && fieldName in (executionInput as any)) {
+                      return { ...field, value: (executionInput as any)[fieldName] }
+                    }
+                    return field
+                  })
+
+                  // Append any extra keys from executionInput that aren't in the format
+                  if (executionInput && typeof executionInput === 'object') {
+                    const existingNames = new Set(updatedFormat.map((f: any) => f?.name).filter(Boolean))
+                    Object.entries(executionInput as Record<string, any>).forEach(([key, value]) => {
+                      if (
+                        !existingNames.has(key) &&
+                        key !== 'conversationId' &&
+                        key !== 'files'
+                      ) {
+                        updatedFormat.push({
+                          id: `field-${key}`,
+                          name: key,
+                          type: typeof value === 'string' ? 'string' : 'json',
+                          value,
+                          collapsed: false,
+                        })
+                      }
+                    })
+                  }
+
+                  subblockValues[stateStarterId].inputFormat = updatedFormat
+                  console.log('[Debug] Applied execution input to inputFormat:', updatedFormat)
+                } catch (e) {
+                  console.warn('[Debug] Failed to apply execution input to inputFormat:', e)
+                }
+              } else if (typeof executionInput === 'object' && !Array.isArray(executionInput)) {
+                // If no existing format but we have an object input, create format from execution data
+                const generatedFormat = Object.entries(executionInput)
+                  .filter(([key]) => key !== 'input' && key !== 'conversationId' && key !== 'files')
+                  .map(([key, value]) => ({
+                    id: `field-${key}`,
+                    name: key,
+                    type: typeof value === 'string' ? 'string' : 'json',
+                    value: value,
+                    collapsed: false
+                  }))
+                
+                if (generatedFormat.length > 0) {
+                  subblockValues[stateStarterId].inputFormat = generatedFormat
+                  console.log('[Debug] Generated input format from execution:', generatedFormat)
+                }
+              }
+              
+              // Store the full execution input for reference
+              subblockValues[stateStarterId]._executionInput = executionInput
+              console.log('[Debug] Full execution input stored:', executionInput)
+            }
           }
+          
+          console.log('[Debug] Extracted subblock values with inputs:', subblockValues)
+          
+                      // Load subblock values into the store for the current workflow
+            if (activeWorkflowId) {
+              // Save original values if not already saved
+              if (!originalSubblockValuesRef.current) {
+                const currentValues = useSubBlockStore.getState().workflowValues[activeWorkflowId]
+                if (currentValues) {
+                  // Deep clone to avoid reference issues
+                  originalSubblockValuesRef.current = JSON.parse(JSON.stringify(currentValues))
+                  console.log('[Debug] Saved original subblock values:', originalSubblockValuesRef.current)
+                }
+              }
+              
+              console.log('[Debug] Loading execution subblock values for workflow:', activeWorkflowId)
+              console.log('[Debug] Values to load:', subblockValues)
+              
+              // Force replace all subblock values with the execution values
+              useSubBlockStore.setState((state) => ({
+                workflowValues: {
+                  ...state.workflowValues,
+                  [activeWorkflowId]: subblockValues  // Complete replacement, not merge
+                }
+              }))
+              
+              // Verify the values were set
+              setTimeout(() => {
+                const newValues = useSubBlockStore.getState().workflowValues[activeWorkflowId]
+                console.log('[Debug] Subblock store after update:', newValues)
+                if (starterBlockId && newValues[starterBlockId]) {
+                  console.log('[Debug] Starter block values in store:', newValues[starterBlockId])
+                  
+                  // Log the specific inputFormat value
+                  if (newValues[starterBlockId].inputFormat) {
+                    console.log('[Debug] InputFormat in store:', newValues[starterBlockId].inputFormat)
+                  }
+                }
+              }, 100)
+            }
           
           useDebugCanvasStore.getState().activate(state)
 

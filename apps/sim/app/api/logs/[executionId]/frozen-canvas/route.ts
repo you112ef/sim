@@ -41,6 +41,7 @@ export async function GET(
       executionId,
       workflowId: workflowLog.workflowId,
       workflowState: snapshot.stateData,
+      executionData: workflowLog.executionData || {},
       executionMetadata: {
         trigger: workflowLog.trigger,
         startedAt: workflowLog.startedAt.toISOString(),

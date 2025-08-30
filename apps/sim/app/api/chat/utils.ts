@@ -543,6 +543,7 @@ export async function executeWorkflowForChat(
     userId: deployment.userId,
     workspaceId: '', // TODO: Get from workflow
     variables: workflowVariables,
+    initialInput: { input, conversationId },
   })
 
   const stream = new ReadableStream({

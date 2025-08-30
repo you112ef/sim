@@ -399,6 +399,7 @@ export async function GET() {
                 userId: workflowRecord.userId,
                 workspaceId: workflowRecord.workspaceId || '',
                 variables: variables || {},
+                initialInput: input,
               })
 
               const executor = new Executor({
@@ -467,10 +468,17 @@ export async function GET() {
 
               // Create a minimal log entry for early failures
               try {
+                const input = {
+                  workflowId: schedule.workflowId,
+                  _context: {
+                    workflowId: schedule.workflowId,
+                  },
+                }
                 await loggingSession.safeStart({
                   userId: workflowRecord.userId,
                   workspaceId: workflowRecord.workspaceId || '',
                   variables: {},
+                  initialInput: input,
                 })
 
                 await loggingSession.safeCompleteWithError({
@@ -586,10 +594,17 @@ export async function GET() {
                 requestId
               )
 
+              const input = {
+                workflowId: schedule.workflowId,
+                _context: {
+                  workflowId: schedule.workflowId,
+                },
+              }
               await failureLoggingSession.safeStart({
                 userId: workflowRecord.userId,
                 workspaceId: workflowRecord.workspaceId || '',
                 variables: {},
+                initialInput: input,
               })
 
               await failureLoggingSession.safeCompleteWithError({

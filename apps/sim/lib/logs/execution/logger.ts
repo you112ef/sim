@@ -36,11 +36,12 @@ export class ExecutionLogger implements IExecutionLoggerService {
     trigger: ExecutionTrigger
     environment: ExecutionEnvironment
     workflowState: WorkflowState
+    initialInput?: Record<string, unknown>
   }): Promise<{
     workflowLog: WorkflowExecutionLog
     snapshot: WorkflowExecutionSnapshot
   }> {
-    const { workflowId, executionId, trigger, environment, workflowState } = params
+    const { workflowId, executionId, trigger, environment, workflowState, initialInput } = params
 
     logger.debug(`Starting workflow execution ${executionId} for workflow ${workflowId}`)
 
@@ -66,6 +67,7 @@ export class ExecutionLogger implements IExecutionLoggerService {
         executionData: {
           environment,
           trigger,
+          initialInput: initialInput || {},
         },
       })
       .returning()
@@ -137,6 +139,15 @@ export class ExecutionLogger implements IExecutionLoggerService {
     // Extract files from trace spans and final output
     const executionFiles = this.extractFilesFromExecution(traceSpans, finalOutput)
 
+    // Read the existing executionData so we can merge new fields without losing initialInput/environment/trigger
+    const [existing] = await db
+      .select({ executionData: workflowExecutionLogs.executionData })
+      .from(workflowExecutionLogs)
+      .where(eq(workflowExecutionLogs.executionId, executionId))
+      .limit(1)
+
+    const existingExecutionData = (existing?.executionData as any) || {}
+
     const [updatedLog] = await db
       .update(workflowExecutionLogs)
       .set({
@@ -145,6 +156,7 @@ export class ExecutionLogger implements IExecutionLoggerService {
         totalDurationMs,
         files: executionFiles.length > 0 ? executionFiles : null,
         executionData: {
+          ...existingExecutionData,
           traceSpans,
           finalOutput,
           tokenBreakdown: {
