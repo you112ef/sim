@@ -344,7 +344,13 @@ export function TriggerConfig({
 
   // Check if the trigger is connected
   // Both webhook and credential-based triggers now have webhook database entries
-  const isTriggerConnected = Boolean(triggerId && actualTriggerId)
+  // In preview, consider it configured if the snapshot contains any trigger fields
+  const isConfiguredInPreview = isPreview && Boolean(
+    (propValue?.triggerPath && propValue.triggerPath.length > 0) ||
+      (propValue?.triggerConfig && Object.keys(propValue.triggerConfig).length > 0) ||
+      propValue?.triggerId
+  )
+  const isTriggerConnected = isConfiguredInPreview || Boolean(triggerId && actualTriggerId)
 
   // Debug logging to help with troubleshooting
   useEffect(() => {

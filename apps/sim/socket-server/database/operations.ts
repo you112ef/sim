@@ -6,6 +6,7 @@ import { createLogger } from '@/lib/logs/console/logger'
 import { loadWorkflowFromNormalizedTables } from '@/lib/workflows/db-helpers'
 import * as schema from '@/db/schema'
 import { workflow, workflowBlocks, workflowEdges, workflowSubflows } from '@/db/schema'
+import { shouldBlockIncomingEdgesForTarget } from '@/lib/workflows/trigger-rules'
 
 const logger = createLogger('SocketDatabase')
 
@@ -597,7 +598,21 @@ async function handleBlockOperationTx(
         throw new Error(`Block ${payload.id} not found in workflow ${workflowId}`)
       }
 
-      logger.debug(`Updated block trigger mode: ${payload.id} -> ${payload.triggerMode}`)
+      // When enabling trigger mode, remove all incoming edges to this block at the database level
+      if (payload.triggerMode === true) {
+        const removed = await tx
+          .delete(workflowEdges)
+          .where(
+            and(eq(workflowEdges.workflowId, workflowId), eq(workflowEdges.targetBlockId, payload.id))
+          )
+          .returning({ id: workflowEdges.id })
+
+        logger.debug(
+          `Updated block trigger mode: ${payload.id} -> ${payload.triggerMode}. Removed ${removed.length} incoming edges for trigger mode.`
+        )
+      } else {
+        logger.debug(`Updated block trigger mode: ${payload.id} -> ${payload.triggerMode}`)
+      }
       break
     }
 
@@ -741,6 +756,24 @@ async function handleEdgeOperationTx(
       // Validate required fields
       if (!payload.id || !payload.source || !payload.target) {
         throw new Error('Missing required fields for add edge operation')
+      }
+
+      // Guard: do not allow incoming edges to trigger-like targets
+      const [targetBlock] = await tx
+        .select({ id: workflowBlocks.id, type: workflowBlocks.type, triggerMode: workflowBlocks.triggerMode })
+        .from(workflowBlocks)
+        .where(and(eq(workflowBlocks.workflowId, workflowId), eq(workflowBlocks.id, payload.target)))
+        .limit(1)
+
+      if (!targetBlock) {
+        throw new Error(`Target block ${payload.target} not found in workflow ${workflowId}`)
+      }
+
+      if (shouldBlockIncomingEdgesForTarget(targetBlock.type as string, targetBlock.triggerMode as boolean)) {
+        logger.debug(
+          `Rejected edge add ${payload.id}: incoming edges not allowed to ${payload.target} (type=${targetBlock.type}, triggerMode=${Boolean(targetBlock.triggerMode)})`
+        )
+        return
       }
 
       await tx.insert(workflowEdges).values({

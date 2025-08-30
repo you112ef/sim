@@ -782,6 +782,16 @@ export function useCollaborativeWorkflow() {
 
       const newTriggerMode = !currentBlock.triggerMode
 
+      // If enabling trigger mode, proactively remove incoming edges for consistency across clients
+      if (newTriggerMode) {
+        const incomingEdges = Object.values(workflowStore.edges).filter((e) => e.target === id)
+        for (const edge of incomingEdges) {
+          executeQueuedOperation('remove', 'edge', { id: edge.id }, () =>
+            workflowStore.removeEdge(edge.id)
+          )
+        }
+      }
+
       executeQueuedOperation(
         'update-trigger-mode',
         'block',

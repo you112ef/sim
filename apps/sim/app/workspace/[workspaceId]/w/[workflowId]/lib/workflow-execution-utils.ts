@@ -131,6 +131,17 @@ export async function executeWorkflowWithLogging(
   // Merge subblock states from the appropriate store
   const mergedStates = mergeSubblockState(validBlocks)
 
+  // Log the current workflow state before filtering
+  logger.info('🔍 Current workflow state before filtering:', {
+    totalBlocks: Object.keys(mergedStates).length,
+    blocks: Object.entries(mergedStates).map(([id, block]) => ({
+      id,
+      type: block.type,
+      triggerMode: block.triggerMode,
+      category: block.type ? getBlock(block.type)?.category : undefined,
+    })),
+  })
+
   // Filter out trigger blocks for manual execution
   const filteredStates = Object.entries(mergedStates).reduce(
     (acc, [id, block]) => {
@@ -142,15 +153,28 @@ export async function executeWorkflowWithLogging(
 
       const blockConfig = getBlock(block.type)
       const isTriggerBlock = blockConfig?.category === 'triggers'
+      const isInTriggerMode = block.triggerMode === true
 
-      // Skip trigger blocks during manual execution
-      if (!isTriggerBlock) {
+      // Skip trigger blocks AND blocks in trigger mode during manual execution
+      if (!isTriggerBlock && !isInTriggerMode) {
         acc[id] = block
+      } else {
+        logger.info(`🚫 Filtering out block ${id} - trigger category: ${isTriggerBlock}, trigger mode: ${isInTriggerMode}`)
       }
       return acc
     },
     {} as typeof mergedStates
   )
+
+  // Log the filtered state that will be used for execution (not snapshots)
+  logger.info('📦 Filtered workflow state for execution:', {
+    totalBlocks: Object.keys(filteredStates).length,
+    blocks: Object.entries(filteredStates).map(([id, block]) => ({
+      id,
+      type: block.type,
+      triggerMode: block.triggerMode,
+    })),
+  })
 
   const currentBlockStates = Object.entries(filteredStates).reduce(
     (acc, [id, block]) => {

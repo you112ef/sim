@@ -4,6 +4,7 @@ import { LoggingSession } from '@/lib/logs/execution/logging-session'
 import { buildTraceSpans } from '@/lib/logs/execution/trace-spans/trace-spans'
 import { validateWorkflowAccess } from '@/app/api/workflows/middleware'
 import { createErrorResponse, createSuccessResponse } from '@/app/api/workflows/utils'
+import { loadWorkflowStateForExecution } from '@/lib/logs/execution/logging-factory'
 
 const logger = createLogger('WorkflowLogAPI')
 
@@ -29,6 +30,22 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
         executionId,
         success: result.success,
       })
+
+      // Log current normalized state before starting logging session (what snapshot will save)
+      try {
+        const normalizedState = await loadWorkflowStateForExecution(id)
+        logger.info(`[${requestId}] 🔍 Normalized workflow state at persistence time:`, {
+          blocks: Object.entries(normalizedState.blocks || {}).map(([bid, b]: [string, any]) => ({
+            id: bid,
+            type: (b as any).type,
+            triggerMode: (b as any).triggerMode,
+            enabled: (b as any).enabled,
+          })),
+          edgesCount: (normalizedState.edges || []).length,
+        })
+      } catch (e) {
+        logger.warn(`[${requestId}] Failed to load normalized state for logging snapshot context`) 
+      }
 
       // Check if this execution is from chat using only the explicit source flag
       const isChatExecution = result.metadata?.source === 'chat'

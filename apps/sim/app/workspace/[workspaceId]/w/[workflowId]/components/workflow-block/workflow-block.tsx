@@ -437,8 +437,12 @@ export function WorkflowBlock({ id, data }: NodeProps<WorkflowBlockProps>) {
       stateToUse = mergedState?.subBlocks || {}
     }
 
-    const isAdvancedMode = useWorkflowStore.getState().blocks[blockId]?.advancedMode ?? false
-    const isTriggerMode = useWorkflowStore.getState().blocks[blockId]?.triggerMode ?? false
+    const isAdvancedMode = data.isPreview
+      ? ((data.blockState as any)?.advancedMode ?? false)
+      : useWorkflowStore.getState().blocks[blockId]?.advancedMode ?? false
+    const isTriggerMode = data.isPreview
+      ? ((data.blockState as any)?.triggerMode ?? false)
+      : useWorkflowStore.getState().blocks[blockId]?.triggerMode ?? false
     const effectiveAdvanced = currentWorkflow.isDiffMode ? displayAdvancedMode : isAdvancedMode
     const effectiveTrigger = currentWorkflow.isDiffMode ? displayTriggerMode : isTriggerMode
 

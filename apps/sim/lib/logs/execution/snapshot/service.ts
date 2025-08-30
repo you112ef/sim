@@ -11,6 +11,7 @@ import type {
 } from '@/lib/logs/types'
 import { db } from '@/db'
 import { workflowExecutionSnapshots } from '@/db/schema'
+import { filterEdgesForTriggers } from '@/lib/workflows/trigger-rules'
 
 const logger = createLogger('SnapshotService')
 
@@ -27,8 +28,27 @@ export class SnapshotService implements ISnapshotService {
     workflowId: string,
     state: WorkflowState
   ): Promise<SnapshotCreationResult> {
+    // Ensure consistency: apply the same trigger-edge filtering used by the editor/execution
+    const filteredState = filterEdgesForTriggers(state)
+
     // Hash the position-less state for deduplication (functional equivalence)
-    const stateHash = this.computeStateHash(state)
+    const stateHash = this.computeStateHash(filteredState)
+
+    // Log a concise preview of the state being considered for snapshot
+    try {
+      logger.info('📸 Preparing workflow snapshot', {
+        workflowId,
+        stateHash,
+        blocks: Object.entries(filteredState.blocks || {}).map(([id, b]: [string, any]) => ({
+          id,
+          type: (b as any)?.type,
+          name: (b as any)?.name,
+          triggerMode: (b as any)?.triggerMode === true,
+          enabled: (b as any)?.enabled !== false,
+        })),
+        edgesCount: (filteredState.edges || []).length,
+      })
+    } catch {}
 
     const existingSnapshot = await this.getSnapshotByHash(workflowId, stateHash)
     if (existingSnapshot) {
@@ -45,7 +65,7 @@ export class SnapshotService implements ISnapshotService {
       id: uuidv4(),
       workflowId,
       stateHash,
-      stateData: state, // Full state with positions, subblock values, etc.
+      stateData: filteredState, // Full state with positions, subblock values, etc., after consistent filtering
     }
 
     const [newSnapshot] = await db
@@ -53,8 +73,24 @@ export class SnapshotService implements ISnapshotService {
       .values(snapshotData)
       .returning()
 
+    logger.info('✅ Saved workflow snapshot', {
+      workflowId,
+      snapshotId: newSnapshot.id,
+      stateHash,
+      blocksCount: Object.keys(filteredState.blocks || {}).length,
+      edgesCount: (filteredState.edges || []).length,
+    })
+
+    // Emit the exact state saved (debug level to avoid log noise); redact sensitive values if needed
+    try {
+      // Lazy import to avoid cycles
+      const utils = await import('@/lib/utils')
+      const redactedState = utils.redactApiKeys(newSnapshot.stateData as any)
+      logger.debug('🧩 Snapshot state data (exact):', redactedState)
+    } catch {}
+
     logger.debug(`Created new snapshot for workflow ${workflowId} with hash ${stateHash}`)
-    logger.debug(`Stored full state with ${Object.keys(state.blocks || {}).length} blocks`)
+    logger.debug(`Stored full state with ${Object.keys(filteredState.blocks || {}).length} blocks`)
     return {
       snapshot: {
         ...newSnapshot,
