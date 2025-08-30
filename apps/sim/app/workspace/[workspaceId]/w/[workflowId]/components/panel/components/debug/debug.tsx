@@ -95,6 +95,8 @@ export function DebugPanel() {
   >([])
   const [isLoadingExecutions, setIsLoadingExecutions] = useState(false)
   const [selectedExecutionKey, setSelectedExecutionKey] = useState<string | undefined>(undefined)
+  // Cache last frozen load to support restart to trigger-pending mode
+  const lastFrozenRef = useRef<{ state: WorkflowState; executionData: any; initial?: { debugContext: any; pendingBlocks: string[] } } | null>(null)
 
   // Track bottom variables tab and row highlighting for navigation from tokens
   const [bottomTab, setBottomTab] = useState<'reference' | 'workflow' | 'environment'>('reference')
@@ -1847,22 +1849,37 @@ export function DebugPanel() {
         // Activate debug canvas with the fetched workflow state
         useDebugCanvasStore.getState().activate(state)
 
-        // Enforce single-trigger init: use only trigger.data.blockId
+        // Completed-state initialization for past executions
         const blocksMap = state.blocks || {}
         const triggerBlockId = executionData?.trigger?.data?.blockId as string | undefined
         if (!triggerBlockId || !blocksMap[triggerBlockId]) {
           return
         }
 
-        // Initialize with trigger as pending (not executed) to match non-past-execution behavior
+        // Build completed context: trigger + all executed blocks
         const blockStates = new Map<string, any>()
         const executedBlocks = new Set<string>()
-        
-        // Store trigger output for when it gets executed, but don't mark it executed yet
-        const triggerOutput = (executionData?.initialInput as any) || {}
-        blockStates.set(triggerBlockId, { output: triggerOutput, executed: false, executionTime: 0 })
 
-        // Graph helpers
+        // Trigger as executed with initial input
+        const triggerOutput = (executionData?.initialInput as any) || {}
+        blockStates.set(triggerBlockId, { output: triggerOutput, executed: true, executionTime: 0 })
+        executedBlocks.add(triggerBlockId)
+
+        // Block executions
+        const execs = (executionData?.blockExecutions as any[]) || []
+        execs.forEach((be: any) => {
+          const id = String(be?.blockId || '')
+          if (!id || !blocksMap[id]) return
+          const output = be?.outputData ?? be?.output ?? {}
+          blockStates.set(id, {
+            output,
+            executed: true,
+            executionTime: Number(be?.durationMs || 0),
+          })
+          executedBlocks.add(id)
+        })
+
+        // Graph helpers for active path
         const edges = (state.edges as any[]) || []
         const forwardAdjLocal: Record<string, string[]> = {}
         edges.forEach((e: any) => {
@@ -1872,14 +1889,7 @@ export function DebugPanel() {
           forwardAdjLocal[s].push(t)
         })
 
-        // Trigger block is the initial pending/current block
-        const initialPending = [triggerBlockId]
-
-        const execStore = useExecutionStore.getState()
-        execStore.setPendingBlocks(initialPending)
-        execStore.setPanelFocusedBlockId(triggerBlockId)
-
-        // Active path from trigger block downstream
+        // Active path from trigger downstream
         const activeExecutionPath = new Set<string>()
         const addPathFrom = (id?: string) => {
           if (!id) return
@@ -1913,7 +1923,7 @@ export function DebugPanel() {
           selectedOutputIds: [],
         }
 
-        // Attach serialized workflow onto context so handlers have structure available
+        // Serialize workflow
         const serializer = new Serializer()
         const serialized = serializer.serializeWorkflow(
           (state.blocks || {}) as any,
@@ -1924,7 +1934,12 @@ export function DebugPanel() {
         )
         newDebugCtx.workflow = serialized
 
-        // Reset debug execution state to align with the new canvas
+        // Apply completed state: no pending blocks, focus last executed or trigger
+        const execStore = useExecutionStore.getState()
+        const lastExecId = execs.length > 0 ? String(execs[execs.length - 1]?.blockId || '') : null
+        execStore.setPendingBlocks([])
+        execStore.setPanelFocusedBlockId((lastExecId && blocksMap[lastExecId]) ? lastExecId : triggerBlockId)
+
         execStore.setIsExecuting(false)
         execStore.setIsDebugging(true)
         execStore.setExecutor(null)
@@ -1932,7 +1947,7 @@ export function DebugPanel() {
         execStore.setExecutingBlockIds(new Set())
         execStore.setActiveBlocks(new Set())
 
-        // Initialize an executor so stepping can continue downstream from the trigger
+        // Initialize an executor so user can restart/step after restart
         try {
           const ex = new Executor({
             workflow: serialized,
@@ -1944,7 +1959,41 @@ export function DebugPanel() {
           execStore.setExecutor(ex as any)
         } catch {}
 
-        // Clear snapshots for a fresh stepping session
+        // Precompute and store initial (trigger-pending) state for fast Restart
+        try {
+          const initialBlockStates = new Map<string, any>()
+          initialBlockStates.set(triggerBlockId, { output: triggerOutput, executed: false, executionTime: 0 })
+
+          const initialActivePath = new Set<string>()
+          addPathFrom(triggerBlockId)
+          forwardAdjLocal // reference to keep ts happy in transformed block
+          const initialDebugCtx: any = {
+            blockStates: initialBlockStates,
+            blockLogs: [],
+            executedBlocks: new Set<string>(),
+            activeExecutionPath: new Set<string>(activeExecutionPath),
+            environmentVariables: (executionData?.environment?.variables as any) || {},
+            workflowVariables: {},
+            parallelBlockMapping: new Map(),
+            metadata: { startTime: new Date().toISOString() },
+            decisions: { router: new Map(), condition: new Map() },
+            loopIterations: new Map(),
+            loopItems: new Map(),
+            completedLoops: new Set(),
+            parallelExecutions: new Map(),
+            selectedOutputIds: [],
+            workflow: serialized,
+          }
+          lastFrozenRef.current = {
+            state,
+            executionData,
+            initial: { debugContext: initialDebugCtx, pendingBlocks: [triggerBlockId] },
+          }
+        } catch {
+          lastFrozenRef.current = { state, executionData }
+        }
+
+        // Fresh snapshots
         useDebugSnapshotStore.getState().clear()
       } catch {}
     }
@@ -1994,6 +2043,47 @@ export function DebugPanel() {
 
   // Restart handler: reset to initial state without starting execution
   const handleRestart = async () => {
+    // If viewing a past execution, restart should switch to trigger-pending mode using cached frozen data
+    if (selectedExecutionKey && lastFrozenRef.current) {
+      const { state, executionData, initial } = lastFrozenRef.current
+      try {
+        const blocksMap = state.blocks || {}
+        const triggerBlockId = (executionData?.trigger?.data?.blockId as string | undefined) || null
+        if (!triggerBlockId || !blocksMap[triggerBlockId]) return
+
+        const execStore = useExecutionStore.getState()
+
+        if (initial?.debugContext && Array.isArray(initial?.pendingBlocks)) {
+          // Use precomputed initial state
+          execStore.setPendingBlocks(initial.pendingBlocks)
+          execStore.setPanelFocusedBlockId(triggerBlockId)
+
+          execStore.setIsExecuting(false)
+          execStore.setIsDebugging(true)
+          execStore.setExecutor(null)
+          execStore.setDebugContext(initial.debugContext)
+          execStore.setExecutingBlockIds(new Set())
+          execStore.setActiveBlocks(new Set())
+
+          // Initialize executor for stepping
+          try {
+            const ex = new Executor({
+              workflow: initial.debugContext.workflow,
+              envVarValues: initial.debugContext.environmentVariables,
+              contextExtensions: {
+                edges: ((state.edges as any[]) || []).map((e: any) => ({ source: e.source, target: e.target })),
+              },
+            })
+            execStore.setExecutor(ex as any)
+          } catch {}
+
+          // Clear prior snapshots
+          useDebugSnapshotStore.getState().clear()
+          return
+        }
+      } catch {}
+    }
+
     // Do not toggle debug mode off; just reset execution/debug state
     hasStartedRef.current = false
     lastFocusedIdRef.current = null
