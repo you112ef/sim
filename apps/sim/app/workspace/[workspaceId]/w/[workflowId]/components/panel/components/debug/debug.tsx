@@ -365,7 +365,7 @@ export function DebugPanel() {
         if (d === (targetDepth as number)) {
           const parents = reverseAdj[id] || []
           const allParentsExec = parents.every((p) => !!rebuilt.get(p)?.executed)
-          if (allParentsExec) globalReady.push(id)
+          if (allParentsExec && !isTriggerBlockId(id)) globalReady.push(id)
         }
       })
 
@@ -373,6 +373,7 @@ export function DebugPanel() {
       const pendingSelection = globalReady.length > 0 ? globalReady : initialPending
 
       // Clear pending-and-downstream nodes so outputs refresh on next runs
+      
       const toClear = new Set<string>()
       const qc: string[] = [...pendingSelection]
       const seenC = new Set<string>()
@@ -399,10 +400,11 @@ export function DebugPanel() {
       newCtx.currentVirtualBlockId = undefined
 
       // Pending are either the global layer or the minimal ready layer/start positions
-      setPendingBlocks(pendingSelection)
+      const filteredPending = pendingSelection.filter((id) => !isTriggerBlockId(id))
+      setPendingBlocks(filteredPending)
       setDebugContext(newCtx)
       // Also update panel focus to first pending for clarity
-      setPanelFocusedBlockId(pendingSelection[0] || null)
+      setPanelFocusedBlockId(filteredPending[0] || null)
     } catch {}
   }
 
@@ -481,7 +483,7 @@ export function DebugPanel() {
           if (seenC.has(n)) continue
           seenC.add(n)
           toClear.add(n)
-          const next = forwardAdj[n] || []
+          const next = (forwardAdj[n] || []).filter((m) => !isTriggerBlockId(m))
           for (const m of next) if (!seenC.has(m)) qc.push(m)
         }
         toClear.forEach((id) => {
@@ -502,7 +504,7 @@ export function DebugPanel() {
           if (seen.has(n)) continue
           seen.add(n)
           path.add(n)
-          const next = forwardAdj[n] || []
+          const next = (forwardAdj[n] || []).filter((m) => !isTriggerBlockId(m))
           for (const m of next) if (!seen.has(m)) q.push(m)
         }
         newCtx.activeExecutionPath = path
@@ -549,7 +551,7 @@ export function DebugPanel() {
             if (seenC.has(n)) continue
             seenC.add(n)
             toClear.add(n)
-            const next = forwardAdj[n] || []
+            const next = (forwardAdj[n] || []).filter((m) => !isTriggerBlockId(m))
             for (const m of next) if (!seenC.has(m)) qc.push(m)
           }
           toClear.forEach((id) => {
@@ -570,7 +572,7 @@ export function DebugPanel() {
             if (seen.has(n)) continue
             seen.add(n)
             path.add(n)
-            const next = forwardAdj[n] || []
+            const next = (forwardAdj[n] || []).filter((m) => !isTriggerBlockId(m))
             for (const m of next) if (!seen.has(m)) q.push(m)
           }
           newCtx.activeExecutionPath = path
@@ -813,6 +815,22 @@ export function DebugPanel() {
     // Matches executor virtual id scheme: `${baseId}_parallel_${parallelId}_iteration_${i}`
     return id.startsWith(`${baseId}_parallel_`)
   }
+  // Helper: detect trigger-category blocks (mirror executor/path logic)
+  const isTriggerBlockId = useCallback(
+    (id: string | null | undefined): boolean => {
+      if (!id) return false
+      const blk = blockById.get(id)
+      if (!blk) return false
+      try {
+        const cfg = getBlock(blk.type)
+        if ((blk as any)?.metadata?.category === 'triggers') return true
+        if (cfg?.category === 'triggers') return true
+        if ((blk as any)?.triggerMode && cfg?.triggers?.enabled) return true
+      } catch {}
+      return false
+    },
+    [blockById]
+  )
 
   const starter = useMemo(
     () => blocksList.find((b: any) => b.metadata?.id === 'starter' || b.type === 'starter'),
@@ -841,7 +859,7 @@ export function DebugPanel() {
       for (const rawId of ids) {
         const realId = resolveOriginalBlockId(rawId)
         const blk = realId ? blockById.get(realId) : null
-        if (blk && !isInfraBlockType(blk.type)) return realId
+        if (blk && !isInfraBlockType(blk.type) && !isTriggerBlockId(realId)) return realId
       }
       return null
     }
@@ -850,7 +868,7 @@ export function DebugPanel() {
     if (panelFocusedBlockId) {
       const real = resolveOriginalBlockId(panelFocusedBlockId)
       const blk = real ? blockById.get(real) : null
-      if (blk && !isInfraBlockType(blk.type)) return real
+      if (blk && !isInfraBlockType(blk.type) && !isTriggerBlockId(real)) return real
     }
     // 2) Next, choose first pending that resolves to non-infra
     if (pendingBlocks.length > 0) {
@@ -861,7 +879,7 @@ export function DebugPanel() {
     if (lastFocusedIdRef.current) {
       const real = resolveOriginalBlockId(lastFocusedIdRef.current)
       const blk = real ? blockById.get(real) : null
-      if (blk && !isInfraBlockType(blk.type)) return real
+      if (blk && !isInfraBlockType(blk.type) && !isTriggerBlockId(real)) return real
     }
     // 4) Fallback to starter
     if (starterId) return starterId
@@ -876,7 +894,7 @@ export function DebugPanel() {
         for (const rawId of pendingBlocks) {
           const real = resolveOriginalBlockId(rawId)
           const blk = real ? blockById.get(real) : null
-          if (blk && !isInfraBlockType(blk.type)) return real
+          if (blk && !isInfraBlockType(blk.type) && !isTriggerBlockId(real)) return real
         }
         return pendingBlocks[0] || null
       })()
@@ -1904,7 +1922,7 @@ export function DebugPanel() {
             if (seen.has(n)) continue
             seen.add(n)
             activeExecutionPath.add(n)
-            const next = forwardAdjLocal[n] || []
+            const next = (forwardAdjLocal[n] || []).filter((m) => !isTriggerBlockId(m))
             for (const m of next) if (!seen.has(m)) q.push(m)
           }
         }
@@ -2042,6 +2060,10 @@ export function DebugPanel() {
       return
     }
 
+    // Filter triggers from pending before stepping
+    const pend = [...useExecutionStore.getState().pendingBlocks].filter((id) => !isTriggerBlockId(id))
+    if (pend.length === 0) return
+
     await handleStepDebug()
   }
 
@@ -2154,7 +2176,8 @@ export function DebugPanel() {
         const st = useExecutionStore.getState()
         exec = st.executor
         ctx = st.debugContext
-        pend = [...st.pendingBlocks]
+        // filter triggers from pending before each step
+        pend = [...st.pendingBlocks].filter((id) => !isTriggerBlockId(id))
         if (!exec || !ctx) break
 
         // Determine executable set
@@ -2178,7 +2201,9 @@ export function DebugPanel() {
           setDebugContext(result.metadata.context)
         }
         if (result?.metadata?.pendingBlocks) {
-          setPendingBlocks(result.metadata.pendingBlocks)
+          // Filter triggers from pending updates from executor, to mirror manual behavior
+          const nextPend = (result.metadata.pendingBlocks as string[]).filter((id) => !isTriggerBlockId(id))
+          setPendingBlocks(nextPend)
         } else {
           break
         }

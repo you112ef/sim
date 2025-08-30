@@ -166,10 +166,17 @@ export function useWorkflowExecution() {
         } catch {}
       }
       if (result.metadata?.pendingBlocks) {
-        setPendingBlocks(result.metadata.pendingBlocks)
+        // Filter triggers from next pending
+        const filtered = (result.metadata.pendingBlocks as string[]).filter((id) => {
+          const block = currentWorkflow.blocks[id]
+          if (!block) return false
+          const cfg = getBlock(block.type)
+          return cfg?.category !== 'triggers'
+        })
+        setPendingBlocks(filtered)
       }
     },
-    [setDebugContext, setPendingBlocks]
+    [setDebugContext, setPendingBlocks, currentWorkflow.blocks]
   )
 
   /**
@@ -786,11 +793,25 @@ export function useWorkflowExecution() {
       return
     }
 
+    // Compute executable set without triggers
+    const nonTriggerPending = pendingBlocks.filter((id) => {
+      const block = currentWorkflow.blocks[id]
+      if (!block) return false
+      const cfg = getBlock(block.type)
+      return cfg?.category !== 'triggers'
+    })
+
+    if (nonTriggerPending.length === 0) {
+      // Nothing executable
+      setIsExecuting(false)
+      return
+    }
+
     try {
-      logger.info('Executing debug step with blocks:', pendingBlocks)
+      logger.info('Executing debug step with blocks:', nonTriggerPending)
       // Mark current pending blocks as executing for UI pulse
-      setExecutingBlockIds(new Set(pendingBlocks))
-      const result = await executor!.continueExecution(pendingBlocks, debugContext!)
+      setExecutingBlockIds(new Set(nonTriggerPending))
+      const result = await executor!.continueExecution(nonTriggerPending, debugContext!)
       logger.info('Debug step execution result:', result)
       // Clear executing state after step returns
       setExecutingBlockIds(new Set())
@@ -816,6 +837,7 @@ export function useWorkflowExecution() {
     handleDebugSessionComplete,
     handleDebugSessionContinuation,
     handleDebugExecutionError,
+    currentWorkflow.blocks,
   ])
 
   /**
@@ -849,6 +871,14 @@ export function useWorkflowExecution() {
       let currentContext = { ...debugContext! }
       let currentPendingBlocks = [...pendingBlocks]
 
+      // Filter initial pending
+      currentPendingBlocks = currentPendingBlocks.filter((id) => {
+        const block = currentWorkflow.blocks[id]
+        if (!block) return false
+        const cfg = getBlock(block.type)
+        return cfg?.category !== 'triggers'
+      })
+
       logger.info('Starting resume execution with blocks:', currentPendingBlocks)
 
       // Continue execution until there are no more pending blocks
@@ -878,9 +908,14 @@ export function useWorkflowExecution() {
           break
         }
 
-        // Update pending blocks for next iteration
+        // Update pending blocks for next iteration, filtered
         if (currentResult.metadata?.pendingBlocks) {
-          currentPendingBlocks = currentResult.metadata.pendingBlocks
+          currentPendingBlocks = (currentResult.metadata.pendingBlocks as string[]).filter((id) => {
+            const block = currentWorkflow.blocks[id]
+            if (!block) return false
+            const cfg = getBlock(block.type)
+            return cfg?.category !== 'triggers'
+          })
         } else {
           logger.info('No pending blocks in result, ending resume')
           break
@@ -920,6 +955,7 @@ export function useWorkflowExecution() {
     setExecutingBlockIds,
     handleDebugSessionComplete,
     handleDebugExecutionError,
+    currentWorkflow.blocks,
   ])
 
   /**

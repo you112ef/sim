@@ -207,14 +207,14 @@ export class PathTracker {
 
         // Use routing strategy to determine if this connection should be activated
         if (!Routing.shouldSkipConnection(conn.sourceHandle, targetBlockType || '')) {
-          // Do not activate trigger blocks during downstream activation from manual paths
+          // Do not activate or traverse trigger blocks during downstream activation from manual paths
           if (!isTriggerCategory) {
             context.activeExecutionPath.add(conn.target)
-          }
 
-          // Recursively activate downstream paths if the target block should activate downstream
-          if (Routing.shouldActivateDownstream(targetBlockType || '')) {
-            this.activateDownstreamPathsSelectively(conn.target, context)
+            // Recursively activate downstream paths if the target block should activate downstream
+            if (Routing.shouldActivateDownstream(targetBlockType || '')) {
+              this.activateDownstreamPathsSelectively(conn.target, context)
+            }
           }
         }
       }
