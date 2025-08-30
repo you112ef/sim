@@ -203,10 +203,14 @@ export class PathTracker {
       if (!context.activeExecutionPath.has(conn.target)) {
         const targetBlock = this.getBlock(conn.target)
         const targetBlockType = targetBlock?.metadata?.id
+        const isTriggerCategory = (targetBlock as any)?.metadata?.category === 'triggers'
 
         // Use routing strategy to determine if this connection should be activated
         if (!Routing.shouldSkipConnection(conn.sourceHandle, targetBlockType || '')) {
-          context.activeExecutionPath.add(conn.target)
+          // Do not activate trigger blocks during downstream activation from manual paths
+          if (!isTriggerCategory) {
+            context.activeExecutionPath.add(conn.target)
+          }
 
           // Recursively activate downstream paths if the target block should activate downstream
           if (Routing.shouldActivateDownstream(targetBlockType || '')) {
@@ -233,7 +237,11 @@ export class PathTracker {
     )
 
     for (const conn of targetConnections) {
-      context.activeExecutionPath.add(conn.target)
+      const targetBlock = this.getBlock(conn.target)
+      const isTriggerCategory = (targetBlock as any)?.metadata?.category === 'triggers'
+      if (!isTriggerCategory) {
+        context.activeExecutionPath.add(conn.target)
+      }
       logger.debug(`Condition ${block.id} activated path to: ${conn.target}`)
 
       // Check if the selected target should activate downstream paths
@@ -282,13 +290,16 @@ export class PathTracker {
       if (this.shouldActivateConnection(conn, hasError, isPartOfLoop, blockLoops, context)) {
         const targetBlock = this.getBlock(conn.target)
         const targetBlockType = targetBlock?.metadata?.id
+        const isTriggerCategory = (targetBlock as any)?.metadata?.category === 'triggers'
 
         // Use routing strategy to determine if this connection should be activated
         if (Routing.shouldSkipConnection(conn.sourceHandle, targetBlockType || '')) {
           continue
         }
 
-        context.activeExecutionPath.add(conn.target)
+        if (!isTriggerCategory) {
+          context.activeExecutionPath.add(conn.target)
+        }
       }
     }
   }

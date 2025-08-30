@@ -1851,19 +1851,23 @@ export function DebugPanel() {
 
         // Completed-state initialization for past executions
         const blocksMap = state.blocks || {}
-        const triggerBlockId = executionData?.trigger?.data?.blockId as string | undefined
-        if (!triggerBlockId || !blocksMap[triggerBlockId]) {
-          return
+        // Determine starting block: prefer trigger block, otherwise fall back to starter for manual runs
+        let startingBlockId = executionData?.trigger?.data?.blockId as string | undefined
+        if (!startingBlockId || !blocksMap[startingBlockId]) {
+          startingBlockId = Object.keys(blocksMap).find((id) => (blocksMap as any)[id]?.type === 'starter')
+          if (!startingBlockId) {
+            return
+          }
         }
 
         // Build completed context: trigger + all executed blocks
         const blockStates = new Map<string, any>()
         const executedBlocks = new Set<string>()
 
-        // Trigger as executed with initial input
+        // Starting block (trigger or starter) as executed with initial input
         const triggerOutput = (executionData?.initialInput as any) || {}
-        blockStates.set(triggerBlockId, { output: triggerOutput, executed: true, executionTime: 0 })
-        executedBlocks.add(triggerBlockId)
+        blockStates.set(startingBlockId, { output: triggerOutput, executed: true, executionTime: 0 })
+        executedBlocks.add(startingBlockId)
 
         // Block executions
         const execs = (executionData?.blockExecutions as any[]) || []
@@ -1904,7 +1908,7 @@ export function DebugPanel() {
             for (const m of next) if (!seen.has(m)) q.push(m)
           }
         }
-        addPathFrom(triggerBlockId)
+        addPathFrom(startingBlockId)
 
         const newDebugCtx: any = {
           blockStates,
@@ -1938,7 +1942,7 @@ export function DebugPanel() {
         const execStore = useExecutionStore.getState()
         const lastExecId = execs.length > 0 ? String(execs[execs.length - 1]?.blockId || '') : null
         execStore.setPendingBlocks([])
-        execStore.setPanelFocusedBlockId((lastExecId && blocksMap[lastExecId]) ? lastExecId : triggerBlockId)
+        execStore.setPanelFocusedBlockId((lastExecId && blocksMap[lastExecId]) ? lastExecId : startingBlockId)
 
         execStore.setIsExecuting(false)
         execStore.setIsDebugging(true)
@@ -1962,10 +1966,10 @@ export function DebugPanel() {
         // Precompute and store initial (trigger-pending) state for fast Restart
         try {
           const initialBlockStates = new Map<string, any>()
-          initialBlockStates.set(triggerBlockId, { output: triggerOutput, executed: false, executionTime: 0 })
+          initialBlockStates.set(startingBlockId, { output: triggerOutput, executed: false, executionTime: 0 })
 
           const initialActivePath = new Set<string>()
-          addPathFrom(triggerBlockId)
+          addPathFrom(startingBlockId)
           forwardAdjLocal // reference to keep ts happy in transformed block
           const initialDebugCtx: any = {
             blockStates: initialBlockStates,
@@ -1987,7 +1991,7 @@ export function DebugPanel() {
           lastFrozenRef.current = {
             state,
             executionData,
-            initial: { debugContext: initialDebugCtx, pendingBlocks: [triggerBlockId] },
+            initial: { debugContext: initialDebugCtx, pendingBlocks: [startingBlockId] },
           }
         } catch {
           lastFrozenRef.current = { state, executionData }
@@ -2048,15 +2052,19 @@ export function DebugPanel() {
       const { state, executionData, initial } = lastFrozenRef.current
       try {
         const blocksMap = state.blocks || {}
-        const triggerBlockId = (executionData?.trigger?.data?.blockId as string | undefined) || null
-        if (!triggerBlockId || !blocksMap[triggerBlockId]) return
+        // Determine starting block: prefer trigger, else starter for manual runs
+        let startingBlockId = (executionData?.trigger?.data?.blockId as string | undefined) || null
+        if (!startingBlockId || !blocksMap[startingBlockId]) {
+          startingBlockId = Object.keys(blocksMap).find((id) => (blocksMap as any)[id]?.type === 'starter') || null
+        }
+        if (!startingBlockId) return
 
         const execStore = useExecutionStore.getState()
 
         if (initial?.debugContext && Array.isArray(initial?.pendingBlocks)) {
           // Use precomputed initial state
           execStore.setPendingBlocks(initial.pendingBlocks)
-          execStore.setPanelFocusedBlockId(triggerBlockId)
+          execStore.setPanelFocusedBlockId(startingBlockId)
 
           execStore.setIsExecuting(false)
           execStore.setIsDebugging(true)

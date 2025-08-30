@@ -746,7 +746,7 @@ export class Executor {
     Object.entries(this.initialBlockStates).forEach(([blockId, output]) => {
       context.blockStates.set(blockId, {
         output: output as NormalizedBlockOutput,
-        executed: false,
+        executed: true,
         executionTime: 0,
       })
     })
@@ -961,9 +961,13 @@ export class Executor {
       const connectedToStartBlock = this.actualWorkflow.connections
         .filter((conn) => conn.source === initBlock.id)
         .map((conn) => conn.target)
-
+      // Skip trigger-category targets when seeding from starter (manual/debug runs)
       connectedToStartBlock.forEach((blockId) => {
-        context.activeExecutionPath.add(blockId)
+        const targetBlock = this.actualWorkflow.blocks.find((b) => b.id === blockId)
+        const isTriggerCategory = (targetBlock as any)?.metadata?.category === 'triggers'
+        if (!isTriggerCategory) {
+          context.activeExecutionPath.add(blockId)
+        }
       })
     }
 
