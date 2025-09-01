@@ -851,11 +851,8 @@ export function useCollaborativeWorkflow() {
         return
       }
 
-      if (!isInActiveRoom()) {
-        return
-      }
-
       subBlockStore.setValue(blockId, subblockId, value)
+      // Always try to enqueue/emit; socket layer handles offline queueing with URL fallback
       emitSubblockUpdate(blockId, subblockId, value)
 
       try {
@@ -875,27 +872,17 @@ export function useCollaborativeWorkflow() {
         }
       } catch {}
     },
-    [
-      subBlockStore,
-      currentWorkflowId,
-      activeWorkflowId,
-      emitSubblockUpdate,
-      isShowingDiff,
-      isInActiveRoom,
-    ]
+    [subBlockStore, emitSubblockUpdate, isShowingDiff]
   )
 
   // Immediate tag selection (uses queue but processes immediately, no debouncing)
   const collaborativeSetTagSelection = useCallback(
     (blockId: string, subblockId: string, value: any) => {
       if (isApplyingRemoteChange.current) return
-      if (!isInActiveRoom()) {
-        return
-      }
       subBlockStore.setValue(blockId, subblockId, value)
       emitSubblockUpdate(blockId, subblockId, value)
     },
-    [subBlockStore, emitSubblockUpdate, isInActiveRoom]
+    [subBlockStore, emitSubblockUpdate]
   )
 
   const collaborativeDuplicateBlock = useCallback(
@@ -1180,7 +1167,6 @@ export function useCollaborativeWorkflow() {
   const collaborativeUpdateVariable = useCallback(
     (variableId: string, field: 'name' | 'value' | 'type', value: any) => {
       if (isApplyingRemoteChange.current) return
-      if (!isInActiveRoom()) return
 
       if (field === 'name') {
         variablesStore.updateVariable(variableId, { name: value })
@@ -1192,7 +1178,7 @@ export function useCollaborativeWorkflow() {
 
       emitVariableUpdate(variableId, field, value)
     },
-    [variablesStore, emitVariableUpdate, isInActiveRoom]
+    [variablesStore, emitVariableUpdate]
   )
 
   const collaborativeAddVariable = useCallback(

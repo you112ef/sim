@@ -24,6 +24,7 @@ export function setupSubblocksHandlers(
       value: unknown
       timestamp: number
       userId: string
+      operationIds: Set<string>
     }
   >()
   const lastApplied = new Map<string, number>()
@@ -63,14 +64,22 @@ export function setupSubblocksHandlers(
       }
 
       const key = makeKey(workflowId, blockId, subblockId)
-      pendingBuffers.set(key, {
-        workflowId,
-        blockId,
-        subblockId,
-        value,
-        timestamp: Number(timestamp) || Date.now(),
-        userId: session.userId,
-      })
+      const existingBuffer = pendingBuffers.get(key)
+      if (existingBuffer) {
+        existingBuffer.value = value
+        existingBuffer.timestamp = Number(timestamp) || Date.now()
+        if (operationId) existingBuffer.operationIds.add(operationId)
+      } else {
+        pendingBuffers.set(key, {
+          workflowId,
+          blockId,
+          subblockId,
+          value,
+          timestamp: Number(timestamp) || Date.now(),
+          userId: session.userId,
+          operationIds: new Set(operationId ? [operationId] : []),
+        })
+      }
 
       const scheduleFlush = () => {
         const buffer = pendingBuffers.get(key)
@@ -92,6 +101,13 @@ export function setupSubblocksHandlers(
               .limit(1)
 
             if (workflowExists.length === 0) {
+              for (const id of buffer.operationIds) {
+                socket.emit('operation-failed', {
+                  operationId: id,
+                  error: 'Workflow no longer exists',
+                  retryable: false,
+                })
+              }
               roomManager.cleanupUserFromRoom(socket.id, buffer.workflowId)
               return
             }
@@ -110,6 +126,13 @@ export function setupSubblocksHandlers(
                 .limit(1)
 
               if (!block) {
+                for (const id of buffer.operationIds) {
+                  socket.emit('operation-failed', {
+                    operationId: id,
+                    error: 'Block no longer exists',
+                    retryable: false,
+                  })
+                }
                 return
               }
 
@@ -154,12 +177,29 @@ export function setupSubblocksHandlers(
                 senderId: socket.id,
                 userId: buffer.userId,
               })
+              for (const id of buffer.operationIds) {
+                socket.emit('operation-confirmed', {
+                  operationId: id,
+                  serverTimestamp: Date.now(),
+                })
+              }
               logger.debug(
                 `Subblock update in workflow ${buffer.workflowId}: ${buffer.blockId}.${buffer.subblockId}`
               )
             }
           } catch (error) {
             logger.error('Error handling subblock update:', error)
+            const errMsg = error instanceof Error ? error.message : 'Unknown error'
+            const buf = pendingBuffers.get(key)
+            if (buf) {
+              for (const id of buf.operationIds) {
+                socket.emit('operation-failed', {
+                  operationId: id,
+                  error: errMsg,
+                  retryable: true,
+                })
+              }
+            }
           }
         })()
       }
