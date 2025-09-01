@@ -13,6 +13,7 @@ import { useParams } from 'next/navigation'
 import { io, type Socket } from 'socket.io-client'
 import { getEnv } from '@/lib/env'
 import { createLogger } from '@/lib/logs/console/logger'
+import { registerTextOutboxAttemptSender, useTextOutboxStore } from '@/stores/text-outbox/store'
 
 const logger = createLogger('SocketContext')
 
@@ -108,7 +109,10 @@ export function SocketProvider({ children, user }: SocketProviderProps) {
   const [isConnecting, setIsConnecting] = useState(false)
   const [currentWorkflowId, setCurrentWorkflowId] = useState<string | null>(null)
   const [presenceUsers, setPresenceUsers] = useState<PresenceUser[]>([])
+  const [isRoomReady, setIsRoomReady] = useState(false)
   const initializedRef = useRef(false)
+  // Track the workflow id that is fully joined (server sent workflow-state)
+  const roomReadyWorkflowIdRef = useRef<string | null>(null)
 
   // Get current workflow ID from URL params
   const params = useParams()
@@ -210,12 +214,43 @@ export function SocketProvider({ children, user }: SocketProviderProps) {
             })
             // Update our internal state to match the URL
             setCurrentWorkflowId(urlWorkflowId)
+            setIsRoomReady(false)
+            roomReadyWorkflowIdRef.current = null
           }
+
+          // Register attempt sender for text outbox
+          try {
+            registerTextOutboxAttemptSender((op) => {
+              const readyId = roomReadyWorkflowIdRef.current
+              if (!socketInstance.connected) return false
+              if (!readyId || (op.workflowId && op.workflowId !== readyId)) return false
+              if (op.type === 'subblock') {
+                socketInstance.emit('subblock-update', {
+                  blockId: op.blockId,
+                  subblockId: op.subblockId,
+                  value: op.value,
+                  timestamp: Date.now(),
+                  operationId: op.id,
+                })
+                return true
+              }
+              socketInstance.emit('variable-update', {
+                variableId: op.variableId,
+                field: op.field,
+                value: op.value,
+                timestamp: Date.now(),
+                operationId: op.id,
+              })
+              return true
+            })
+          } catch {}
         })
 
         socketInstance.on('disconnect', (reason) => {
           setIsConnected(false)
           setIsConnecting(false)
+          setIsRoomReady(false)
+          roomReadyWorkflowIdRef.current = null
 
           logger.info('Socket disconnected', {
             reason,
@@ -256,6 +291,16 @@ export function SocketProvider({ children, user }: SocketProviderProps) {
             socketId: socketInstance.id,
             transport: socketInstance.io.engine?.transport?.name,
           })
+          try {
+            const workflowId = urlWorkflowId || currentWorkflowId
+            if (!workflowId) return
+            const { getPendingForWorkflow, rescheduleWithoutPenalty } =
+              useTextOutboxStore.getState()
+            const pending = getPendingForWorkflow(workflowId)
+            for (const op of pending) {
+              rescheduleWithoutPenalty(op.id)
+            }
+          } catch {}
           // Note: Workflow rejoining is handled by the 'connect' event which fires for both initial connections and reconnections
         })
 
@@ -299,6 +344,22 @@ export function SocketProvider({ children, user }: SocketProviderProps) {
         // Variable update events
         socketInstance.on('variable-update', (data) => {
           eventHandlers.current.variableUpdate?.(data)
+        })
+
+        // Outbox acks for text updates
+        socketInstance.on('operation-confirmed', (data) => {
+          if (data?.operationId) {
+            useTextOutboxStore.getState().confirm(data.operationId)
+          }
+          logger.debug('Operation confirmed', { operationId: data.operationId })
+          eventHandlers.current.operationConfirmed?.(data)
+        })
+        socketInstance.on('operation-failed', (data) => {
+          if (data?.operationId) {
+            useTextOutboxStore.getState().fail(data.operationId, data?.retryable !== false)
+          }
+          logger.warn('Operation failed', { operationId: data.operationId, error: data.error })
+          eventHandlers.current.operationFailed?.(data)
         })
 
         // Workflow deletion events
@@ -597,6 +658,22 @@ export function SocketProvider({ children, user }: SocketProviderProps) {
                   })
 
                   logger.info('Merged fresh workflow state with local state')
+                  setIsRoomReady(true)
+                  roomReadyWorkflowIdRef.current = workflowData.id
+
+                  // After join completes and workflow state is received, flush due text outbox ops
+                  try {
+                    const { getPendingForWorkflow, scheduleAttempt } = useTextOutboxStore.getState()
+                    if (workflowData?.id) {
+                      const due = getPendingForWorkflow(workflowData.id)
+                      const now = Date.now()
+                      due.forEach((op: any) => {
+                        if (op.nextRetryAt <= now) {
+                          scheduleAttempt(op.id, 0)
+                        }
+                      })
+                    }
+                  } catch {}
                 })
                 .catch((error) => {
                   logger.error('Failed to import stores for workflow state update:', error)
@@ -643,13 +720,7 @@ export function SocketProvider({ children, user }: SocketProviderProps) {
     )
 
     try {
-      const { useOperationQueueStore } = require('@/stores/operation-queue/store')
-      // Flush debounced updates for the old workflow before switching rooms
-      if (currentWorkflowId) {
-        useOperationQueueStore.getState().flushDebouncedForWorkflow(currentWorkflowId)
-      } else {
-        useOperationQueueStore.getState().flushAllDebounced()
-      }
+      // No-op: debounced client updates removed
     } catch {}
 
     // Leave current workflow first if we're in one
@@ -711,12 +782,13 @@ export function SocketProvider({ children, user }: SocketProviderProps) {
       logger.info(`Leaving workflow: ${currentWorkflowId}`)
       try {
         const { useOperationQueueStore } = require('@/stores/operation-queue/store')
-        useOperationQueueStore.getState().flushDebouncedForWorkflow(currentWorkflowId)
         useOperationQueueStore.getState().cancelOperationsForWorkflow(currentWorkflowId)
       } catch {}
       socket.emit('leave-workflow')
       setCurrentWorkflowId(null)
       setPresenceUsers([])
+      setIsRoomReady(false)
+      roomReadyWorkflowIdRef.current = null
 
       // Clean up any pending position updates
       positionUpdateTimeouts.current.forEach((timeoutId) => {
@@ -785,14 +857,28 @@ export function SocketProvider({ children, user }: SocketProviderProps) {
   const emitSubblockUpdate = useCallback(
     (blockId: string, subblockId: string, value: any, operationId?: string) => {
       // Only emit if socket is connected and we're in a valid workflow room
-      if (socket && currentWorkflowId) {
-        socket.emit('subblock-update', {
-          blockId,
-          subblockId,
-          value,
-          timestamp: Date.now(),
-          operationId, // Include operation ID for queue tracking
-        })
+      const effectiveWorkflowId = currentWorkflowId || (urlWorkflowId as string | undefined)
+      if (effectiveWorkflowId) {
+        const id = operationId || crypto.randomUUID()
+        try {
+          useTextOutboxStore.getState().addSubblock({
+            id,
+            workflowId: effectiveWorkflowId,
+            blockId,
+            subblockId,
+            value,
+          })
+        } catch {}
+        // Only emit directly if room is ready for this workflow
+        if (socket && roomReadyWorkflowIdRef.current === effectiveWorkflowId) {
+          socket.emit('subblock-update', {
+            blockId,
+            subblockId,
+            value,
+            timestamp: Date.now(),
+            operationId: id,
+          })
+        }
       } else {
         logger.warn('Cannot emit subblock update: no socket connection or workflow room', {
           hasSocket: !!socket,
@@ -809,14 +895,28 @@ export function SocketProvider({ children, user }: SocketProviderProps) {
   const emitVariableUpdate = useCallback(
     (variableId: string, field: string, value: any, operationId?: string) => {
       // Only emit if socket is connected and we're in a valid workflow room
-      if (socket && currentWorkflowId) {
-        socket.emit('variable-update', {
-          variableId,
-          field,
-          value,
-          timestamp: Date.now(),
-          operationId, // Include operation ID for queue tracking
-        })
+      const effectiveWorkflowId = currentWorkflowId || (urlWorkflowId as string | undefined)
+      if (effectiveWorkflowId) {
+        const id = operationId || crypto.randomUUID()
+        try {
+          useTextOutboxStore.getState().addVariable({
+            id,
+            workflowId: effectiveWorkflowId,
+            variableId,
+            field,
+            value,
+          })
+        } catch {}
+        // Only emit directly if room is ready for this workflow
+        if (socket && roomReadyWorkflowIdRef.current === effectiveWorkflowId) {
+          socket.emit('variable-update', {
+            variableId,
+            field,
+            value,
+            timestamp: Date.now(),
+            operationId: id,
+          })
+        }
       } else {
         logger.warn('Cannot emit variable update: no socket connection or workflow room', {
           hasSocket: !!socket,
