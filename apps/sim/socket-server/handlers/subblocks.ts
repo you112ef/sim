@@ -14,6 +14,22 @@ export function setupSubblocksHandlers(
 ) {
   const roomManager =
     deps instanceof Object && 'roomManager' in deps ? deps.roomManager : (deps as RoomManager)
+  const pendingTimers = new Map<string, NodeJS.Timeout>()
+  const pendingBuffers = new Map<
+    string,
+    {
+      workflowId: string
+      blockId: string
+      subblockId: string
+      value: unknown
+      timestamp: number
+      userId: string
+    }
+  >()
+  const lastApplied = new Map<string, number>()
+
+  const makeKey = (workflowId: string, blockId: string, subblockId: string) =>
+    `${workflowId}:${blockId}:${subblockId}`
   socket.on('subblock-update', async (data) => {
     const workflowId = roomManager.getWorkflowIdForSocket(socket.id)
     const session = roomManager.getUserSession(socket.id)
@@ -46,110 +62,124 @@ export function setupSubblocksHandlers(
         userPresence.lastActivity = Date.now()
       }
 
-      // First, verify that the workflow still exists in the database
-      const workflowExists = await db
-        .select({ id: workflow.id })
-        .from(workflow)
-        .where(eq(workflow.id, workflowId))
-        .limit(1)
+      const key = makeKey(workflowId, blockId, subblockId)
+      pendingBuffers.set(key, {
+        workflowId,
+        blockId,
+        subblockId,
+        value,
+        timestamp: Number(timestamp) || Date.now(),
+        userId: session.userId,
+      })
 
-      if (workflowExists.length === 0) {
-        logger.warn(`Ignoring subblock update: workflow ${workflowId} no longer exists`, {
-          socketId: socket.id,
-          blockId,
-          subblockId,
-        })
-        roomManager.cleanupUserFromRoom(socket.id, workflowId)
-        return
-      }
+      const scheduleFlush = () => {
+        const buffer = pendingBuffers.get(key)
+        if (!buffer) return
+        pendingBuffers.delete(key)
+        pendingTimers.delete(key)
 
-      let updateSuccessful = false
-      await db.transaction(async (tx) => {
-        const [block] = await tx
-          .select({ subBlocks: workflowBlocks.subBlocks })
-          .from(workflowBlocks)
-          .where(and(eq(workflowBlocks.id, blockId), eq(workflowBlocks.workflowId, workflowId)))
-          .limit(1)
-
-        if (!block) {
-          // Block was deleted - this is a normal race condition in collaborative editing
-          logger.debug(
-            `Ignoring subblock update for deleted block: ${workflowId}/${blockId}.${subblockId}`
-          )
+        const lastTs = lastApplied.get(key) || 0
+        if (buffer.timestamp < lastTs) {
           return
         }
 
-        const subBlocks = (block.subBlocks as any) || {}
+        ;(async () => {
+          try {
+            const workflowExists = await db
+              .select({ id: workflow.id })
+              .from(workflow)
+              .where(eq(workflow.id, buffer.workflowId))
+              .limit(1)
 
-        if (!subBlocks[subblockId]) {
-          // Create new subblock with minimal structure
-          subBlocks[subblockId] = {
-            id: subblockId,
-            type: 'unknown', // Will be corrected by next collaborative update
-            value: value,
+            if (workflowExists.length === 0) {
+              roomManager.cleanupUserFromRoom(socket.id, buffer.workflowId)
+              return
+            }
+
+            let updateSuccessful = false
+            await db.transaction(async (tx) => {
+              const [block] = await tx
+                .select({ subBlocks: workflowBlocks.subBlocks })
+                .from(workflowBlocks)
+                .where(
+                  and(
+                    eq(workflowBlocks.id, buffer.blockId),
+                    eq(workflowBlocks.workflowId, buffer.workflowId)
+                  )
+                )
+                .limit(1)
+
+              if (!block) {
+                return
+              }
+
+              const subBlocks = (block.subBlocks as any) || {}
+
+              if (!subBlocks[buffer.subblockId]) {
+                subBlocks[buffer.subblockId] = {
+                  id: buffer.subblockId,
+                  type: 'unknown',
+                  value: buffer.value,
+                }
+              } else {
+                subBlocks[buffer.subblockId] = {
+                  ...subBlocks[buffer.subblockId],
+                  value: buffer.value,
+                }
+              }
+
+              await tx
+                .update(workflowBlocks)
+                .set({
+                  subBlocks: subBlocks,
+                  updatedAt: new Date(),
+                })
+                .where(
+                  and(
+                    eq(workflowBlocks.id, buffer.blockId),
+                    eq(workflowBlocks.workflowId, buffer.workflowId)
+                  )
+                )
+
+              updateSuccessful = true
+            })
+
+            if (updateSuccessful) {
+              lastApplied.set(key, buffer.timestamp)
+              socket.to(buffer.workflowId).emit('subblock-update', {
+                blockId: buffer.blockId,
+                subblockId: buffer.subblockId,
+                value: buffer.value,
+                timestamp: buffer.timestamp,
+                senderId: socket.id,
+                userId: buffer.userId,
+              })
+              logger.debug(
+                `Subblock update in workflow ${buffer.workflowId}: ${buffer.blockId}.${buffer.subblockId}`
+              )
+            }
+          } catch (error) {
+            logger.error('Error handling subblock update:', error)
           }
-        } else {
-          // Preserve existing id and type, only update value
-          subBlocks[subblockId] = {
-            ...subBlocks[subblockId],
-            value: value,
-          }
-        }
-
-        await tx
-          .update(workflowBlocks)
-          .set({
-            subBlocks: subBlocks,
-            updatedAt: new Date(),
-          })
-          .where(and(eq(workflowBlocks.id, blockId), eq(workflowBlocks.workflowId, workflowId)))
-
-        updateSuccessful = true
-      })
-
-      // Only broadcast to other clients if the update was successful
-      if (updateSuccessful) {
-        socket.to(workflowId).emit('subblock-update', {
-          blockId,
-          subblockId,
-          value,
-          timestamp,
-          senderId: socket.id,
-          userId: session.userId,
-        })
-
-        // Emit confirmation if operationId is provided
-        if (operationId) {
-          socket.emit('operation-confirmed', {
-            operationId,
-            serverTimestamp: Date.now(),
-          })
-        }
-
-        logger.debug(`Subblock update in workflow ${workflowId}: ${blockId}.${subblockId}`)
-      } else if (operationId) {
-        // Block was deleted - notify client that operation completed (but didn't update anything)
-        socket.emit('operation-failed', {
-          operationId,
-          error: 'Block no longer exists',
-          retryable: false, // No point retrying for deleted blocks
-        })
+        })()
       }
+
+      const existing = pendingTimers.get(key)
+      if (existing) clearTimeout(existing)
+      const timer = setTimeout(scheduleFlush, 25)
+      pendingTimers.set(key, timer)
     } catch (error) {
       logger.error('Error handling subblock update:', error)
 
       const errorMessage = error instanceof Error ? error.message : 'Unknown error'
 
-      // Emit operation-failed for queue-tracked operations
       if (operationId) {
         socket.emit('operation-failed', {
           operationId,
           error: errorMessage,
-          retryable: true, // Subblock updates are generally retryable
+          retryable: true,
         })
       }
-
-      // Also emit legacy operation-error for backward compatibility
       socket.emit('operation-error', {
         type: 'SUBBLOCK_UPDATE_FAILED',
         message: `Failed to update subblock ${blockId}.${subblockId}: ${errorMessage}`,

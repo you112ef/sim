@@ -99,21 +99,51 @@ export const useSubBlockStore = create<SubBlockStore>()(
     },
 
     initializeFromWorkflow: (workflowId: string, blocks: Record<string, any>) => {
-      // Initialize from blocks
-      const values: Record<string, Record<string, any>> = {}
+      // Build values from blocks
+      const incomingValues: Record<string, Record<string, any>> = {}
       Object.entries(blocks).forEach(([blockId, block]) => {
-        values[blockId] = {}
+        incomingValues[blockId] = {}
         Object.entries(block.subBlocks).forEach(([subBlockId, subBlock]) => {
-          values[blockId][subBlockId] = (subBlock as SubBlockConfig).value
+          incomingValues[blockId][subBlockId] = (subBlock as SubBlockConfig).value
         })
       })
 
-      set((state) => ({
-        workflowValues: {
-          ...state.workflowValues,
-          [workflowId]: values,
-        },
-      }))
+      // Merge with existing values without clobbering newer ones
+      set((state) => {
+        const existing = state.workflowValues[workflowId] || {}
+        const merged: Record<string, Record<string, any>> = {}
+
+        const blockIds = new Set([...Object.keys(incomingValues), ...Object.keys(existing)])
+
+        blockIds.forEach((blockId) => {
+          const incomingBlock = incomingValues[blockId] || {}
+          const existingBlock = existing[blockId] || {}
+
+          const subblockIds = new Set([
+            ...Object.keys(incomingBlock),
+            ...Object.keys(existingBlock),
+          ])
+
+          const mergedBlock: Record<string, any> = {}
+          subblockIds.forEach((subId) => {
+            // Prefer existing local value when present (including null), else use incoming
+            if (subId in existingBlock) {
+              mergedBlock[subId] = existingBlock[subId]
+            } else {
+              mergedBlock[subId] = incomingBlock[subId]
+            }
+          })
+
+          merged[blockId] = mergedBlock
+        })
+
+        return {
+          workflowValues: {
+            ...state.workflowValues,
+            [workflowId]: merged,
+          },
+        }
+      })
     },
 
     // Removed syncWithDB - Socket.IO handles real-time sync automatically

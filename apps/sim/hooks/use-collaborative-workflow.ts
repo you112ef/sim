@@ -293,8 +293,26 @@ export function useCollaborativeWorkflow() {
       isApplyingRemoteChange.current = true
 
       try {
-        // The setValue function automatically uses the active workflow ID
-        subBlockStore.setValue(blockId, subblockId, value)
+        // Prefer active workflow id, but fall back to currentWorkflowId to avoid dropping updates during init
+        const workflowIdToUse = activeWorkflowId || currentWorkflowId
+
+        if (workflowIdToUse) {
+          useSubBlockStore.setState((state: any) => ({
+            workflowValues: {
+              ...state.workflowValues,
+              [workflowIdToUse]: {
+                ...state.workflowValues[workflowIdToUse],
+                [blockId]: {
+                  ...state.workflowValues[workflowIdToUse]?.[blockId],
+                  [subblockId]: value,
+                },
+              },
+            },
+          }))
+        } else {
+          // As a last resort, use the existing setter (may no-op if no active workflow yet)
+          subBlockStore.setValue(blockId, subblockId, value)
+        }
       } catch (error) {
         logger.error('Error applying remote subblock update:', error)
       } finally {
@@ -829,41 +847,17 @@ export function useCollaborativeWorkflow() {
     (blockId: string, subblockId: string, value: any, options?: { _visited?: Set<string> }) => {
       if (isApplyingRemoteChange.current) return
 
-      // Skip socket operations when in diff mode
       if (isShowingDiff) {
-        logger.debug('Skipping collaborative subblock update in diff mode')
         return
       }
 
       if (!isInActiveRoom()) {
-        logger.debug('Skipping subblock update - not in active workflow', {
-          currentWorkflowId,
-          activeWorkflowId,
-          blockId,
-          subblockId,
-        })
         return
       }
 
-      // Generate operation ID for queue tracking
-      const operationId = crypto.randomUUID()
-
-      // Add to queue for retry mechanism
-      addToQueue({
-        id: operationId,
-        operation: {
-          operation: 'subblock-update',
-          target: 'subblock',
-          payload: { blockId, subblockId, value },
-        },
-        workflowId: activeWorkflowId || '',
-        userId: session?.user?.id || 'unknown',
-      })
-
-      // Apply locally first (immediate UI feedback)
       subBlockStore.setValue(blockId, subblockId, value)
+      emitSubblockUpdate(blockId, subblockId, value)
 
-      // Declarative clearing: clear sub-blocks that depend on this subblockId
       try {
         const visited = options?._visited || new Set<string>()
         if (visited.has(subblockId)) return
@@ -875,22 +869,17 @@ export function useCollaborativeWorkflow() {
             (sb: any) => Array.isArray(sb.dependsOn) && sb.dependsOn.includes(subblockId)
           )
           for (const dep of dependents) {
-            // Skip clearing if the dependent is the same field
             if (!dep?.id || dep.id === subblockId) continue
-            // Cascade using the same collaborative path so it emits and further cascades
             collaborativeSetSubblockValue(blockId, dep.id, '', { _visited: visited })
           }
         }
-      } catch {
-        // Best-effort; do not block on clearing
-      }
+      } catch {}
     },
     [
       subBlockStore,
       currentWorkflowId,
       activeWorkflowId,
-      addToQueue,
-      session?.user?.id,
+      emitSubblockUpdate,
       isShowingDiff,
       isInActiveRoom,
     ]
@@ -900,43 +889,13 @@ export function useCollaborativeWorkflow() {
   const collaborativeSetTagSelection = useCallback(
     (blockId: string, subblockId: string, value: any) => {
       if (isApplyingRemoteChange.current) return
-
       if (!isInActiveRoom()) {
-        logger.debug('Skipping tag selection - not in active workflow', {
-          currentWorkflowId,
-          activeWorkflowId,
-          blockId,
-          subblockId,
-        })
         return
       }
-
-      // Apply locally first (immediate UI feedback)
       subBlockStore.setValue(blockId, subblockId, value)
-
-      // Use the operation queue but with immediate processing (no debouncing)
-      const operationId = crypto.randomUUID()
-
-      addToQueue({
-        id: operationId,
-        operation: {
-          operation: 'subblock-update',
-          target: 'subblock',
-          payload: { blockId, subblockId, value },
-        },
-        workflowId: activeWorkflowId || '',
-        userId: session?.user?.id || 'unknown',
-        immediate: true,
-      })
+      emitSubblockUpdate(blockId, subblockId, value)
     },
-    [
-      subBlockStore,
-      addToQueue,
-      currentWorkflowId,
-      activeWorkflowId,
-      session?.user?.id,
-      isInActiveRoom,
-    ]
+    [subBlockStore, emitSubblockUpdate, isInActiveRoom]
   )
 
   const collaborativeDuplicateBlock = useCallback(
@@ -1220,17 +1179,20 @@ export function useCollaborativeWorkflow() {
 
   const collaborativeUpdateVariable = useCallback(
     (variableId: string, field: 'name' | 'value' | 'type', value: any) => {
-      executeQueuedOperation('variable-update', 'variable', { variableId, field, value }, () => {
-        if (field === 'name') {
-          variablesStore.updateVariable(variableId, { name: value })
-        } else if (field === 'value') {
-          variablesStore.updateVariable(variableId, { value })
-        } else if (field === 'type') {
-          variablesStore.updateVariable(variableId, { type: value })
-        }
-      })
+      if (isApplyingRemoteChange.current) return
+      if (!isInActiveRoom()) return
+
+      if (field === 'name') {
+        variablesStore.updateVariable(variableId, { name: value })
+      } else if (field === 'value') {
+        variablesStore.updateVariable(variableId, { value })
+      } else if (field === 'type') {
+        variablesStore.updateVariable(variableId, { type: value })
+      }
+
+      emitVariableUpdate(variableId, field, value)
     },
-    [executeQueuedOperation, variablesStore]
+    [variablesStore, emitVariableUpdate, isInActiveRoom]
   )
 
   const collaborativeAddVariable = useCallback(

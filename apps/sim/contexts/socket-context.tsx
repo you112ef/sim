@@ -400,16 +400,38 @@ export function SocketProvider({ children, user }: SocketProviderProps) {
                           workflowState.hasActiveWebhook ?? existing.hasActiveWebhook ?? false,
                       })
 
-                      // Merge subblock store values per workflow
-                      useSubBlockStore.setState((state: any) => ({
-                        workflowValues: {
-                          ...state.workflowValues,
-                          [data.workflowId]: {
-                            ...(state.workflowValues?.[data.workflowId] || {}),
-                            ...subblockValues,
+                      // Merge subblock store values without overwriting newer local values
+                      useSubBlockStore.setState((state: any) => {
+                        const existing = state.workflowValues?.[data.workflowId] || {}
+                        const merged: Record<string, Record<string, any>> = {}
+
+                        const blockIds = new Set([
+                          ...Object.keys(existing),
+                          ...Object.keys(subblockValues),
+                        ])
+
+                        blockIds.forEach((blockId) => {
+                          const existingBlock = existing[blockId] || {}
+                          const incomingBlock = subblockValues[blockId] || {}
+                          const subIds = new Set([
+                            ...Object.keys(existingBlock),
+                            ...Object.keys(incomingBlock),
+                          ])
+                          const blockMerged: Record<string, any> = {}
+                          subIds.forEach((sid) => {
+                            blockMerged[sid] =
+                              sid in existingBlock ? existingBlock[sid] : incomingBlock[sid]
+                          })
+                          merged[blockId] = blockMerged
+                        })
+
+                        return {
+                          workflowValues: {
+                            ...state.workflowValues,
+                            [data.workflowId]: merged,
                           },
-                        },
-                      }))
+                        }
+                      })
 
                       // Note: Auto-layout is already handled by the copilot backend before saving
                       // No need to trigger additional auto-layout here to avoid ID conflicts
@@ -541,15 +563,38 @@ export function SocketProvider({ children, user }: SocketProviderProps) {
                       workflowState.hasActiveWebhook ?? existing.hasActiveWebhook ?? false,
                   })
 
-                  useSubBlockStore.setState((state: any) => ({
-                    workflowValues: {
-                      ...state.workflowValues,
-                      [workflowData.id]: {
-                        ...(state.workflowValues?.[workflowData.id] || {}),
-                        ...subblockValues,
+                  // Merge subblock store values without overwriting newer local values
+                  useSubBlockStore.setState((state: any) => {
+                    const existing = state.workflowValues?.[workflowData.id] || {}
+                    const merged: Record<string, Record<string, any>> = {}
+
+                    const blockIds = new Set([
+                      ...Object.keys(existing),
+                      ...Object.keys(subblockValues),
+                    ])
+
+                    blockIds.forEach((blockId) => {
+                      const existingBlock = existing[blockId] || {}
+                      const incomingBlock = subblockValues[blockId] || {}
+                      const subIds = new Set([
+                        ...Object.keys(existingBlock),
+                        ...Object.keys(incomingBlock),
+                      ])
+                      const blockMerged: Record<string, any> = {}
+                      subIds.forEach((sid) => {
+                        blockMerged[sid] =
+                          sid in existingBlock ? existingBlock[sid] : incomingBlock[sid]
+                      })
+                      merged[blockId] = blockMerged
+                    })
+
+                    return {
+                      workflowValues: {
+                        ...state.workflowValues,
+                        [workflowData.id]: merged,
                       },
-                    },
-                  }))
+                    }
+                  })
 
                   logger.info('Merged fresh workflow state with local state')
                 })
