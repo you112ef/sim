@@ -66,7 +66,18 @@ export function useSubBlockValue<T = any>(
       (state) => {
         // If the active workflow ID isn't available yet, return undefined so we can fall back to initialValue
         if (!activeWorkflowId) return undefined
-        return state.workflowValues[activeWorkflowId]?.[blockId]?.[subBlockId] ?? null
+
+        // Important: distinguish between "no entry yet" vs explicit null value
+        // Only return null when the subblock key exists and is explicitly set to null.
+        // If the key doesn't exist yet (store not hydrated), return undefined to prefer initialValue.
+        const workflowValuesForActive = state.workflowValues[activeWorkflowId]
+        const blockValues = (workflowValuesForActive as any)?.[blockId]
+
+        if (!blockValues || !(subBlockId in blockValues)) {
+          return undefined
+        }
+
+        return (blockValues as any)[subBlockId] as any
       },
       [activeWorkflowId, blockId, subBlockId]
     )
