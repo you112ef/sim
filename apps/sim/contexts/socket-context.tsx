@@ -355,7 +355,7 @@ export function SocketProvider({ children, user }: SocketProviderProps) {
         })
 
         // Subblock update events
-        socketInstance.on('subblock-update', (data) => {
+        socketInstance.on('subblock-update', async (data) => {
           eventHandlers.current.subblockUpdate?.(data)
         })
 
@@ -414,7 +414,7 @@ export function SocketProvider({ children, user }: SocketProviderProps) {
 
           if (data.workflowId === urlWorkflowId) {
             try {
-              const { useOperationQueueStore } = require('@/stores/operation-queue/store')
+              const { useOperationQueueStore } = await import('@/stores/operation-queue/store')
               const hasPending = useOperationQueueStore
                 .getState()
                 .operations.some(
@@ -576,13 +576,13 @@ export function SocketProvider({ children, user }: SocketProviderProps) {
 
         // (Consolidated above)
 
-        socketInstance.on('workflow-state', (workflowData) => {
+        socketInstance.on('workflow-state', async (workflowData) => {
           logger.info('Received workflow state from server')
 
           // Update local stores with the fresh workflow state (same logic as YAML editor)
           if (workflowData?.state && workflowData.id === urlWorkflowId) {
             try {
-              const { useOperationQueueStore } = require('@/stores/operation-queue/store')
+              const { useOperationQueueStore } = await import('@/stores/operation-queue/store')
               const hasPending = useOperationQueueStore
                 .getState()
                 .operations.some(
@@ -747,13 +747,14 @@ export function SocketProvider({ children, user }: SocketProviderProps) {
     )
 
     // Proactively cancel/clear pending operations for the old workflow to prevent false offline
-    try {
-      if (currentWorkflowId) {
-        const { useOperationQueueStore } = require('@/stores/operation-queue/store')
-        useOperationQueueStore.getState().cancelOperationsForWorkflow(currentWorkflowId)
-        useTextOutboxStore.getState().clearWorkflow(currentWorkflowId)
-      }
-    } catch {}
+    if (currentWorkflowId) {
+      import('@/stores/operation-queue/store')
+        .then(({ useOperationQueueStore }) => {
+          useOperationQueueStore.getState().cancelOperationsForWorkflow(currentWorkflowId)
+          useTextOutboxStore.getState().clearWorkflow(currentWorkflowId)
+        })
+        .catch(() => {})
+    }
 
     // Leave current workflow first if we're in one
     if (currentWorkflowId) {
@@ -838,11 +839,12 @@ export function SocketProvider({ children, user }: SocketProviderProps) {
   const leaveWorkflow = useCallback(() => {
     if (socket && currentWorkflowId) {
       logger.info(`Leaving workflow: ${currentWorkflowId}`)
-      try {
-        const { useOperationQueueStore } = require('@/stores/operation-queue/store')
-        useOperationQueueStore.getState().cancelOperationsForWorkflow(currentWorkflowId)
-        useTextOutboxStore.getState().clearWorkflow(currentWorkflowId)
-      } catch {}
+      import('@/stores/operation-queue/store')
+        .then(({ useOperationQueueStore }) => {
+          useOperationQueueStore.getState().cancelOperationsForWorkflow(currentWorkflowId)
+          useTextOutboxStore.getState().clearWorkflow(currentWorkflowId)
+        })
+        .catch(() => {})
       socket.emit('leave-workflow')
       setCurrentWorkflowId(null)
       setPresenceUsers([])
