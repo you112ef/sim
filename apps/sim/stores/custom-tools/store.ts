@@ -50,11 +50,26 @@ export const useCustomToolsStore = create<CustomToolsStore>()(
                 logger.warn(`Skipping invalid tool at index ${index}: missing or invalid schema`)
                 return false
               }
-              // Make code field optional - default to empty string if missing
-              if (!tool.code || typeof tool.code !== 'string') {
-                logger.warn(`Tool at index ${index} missing code field, defaulting to empty string`)
-                tool.code = ''
+
+              // Validate based on tool type
+              if (tool.schema.type === 'function') {
+                // Regular custom tool - code is required
+                if (!tool.code || typeof tool.code !== 'string') {
+                  logger.warn(`Custom tool at index ${index} missing code field`)
+                  return false
+                }
+              } else if (tool.schema.type === 'mcp-server') {
+                // MCP server - code should be empty, URL is required
+                if (!tool.schema.url || typeof tool.schema.url !== 'string') {
+                  logger.warn(`MCP server at index ${index} missing URL field`)
+                  return false
+                }
+                if (!tool.code) tool.code = '' // Default to empty for MCP servers
+              } else {
+                logger.warn(`Unknown tool type at index ${index}: ${tool.schema.type}`)
+                return false
               }
+
               return true
             })
 

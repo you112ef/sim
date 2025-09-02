@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from 'react'
-import { PlusIcon, WrenchIcon, XIcon } from 'lucide-react'
+import { ChevronRight, PlusIcon, ServerIcon, WrenchIcon, XIcon } from 'lucide-react'
+import { createPortal } from 'react-dom'
 import { Button } from '@/components/ui/button'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
 import {
@@ -33,6 +34,10 @@ import {
   type CustomTool,
   CustomToolModal,
 } from '@/app/workspace/[workspaceId]/w/[workflowId]/components/workflow-block/components/sub-block/components/tool-input/components/custom-tool-modal/custom-tool-modal'
+import {
+  type MCPServer,
+  MCPServerModal,
+} from '@/app/workspace/[workspaceId]/w/[workflowId]/components/workflow-block/components/sub-block/components/tool-input/components/mcp-server-modal/mcp-server-modal'
 import { ToolCommand } from '@/app/workspace/[workspaceId]/w/[workflowId]/components/workflow-block/components/sub-block/components/tool-input/components/tool-command/tool-command'
 import { ToolCredentialSelector } from '@/app/workspace/[workspaceId]/w/[workflowId]/components/workflow-block/components/sub-block/components/tool-input/components/tool-credential-selector'
 import { useSubBlockValue } from '@/app/workspace/[workspaceId]/w/[workflowId]/components/workflow-block/components/sub-block/hooks/use-sub-block-value'
@@ -381,13 +386,75 @@ export function ToolInput({
   const [storeValue, setStoreValue] = useSubBlockValue(blockId, subBlockId)
   const [open, setOpen] = useState(false)
   const [customToolModalOpen, setCustomToolModalOpen] = useState(false)
+  const [mcpServerModalOpen, setMCPServerModalOpen] = useState(false)
   const [editingToolIndex, setEditingToolIndex] = useState<number | null>(null)
+  const [hoveredMCPServer, setHoveredMCPServer] = useState<string | null>(null)
+  const [submenuHovered, setSubmenuHovered] = useState(false)
+  const [submenuPosition, setSubmenuPosition] = useState<{ x: number; y: number } | null>(null)
+  const [mcpServerTools, setMCPServerTools] = useState<Record<string, string[]>>({})
+  const [mcpToolSchemas, setMCPToolSchemas] = useState<Record<string, any>>({})
+  const [editingMCPServer, setEditingMCPServer] = useState<string | null>(null)
   const [searchQuery, setSearchQuery] = useState('')
   const [draggedIndex, setDraggedIndex] = useState<number | null>(null)
   const [dragOverIndex, setDragOverIndex] = useState<number | null>(null)
   const isWide = useWorkflowStore((state) => state.blocks[blockId]?.isWide)
   const customTools = useCustomToolsStore((state) => state.getAllTools())
-  const subBlockStore = useSubBlockStore()
+
+  // Filter MCP servers from custom tools
+  const mcpServers = customTools.filter((tool) => tool.schema.type === 'mcp-server')
+  const regularCustomTools = customTools.filter((tool) => tool.schema.type === 'function')
+
+  // Fetch available tools from MCP server
+  const fetchMCPServerTools = async (serverUrl: string, headers?: Record<string, string>) => {
+    try {
+      const response = await fetch('/api/mcp/tools', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ serverUrl, headers }),
+      })
+
+      if (!response.ok) {
+        throw new Error(`Failed to fetch MCP tools: ${response.statusText}`)
+      }
+
+      const data = await response.json()
+
+      // Cache tool schemas as well
+      if (data.schemas) {
+        setMCPToolSchemas((prev) => ({
+          ...prev,
+          ...data.schemas,
+        }))
+      }
+
+      return data.tools || []
+    } catch (error) {
+      logger.error('Error fetching MCP server tools:', error)
+      return []
+    }
+  }
+
+  // Load tools for MCP servers when they're hovered
+  const loadMCPServerTools = async (mcpServer: any) => {
+    if (mcpServerTools[mcpServer.id]) {
+      return mcpServerTools[mcpServer.id] // Already cached
+    }
+
+    try {
+      const schema = mcpServer.schema
+      const tools = await fetchMCPServerTools(schema.url, schema.headers)
+
+      setMCPServerTools((prev) => ({
+        ...prev,
+        [mcpServer.id]: tools,
+      }))
+
+      return tools
+    } catch (error) {
+      logger.error(`Failed to load tools for ${mcpServer.title}:`, error)
+      return []
+    }
+  }
 
   // Get the current model from the 'model' subblock
   const modelValue = useSubBlockStore.getState().getValue(blockId, 'model')
@@ -592,6 +659,77 @@ export function ToolInput({
     }
   }
 
+  const handleAddMCPServer = async (server: MCPServer) => {
+    if (isPreview || disabled) return
+
+    try {
+      // Add MCP server as a custom tool for persistence
+      const customToolsStore = useCustomToolsStore.getState()
+
+      const mcpCustomTool = {
+        title: server.name,
+        schema: {
+          type: 'mcp-server' as const,
+          url: server.url,
+          headers: server.headers,
+        },
+        code: '', // Empty for MCP servers
+      }
+
+      customToolsStore.addTool(mcpCustomTool)
+      logger.info(
+        `Added MCP server: ${server.name}. You can now select individual tools from the MCP Servers section.`
+      )
+    } catch (error) {
+      logger.error('Error adding MCP server:', error)
+    }
+  }
+
+  const handleEditMCPServer = (serverId: string) => {
+    setEditingMCPServer(serverId)
+    setMCPServerModalOpen(true)
+  }
+
+  const handleUpdateMCPServer = async (serverData: MCPServer) => {
+    if (!editingMCPServer) return
+
+    try {
+      const customToolsStore = useCustomToolsStore.getState()
+
+      // Update the existing MCP server
+      customToolsStore.updateTool(editingMCPServer, {
+        title: serverData.name,
+        schema: {
+          type: 'mcp-server' as const,
+          url: serverData.url,
+          headers: serverData.headers,
+        },
+      })
+
+      logger.info(`Updated MCP server: ${serverData.name}`)
+      setEditingMCPServer(null)
+    } catch (error) {
+      logger.error('Error updating MCP server:', error)
+    }
+  }
+
+  const handleDeleteMCPServer = () => {
+    if (!editingMCPServer) return
+
+    try {
+      const customToolsStore = useCustomToolsStore.getState()
+      const server = customToolsStore.getTool(editingMCPServer)
+
+      customToolsStore.removeTool(editingMCPServer)
+      logger.info(`Deleted MCP server: ${server?.title}`)
+
+      setEditingMCPServer(null)
+      setMCPServerModalOpen(false)
+    } catch (error) {
+      logger.error('Error deleting MCP server:', error)
+    }
+  }
+
   const handleEditCustomTool = (toolIndex: number) => {
     const tool = selectedTools[toolIndex]
     if (tool.type !== 'custom-tool' || !tool.schema) return
@@ -639,6 +777,8 @@ export function ToolInput({
         customTools.some(
           (customTool) =>
             customTool.id === toolId &&
+            customTool.schema.type === 'function' &&
+            tool.schema?.type === 'function' &&
             customTool.schema.function.name === tool.schema.function.name
         )
       ) {
@@ -877,6 +1017,7 @@ export function ToolInput({
   }
 
   // Render the appropriate UI component based on parameter configuration
+
   const renderParameterInput = (
     param: ToolParameterConfig,
     value: string,
@@ -1150,7 +1291,7 @@ export function ToolInput({
               </div>
             </div>
           </PopoverTrigger>
-          <PopoverContent className='w-[200px] p-0' align='start'>
+          <PopoverContent className='w-[200px] overflow-visible p-0' align='start'>
             <ToolCommand.Root filter={customFilter}>
               <ToolCommand.Input placeholder='Search tools...' onValueChange={setSearchQuery} />
               <ToolCommand.List>
@@ -1172,16 +1313,32 @@ export function ToolInput({
                     </div>
                     <span>Create Tool</span>
                   </ToolCommand.Item>
+                  <ToolCommand.Item
+                    value='Add MCP Server'
+                    onSelect={() => {
+                      if (!isPreview) {
+                        setMCPServerModalOpen(true)
+                        setOpen(false)
+                      }
+                    }}
+                    className='mb-1 flex cursor-pointer items-center gap-2'
+                    disabled={isPreview}
+                  >
+                    <div className='flex h-6 w-6 items-center justify-center rounded border border-muted-foreground/50 border-dashed bg-transparent'>
+                      <ServerIcon className='h-4 w-4 text-muted-foreground' />
+                    </div>
+                    <span>Add MCP Server</span>
+                  </ToolCommand.Item>
 
                   {/* Display saved custom tools at the top */}
-                  {customTools.length > 0 && (
+                  {regularCustomTools.length > 0 && (
                     <>
                       <ToolCommand.Separator />
                       <div className='px-2 pt-2.5 pb-0.5 font-medium text-muted-foreground text-xs'>
                         Custom Tools
                       </div>
                       <ToolCommand.Group className='-mx-1 -px-1'>
-                        {customTools.map((customTool) => (
+                        {regularCustomTools.map((customTool) => (
                           <ToolCommand.Item
                             key={customTool.id}
                             value={customTool.title}
@@ -1189,7 +1346,10 @@ export function ToolInput({
                               const newTool: StoredTool = {
                                 type: 'custom-tool',
                                 title: customTool.title,
-                                toolId: `custom-${customTool.schema.function.name}`,
+                                toolId:
+                                  customTool.schema.type === 'function'
+                                    ? `custom-${customTool.schema.function.name}`
+                                    : `mcp-${customTool.id}`,
                                 params: {},
                                 isExpanded: true,
                                 schema: customTool.schema,
@@ -1225,6 +1385,57 @@ export function ToolInput({
                             </div>
                             <span className='max-w-[140px] truncate'>{customTool.title}</span>
                           </ToolCommand.Item>
+                        ))}
+                      </ToolCommand.Group>
+                      <ToolCommand.Separator />
+                    </>
+                  )}
+
+                  {/* Display MCP Servers */}
+                  {mcpServers.length > 0 && (
+                    <>
+                      <ToolCommand.Separator />
+                      <div className='px-2 pt-2.5 pb-0.5 font-medium text-muted-foreground text-xs'>
+                        MCP Servers
+                      </div>
+                      <ToolCommand.Group className='-mx-1 -px-1'>
+                        {mcpServers.map((mcpServer) => (
+                          <div
+                            key={mcpServer.id}
+                            className='relative'
+                            onMouseEnter={async (e) => {
+                              const rect = e.currentTarget.getBoundingClientRect()
+                              setSubmenuPosition({
+                                x: rect.right + 4,
+                                y: rect.top,
+                              })
+                              setHoveredMCPServer(mcpServer.id)
+
+                              // Load tools for this server if not already cached
+                              await loadMCPServerTools(mcpServer)
+                            }}
+                            onMouseLeave={() => {
+                              if (!submenuHovered) {
+                                setHoveredMCPServer(null)
+                                setSubmenuPosition(null)
+                              }
+                            }}
+                          >
+                            <ToolCommand.Item
+                              value={mcpServer.title}
+                              onSelect={() => {
+                                handleEditMCPServer(mcpServer.id)
+                                setOpen(false)
+                              }}
+                              className='flex cursor-pointer items-center gap-2'
+                            >
+                              <div className='flex h-6 w-6 items-center justify-center rounded bg-purple-500'>
+                                <ServerIcon className='h-4 w-4 text-white' />
+                              </div>
+                              <span className='max-w-[120px] truncate'>{mcpServer.title}</span>
+                              <ChevronRight className='ml-auto h-4 w-4 text-muted-foreground' />
+                            </ToolCommand.Item>
+                          </div>
                         ))}
                       </ToolCommand.Group>
                       <ToolCommand.Separator />
@@ -1660,7 +1871,7 @@ export function ToolInput({
                 Add Tool
               </Button>
             </PopoverTrigger>
-            <PopoverContent className='w-[200px] p-0' align='start'>
+            <PopoverContent className='w-[200px] overflow-visible p-0' align='start'>
               <ToolCommand.Root filter={customFilter}>
                 <ToolCommand.Input placeholder='Search tools...' onValueChange={setSearchQuery} />
                 <ToolCommand.List>
@@ -1679,16 +1890,29 @@ export function ToolInput({
                       </div>
                       <span>Create Tool</span>
                     </ToolCommand.Item>
+                    <ToolCommand.Item
+                      value='Add MCP Server'
+                      onSelect={() => {
+                        setOpen(false)
+                        setMCPServerModalOpen(true)
+                      }}
+                      className='mb-1 flex cursor-pointer items-center gap-2'
+                    >
+                      <div className='flex h-6 w-6 items-center justify-center rounded border border-muted-foreground/50 border-dashed bg-transparent'>
+                        <ServerIcon className='h-4 w-4 text-muted-foreground' />
+                      </div>
+                      <span>Add MCP Server</span>
+                    </ToolCommand.Item>
 
                     {/* Display saved custom tools at the top */}
-                    {customTools.length > 0 && (
+                    {regularCustomTools.length > 0 && (
                       <>
                         <ToolCommand.Separator />
                         <div className='px-2 pt-2.5 pb-0.5 font-medium text-muted-foreground text-xs'>
                           Custom Tools
                         </div>
                         <ToolCommand.Group className='-mx-1 -px-1'>
-                          {customTools.map((customTool) => (
+                          {regularCustomTools.map((customTool) => (
                             <ToolCommand.Item
                               key={customTool.id}
                               value={customTool.title}
@@ -1696,7 +1920,10 @@ export function ToolInput({
                                 const newTool: StoredTool = {
                                   type: 'custom-tool',
                                   title: customTool.title,
-                                  toolId: `custom-${customTool.schema.function.name}`,
+                                  toolId:
+                                    customTool.schema.type === 'function'
+                                      ? `custom-${customTool.schema.function.name}`
+                                      : `mcp-${customTool.id}`,
                                   params: {},
                                   isExpanded: true,
                                   schema: customTool.schema,
@@ -1732,6 +1959,57 @@ export function ToolInput({
                               </div>
                               <span className='max-w-[140px] truncate'>{customTool.title}</span>
                             </ToolCommand.Item>
+                          ))}
+                        </ToolCommand.Group>
+                        <ToolCommand.Separator />
+                      </>
+                    )}
+
+                    {/* Display MCP Servers */}
+                    {mcpServers.length > 0 && (
+                      <>
+                        <ToolCommand.Separator />
+                        <div className='px-2 pt-2.5 pb-0.5 font-medium text-muted-foreground text-xs'>
+                          MCP Servers
+                        </div>
+                        <ToolCommand.Group className='-mx-1 -px-1'>
+                          {mcpServers.map((mcpServer) => (
+                            <div
+                              key={mcpServer.id}
+                              className='relative'
+                              onMouseEnter={async (e) => {
+                                const rect = e.currentTarget.getBoundingClientRect()
+                                setSubmenuPosition({
+                                  x: rect.right + 4,
+                                  y: rect.top,
+                                })
+                                setHoveredMCPServer(mcpServer.id)
+
+                                // Load tools for this server if not already cached
+                                await loadMCPServerTools(mcpServer)
+                              }}
+                              onMouseLeave={() => {
+                                if (!submenuHovered) {
+                                  setHoveredMCPServer(null)
+                                  setSubmenuPosition(null)
+                                }
+                              }}
+                            >
+                              <ToolCommand.Item
+                                value={mcpServer.title}
+                                onSelect={() => {
+                                  handleEditMCPServer(mcpServer.id)
+                                  setOpen(false)
+                                }}
+                                className='flex cursor-pointer items-center gap-2'
+                              >
+                                <div className='flex h-6 w-6 items-center justify-center rounded bg-purple-500'>
+                                  <ServerIcon className='h-4 w-4 text-white' />
+                                </div>
+                                <span className='max-w-[120px] truncate'>{mcpServer.title}</span>
+                                <ChevronRight className='ml-auto h-4 w-4 text-muted-foreground' />
+                              </ToolCommand.Item>
+                            </div>
                           ))}
                         </ToolCommand.Group>
                         <ToolCommand.Separator />
@@ -1789,8 +2067,10 @@ export function ToolInput({
             ? {
                 id: customTools.find(
                   (tool) =>
+                    tool.schema.type === 'function' &&
+                    selectedTools[editingToolIndex].schema?.type === 'function' &&
                     tool.schema.function.name ===
-                    selectedTools[editingToolIndex].schema.function.name
+                      selectedTools[editingToolIndex].schema.function.name
                 )?.id,
                 schema: selectedTools[editingToolIndex].schema,
                 code: selectedTools[editingToolIndex].code || '',
@@ -1798,6 +2078,114 @@ export function ToolInput({
             : undefined
         }
       />
+
+      {/* MCP Server Modal */}
+      <MCPServerModal
+        open={mcpServerModalOpen}
+        onClose={() => {
+          setMCPServerModalOpen(false)
+          setEditingMCPServer(null)
+        }}
+        onSave={editingMCPServer ? handleUpdateMCPServer : handleAddMCPServer}
+        onDelete={editingMCPServer ? handleDeleteMCPServer : undefined}
+        server={
+          editingMCPServer &&
+          mcpServers.find((s) => s.id === editingMCPServer)?.schema.type === 'mcp-server'
+            ? {
+                id: editingMCPServer,
+                name: mcpServers.find((s) => s.id === editingMCPServer)?.title || '',
+                url: (mcpServers.find((s) => s.id === editingMCPServer)?.schema as any)?.url || '',
+                headers:
+                  (mcpServers.find((s) => s.id === editingMCPServer)?.schema as any)?.headers || {},
+                enabled: true,
+              }
+            : undefined
+        }
+        mode={editingMCPServer ? 'edit' : 'create'}
+      />
+
+      {/* Portal-rendered MCP Tools Submenu */}
+      {hoveredMCPServer &&
+        submenuPosition &&
+        typeof window !== 'undefined' &&
+        createPortal(
+          <div
+            className='fixed z-[10000] min-w-[200px] max-w-[300px] rounded-md border border-border bg-background shadow-lg'
+            style={{
+              left: submenuPosition.x,
+              top: submenuPosition.y,
+            }}
+            onMouseEnter={() => setSubmenuHovered(true)}
+            onMouseLeave={() => {
+              setSubmenuHovered(false)
+              setHoveredMCPServer(null)
+              setSubmenuPosition(null)
+            }}
+          >
+            <div className='py-1'>
+              {hoveredMCPServer && mcpServerTools[hoveredMCPServer] ? (
+                mcpServerTools[hoveredMCPServer].map((toolName, index) => (
+                  <button
+                    key={toolName}
+                    className='flex w-full items-center gap-2 px-3 py-1.5 text-left text-sm transition-colors duration-150 hover:bg-accent hover:text-accent-foreground focus:bg-accent focus:text-accent-foreground focus:outline-none'
+                    onClick={(e) => {
+                      e.preventDefault()
+                      e.stopPropagation()
+
+                      const currentServerId = hoveredMCPServer
+                      const hoveredServerTitle =
+                        mcpServers.find((s) => s.id === currentServerId)?.title || 'unknown'
+                      const mcpToolId = `mcp_${hoveredServerTitle.replace(/\s+/g, '_')}_${toolName}`
+                      const newTool: StoredTool = {
+                        type: 'mcp-tool',
+                        title: `${toolName} (${hoveredServerTitle})`,
+                        toolId: mcpToolId,
+                        params: {},
+                        isExpanded: true,
+                        usageControl: 'auto',
+                      }
+
+                      if (isWide) {
+                        setStoreValue([
+                          ...selectedTools.map((tool, index) => ({
+                            ...tool,
+                            isExpanded:
+                              Math.floor(selectedTools.length / 2) === Math.floor(index / 2),
+                          })),
+                          newTool,
+                        ])
+                      } else {
+                        setStoreValue([
+                          ...selectedTools.map((tool) => ({
+                            ...tool,
+                            isExpanded: false,
+                          })),
+                          newTool,
+                        ])
+                      }
+
+                      setOpen(false)
+                      setHoveredMCPServer(null)
+                      setSubmenuPosition(null)
+                    }}
+                  >
+                    <div className='flex h-5 w-5 items-center justify-center rounded bg-purple-500'>
+                      <span className='h-3 w-3 font-bold text-white text-xs'>
+                        {toolName.charAt(0).toUpperCase()}
+                      </span>
+                    </div>
+                    <span className='flex-1 truncate'>{toolName}</span>
+                  </button>
+                ))
+              ) : (
+                <div className='px-3 py-2 text-center text-muted-foreground text-sm'>
+                  Loading tools...
+                </div>
+              )}
+            </div>
+          </div>,
+          document.body
+        )}
     </div>
   )
 }

@@ -163,6 +163,9 @@ export class AgentBlockHandler implements BlockHandler {
           if (tool.type === 'custom-tool' && tool.schema) {
             return await this.createCustomTool(tool, context)
           }
+          if (tool.type === 'mcp-tool') {
+            return await this.createMCPTool(tool, context)
+          }
           return this.transformBlockTool(tool, context)
         })
     )
@@ -225,6 +228,52 @@ export class AgentBlockHandler implements BlockHandler {
         }
         return result.output
       }
+    }
+
+    return base
+  }
+
+  private async createMCPTool(tool: ToolInput, context: ExecutionContext): Promise<any> {
+    // Get the MCP tool configuration
+    const toolConfig = await getToolAsync(tool.toolId!, context.workflowId)
+
+    if (!toolConfig) {
+      logger.error(`MCP tool configuration not found: ${tool.toolId}`)
+      return null
+    }
+
+    logger.info(`Creating MCP tool: ${tool.toolId}`)
+
+    // Extract the actual tool name from the MCP tool ID
+    const toolName = tool.toolId!.split('_').slice(2).join('_') // Extract toolName from mcp_serverId_toolName
+
+    const base = {
+      type: 'function',
+      function: {
+        name: toolName,
+        description: toolConfig.description || tool.title,
+        parameters: toolConfig.params || {
+          type: 'object',
+          properties: {},
+          required: [],
+        },
+      },
+      usageControl: tool.usageControl || 'auto',
+      call: async (args: any) => {
+        // Execute the MCP tool
+        const result = await executeTool(
+          tool.toolId!,
+          args,
+          false, // skipProxy
+          false, // skipPostProcess
+          context // execution context
+        )
+
+        if (!result.success) {
+          throw new Error(result.error || 'MCP tool execution failed')
+        }
+        return result.output
+      },
     }
 
     return base
@@ -431,7 +480,7 @@ export class AgentBlockHandler implements BlockHandler {
   private logRequestDetails(
     providerRequest: any,
     messages: Message[] | undefined,
-    streamingConfig: StreamingConfig
+    _streamingConfig: StreamingConfig
   ) {
     logger.info('Provider request prepared', {
       model: providerRequest.model,

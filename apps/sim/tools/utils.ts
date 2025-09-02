@@ -303,8 +303,8 @@ export async function getToolAsync(
   const builtInTool = tools[toolId]
   if (builtInTool) return builtInTool
 
-  // Check if it's a custom tool
-  if (toolId.startsWith('custom_')) {
+  // Check if it's a custom tool or MCP tool
+  if (toolId.startsWith('custom_') || toolId.startsWith('mcp_')) {
     return getCustomTool(toolId, workflowId)
   }
 
@@ -349,12 +349,10 @@ function createToolConfig(customTool: any, customToolId: string): ToolConfig {
   }
 }
 
-// Create a tool config from a custom tool definition
-async function getCustomTool(
-  customToolId: string,
-  workflowId?: string
-): Promise<ToolConfig | undefined> {
-  const identifier = customToolId.replace('custom_', '')
+// Create a tool config from a custom tool definition (includes MCP servers)
+async function getCustomTool(toolId: string, workflowId?: string): Promise<ToolConfig | undefined> {
+  // Handle both custom_ and mcp_ prefixes
+  const identifier = toolId.replace(/^(custom_|mcp_)/, '')
 
   try {
     const baseUrl = getBaseUrl()
@@ -379,52 +377,131 @@ async function getCustomTool(
       return undefined
     }
 
-    // Try to find the tool by ID or title
-    const customTool = result.data.find(
+    // For MCP tools, we need to find the MCP server and create dynamic tool config
+    if (toolId.startsWith('mcp_')) {
+      const parts = toolId.split('_')
+      if (parts.length >= 3) {
+        const serverName = parts[1]
+        const toolName = parts.slice(2).join('_')
+
+        // Find the MCP server by name
+        const mcpServer = result.data.find(
+          (tool: any) =>
+            tool.schema.type === 'mcp-server' &&
+            (tool.title === serverName || tool.title === serverName.replace(/_/g, ' '))
+        )
+
+        if (mcpServer) {
+          return createMCPToolConfig(toolId, mcpServer, toolName)
+        }
+      }
+      logger.error(`MCP server not found for tool: ${toolId}`)
+      return undefined
+    }
+
+    // For regular custom tools, find by identifier
+    const tool = result.data.find(
       (tool: any) => tool.id === identifier || tool.title === identifier
     )
 
-    if (!customTool) {
+    if (!tool) {
       logger.error(`Custom tool not found: ${identifier}`)
       return undefined
     }
 
-    // Create a parameter schema
-    const params = createParamSchema(customTool)
-
-    // Create a tool config for the custom tool
-    return {
-      id: customToolId,
-      name: customTool.title,
-      description: customTool.schema.function?.description || '',
-      version: '1.0.0',
-      params,
-
-      // Request configuration - for custom tools we'll use the execute endpoint
-      request: {
-        url: '/api/function/execute',
-        method: 'POST',
-        headers: () => ({ 'Content-Type': 'application/json' }),
-        body: createCustomToolRequestBody(customTool, false, workflowId),
-      },
-
-      // Same response handling as client-side
-      transformResponse: async (response: Response) => {
-        const data = await response.json()
-
-        if (!data.success) {
-          throw new Error(data.error || 'Custom tool execution failed')
-        }
-
-        return {
-          success: true,
-          output: data.output.result || data.output,
-          error: undefined,
-        }
-      },
+    // Handle regular custom tools
+    if (tool.schema.type === 'function') {
+      return createCustomToolConfig(toolId, tool, workflowId)
     }
-  } catch (error) {
-    logger.error(`Error fetching custom tool ${identifier} from API:`, error)
+
+    logger.error(`Unknown tool schema type: ${tool.schema.type}`)
     return undefined
+  } catch (error) {
+    logger.error(`Error fetching tool ${identifier} from API:`, error)
+    return undefined
+  }
+}
+
+// Helper function to create a ToolConfig for MCP tools
+function createMCPToolConfig(toolId: string, mcpServer: any, toolName: string): ToolConfig {
+  return {
+    id: toolId,
+    name: mcpServer.title,
+    description: `MCP tool from ${mcpServer.title}`,
+    version: '1.0.0',
+    params: {
+      url: {
+        type: 'string',
+        description: 'URL to scrape',
+        required: true,
+        visibility: 'user-or-llm',
+      },
+      formats: {
+        type: 'string',
+        description: 'Output format (markdown, html, etc.)',
+        required: false,
+        visibility: 'user-or-llm',
+      },
+    },
+
+    request: {
+      url: '/api/mcp/execute',
+      method: 'POST',
+      headers: () => ({ 'Content-Type': 'application/json' }),
+      body: (params: Record<string, any>) => ({
+        serverUrl: mcpServer.schema.url,
+        headers: mcpServer.schema.headers || {},
+        toolName,
+        params,
+      }),
+    },
+
+    transformResponse: async (response: Response) => {
+      const data = await response.json()
+
+      if (!data.success) {
+        throw new Error(data.error || 'MCP tool execution failed')
+      }
+
+      return {
+        success: true,
+        output: data.output,
+        error: undefined,
+      }
+    },
+  }
+}
+
+// Helper function to create a ToolConfig for regular custom tools
+function createCustomToolConfig(toolId: string, customTool: any, workflowId?: string): ToolConfig {
+  const params = createParamSchema(customTool)
+
+  return {
+    id: toolId,
+    name: customTool.title,
+    description: customTool.schema.function?.description || '',
+    version: '1.0.0',
+    params,
+
+    request: {
+      url: '/api/function/execute',
+      method: 'POST',
+      headers: () => ({ 'Content-Type': 'application/json' }),
+      body: createCustomToolRequestBody(customTool, false, workflowId),
+    },
+
+    transformResponse: async (response: Response) => {
+      const data = await response.json()
+
+      if (!data.success) {
+        throw new Error(data.error || 'Custom tool execution failed')
+      }
+
+      return {
+        success: true,
+        output: data.output.result || data.output,
+        error: undefined,
+      }
+    },
   }
 }

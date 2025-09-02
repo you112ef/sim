@@ -14,7 +14,6 @@ import {
   supportsTemperature,
 } from '@/providers/utils'
 
-// Get current Ollama models dynamically
 const getCurrentOllamaModels = () => {
   return useProvidersStore.getState().providers.ollama.models
 }
@@ -43,7 +42,6 @@ interface AgentResponse extends ToolResponse {
   }
 }
 
-// Helper function to get the tool ID from a block type
 const getToolIdFromBlock = (blockType: string): string | undefined => {
   try {
     const { getAllBlocks } = require('@/blocks/registry')
@@ -415,6 +413,11 @@ Example 3 (Array Input):
       params: (params: Record<string, any>) => {
         // If tools array is provided, handle tool usage control
         if (params.tools && Array.isArray(params.tools)) {
+          logger.info('Processing tools in agent block', {
+            toolsCount: params.tools.length,
+            toolTypes: params.tools.map((t: any) => ({ type: t.type, title: t.title })),
+          })
+
           // Transform tools to include usageControl
           const transformedTools = params.tools
             // Filter out tools set to 'none' - they should never be passed to the provider
@@ -428,11 +431,31 @@ Example 3 (Array Input):
                 id:
                   tool.type === 'custom-tool'
                     ? tool.schema?.function?.name
-                    : tool.operation || getToolIdFromBlock(tool.type),
+                    : tool.type === 'mcp-tool'
+                      ? tool.toolId
+                      : tool.operation || getToolIdFromBlock(tool.type),
                 name: tool.title,
-                description: tool.type === 'custom-tool' ? tool.schema?.function?.description : '',
+                description:
+                  tool.type === 'custom-tool'
+                    ? tool.schema?.function?.description || ''
+                    : tool.type === 'mcp-tool'
+                      ? tool.title || 'MCP tool'
+                      : '',
                 params: tool.params || {},
-                parameters: tool.type === 'custom-tool' ? tool.schema?.function?.parameters : {}, // We'd need to get actual parameters for non-custom tools
+                parameters:
+                  tool.type === 'custom-tool'
+                    ? tool.schema?.function?.parameters || {}
+                    : tool.type === 'mcp-tool'
+                      ? {
+                          type: 'object',
+                          properties: {
+                            timezone: {
+                              type: 'string',
+                              description: 'Timezone (optional, defaults to UTC)',
+                            },
+                          },
+                        }
+                      : {},
                 usageControl: tool.usageControl || 'auto',
               }
               return toolConfig

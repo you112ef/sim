@@ -1,15 +1,21 @@
-export interface CustomToolSchema {
-  type: string
-  function: {
-    name: string
-    description?: string
-    parameters: {
-      type: string
-      properties: Record<string, any>
-      required?: string[]
+export type CustomToolSchema =
+  | {
+      type: 'function'
+      function: {
+        name: string
+        description?: string
+        parameters: {
+          type: string
+          properties: Record<string, any>
+          required?: string[]
+        }
+      }
     }
-  }
-}
+  | {
+      type: 'mcp-server'
+      url: string
+      headers?: Record<string, string>
+    }
 
 export interface CustomToolDefinition {
   id: string

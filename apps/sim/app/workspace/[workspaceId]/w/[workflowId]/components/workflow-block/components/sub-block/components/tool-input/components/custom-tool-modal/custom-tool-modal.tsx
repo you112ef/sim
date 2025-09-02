@@ -446,7 +446,7 @@ try {
 
         if (originalName) {
           const originalTool = existingTools.find(
-            (tool) => tool.schema.function.name === originalName
+            (tool) => tool.schema.type === 'function' && tool.schema.function.name === originalName
           )
           if (originalTool) {
             originalToolId = originalTool.id
@@ -460,7 +460,7 @@ try {
         if (isEditing && tool.id === originalToolId) {
           return false
         }
-        return tool.schema.function.name === toolName
+        return tool.schema.type === 'function' && tool.schema.function.name === toolName
       })
 
       if (isDuplicate) {

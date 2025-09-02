@@ -232,6 +232,19 @@ export function CommandInput({
 
 // Command List component
 export function CommandList({ children, className }: CommandListProps) {
+  const { activeIndex, filteredItems } = useCommandContext()
+
+  // Auto-scroll focused item into view
+  useEffect(() => {
+    if (activeIndex >= 0 && activeIndex < filteredItems.length) {
+      const activeItem = filteredItems[activeIndex]
+      const element = document.getElementById(activeItem)
+      if (element) {
+        element.scrollIntoView({ block: 'nearest', behavior: 'smooth' })
+      }
+    }
+  }, [activeIndex, filteredItems])
+
   return (
     <div className={cn('max-h-[300px] overflow-y-auto overflow-x-hidden', className)}>
       {children}

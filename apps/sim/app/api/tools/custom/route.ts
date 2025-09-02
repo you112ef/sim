@@ -11,23 +11,37 @@ const logger = createLogger('CustomToolsAPI')
 
 const CustomToolSchema = z.object({
   tools: z.array(
-    z.object({
-      id: z.string().optional(),
-      title: z.string().min(1, 'Tool title is required'),
-      schema: z.object({
-        type: z.literal('function'),
-        function: z.object({
-          name: z.string().min(1, 'Function name is required'),
-          description: z.string().optional(),
-          parameters: z.object({
-            type: z.string(),
-            properties: z.record(z.any()),
-            required: z.array(z.string()).optional(),
+    z.union([
+      // Custom tool (existing)
+      z.object({
+        id: z.string().optional(),
+        title: z.string().min(1, 'Tool title is required'),
+        schema: z.object({
+          type: z.literal('function'),
+          function: z.object({
+            name: z.string().min(1, 'Function name is required'),
+            description: z.string().optional(),
+            parameters: z.object({
+              type: z.string(),
+              properties: z.record(z.any()),
+              required: z.array(z.string()).optional(),
+            }),
           }),
         }),
+        code: z.string(),
       }),
-      code: z.string(),
-    })
+      // MCP server (new)
+      z.object({
+        id: z.string().optional(),
+        title: z.string().min(1, 'Server name is required'),
+        schema: z.object({
+          type: z.literal('mcp-server'),
+          url: z.string().url('Valid URL is required'),
+          headers: z.record(z.string()).optional(),
+        }),
+        code: z.string().optional().default(''), // Empty for MCP servers
+      }),
+    ])
   ),
 })
 

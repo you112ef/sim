@@ -15,10 +15,9 @@ import { useWorkflowStore } from '@/stores/workflows/workflow/store'
 
 const logger = createLogger('Stores')
 
-// Track initialization state
 let isInitializing = false
 let appFullyInitialized = false
-let dataInitialized = false // Flag for actual data loading completion
+let dataInitialized = false
 
 /**
  * Initialize the application state and sync system
@@ -30,30 +29,22 @@ async function initializeApplication(): Promise<void> {
   isInitializing = true
   appFullyInitialized = false
 
-  // Track initialization start time
   const initStartTime = Date.now()
 
   try {
-    // Load environment variables directly from DB
     await useEnvironmentStore.getState().loadEnvironmentVariables()
 
-    // Load custom tools from server
     await useCustomToolsStore.getState().loadCustomTools()
 
-    // Mark data as initialized only after sync managers have loaded data from DB
     dataInitialized = true
 
-    // Log initialization timing information
     const initDuration = Date.now() - initStartTime
     logger.info(`Application initialization completed in ${initDuration}ms`)
 
-    // Mark application as fully initialized
     appFullyInitialized = true
   } catch (error) {
     logger.error('Error during application initialization:', { error })
-    // Still mark as initialized to prevent being stuck in initializing state
     appFullyInitialized = true
-    // But don't mark data as initialized on error
     dataInitialized = false
   } finally {
     isInitializing = false
@@ -79,10 +70,8 @@ export function isDataInitialized(): boolean {
  * Handle application cleanup before unload
  */
 function handleBeforeUnload(event: BeforeUnloadEvent): void {
-  // Check if we're on an authentication page and skip confirmation if we are
   if (typeof window !== 'undefined') {
     const path = window.location.pathname
-    // Skip confirmation for auth-related pages
     if (
       path === '/login' ||
       path === '/signup' ||
@@ -98,7 +87,6 @@ function handleBeforeUnload(event: BeforeUnloadEvent): void {
     useOperationQueueStore.getState().flushAllDebounced()
   } catch {}
 
-  // Standard beforeunload pattern
   event.preventDefault()
   event.returnValue = ''
 }
@@ -108,7 +96,6 @@ function handleBeforeUnload(event: BeforeUnloadEvent): void {
  */
 function cleanupApplication(): void {
   window.removeEventListener('beforeunload', handleBeforeUnload)
-  // Note: No sync managers to dispose - Socket.IO handles cleanup
 }
 
 /**

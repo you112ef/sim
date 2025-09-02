@@ -186,7 +186,6 @@ const nextConfig: NextConfig = {
   },
   async redirects() {
     const redirects = []
-    // Add whitelabel redirects for terms and privacy pages if external URLs are configured
     if (env.NEXT_PUBLIC_TERMS_URL?.startsWith('http')) {
       redirects.push({
         source: '/terms',

@@ -128,12 +128,12 @@ export async function executeTool(
   try {
     let tool: ToolConfig | undefined
 
-    // If it's a custom tool, use the async version with workflowId
-    if (toolId.startsWith('custom_')) {
+    // If it's a custom tool or MCP tool, use the async version with workflowId
+    if (toolId.startsWith('custom_') || toolId.startsWith('mcp_')) {
       const workflowId = params._context?.workflowId
       tool = await getToolAsync(toolId, workflowId)
       if (!tool) {
-        logger.error(`[${requestId}] Custom tool not found: ${toolId}`)
+        logger.error(`[${requestId}] Custom/MCP tool not found: ${toolId}`)
       }
     } else {
       // For built-in tools, use the synchronous version
