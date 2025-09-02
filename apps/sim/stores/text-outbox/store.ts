@@ -127,7 +127,7 @@ export const useTextOutboxStore = create<TextOutboxState>((set, get) => ({
         return { pending: rest }
       }
       const retryCount = op.retryCount + 1
-      if (retryCount >= 3) {
+      if (retryCount >= 2) {
         try {
           const { useOperationQueueStore } = require('@/stores/operation-queue/store')
           useOperationQueueStore.getState().triggerOfflineMode()
@@ -188,6 +188,11 @@ export const useTextOutboxStore = create<TextOutboxState>((set, get) => ({
   scheduleAttempt: (id, delayMs = 0) => {
     const existing = sendAttemptTimers.get(id)
     if (existing) clearTimeout(existing)
+    const existingAck = ackTimeoutTimers.get(id)
+    if (existingAck) {
+      clearTimeout(existingAck)
+      ackTimeoutTimers.delete(id)
+    }
     const timeout = setTimeout(
       () => {
         const op = get().pending[id]
