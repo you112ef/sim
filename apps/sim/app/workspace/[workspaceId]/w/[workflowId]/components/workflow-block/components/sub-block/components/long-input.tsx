@@ -378,7 +378,6 @@ export function LongInput({
           onScroll={handleScroll}
           onWheel={handleWheel}
           onKeyDown={handleKeyDown}
-          onBlur={() => {}}
           onFocus={() => {
             setShowEnvVars(false)
             setShowTags(false)

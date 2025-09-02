@@ -6,12 +6,12 @@ import { env, isTruthy } from './env'
 /**
  * Is the application running in production mode
  */
-export const isProd = true
+export const isProd = env.NODE_ENV === 'production'
 
 /**
  * Is the application running in development mode
  */
-export const isDev = false
+export const isDev = env.NODE_ENV === 'development'
 
 /**
  * Is the application running in test mode

@@ -93,10 +93,6 @@ function handleBeforeUnload(event: BeforeUnloadEvent): void {
     }
   }
 
-  try {
-    // No-op: client debounced updates removed
-  } catch {}
-
   // Standard beforeunload pattern
   event.preventDefault()
   event.returnValue = ''
