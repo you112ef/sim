@@ -31,6 +31,40 @@ export function setupSubblocksHandlers(
 
   const makeKey = (workflowId: string, blockId: string, subblockId: string) =>
     `${workflowId}:${blockId}:${subblockId}`
+
+  // Cleanup function for workflow-related entries
+  const cleanupWorkflow = (workflowId: string) => {
+    const keysToDelete: string[] = []
+    for (const [key, buffer] of pendingBuffers.entries()) {
+      if (buffer.workflowId === workflowId) {
+        keysToDelete.push(key)
+        const timer = pendingTimers.get(key)
+        if (timer) clearTimeout(timer)
+      }
+    }
+    keysToDelete.forEach((key) => {
+      pendingBuffers.delete(key)
+      pendingTimers.delete(key)
+      lastApplied.delete(key)
+    })
+  }
+
+  // Listen for cleanup events
+  socket.on('disconnect', () => {
+    // Clear all pending operations for this socket's workflows
+    const workflowId = roomManager.getWorkflowIdForSocket(socket.id)
+    if (workflowId) {
+      cleanupWorkflow(workflowId)
+    }
+  })
+
+  socket.on('leave-workflow', () => {
+    const workflowId = roomManager.getWorkflowIdForSocket(socket.id)
+    if (workflowId) {
+      cleanupWorkflow(workflowId)
+    }
+  })
+
   socket.on('subblock-update', async (data) => {
     const workflowId = roomManager.getWorkflowIdForSocket(socket.id)
     const session = roomManager.getUserSession(socket.id)
