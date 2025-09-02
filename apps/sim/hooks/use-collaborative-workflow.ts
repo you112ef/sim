@@ -851,6 +851,7 @@ export function useCollaborativeWorkflow() {
         return
       }
 
+      // Update UI immediately; outbox handles delivery after join
       subBlockStore.setValue(blockId, subblockId, value)
       // Always try to enqueue/emit; socket layer handles offline queueing with URL fallback
       emitSubblockUpdate(blockId, subblockId, value)

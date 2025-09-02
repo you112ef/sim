@@ -39,13 +39,7 @@ interface OperationQueueState {
 const retryTimeouts = new Map<string, NodeJS.Timeout>()
 const operationTimeouts = new Map<string, NodeJS.Timeout>()
 
-type PendingDebouncedOperation = {
-  timeout: NodeJS.Timeout
-  op: Omit<QueuedOperation, 'timestamp' | 'retryCount' | 'status'>
-}
-
-const subblockDebounced = new Map<string, PendingDebouncedOperation>()
-const variableDebounced = new Map<string, PendingDebouncedOperation>()
+// Debounce removed for all operations
 
 let emitWorkflowOperation:
   | ((operation: string, target: string, payload: any, operationId?: string) => void)
@@ -156,33 +150,7 @@ export const useOperationQueueStore = create<OperationQueueState>((set, get) => 
       operationTimeouts.delete(operationId)
     }
 
-    // Clean up any debounce timeouts for subblock operations
-    if (
-      operation?.operation.operation === 'subblock-update' &&
-      operation.operation.target === 'subblock'
-    ) {
-      const { blockId, subblockId } = operation.operation.payload
-      const debounceKey = `${blockId}-${subblockId}`
-      const pending = subblockDebounced.get(debounceKey)
-      if (pending) {
-        clearTimeout(pending.timeout)
-        subblockDebounced.delete(debounceKey)
-      }
-    }
-
-    // Clean up any debounce timeouts for variable operations
-    if (
-      operation?.operation.operation === 'variable-update' &&
-      operation.operation.target === 'variable'
-    ) {
-      const { variableId, field } = operation.operation.payload
-      const debounceKey = `${variableId}-${field}`
-      const pending = variableDebounced.get(debounceKey)
-      if (pending) {
-        clearTimeout(pending.timeout)
-        variableDebounced.delete(debounceKey)
-      }
-    }
+    // No debounce cleanup needed
 
     logger.debug('Removing operation from queue', {
       operationId,
@@ -209,33 +177,7 @@ export const useOperationQueueStore = create<OperationQueueState>((set, get) => 
       operationTimeouts.delete(operationId)
     }
 
-    // Clean up any debounce timeouts for subblock operations
-    if (
-      operation.operation.operation === 'subblock-update' &&
-      operation.operation.target === 'subblock'
-    ) {
-      const { blockId, subblockId } = operation.operation.payload
-      const debounceKey = `${blockId}-${subblockId}`
-      const pending = subblockDebounced.get(debounceKey)
-      if (pending) {
-        clearTimeout(pending.timeout)
-        subblockDebounced.delete(debounceKey)
-      }
-    }
-
-    // Clean up any debounce timeouts for variable operations
-    if (
-      operation.operation.operation === 'variable-update' &&
-      operation.operation.target === 'variable'
-    ) {
-      const { variableId, field } = operation.operation.payload
-      const debounceKey = `${variableId}-${field}`
-      const pending = variableDebounced.get(debounceKey)
-      if (pending) {
-        clearTimeout(pending.timeout)
-        variableDebounced.delete(debounceKey)
-      }
-    }
+    // No debounce cleanup needed
 
     if (!retryable) {
       logger.debug('Operation marked as non-retryable, removing from queue', { operationId })
