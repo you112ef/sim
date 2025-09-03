@@ -1,4 +1,5 @@
 import { create } from 'zustand'
+import { useOfflineModeStore } from '@/stores/offline-mode/store'
 
 type TextOpType = 'subblock' | 'variable'
 
@@ -31,12 +32,15 @@ export type PendingTextOperation = PendingSubblockOp | PendingVariableOp
 const sendAttemptTimers = new Map<string, NodeJS.Timeout>()
 const ackTimeoutTimers = new Map<string, NodeJS.Timeout>()
 
-// Attempt sender registered by socket layer
+// Attempt sender and validator registered by socket layer
 type AttemptSender = (op: PendingTextOperation) => boolean
+type OperationValidator = (op: PendingTextOperation) => boolean
 let attemptSender: AttemptSender | null = null
+let operationValidator: OperationValidator | null = null
 
-export function registerTextOutboxAttemptSender(sender: AttemptSender) {
+export function registerTextOutboxHandlers(sender: AttemptSender, validator?: OperationValidator) {
   attemptSender = sender
+  operationValidator = validator || null
 }
 
 interface TextOutboxState {
@@ -50,6 +54,8 @@ interface TextOutboxState {
   confirm: (id: string) => void
   fail: (id: string, retryable?: boolean) => void
   clearWorkflow: (workflowId: string) => void
+  clearBlock: (blockId: string) => void
+  clearVariable: (variableId: string) => void
   getPendingForWorkflow: (workflowId: string) => PendingTextOperation[]
   getById: (id: string) => PendingTextOperation | undefined
   rescheduleWithoutPenalty: (id: string) => void
@@ -128,10 +134,7 @@ export const useTextOutboxStore = create<TextOutboxState>((set, get) => ({
       }
       const retryCount = op.retryCount + 1
       if (retryCount >= 2) {
-        try {
-          const { useOperationQueueStore } = require('@/stores/operation-queue/store')
-          useOperationQueueStore.getState().triggerOfflineMode()
-        } catch {}
+        useOfflineModeStore.getState().triggerOfflineMode('text-outbox')
         const { [id]: _removed, ...rest } = state.pending
         return { pending: rest }
       }
@@ -160,10 +163,88 @@ export const useTextOutboxStore = create<TextOutboxState>((set, get) => ({
   },
 
   clearWorkflow: (workflowId) => {
+    const state = get()
+    const toCancel = Object.entries(state.pending)
+      .filter(([_, op]) => op.workflowId === workflowId)
+      .map(([id]) => id)
+
+    toCancel.forEach((id) => {
+      const sendTimer = sendAttemptTimers.get(id)
+      if (sendTimer) {
+        clearTimeout(sendTimer)
+        sendAttemptTimers.delete(id)
+      }
+      const ackTimer = ackTimeoutTimers.get(id)
+      if (ackTimer) {
+        clearTimeout(ackTimer)
+        ackTimeoutTimers.delete(id)
+      }
+    })
+
     set((state) => {
       const next: Record<string, PendingTextOperation> = {}
       for (const [id, op] of Object.entries(state.pending)) {
         if (op.workflowId !== workflowId) next[id] = op
+      }
+      return { pending: next }
+    })
+  },
+
+  clearBlock: (blockId) => {
+    const state = get()
+    const toCancel = Object.entries(state.pending)
+      .filter(([_, op]) => op.type === 'subblock' && op.blockId === blockId)
+      .map(([id]) => id)
+
+    toCancel.forEach((id) => {
+      const sendTimer = sendAttemptTimers.get(id)
+      if (sendTimer) {
+        clearTimeout(sendTimer)
+        sendAttemptTimers.delete(id)
+      }
+      const ackTimer = ackTimeoutTimers.get(id)
+      if (ackTimer) {
+        clearTimeout(ackTimer)
+        ackTimeoutTimers.delete(id)
+      }
+    })
+
+    set((state) => {
+      const next: Record<string, PendingTextOperation> = {}
+      for (const [id, op] of Object.entries(state.pending)) {
+        if (!(op.type === 'subblock' && op.blockId === blockId)) {
+          next[id] = op
+        }
+      }
+      return { pending: next }
+    })
+  },
+
+  clearVariable: (variableId) => {
+    const state = get()
+    const toCancel = Object.entries(state.pending)
+      .filter(([_, op]) => op.type === 'variable' && op.variableId === variableId)
+      .map(([id]) => id)
+
+    toCancel.forEach((id) => {
+      const sendTimer = sendAttemptTimers.get(id)
+      if (sendTimer) {
+        clearTimeout(sendTimer)
+        sendAttemptTimers.delete(id)
+      }
+      const ackTimer = ackTimeoutTimers.get(id)
+      if (ackTimer) {
+        clearTimeout(ackTimer)
+        ackTimeoutTimers.delete(id)
+      }
+    })
+
+    set((state) => {
+      const next: Record<string, PendingTextOperation> = {}
+      for (const [id, op] of Object.entries(state.pending)) {
+        if (!(op.type === 'variable' && op.variableId === variableId)) {
+          next[id] = op
+        }
       }
       return { pending: next }
     })
@@ -197,16 +278,19 @@ export const useTextOutboxStore = create<TextOutboxState>((set, get) => ({
       () => {
         const op = get().pending[id]
         if (!op) return
-        // Try send if sender is ready
+
+        if (operationValidator && !operationValidator(op)) {
+          get().confirm(id)
+          return
+        }
+
         const sent = attemptSender ? attemptSender(op) : false
         if (sent) {
-          // Start ack timeout (7.5s) so ~15s total across two attempts
           const ackTimer = setTimeout(() => {
             get().fail(id, true)
           }, 7500)
           ackTimeoutTimers.set(id, ackTimer)
         } else {
-          // Simulate a 7.5s attempt window before counting as a failure
           const waitTimer = setTimeout(() => {
             get().fail(id, true)
           }, 7500)

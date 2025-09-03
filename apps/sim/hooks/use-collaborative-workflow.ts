@@ -7,6 +7,7 @@ import { resolveOutputType } from '@/blocks/utils'
 import { useSocket } from '@/contexts/socket-context'
 import { registerEmitFunctions, useOperationQueue } from '@/stores/operation-queue/store'
 import { useVariablesStore } from '@/stores/panel/variables/store'
+import { useTextOutboxStore } from '@/stores/text-outbox/store'
 import { useWorkflowDiffStore } from '@/stores/workflow-diff/store'
 import { useWorkflowRegistry } from '@/stores/workflows/registry/store'
 import { useSubBlockStore } from '@/stores/workflows/subblock/store'
@@ -718,6 +719,7 @@ export function useCollaborativeWorkflow() {
   const collaborativeRemoveBlock = useCallback(
     (id: string) => {
       cancelOperationsForBlock(id)
+      useTextOutboxStore.getState().clearBlock(id)
 
       executeQueuedOperation('remove', 'block', { id }, () => workflowStore.removeBlock(id))
     },
@@ -1206,6 +1208,7 @@ export function useCollaborativeWorkflow() {
   const collaborativeDeleteVariable = useCallback(
     (variableId: string) => {
       cancelOperationsForVariable(variableId)
+      useTextOutboxStore.getState().clearVariable(variableId)
 
       executeQueuedOperation('remove', 'variable', { variableId }, () => {
         variablesStore.deleteVariable(variableId)

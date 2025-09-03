@@ -1,5 +1,6 @@
 import { create } from 'zustand'
 import { createLogger } from '@/lib/logs/console/logger'
+import { useOfflineModeStore } from '@/stores/offline-mode/store'
 
 const logger = createLogger('OperationQueue')
 
@@ -21,7 +22,6 @@ export interface QueuedOperation {
 interface OperationQueueState {
   operations: QueuedOperation[]
   isProcessing: boolean
-  hasOperationError: boolean
 
   addToQueue: (operation: Omit<QueuedOperation, 'timestamp' | 'retryCount' | 'status'>) => void
   confirmOperation: (operationId: string) => void
@@ -31,9 +31,7 @@ interface OperationQueueState {
   cancelOperationsForBlock: (blockId: string) => void
   cancelOperationsForVariable: (variableId: string) => void
   cancelOperationsForWorkflow: (workflowId: string) => void
-
-  triggerOfflineMode: () => void
-  clearError: () => void
+  clearAllTimers: () => void
 }
 
 const retryTimeouts = new Map<string, NodeJS.Timeout>()
@@ -68,7 +66,6 @@ let currentRegisteredWorkflowId: string | null = null
 export const useOperationQueueStore = create<OperationQueueState>((set, get) => ({
   operations: [],
   isProcessing: false,
-  hasOperationError: false,
 
   addToQueue: (operation) => {
     // Handle non-subblock/variable operations only
@@ -219,7 +216,12 @@ export const useOperationQueueStore = create<OperationQueueState>((set, get) => 
       retryTimeouts.set(operationId, timeout)
     } else {
       logger.error('Operation failed after max retries, triggering offline mode', { operationId })
-      get().triggerOfflineMode()
+      get().clearAllTimers()
+      set((state) => ({
+        operations: state.operations.filter((op) => op.id !== operationId),
+        isProcessing: false,
+      }))
+      useOfflineModeStore.getState().triggerOfflineMode('operation-queue')
     }
   },
 
@@ -413,40 +415,28 @@ export const useOperationQueueStore = create<OperationQueueState>((set, get) => 
     }))
   },
 
-  triggerOfflineMode: () => {
-    logger.error('Operation failed after retries - triggering offline mode')
-
+  clearAllTimers: () => {
     retryTimeouts.forEach((timeout) => clearTimeout(timeout))
     retryTimeouts.clear()
     operationTimeouts.forEach((timeout) => clearTimeout(timeout))
     operationTimeouts.clear()
-
-    set({
-      operations: [],
-      isProcessing: false,
-      hasOperationError: true,
-    })
-  },
-
-  clearError: () => {
-    set({ hasOperationError: false })
   },
 }))
 
 export function useOperationQueue() {
   const store = useOperationQueueStore()
+  const { isOffline, clearOfflineMode } = useOfflineModeStore()
 
   return {
     queue: store.operations,
     isProcessing: store.isProcessing,
-    hasOperationError: store.hasOperationError,
+    hasOperationError: isOffline,
     addToQueue: store.addToQueue,
     confirmOperation: store.confirmOperation,
     failOperation: store.failOperation,
     processNextOperation: store.processNextOperation,
     cancelOperationsForBlock: store.cancelOperationsForBlock,
     cancelOperationsForVariable: store.cancelOperationsForVariable,
-    triggerOfflineMode: store.triggerOfflineMode,
-    clearError: store.clearError,
+    clearError: clearOfflineMode,
   }
 }

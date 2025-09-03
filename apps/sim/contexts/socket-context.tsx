@@ -13,7 +13,14 @@ import { useParams } from 'next/navigation'
 import { io, type Socket } from 'socket.io-client'
 import { getEnv } from '@/lib/env'
 import { createLogger } from '@/lib/logs/console/logger'
-import { registerTextOutboxAttemptSender, useTextOutboxStore } from '@/stores/text-outbox/store'
+import { useOperationQueueStore } from '@/stores/operation-queue/store'
+import { useVariablesStore } from '@/stores/panel/variables/store'
+import {
+  type PendingTextOperation,
+  registerTextOutboxHandlers,
+  useTextOutboxStore,
+} from '@/stores/text-outbox/store'
+import { useWorkflowStore } from '@/stores/workflows/workflow/store'
 
 const logger = createLogger('SocketContext')
 
@@ -223,13 +230,24 @@ export function SocketProvider({ children, user }: SocketProviderProps) {
             roomReadyWorkflowIdRef.current = null
           }
 
-          // Register attempt sender for text outbox
+          // Register attempt sender and validator for text outbox
           try {
-            registerTextOutboxAttemptSender((op) => {
+            const validator = (op: PendingTextOperation): boolean => {
+              if (op.type === 'subblock') {
+                const blocks = useWorkflowStore.getState().blocks
+                return !!blocks[op.blockId]
+              }
+              if (op.type === 'variable') {
+                const variables = useVariablesStore.getState().variables
+                return !!variables[op.variableId]
+              }
+              return false
+            }
+
+            registerTextOutboxHandlers((op) => {
               if (!socketInstance.connected) return false
               const readyId = roomReadyWorkflowIdRef.current
               const joiningId = joiningWorkflowIdRef.current
-              // Allow sends if room is ready OR if we're currently joining this workflow
               const canSend =
                 (readyId && op.workflowId === readyId) || (joiningId && op.workflowId === joiningId)
               if (!canSend) return false
@@ -251,7 +269,7 @@ export function SocketProvider({ children, user }: SocketProviderProps) {
                 operationId: op.id,
               })
               return true
-            })
+            }, validator)
 
             // Immediately retry any pending ops that were added before socket connected
             if (urlWorkflowId) {
@@ -748,12 +766,8 @@ export function SocketProvider({ children, user }: SocketProviderProps) {
 
     // Proactively cancel/clear pending operations for the old workflow to prevent false offline
     if (currentWorkflowId) {
-      import('@/stores/operation-queue/store')
-        .then(({ useOperationQueueStore }) => {
-          useOperationQueueStore.getState().cancelOperationsForWorkflow(currentWorkflowId)
-          useTextOutboxStore.getState().clearWorkflow(currentWorkflowId)
-        })
-        .catch(() => {})
+      useOperationQueueStore.getState().cancelOperationsForWorkflow(currentWorkflowId)
+      useTextOutboxStore.getState().clearWorkflow(currentWorkflowId)
     }
 
     // Leave current workflow first if we're in one
@@ -839,12 +853,8 @@ export function SocketProvider({ children, user }: SocketProviderProps) {
   const leaveWorkflow = useCallback(() => {
     if (socket && currentWorkflowId) {
       logger.info(`Leaving workflow: ${currentWorkflowId}`)
-      import('@/stores/operation-queue/store')
-        .then(({ useOperationQueueStore }) => {
-          useOperationQueueStore.getState().cancelOperationsForWorkflow(currentWorkflowId)
-          useTextOutboxStore.getState().clearWorkflow(currentWorkflowId)
-        })
-        .catch(() => {})
+      useOperationQueueStore.getState().cancelOperationsForWorkflow(currentWorkflowId)
+      useTextOutboxStore.getState().clearWorkflow(currentWorkflowId)
       socket.emit('leave-workflow')
       setCurrentWorkflowId(null)
       setPresenceUsers([])

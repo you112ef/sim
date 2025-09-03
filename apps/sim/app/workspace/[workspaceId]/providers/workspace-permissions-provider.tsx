@@ -1,15 +1,15 @@
 'use client'
 
 import type React from 'react'
-import { createContext, useContext, useEffect, useMemo, useState } from 'react'
+import { createContext, useContext, useMemo } from 'react'
 import { useParams } from 'next/navigation'
 import { createLogger } from '@/lib/logs/console/logger'
-import { useCollaborativeWorkflow } from '@/hooks/use-collaborative-workflow'
 import { useUserPermissions, type WorkspaceUserPermissions } from '@/hooks/use-user-permissions'
 import {
   useWorkspacePermissions,
   type WorkspacePermissions,
 } from '@/hooks/use-workspace-permissions'
+import { useOfflineModeStore } from '@/stores/offline-mode/store'
 
 const logger = createLogger('WorkspacePermissionsProvider')
 
@@ -22,9 +22,6 @@ interface WorkspacePermissionsContextType {
 
   // Computed user permissions (connection-aware)
   userPermissions: WorkspaceUserPermissions & { isOfflineMode?: boolean }
-
-  // Connection state management
-  setOfflineMode: (isOffline: boolean) => void
 }
 
 const WorkspacePermissionsContext = createContext<WorkspacePermissionsContextType>({
@@ -40,7 +37,6 @@ const WorkspacePermissionsContext = createContext<WorkspacePermissionsContextTyp
     isLoading: false,
     error: null,
   },
-  setOfflineMode: () => {},
 })
 
 interface WorkspacePermissionsProviderProps {
@@ -55,18 +51,8 @@ export function WorkspacePermissionsProvider({ children }: WorkspacePermissionsP
   const params = useParams()
   const workspaceId = params?.workspaceId as string
 
-  // Manage offline mode state locally
-  const [isOfflineMode, setIsOfflineMode] = useState(false)
-
-  // Get operation error state from collaborative workflow
-  const { hasOperationError } = useCollaborativeWorkflow()
-
-  // Set offline mode when there are operation errors
-  useEffect(() => {
-    if (hasOperationError) {
-      setIsOfflineMode(true)
-    }
-  }, [hasOperationError])
+  // Get offline mode state from the global store
+  const { isOffline: isOfflineMode } = useOfflineModeStore()
 
   // Fetch workspace permissions and loading state
   const {
@@ -114,7 +100,6 @@ export function WorkspacePermissionsProvider({ children }: WorkspacePermissionsP
       permissionsError,
       updatePermissions,
       userPermissions,
-      setOfflineMode: setIsOfflineMode,
     }),
     [workspacePermissions, permissionsLoading, permissionsError, updatePermissions, userPermissions]
   )
