@@ -245,13 +245,19 @@ export function SocketProvider({ children, user }: SocketProviderProps) {
             }
 
             registerTextOutboxHandlers((op) => {
-              if (!socketInstance.connected) return false
+              if (!socketInstance.connected) return 'defer'
               const readyId = roomReadyWorkflowIdRef.current
               const joiningId = joiningWorkflowIdRef.current
               const canSend =
                 (readyId && op.workflowId === readyId) || (joiningId && op.workflowId === joiningId)
-              if (!canSend) return false
+              if (!canSend) return 'defer'
               if (op.type === 'subblock') {
+                try {
+                  const { pendingBlockCreates } = useOperationQueueStore.getState()
+                  if (pendingBlockCreates[op.blockId]) {
+                    return 'defer'
+                  }
+                } catch {}
                 socketInstance.emit('subblock-update', {
                   blockId: op.blockId,
                   subblockId: op.subblockId,
@@ -259,7 +265,7 @@ export function SocketProvider({ children, user }: SocketProviderProps) {
                   timestamp: Date.now(),
                   operationId: op.id,
                 })
-                return true
+                return 'sent'
               }
               socketInstance.emit('variable-update', {
                 variableId: op.variableId,
@@ -268,7 +274,7 @@ export function SocketProvider({ children, user }: SocketProviderProps) {
                 timestamp: Date.now(),
                 operationId: op.id,
               })
-              return true
+              return 'sent'
             }, validator)
 
             // Immediately retry any pending ops that were added before socket connected

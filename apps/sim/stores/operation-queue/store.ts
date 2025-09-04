@@ -22,6 +22,7 @@ export interface QueuedOperation {
 interface OperationQueueState {
   operations: QueuedOperation[]
   isProcessing: boolean
+  pendingBlockCreates: Record<string, true>
 
   addToQueue: (operation: Omit<QueuedOperation, 'timestamp' | 'retryCount' | 'status'>) => void
   confirmOperation: (operationId: string) => void
@@ -66,6 +67,7 @@ let currentRegisteredWorkflowId: string | null = null
 export const useOperationQueueStore = create<OperationQueueState>((set, get) => ({
   operations: [],
   isProcessing: false,
+  pendingBlockCreates: {},
 
   addToQueue: (operation) => {
     // Handle non-subblock/variable operations only
@@ -122,9 +124,23 @@ export const useOperationQueueStore = create<OperationQueueState>((set, get) => 
       operation: queuedOp.operation,
     })
 
-    set((state) => ({
-      operations: [...state.operations, queuedOp],
-    }))
+    set((state) => {
+      const next: OperationQueueState = {
+        ...state,
+        operations: [...state.operations, queuedOp],
+      }
+      if (
+        queuedOp.operation.target === 'block' &&
+        queuedOp.operation.operation === 'add' &&
+        queuedOp.operation.payload?.id
+      ) {
+        next.pendingBlockCreates = {
+          ...state.pendingBlockCreates,
+          [queuedOp.operation.payload.id]: true,
+        }
+      }
+      return next
+    })
 
     // Start processing if not already processing
     get().processNextOperation()
@@ -154,7 +170,18 @@ export const useOperationQueueStore = create<OperationQueueState>((set, get) => 
       remainingOps: newOperations.length,
     })
 
-    set({ operations: newOperations, isProcessing: false })
+    set((s) => {
+      let nextPending = s.pendingBlockCreates
+      if (
+        operation?.operation.target === 'block' &&
+        operation.operation.operation === 'add' &&
+        operation.operation.payload?.id
+      ) {
+        const { [operation.operation.payload.id]: _removed, ...rest } = s.pendingBlockCreates
+        nextPending = rest
+      }
+      return { operations: newOperations, isProcessing: false, pendingBlockCreates: nextPending }
+    })
 
     // Process next operation in queue
     get().processNextOperation()
@@ -179,10 +206,22 @@ export const useOperationQueueStore = create<OperationQueueState>((set, get) => 
     if (!retryable) {
       logger.debug('Operation marked as non-retryable, removing from queue', { operationId })
 
-      set((state) => ({
-        operations: state.operations.filter((op) => op.id !== operationId),
-        isProcessing: false,
-      }))
+      set((state) => {
+        let nextPending = state.pendingBlockCreates
+        if (
+          operation.operation.target === 'block' &&
+          operation.operation.operation === 'add' &&
+          operation.operation.payload?.id
+        ) {
+          const { [operation.operation.payload.id]: _removed, ...rest } = state.pendingBlockCreates
+          nextPending = rest
+        }
+        return {
+          operations: state.operations.filter((op) => op.id !== operationId),
+          isProcessing: false,
+          pendingBlockCreates: nextPending,
+        }
+      })
 
       get().processNextOperation()
       return
@@ -328,9 +367,13 @@ export const useOperationQueueStore = create<OperationQueueState>((set, get) => 
         )
     )
 
-    set({
-      operations: newOperations,
-      isProcessing: false, // Reset processing state in case we removed the current operation
+    set((s) => {
+      const { [blockId]: _removed, ...rest } = s.pendingBlockCreates
+      return {
+        operations: newOperations,
+        isProcessing: false,
+        pendingBlockCreates: rest,
+      }
     })
 
     logger.debug('Cancelled operations for block', {
@@ -409,10 +452,29 @@ export const useOperationQueueStore = create<OperationQueueState>((set, get) => 
         operationTimeouts.delete(opId)
       }
     })
-    set((s) => ({
-      operations: s.operations.filter((op) => op.workflowId !== workflowId),
-      isProcessing: false,
-    }))
+    set((s) => {
+      // Remove pending block creates for blocks whose add operation belongs to this workflow
+      const remainingOps = s.operations.filter((op) => op.workflowId !== workflowId)
+      const blocksStillPending = new Set<string>()
+      remainingOps.forEach((op) => {
+        if (
+          op.operation.target === 'block' &&
+          op.operation.operation === 'add' &&
+          op.operation.payload?.id
+        ) {
+          blocksStillPending.add(op.operation.payload.id)
+        }
+      })
+      const nextPending: Record<string, true> = {}
+      Object.keys(s.pendingBlockCreates).forEach((bid) => {
+        if (blocksStillPending.has(bid)) nextPending[bid] = true
+      })
+      return {
+        operations: remainingOps,
+        isProcessing: false,
+        pendingBlockCreates: nextPending,
+      }
+    })
   },
 
   clearAllTimers: () => {

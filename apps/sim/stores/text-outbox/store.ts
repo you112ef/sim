@@ -33,7 +33,8 @@ const sendAttemptTimers = new Map<string, NodeJS.Timeout>()
 const ackTimeoutTimers = new Map<string, NodeJS.Timeout>()
 
 // Attempt sender and validator registered by socket layer
-type AttemptSender = (op: PendingTextOperation) => boolean
+type AttemptResult = 'sent' | 'defer' | 'skip'
+type AttemptSender = (op: PendingTextOperation) => AttemptResult
 type OperationValidator = (op: PendingTextOperation) => boolean
 let attemptSender: AttemptSender | null = null
 let operationValidator: OperationValidator | null = null
@@ -284,17 +285,19 @@ export const useTextOutboxStore = create<TextOutboxState>((set, get) => ({
           return
         }
 
-        const sent = attemptSender ? attemptSender(op) : false
-        if (sent) {
+        const result = attemptSender ? attemptSender(op) : 'defer'
+        if (result === 'sent') {
           const ackTimer = setTimeout(() => {
             get().fail(id, true)
           }, 7500)
           ackTimeoutTimers.set(id, ackTimer)
+        } else if (result === 'defer') {
+          get().rescheduleWithoutPenalty(id)
+          // Gentle retry loop without backoff; upstream decides readiness
+          get().scheduleAttempt(id, 250)
         } else {
-          const waitTimer = setTimeout(() => {
-            get().fail(id, true)
-          }, 7500)
-          ackTimeoutTimers.set(id, waitTimer)
+          // 'skip' means drop silently
+          get().confirm(id)
         }
       },
       Math.max(0, delayMs)
