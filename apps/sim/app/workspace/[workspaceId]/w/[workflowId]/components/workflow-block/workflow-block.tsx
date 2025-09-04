@@ -163,16 +163,19 @@ export function WorkflowBlock({ id, data }: NodeProps<WorkflowBlockProps>) {
   // Local UI state for diff mode controls
   const [diffIsWide, setDiffIsWide] = useState<boolean>(isWide)
   const [diffAdvancedMode, setDiffAdvancedMode] = useState<boolean>(blockAdvancedMode)
-  const [diffTriggerMode, setDiffTriggerMode] = useState<boolean>(blockTriggerMode)
+  const [diffTriggerMode, setDiffTriggerMode] = useState<boolean>(
+    currentWorkflow.isDiffMode ? (currentBlock?.triggerMode ?? blockTriggerMode) : blockTriggerMode
+  )
 
   useEffect(() => {
     if (currentWorkflow.isDiffMode) {
-      setDiffIsWide(isWide)
-      setDiffAdvancedMode(blockAdvancedMode)
-      setDiffTriggerMode(blockTriggerMode)
+      // In diff mode, derive from the diff workflow block rather than the main store
+      setDiffIsWide(currentBlock?.isWide ?? isWide)
+      setDiffAdvancedMode(currentBlock?.advancedMode ?? blockAdvancedMode)
+      setDiffTriggerMode(currentBlock?.triggerMode ?? blockTriggerMode)
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [currentWorkflow.isDiffMode, id])
+  }, [currentWorkflow.isDiffMode, id, currentBlock])
 
   const displayIsWide = currentWorkflow.isDiffMode ? diffIsWide : isWide
   const displayAdvancedMode = currentWorkflow.isDiffMode ? diffAdvancedMode : blockAdvancedMode

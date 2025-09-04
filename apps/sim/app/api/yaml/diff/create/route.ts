@@ -152,15 +152,20 @@ export async function POST(request: NextRequest) {
     const result = await response.json()
 
     // Log the full response to see if auto-layout is happening
-    logger.info(`[${requestId}] Full sim agent response:`, JSON.stringify(result, null, 2))
+    logger.debug(`[${requestId}] Sim agent response received`, {
+      success: result?.success === true,
+      hasDiff: !!result?.diff,
+      blocksCount: Object.keys(result?.diff?.proposedState?.blocks || result?.blocks || {}).length,
+      edgesCount: (result?.diff?.proposedState?.edges || result?.edges || []).length,
+    })
 
     // Log detailed block information to debug parent-child relationships
     if (result.success) {
       const blocks = result.diff?.proposedState?.blocks || result.blocks || {}
-      logger.info(`[${requestId}] Sim agent blocks with parent-child info:`)
+      logger.debug(`[${requestId}] Sim agent blocks with parent-child info:`)
       Object.entries(blocks).forEach(([blockId, block]: [string, any]) => {
         if (block.data?.parentId || block.parentId) {
-          logger.info(`[${requestId}] Child block ${blockId} (${block.name}):`, {
+          logger.debug(`[${requestId}] Child block ${blockId} (${block.name}):`, {
             type: block.type,
             parentId: block.data?.parentId || block.parentId,
             extent: block.data?.extent || block.extent,
@@ -169,7 +174,7 @@ export async function POST(request: NextRequest) {
           })
         }
         if (block.type === 'loop' || block.type === 'parallel') {
-          logger.info(`[${requestId}] Container block ${blockId} (${block.name}):`, {
+          logger.debug(`[${requestId}] Container block ${blockId} (${block.name}):`, {
             type: block.type,
             hasData: !!block.data,
             dataKeys: block.data ? Object.keys(block.data) : [],
@@ -180,8 +185,10 @@ export async function POST(request: NextRequest) {
       // Log existing loops/parallels from sim-agent
       const loops = result.diff?.proposedState?.loops || result.loops || {}
       const parallels = result.diff?.proposedState?.parallels || result.parallels || {}
-      logger.info(`[${requestId}] Sim agent loops:`, loops)
-      logger.info(`[${requestId}] Sim agent parallels:`, parallels)
+      logger.debug(`[${requestId}] Sim agent loops/parallels`, {
+        loopsCount: Object.keys(loops || {}).length,
+        parallelsCount: Object.keys(parallels || {}).length,
+      })
     }
 
     // Log diff analysis specifically
@@ -214,14 +221,9 @@ export async function POST(request: NextRequest) {
       containerBlocks.forEach((container: any) => {
         // Log all edges from this container to debug
         const allEdgesFromContainer = edges.filter((edge: any) => edge.source === container.id)
-        logger.info(
-          `[${requestId}] All edges from container ${container.id}:`,
-          allEdgesFromContainer.map((e: any) => ({
-            id: e.id,
-            sourceHandle: e.sourceHandle,
-            target: e.target,
-          }))
-        )
+        logger.debug(`[${requestId}] Container ${container.id} edges`, {
+          count: allEdgesFromContainer.length,
+        })
 
         const childEdges = edges.filter(
           (edge: any) => edge.source === container.id && edge.sourceHandle === 'loop-start-source'
@@ -238,11 +240,9 @@ export async function POST(request: NextRequest) {
             childBlock.data.parentId = container.id
             childBlock.data.extent = 'parent'
 
-            logger.info(`[${requestId}] Fixed parent-child relationship:`, {
+            logger.debug(`[${requestId}] Fixed parent-child relationship`, {
               parent: container.id,
-              parentName: container.name,
               child: childBlock.id,
-              childName: childBlock.name,
             })
           }
         })
@@ -258,10 +258,6 @@ export async function POST(request: NextRequest) {
       logger.info(`[${requestId}] Regenerated loops and parallels after fixing parent-child:`, {
         loopsCount: Object.keys(loops).length,
         parallelsCount: Object.keys(parallels).length,
-        loops: Object.keys(loops).map((id) => ({
-          id,
-          nodes: loops[id].nodes,
-        })),
       })
     }
 
@@ -296,11 +292,9 @@ export async function POST(request: NextRequest) {
             childBlock.data.parentId = container.id
             childBlock.data.extent = 'parent'
 
-            logger.info(`[${requestId}] Fixed parent-child relationship (auto-layout):`, {
+            logger.debug(`[${requestId}] Fixed parent-child relationship (auto-layout)`, {
               parent: container.id,
-              parentName: container.name,
               child: childBlock.id,
-              childName: childBlock.name,
             })
           }
         })

@@ -74,6 +74,22 @@ export async function POST(request: NextRequest) {
     }
 
     const result = await response.json()
+
+    // Normalize triggerMode for trigger-capable blocks if missing
+    try {
+      if (result?.success && result.workflowState?.blocks) {
+        const blocksMap = result.workflowState.blocks as Record<string, any>
+        Object.values(blocksMap).forEach((block: any) => {
+          if (block.triggerMode === undefined) {
+            const cfg: any = (blockRegistry as any)[block.type]
+            const hasTriggerFields = !!(
+              block.subBlocks?.triggerId || block.subBlocks?.triggerPath || block.subBlocks?.triggerConfig
+            )
+            block.triggerMode = cfg?.category === 'triggers' || hasTriggerFields
+          }
+        })
+      }
+    } catch {}
     return NextResponse.json(result)
   } catch (error) {
     logger.error(`[${requestId}] YAML parse failed:`, error)

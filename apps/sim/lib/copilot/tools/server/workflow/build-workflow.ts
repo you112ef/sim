@@ -80,6 +80,25 @@ export const buildWorkflowServerTool: BaseServerTool<
 
       const { workflowState } = conversionResult
 
+      // Normalize triggerMode for trigger-capable blocks if missing
+      try {
+        if (workflowState?.blocks) {
+          Object.values(workflowState.blocks as Record<string, any>).forEach((block: any) => {
+            if (block.triggerMode === undefined) {
+              const cfg: any = (blockRegistry as any)[block.type]
+              const hasTriggerFields = !!(
+                block.subBlocks?.triggerId || block.subBlocks?.triggerPath || block.subBlocks?.triggerConfig
+              )
+              if (cfg?.category === 'triggers' || hasTriggerFields) {
+                block.triggerMode = true
+              } else {
+                block.triggerMode = false
+              }
+            }
+          })
+        }
+      } catch {}
+
       const previewWorkflowState = {
         blocks: {} as Record<string, any>,
         edges: [] as any[],

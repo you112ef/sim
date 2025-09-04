@@ -352,6 +352,22 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
       if (!block.outputs) {
         block.outputs = {}
       }
+      // Preserve or infer trigger mode for trigger-capable blocks
+      if (block.triggerMode === undefined) {
+        try {
+          const cfg = getBlock(block.type)
+          const hasTriggerFields = !!(
+            block.subBlocks?.triggerId || block.subBlocks?.triggerPath || block.subBlocks?.triggerConfig
+          )
+          if (cfg?.category === 'triggers' || hasTriggerFields) {
+            block.triggerMode = true
+          } else {
+            block.triggerMode = false
+          }
+        } catch {
+          block.triggerMode = false
+        }
+      }
     })
 
     const blocks = Object.values(workflowState.blocks) as Array<{
@@ -363,6 +379,7 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
       data?: Record<string, any>
       parentId?: string
       extent?: string
+      triggerMode?: boolean
     }>
     const edges = workflowState.edges
     const warnings = conversionResult.warnings || []
@@ -413,6 +430,8 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
           advancedMode: false,
           height: 0,
           data: containerData,
+          // Loop/parallel containers are never triggers
+          triggerMode: false,
         }
         logger.debug(`[${requestId}] Processed loop/parallel block: ${block.id} -> ${newId}`)
       } else if (blockConfig) {
@@ -465,6 +484,8 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
           advancedMode: false,
           height: 0,
           data: blockData,
+          // Preserve or infer trigger mode for tool blocks that can act as triggers (e.g., Slack/Gmail)
+          triggerMode: block.triggerMode ?? (blockConfig.category === 'triggers'),
         }
 
         logger.debug(`[${requestId}] Processed regular block: ${block.id} -> ${newId}`)

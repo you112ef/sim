@@ -196,6 +196,20 @@ export async function POST(request: NextRequest) {
       errors: result.errors,
     }
 
+    // Normalize triggerMode for trigger-capable blocks if missing
+    try {
+      const blocksMap = transformedResponse.workflowState.blocks as Record<string, any>
+      Object.values(blocksMap).forEach((block: any) => {
+        if (block.triggerMode === undefined) {
+          const cfg: any = (blockRegistry as any)[block.type]
+          const hasTriggerFields = !!(
+            block.subBlocks?.triggerId || block.subBlocks?.triggerPath || block.subBlocks?.triggerConfig
+          )
+          block.triggerMode = cfg?.category === 'triggers' || hasTriggerFields
+        }
+      })
+    } catch {}
+
     logger.info(`[${requestId}] Transformed response:`, {
       success: transformedResponse.success,
       blockCount: Object.keys(transformedResponse.workflowState.blocks).length,
