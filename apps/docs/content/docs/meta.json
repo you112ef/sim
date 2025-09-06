@@ -16,6 +16,7 @@
     "copilot",
     "---Advanced---",
     "./variables/index",
+    "./permissions/index",
     "yaml",
     "---SDKs---",
     "./sdks/python",

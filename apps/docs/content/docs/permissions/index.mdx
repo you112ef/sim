@@ -1,0 +1,72 @@
+---
+title: Permissions & Sharing
+description: Understand admin, write, and read access; how sharing works; and how org roles differ from workspace permissions.
+---
+
+import { Callout } from 'fumadocs-ui/components/callout'
+
+Permissions control what someone can see and do in a workspace and its workflows. They enable safe collaboration so teams can build, run, and review without unexpected changes.
+
+Permissions apply at two levels:
+
+- Workspace: who can access the workspace and manage its settings.
+- Workflows inside the workspace: what actions collaborators can take on workflows and blocks.
+
+## Quick reference
+
+| Action | Admin | Write | Read |
+| --- | --- | --- | --- |
+| View workflows and runs | ✓ | ✓ | ✓ |
+| Run a workflow | ✓ | ✓ | ✓ |
+| Create/edit workflows & blocks | ✓ | ✓ | ✗ |
+| Duplicate a workflow | ✓ | ✓ | ✗ |
+| Invite/remove collaborators | ✓ | ✗ | ✗ |
+| Change someone’s permission | ✓ | ✗ | ✗ |
+| Manage workspace settings (API keys, env vars) | ✓ | ✗ | ✗ |
+| Delete workflows | ✓ | ✓ (may be restricted by policy) | ✗ |
+| Live session interactions | ✓ | ✓ | Limited (move-only) |
+| Rename workflows | ✓ | ✓ | ✗ |
+
+<Callout type="info">
+  Collaboration actions are validated server-side. Depending on connection state or the current
+  operation, certain actions may be temporarily restricted. Read-level collaborators are
+  limited to moving items during live sessions.
+</Callout>
+
+## Which should I pick?
+
+- **Admin**: Team leads/owners who manage members, permissions, and workspace settings.
+- **Write**: Builders who create, edit, and maintain workflows; don’t manage collaborators.
+- **Read**: Viewers/reviewers who need to run and inspect without changing configurations.
+
+Scenarios:
+
+- Consultant needs temporary edit access → Write
+- Security reviewer performing an audit → Read
+- Tech lead setting up a new workspace → Admin
+
+## Sharing & invitations
+
+Invitations are sent at the workspace level and can specify the permission level (admin, write, read). Collaborators you invite will see and access the workflows in that workspace according to the permission you choose.
+
+<Callout type="warning">
+  The default permission for workspace invitations is <strong>Admin</strong> unless you change it.
+  Be sure to select <strong>Write</strong> or <strong>Read</strong> when appropriate.
+</Callout>
+
+You can manage invitations and members from the workspace’s members area in the app.
+
+## Organization roles vs workspace permissions
+
+Organization roles are used for org-level governance and billing: **owner**, **admin**, **member**.
+
+Workspace permissions are granted per workspace and govern workflow access: **admin**, **write**, **read**.
+
+An organization role does not automatically grant edit/admin rights on every workspace. Access is determined by the permission assigned on each workspace.
+
+## Related
+
+- [Getting Started](/getting-started)
+- [Blocks](/blocks)
+- [Execution](/execution)
+- [YAML](/yaml)
