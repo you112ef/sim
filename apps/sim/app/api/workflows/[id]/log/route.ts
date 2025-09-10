@@ -23,21 +23,17 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
     const body = await request.json()
     const { logs, executionId, result } = body
 
-    // If result is provided, use logging system for full tool call extraction
     if (result) {
       logger.info(`[${requestId}] Persisting execution result for workflow: ${id}`, {
         executionId,
         success: result.success,
       })
 
-      // Check if this execution is from chat using only the explicit source flag
       const isChatExecution = result.metadata?.source === 'chat'
 
-      // Also log to logging system
       const triggerType = isChatExecution ? 'chat' : 'manual'
       const loggingSession = new LoggingSession(id, executionId, triggerType, requestId)
 
-      // Prefer real user/workspace IDs when available
       const userId = validation.workflow.userId
       const workspaceId = validation.workflow.workspaceId || ''
 
@@ -69,7 +65,6 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
       })
     }
 
-    // Fall back to the original log format if 'result' isn't provided
     if (!logs || !Array.isArray(logs) || logs.length === 0) {
       logger.warn(`[${requestId}] No logs provided for workflow: ${id}`)
       return createErrorResponse('No logs provided', 400)
