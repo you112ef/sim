@@ -37,21 +37,32 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
       const triggerType = isChatExecution ? 'chat' : 'manual'
       const loggingSession = new LoggingSession(id, executionId, triggerType, requestId)
 
+      // Prefer real user/workspace IDs when available
+      const userId = validation.workflow.userId
+      const workspaceId = validation.workflow.workspaceId || ''
+
       await loggingSession.safeStart({
-        userId: '', // TODO: Get from session
-        workspaceId: '', // TODO: Get from workflow
+        userId,
+        workspaceId,
         variables: {},
       })
 
-      // Build trace spans from execution logs
-      const { traceSpans } = buildTraceSpans(result)
-
-      await loggingSession.safeComplete({
-        endedAt: new Date().toISOString(),
-        totalDurationMs: result.metadata?.duration || 0,
-        finalOutput: result.output || {},
-        traceSpans,
-      })
+      if (result.success === false) {
+        const message = result.error || 'Workflow execution failed'
+        await loggingSession.safeCompleteWithError({
+          endedAt: new Date().toISOString(),
+          totalDurationMs: result.metadata?.duration || 0,
+          error: { message },
+        })
+      } else {
+        const { traceSpans } = buildTraceSpans(result)
+        await loggingSession.safeComplete({
+          endedAt: new Date().toISOString(),
+          totalDurationMs: result.metadata?.duration || 0,
+          finalOutput: result.output || {},
+          traceSpans,
+        })
+      }
 
       return createSuccessResponse({
         message: 'Execution logs persisted successfully',
