@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef } from 'react'
 import type { Edge } from 'reactflow'
 import { useSession } from '@/lib/auth-client'
 import { createLogger } from '@/lib/logs/console/logger'
+import { generateUniqueBlockDuplicateName } from '@/lib/naming'
 import { getBlock } from '@/blocks'
 import { resolveOutputType } from '@/blocks/utils'
 import { useSocket } from '@/contexts/socket-context'
@@ -953,17 +954,14 @@ export function useCollaborativeWorkflow() {
       const sourceBlock = workflowStore.blocks[sourceId]
       if (!sourceBlock) return
 
-      // Generate new ID and calculate position
       const newId = crypto.randomUUID()
       const offsetPosition = {
         x: sourceBlock.position.x + 250,
         y: sourceBlock.position.y + 20,
       }
 
-      const match = sourceBlock.name.match(/(.*?)(\d+)?$/)
-      const newName = match?.[2]
-        ? `${match[1]}${Number.parseInt(match[2]) + 1}`
-        : `${sourceBlock.name} 1`
+      const existingNames = Object.values(workflowStore.blocks).map((b) => b.name)
+      const newName = generateUniqueBlockDuplicateName(existingNames, sourceBlock.name)
 
       // Get subblock values from the store
       const subBlockValues = subBlockStore.workflowValues[activeWorkflowId || '']?.[sourceId] || {}

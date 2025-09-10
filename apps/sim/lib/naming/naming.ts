@@ -170,16 +170,13 @@ export function generateIncrementalName<T extends NameableEntity>(
   existingEntities: T[],
   prefix: string
 ): string {
-  // Create regex pattern for the prefix (e.g., /^Workspace (\d+)$/)
   const pattern = new RegExp(`^${prefix.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')} (\\d+)$`)
 
-  // Extract numbers from existing entities that match the pattern
   const existingNumbers = existingEntities
     .map((entity) => entity.name.match(pattern))
     .filter((match) => match !== null)
     .map((match) => Number.parseInt(match![1], 10))
 
-  // Find next available number (highest + 1, or 1 if none exist)
   const nextNumber = existingNumbers.length > 0 ? Math.max(...existingNumbers) + 1 : 1
 
   return `${prefix} ${nextNumber}`
@@ -204,7 +201,6 @@ export async function generateFolderName(workspaceId: string): Promise<string> {
   const data = (await response.json()) as FoldersApiResponse
   const folders = data.folders || []
 
-  // Filter to only root-level folders (parentId is null)
   const rootFolders = folders.filter((folder) => folder.parentId === null)
 
   return generateIncrementalName(rootFolders, 'Folder')
@@ -221,7 +217,6 @@ export async function generateSubfolderName(
   const data = (await response.json()) as FoldersApiResponse
   const folders = data.folders || []
 
-  // Filter to only subfolders of the specified parent
   const subfolders = folders.filter((folder) => folder.parentId === parentFolderId)
 
   return generateIncrementalName(subfolders, 'Subfolder')
@@ -235,4 +230,30 @@ export function generateCreativeWorkflowName(): string {
   const adjective = ADJECTIVES[Math.floor(Math.random() * ADJECTIVES.length)]
   const noun = NOUNS[Math.floor(Math.random() * NOUNS.length)]
   return `${adjective.toLowerCase()}-${noun.toLowerCase()}`
+}
+
+export function normalizeBlockName(name: string): string {
+  return name.toLowerCase().replace(/\s+/g, '')
+}
+
+export function generateUniqueBlockDuplicateName(
+  existingNames: string[],
+  sourceName: string
+): string {
+  const normalizedSet = new Set(
+    (existingNames || []).filter((n) => typeof n === 'string').map((n) => normalizeBlockName(n))
+  )
+
+  const trimmed = (sourceName || '').trim()
+  const match = trimmed.match(/^(.*?)(?:\s+(\d+))?$/)
+  const baseRaw = match ? match[1] || '' : trimmed
+  const base = baseRaw.trim() || 'Block'
+  const start = match?.[2] ? Number.parseInt(match[2], 10) + 1 : 1
+
+  let n = start
+  while (true) {
+    const candidate = `${base} ${n}`
+    if (!normalizedSet.has(normalizeBlockName(candidate))) return candidate
+    n += 1
+  }
 }

@@ -1,7 +1,7 @@
 import { create } from 'zustand'
 import { devtools } from 'zustand/middleware'
 import { createLogger } from '@/lib/logs/console/logger'
-import { generateCreativeWorkflowName } from '@/lib/naming'
+import { generateCreativeWorkflowName } from '@/lib/naming/naming'
 import { API_ENDPOINTS } from '@/stores/constants'
 import { useVariablesStore } from '@/stores/panel/variables/store'
 import type {
