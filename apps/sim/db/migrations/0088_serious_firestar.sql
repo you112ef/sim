@@ -8,12 +8,8 @@ CREATE TABLE "workflow_deployment_version" (
 	"created_by" text
 );
 --> statement-breakpoint
-DROP INDEX "workflow_blocks_parent_id_idx";--> statement-breakpoint
-DROP INDEX "workflow_blocks_workflow_parent_idx";--> statement-breakpoint
 ALTER TABLE "workflow_deployment_version" ADD CONSTRAINT "workflow_deployment_version_workflow_id_workflow_id_fk" FOREIGN KEY ("workflow_id") REFERENCES "public"."workflow"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 CREATE INDEX "workflow_deployment_version_workflow_id_idx" ON "workflow_deployment_version" USING btree ("workflow_id");--> statement-breakpoint
 CREATE UNIQUE INDEX "workflow_deployment_version_workflow_version_unique" ON "workflow_deployment_version" USING btree ("workflow_id","version");--> statement-breakpoint
 CREATE INDEX "workflow_deployment_version_workflow_active_idx" ON "workflow_deployment_version" USING btree ("workflow_id","is_active");--> statement-breakpoint
-CREATE INDEX "workflow_deployment_version_created_at_idx" ON "workflow_deployment_version" USING btree ("created_at");--> statement-breakpoint
-ALTER TABLE "workflow_blocks" DROP COLUMN "parent_id";--> statement-breakpoint
-ALTER TABLE "workflow_blocks" DROP COLUMN "extent";
+CREATE INDEX "workflow_deployment_version_created_at_idx" ON "workflow_deployment_version" USING btree ("created_at");
