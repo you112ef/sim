@@ -82,22 +82,6 @@ export const updateTool: ToolConfig<GoogleSheetsToolParams, GoogleSheetsUpdateRe
     body: (params) => {
       let processedValues: any = params.values || []
 
-      if (typeof processedValues === 'string') {
-        try {
-          processedValues = JSON.parse(processedValues)
-        } catch (_error) {
-          try {
-            const sanitizedInput = (processedValues as string)
-              .replace(/\n/g, '\\n')
-              .replace(/\r/g, '\\r')
-              .replace(/\t/g, '\\t')
-            processedValues = JSON.parse(sanitizedInput)
-          } catch (_secondError) {
-            processedValues = [[processedValues]]
-          }
-        }
-      }
-
       // Minimal shape enforcement: Google requires a 2D array
       if (!Array.isArray(processedValues)) {
         processedValues = [[processedValues]]
