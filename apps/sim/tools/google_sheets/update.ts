@@ -91,7 +91,6 @@ export const updateTool: ToolConfig<GoogleSheetsToolParams, GoogleSheetsUpdateRe
               .replace(/\n/g, '\\n')
               .replace(/\r/g, '\\r')
               .replace(/\t/g, '\\t')
-              .replace(/\\\\/g, '\\')
             processedValues = JSON.parse(sanitizedInput)
           } catch (_secondError) {
             processedValues = [[processedValues]]
