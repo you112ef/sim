@@ -13,12 +13,14 @@ import ReactFlow, {
 } from 'reactflow'
 import 'reactflow/dist/style.css'
 import { createLogger } from '@/lib/logs/console/logger'
+import { TriggerUtils } from '@/lib/workflows/triggers'
 import { useUserPermissionsContext } from '@/app/workspace/[workspaceId]/providers/workspace-permissions-provider'
 import { ControlBar } from '@/app/workspace/[workspaceId]/w/[workflowId]/components/control-bar/control-bar'
 import { DiffControls } from '@/app/workspace/[workspaceId]/w/[workflowId]/components/diff-controls'
 import { ErrorBoundary } from '@/app/workspace/[workspaceId]/w/[workflowId]/components/error/index'
 import { Panel } from '@/app/workspace/[workspaceId]/w/[workflowId]/components/panel/panel'
 import { SubflowNodeComponent } from '@/app/workspace/[workspaceId]/w/[workflowId]/components/subflows/subflow-node'
+import { TriggerWarningDialog } from '@/app/workspace/[workspaceId]/w/[workflowId]/components/trigger-warning-dialog'
 import { WorkflowBlock } from '@/app/workspace/[workspaceId]/w/[workflowId]/components/workflow-block/workflow-block'
 import { WorkflowEdge } from '@/app/workspace/[workspaceId]/w/[workflowId]/components/workflow-edge/workflow-edge'
 import { useCurrentWorkflow } from '@/app/workspace/[workspaceId]/w/[workflowId]/hooks'
@@ -74,6 +76,16 @@ const WorkflowContent = React.memo(() => {
   const [nestedSubflowErrors, setNestedSubflowErrors] = useState<Set<string>>(new Set())
   // Enhanced edge selection with parent context and unique identifier
   const [selectedEdgeInfo, setSelectedEdgeInfo] = useState<SelectedEdgeInfo | null>(null)
+
+  // State for trigger warning dialog
+  const [triggerWarning, setTriggerWarning] = useState<{
+    open: boolean
+    triggerName: string
+    message?: string
+  }>({
+    open: false,
+    triggerName: '',
+  })
 
   // Hooks
   const params = useParams()
@@ -480,6 +492,23 @@ const WorkflowContent = React.memo(() => {
       if (!type) return
       if (type === 'connectionBlock') return
 
+      // Check for single trigger constraint
+      if (TriggerUtils.wouldViolateSingleInstance(blocks, type)) {
+        // Check if it's because of a legacy starter block
+        if (TriggerUtils.hasLegacyStarter(blocks) && TriggerUtils.isAnyTriggerType(type)) {
+          setTriggerWarning({
+            open: true,
+            triggerName: 'new trigger',
+            message:
+              'Cannot add new trigger blocks when a legacy Start block exists. Please remove the Start block first.',
+          })
+        } else {
+          const triggerName = TriggerUtils.getDefaultTriggerName(type) || 'trigger'
+          setTriggerWarning({ open: true, triggerName })
+        }
+        return
+      }
+
       // Special handling for container nodes (loop or parallel)
       if (type === 'loop' || type === 'parallel') {
         // Create a unique ID and name for the container
@@ -549,7 +578,11 @@ const WorkflowContent = React.memo(() => {
 
       // Create a new block with a unique ID
       const id = crypto.randomUUID()
-      const name = `${blockConfig.name} ${Object.values(blocks).filter((b) => b.type === type).length + 1}`
+      // Prefer semantic default names for triggers to support <chat.*>, <manual.*>, <api.*> references
+      const defaultTriggerName = TriggerUtils.getDefaultTriggerName(type)
+      const name =
+        defaultTriggerName ||
+        `${blockConfig.name} ${Object.values(blocks).filter((b) => b.type === type).length + 1}`
 
       // Auto-connect logic
       const isAutoConnectEnabled = useGeneralStore.getState().isAutoConnectEnabled
@@ -573,6 +606,26 @@ const WorkflowContent = React.memo(() => {
         }
       }
 
+      // Enforce only one API trigger
+      if (type === 'api_trigger') {
+        const existingApiTriggers = Object.values(blocks).filter((b) => b.type === 'api_trigger')
+        if (existingApiTriggers.length >= 1) {
+          // Surface a clean UI indication; for now, log and skip add
+          logger.warn('Only one API trigger is allowed per workflow')
+          return
+        }
+      }
+      // Enforce only one Manual trigger for manual run UX
+      if (type === 'manual_trigger') {
+        const existingManualTriggers = Object.values(blocks).filter(
+          (b) => b.type === 'manual_trigger'
+        )
+        if (existingManualTriggers.length >= 1) {
+          logger.warn('Only one Manual trigger is recommended; manual run uses a single trigger')
+          return
+        }
+      }
+
       // Add the block to the workflow with auto-connect edge
       addBlock(id, type, name, centerPosition, undefined, undefined, undefined, autoConnectEdge)
     }
@@ -593,6 +646,7 @@ const WorkflowContent = React.memo(() => {
     findClosestOutput,
     determineSourceHandle,
     effectivePermissions.canEdit,
+    setTriggerWarning,
   ])
 
   // Update the onDrop handler
@@ -603,6 +657,23 @@ const WorkflowContent = React.memo(() => {
       try {
         const data = JSON.parse(event.dataTransfer.getData('application/json'))
         if (data.type === 'connectionBlock') return
+
+        // Check for single trigger constraint
+        if (TriggerUtils.wouldViolateSingleInstance(blocks, data.type)) {
+          // Check if it's because of a legacy starter block
+          if (TriggerUtils.hasLegacyStarter(blocks) && TriggerUtils.isAnyTriggerType(data.type)) {
+            setTriggerWarning({
+              open: true,
+              triggerName: 'new trigger',
+              message:
+                'Cannot add new trigger blocks when a legacy Start block exists. Please remove the Start block first.',
+            })
+          } else {
+            const triggerName = TriggerUtils.getDefaultTriggerName(data.type) || 'trigger'
+            setTriggerWarning({ open: true, triggerName })
+          }
+          return
+        }
 
         const reactFlowBounds = event.currentTarget.getBoundingClientRect()
         const position = project({
@@ -698,12 +769,15 @@ const WorkflowContent = React.memo(() => {
 
         // Generate id and name here so they're available in all code paths
         const id = crypto.randomUUID()
+        // Prefer semantic default names for triggers to support <chat.*>, <manual.*>, <api.*> references
+        const defaultTriggerNameDrop = TriggerUtils.getDefaultTriggerName(data.type)
         const name =
           data.type === 'loop'
             ? `Loop ${Object.values(blocks).filter((b) => b.type === 'loop').length + 1}`
             : data.type === 'parallel'
               ? `Parallel ${Object.values(blocks).filter((b) => b.type === 'parallel').length + 1}`
-              : `${blockConfig!.name} ${Object.values(blocks).filter((b) => b.type === data.type).length + 1}`
+              : defaultTriggerNameDrop ||
+                `${blockConfig!.name} ${Object.values(blocks).filter((b) => b.type === data.type).length + 1}`
 
         if (containerInfo) {
           // Calculate position relative to the container node
@@ -775,6 +849,27 @@ const WorkflowContent = React.memo(() => {
             }
           }
         } else {
+          // Check if adding this trigger would violate constraints
+          if (TriggerUtils.wouldViolateSingleInstance(blocks, data.type)) {
+            // Check if it's because of a legacy starter block
+            if (TriggerUtils.hasLegacyStarter(blocks) && TriggerUtils.isAnyTriggerType(data.type)) {
+              setTriggerWarning({
+                open: true,
+                triggerName: 'new trigger',
+                message:
+                  'Cannot add new trigger blocks when a legacy Start block exists. Please remove the Start block first.',
+              })
+            } else {
+              const triggerName = TriggerUtils.getDefaultTriggerName(data.type) || data.type
+              setTriggerWarning({
+                open: true,
+                triggerName,
+                message: `Only one ${triggerName} trigger allowed`,
+              })
+            }
+            return
+          }
+
           // Regular auto-connect logic
           const isAutoConnectEnabled = useGeneralStore.getState().isAutoConnectEnabled
           let autoConnectEdge
@@ -810,6 +905,7 @@ const WorkflowContent = React.memo(() => {
       determineSourceHandle,
       isPointInLoopNodeWrapper,
       getNodes,
+      setTriggerWarning,
     ]
   )
 
@@ -1676,6 +1772,14 @@ const WorkflowContent = React.memo(() => {
 
         {/* Show DiffControls if diff is available (regardless of current view mode) */}
         <DiffControls />
+
+        {/* Trigger warning dialog */}
+        <TriggerWarningDialog
+          open={triggerWarning.open}
+          onOpenChange={(open) => setTriggerWarning({ ...triggerWarning, open })}
+          triggerName={triggerWarning.triggerName}
+          message={triggerWarning.message}
+        />
       </div>
     </div>
   )

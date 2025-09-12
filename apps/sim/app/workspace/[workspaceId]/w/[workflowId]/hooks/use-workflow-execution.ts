@@ -3,7 +3,7 @@ import { v4 as uuidv4 } from 'uuid'
 import { createLogger } from '@/lib/logs/console/logger'
 import { buildTraceSpans } from '@/lib/logs/execution/trace-spans/trace-spans'
 import { processStreamingBlockLogs } from '@/lib/tokenization'
-import { getBlock } from '@/blocks'
+import { TriggerUtils } from '@/lib/workflows/triggers'
 import type { BlockOutput } from '@/blocks/types'
 import { Executor } from '@/executor'
 import type { BlockLog, ExecutionResult, StreamingExecution } from '@/executor/types'
@@ -560,22 +560,14 @@ export function useWorkflowExecution() {
       }
     })
 
-    // Filter out trigger blocks for manual execution
+    // Do not filter out trigger blocks; executor may need to start from them
     const filteredStates = Object.entries(mergedStates).reduce(
       (acc, [id, block]) => {
-        // Skip blocks with undefined type
         if (!block || !block.type) {
           logger.warn(`Skipping block with undefined type: ${id}`, block)
           return acc
         }
-
-        const blockConfig = getBlock(block.type)
-        const isTriggerBlock = blockConfig?.category === 'triggers'
-
-        // Skip trigger blocks during manual execution
-        if (!isTriggerBlock) {
-          acc[id] = block
-        }
+        acc[id] = block
         return acc
       },
       {} as typeof mergedStates
@@ -632,15 +624,8 @@ export function useWorkflowExecution() {
       {} as Record<string, any>
     )
 
-    // Filter edges to exclude connections to/from trigger blocks
-    const triggerBlockIds = Object.keys(mergedStates).filter((id) => {
-      const blockConfig = getBlock(mergedStates[id].type)
-      return blockConfig?.category === 'triggers'
-    })
-
-    const filteredEdges = workflowEdges.filter(
-      (edge) => !triggerBlockIds.includes(edge.source) && !triggerBlockIds.includes(edge.target)
-    )
+    // Keep edges intact to allow execution starting from trigger blocks
+    const filteredEdges = workflowEdges
 
     // Derive subflows from the current filtered graph to avoid stale state
     const runtimeLoops = generateLoopBlocks(filteredStates)
@@ -663,12 +648,98 @@ export function useWorkflowExecution() {
       selectedOutputIds = chatStore.getState().getSelectedWorkflowOutput(activeWorkflowId)
     }
 
-    // Create executor options
+    // Determine start block and workflow input based on execution type
+    let startBlockId: string | undefined
+    const finalWorkflowInput = workflowInput
+
+    if (isExecutingFromChat) {
+      // For chat execution, find the appropriate chat trigger
+      const startBlock = TriggerUtils.findStartBlock(filteredStates, 'chat')
+
+      if (!startBlock) {
+        throw new Error(TriggerUtils.getTriggerValidationMessage('chat', 'missing'))
+      }
+
+      startBlockId = startBlock.blockId
+
+      // Check if the chat trigger has any outgoing connections
+      const outgoingConnections = workflowEdges.filter((edge) => edge.source === startBlockId)
+      if (outgoingConnections.length === 0) {
+        throw new Error('Chat Trigger block must be connected to other blocks to execute')
+      }
+    } else {
+      // For manual editor runs: look for manual trigger
+      const entries = Object.entries(filteredStates)
+      const manualTriggers = TriggerUtils.findTriggersByType(filteredStates, 'manual')
+
+      logger.info('Manual run trigger check:', {
+        manualTriggersCount: manualTriggers.length,
+        hasManualTrigger: manualTriggers.length > 0,
+        triggers: manualTriggers.map((t) => ({
+          type: t.type,
+          isLegacy: t.type === 'starter',
+          mode: t.type === 'starter' ? t.subBlocks?.startWorkflow?.value : 'n/a',
+        })),
+      })
+
+      if (manualTriggers.length === 1) {
+        const blockEntry = entries.find(([, block]) => block === manualTriggers[0])
+        if (blockEntry) {
+          startBlockId = blockEntry[0]
+          const trigger = manualTriggers[0]
+
+          // Check if the manual trigger has any outgoing connections
+          const outgoingConnections = workflowEdges.filter((edge) => edge.source === startBlockId)
+          if (outgoingConnections.length === 0) {
+            const error = new Error(
+              'Manual Trigger block must be connected to other blocks to execute'
+            )
+            logger.error('Manual trigger has no outgoing connections')
+            setIsExecuting(false)
+            throw error
+          }
+
+          logger.info('Manual trigger found:', {
+            startBlockId,
+            triggerType: trigger.type,
+            isLegacyStarter: trigger.type === 'starter',
+            outgoingConnections: outgoingConnections.length,
+          })
+        }
+      } else if (manualTriggers.length > 1) {
+        const error = new Error(TriggerUtils.getTriggerValidationMessage('manual', 'multiple'))
+        logger.error('Multiple manual triggers found')
+        setIsExecuting(false)
+        throw error
+      } else {
+        const error = new Error('Manual run requires a Manual Trigger block')
+        logger.error('No manual trigger found for manual run')
+        setIsExecuting(false)
+        throw error
+      }
+    }
+
+    // If we don't have a valid startBlockId at this point, throw an error
+    if (!startBlockId) {
+      const error = new Error('No valid trigger block found to start execution')
+      logger.error('No startBlockId found after trigger search')
+      setIsExecuting(false)
+      throw error
+    }
+
+    // Log the final startBlockId
+    logger.info('Final execution setup:', {
+      startBlockId,
+      isExecutingFromChat,
+      hasWorkflowInput: !!workflowInput,
+    })
+
+    // Create executor options with the final workflow input
     const executorOptions: ExecutorOptions = {
       workflow,
       currentBlockStates,
       envVarValues,
-      workflowInput,
+      workflowInput: finalWorkflowInput,
       workflowVariables,
       contextExtensions: {
         stream: isExecutingFromChat,
@@ -687,8 +758,8 @@ export function useWorkflowExecution() {
     const newExecutor = new Executor(executorOptions)
     setExecutor(newExecutor)
 
-    // Execute workflow
-    return newExecutor.execute(activeWorkflowId || '')
+    // Execute workflow with the determined start block
+    return newExecutor.execute(activeWorkflowId || '', startBlockId)
   }
 
   const handleExecutionError = (error: any, options?: { executionId?: string }) => {

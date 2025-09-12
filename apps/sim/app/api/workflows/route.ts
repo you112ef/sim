@@ -95,7 +95,7 @@ export async function POST(req: NextRequest) {
     const { name, description, color, workspaceId, folderId } = CreateWorkflowSchema.parse(body)
 
     const workflowId = crypto.randomUUID()
-    const starterId = crypto.randomUUID()
+    const manualTriggerId = crypto.randomUUID()
     const now = new Date()
 
     logger.info(`[${requestId}] Creating workflow ${workflowId} for user ${session.user.id}`)
@@ -121,103 +121,32 @@ export async function POST(req: NextRequest) {
       })
 
       await tx.insert(workflowBlocks).values({
-        id: starterId,
+        id: manualTriggerId,
         workflowId: workflowId,
-        type: 'starter',
-        name: 'Start',
+        type: 'manual_trigger',
+        name: 'Manual',
         positionX: '100',
         positionY: '100',
         enabled: true,
         horizontalHandles: true,
         isWide: false,
         advancedMode: false,
-        triggerMode: false,
+        triggerMode: true,
         height: '95',
         subBlocks: {
-          startWorkflow: {
-            id: 'startWorkflow',
-            type: 'dropdown',
-            value: 'manual',
-          },
-          webhookPath: {
-            id: 'webhookPath',
-            type: 'short-input',
-            value: '',
-          },
-          webhookSecret: {
-            id: 'webhookSecret',
-            type: 'short-input',
-            value: '',
-          },
-          scheduleType: {
-            id: 'scheduleType',
-            type: 'dropdown',
-            value: 'daily',
-          },
-          minutesInterval: {
-            id: 'minutesInterval',
-            type: 'short-input',
-            value: '',
-          },
-          minutesStartingAt: {
-            id: 'minutesStartingAt',
-            type: 'short-input',
-            value: '',
-          },
-          hourlyMinute: {
-            id: 'hourlyMinute',
-            type: 'short-input',
-            value: '',
-          },
-          dailyTime: {
-            id: 'dailyTime',
-            type: 'short-input',
-            value: '',
-          },
-          weeklyDay: {
-            id: 'weeklyDay',
-            type: 'dropdown',
-            value: 'MON',
-          },
-          weeklyDayTime: {
-            id: 'weeklyDayTime',
-            type: 'short-input',
-            value: '',
-          },
-          monthlyDay: {
-            id: 'monthlyDay',
-            type: 'short-input',
-            value: '',
-          },
-          monthlyTime: {
-            id: 'monthlyTime',
-            type: 'short-input',
-            value: '',
-          },
-          cronExpression: {
-            id: 'cronExpression',
-            type: 'short-input',
-            value: '',
-          },
-          timezone: {
-            id: 'timezone',
-            type: 'dropdown',
-            value: 'UTC',
+          inputFormat: {
+            id: 'inputFormat',
+            type: 'input-format',
+            value: {},
           },
         },
-        outputs: {
-          response: {
-            type: {
-              input: 'any',
-            },
-          },
-        },
+        outputs: {},
         createdAt: now,
         updatedAt: now,
       })
 
       logger.info(
-        `[${requestId}] Successfully created workflow ${workflowId} with start block in workflow_blocks table`
+        `[${requestId}] Successfully created workflow ${workflowId} with manual trigger in workflow_blocks table`
       )
     })
 
