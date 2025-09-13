@@ -5,7 +5,7 @@ import { getSession } from '@/lib/auth'
 import { createLogger } from '@/lib/logs/console/logger'
 import { generateRequestId } from '@/lib/utils'
 import { db } from '@/db'
-import { workflow, workflowBlocks, workspace } from '@/db/schema'
+import { workflow, workspace } from '@/db/schema'
 import { verifyWorkspaceMembership } from './utils'
 
 const logger = createLogger('WorkflowAPI')
@@ -95,60 +95,30 @@ export async function POST(req: NextRequest) {
     const { name, description, color, workspaceId, folderId } = CreateWorkflowSchema.parse(body)
 
     const workflowId = crypto.randomUUID()
-    const manualTriggerId = crypto.randomUUID()
     const now = new Date()
 
     logger.info(`[${requestId}] Creating workflow ${workflowId} for user ${session.user.id}`)
 
-    await db.transaction(async (tx) => {
-      await tx.insert(workflow).values({
-        id: workflowId,
-        userId: session.user.id,
-        workspaceId: workspaceId || null,
-        folderId: folderId || null,
-        name,
-        description,
-        color,
-        lastSynced: now,
-        createdAt: now,
-        updatedAt: now,
-        isDeployed: false,
-        collaborators: [],
-        runCount: 0,
-        variables: {},
-        isPublished: false,
-        marketplaceData: null,
-      })
-
-      await tx.insert(workflowBlocks).values({
-        id: manualTriggerId,
-        workflowId: workflowId,
-        type: 'manual_trigger',
-        name: 'Manual',
-        positionX: '100',
-        positionY: '100',
-        enabled: true,
-        horizontalHandles: true,
-        isWide: false,
-        advancedMode: false,
-        triggerMode: true,
-        height: '95',
-        subBlocks: {
-          inputFormat: {
-            id: 'inputFormat',
-            type: 'input-format',
-            value: {},
-          },
-        },
-        outputs: {},
-        createdAt: now,
-        updatedAt: now,
-      })
-
-      logger.info(
-        `[${requestId}] Successfully created workflow ${workflowId} with manual trigger in workflow_blocks table`
-      )
+    await db.insert(workflow).values({
+      id: workflowId,
+      userId: session.user.id,
+      workspaceId: workspaceId || null,
+      folderId: folderId || null,
+      name,
+      description,
+      color,
+      lastSynced: now,
+      createdAt: now,
+      updatedAt: now,
+      isDeployed: false,
+      collaborators: [],
+      runCount: 0,
+      variables: {},
+      isPublished: false,
+      marketplaceData: null,
     })
+
+    logger.info(`[${requestId}] Successfully created empty workflow ${workflowId}`)
 
     return NextResponse.json({
       id: workflowId,

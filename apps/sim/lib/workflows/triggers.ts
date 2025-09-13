@@ -107,6 +107,17 @@ export class TriggerUtils {
    * Get the default name for a trigger type
    */
   static getDefaultTriggerName(triggerType: string): string | null {
+    // Use the block's actual name from the registry
+    const block = getBlock(triggerType)
+    if (block) {
+      // Special case for generic_webhook - show as "Webhook" in UI
+      if (triggerType === 'generic_webhook') {
+        return 'Webhook'
+      }
+      return block.name
+    }
+
+    // Fallback for legacy or unknown types
     switch (triggerType) {
       case TRIGGER_TYPES.CHAT:
         return 'Chat'

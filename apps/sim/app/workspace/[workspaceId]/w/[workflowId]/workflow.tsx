@@ -20,6 +20,8 @@ import { DiffControls } from '@/app/workspace/[workspaceId]/w/[workflowId]/compo
 import { ErrorBoundary } from '@/app/workspace/[workspaceId]/w/[workflowId]/components/error/index'
 import { Panel } from '@/app/workspace/[workspaceId]/w/[workflowId]/components/panel/panel'
 import { SubflowNodeComponent } from '@/app/workspace/[workspaceId]/w/[workflowId]/components/subflows/subflow-node'
+import { TriggerPlaceholder } from '@/app/workspace/[workspaceId]/w/[workflowId]/components/trigger-selector/trigger-placeholder'
+import { TriggerSelectorModal } from '@/app/workspace/[workspaceId]/w/[workflowId]/components/trigger-selector/trigger-selector-modal'
 import { TriggerWarningDialog } from '@/app/workspace/[workspaceId]/w/[workflowId]/components/trigger-warning-dialog'
 import { WorkflowBlock } from '@/app/workspace/[workspaceId]/w/[workflowId]/components/workflow-block/workflow-block'
 import { WorkflowEdge } from '@/app/workspace/[workspaceId]/w/[workflowId]/components/workflow-edge/workflow-edge'
@@ -87,6 +89,9 @@ const WorkflowContent = React.memo(() => {
     triggerName: '',
   })
 
+  // State for trigger selector modal
+  const [showTriggerSelector, setShowTriggerSelector] = useState(false)
+
   // Hooks
   const params = useParams()
   const router = useRouter()
@@ -111,6 +116,11 @@ const WorkflowContent = React.memo(() => {
 
   // Extract workflow data from the abstraction
   const { blocks, edges, loops, parallels, isDiffMode } = currentWorkflow
+
+  // Check if workflow is empty (no blocks)
+  const isWorkflowEmpty = useMemo(() => {
+    return Object.keys(blocks).length === 0
+  }, [blocks])
 
   // Get diff analysis for edge reconstruction
   const { diffAnalysis, isShowingDiff, isDiffReady } = useWorkflowDiffStore()
@@ -487,7 +497,7 @@ const WorkflowContent = React.memo(() => {
         return
       }
 
-      const { type } = event.detail
+      const { type, enableTriggerMode } = event.detail
 
       if (!type) return
       if (type === 'connectionBlock') return
@@ -627,7 +637,18 @@ const WorkflowContent = React.memo(() => {
       }
 
       // Add the block to the workflow with auto-connect edge
-      addBlock(id, type, name, centerPosition, undefined, undefined, undefined, autoConnectEdge)
+      // Enable trigger mode if this is a trigger-capable block from the triggers tab
+      addBlock(
+        id,
+        type,
+        name,
+        centerPosition,
+        undefined,
+        undefined,
+        undefined,
+        autoConnectEdge,
+        enableTriggerMode
+      )
     }
 
     window.addEventListener('add-block-from-toolbar', handleAddBlockFromToolbar as EventListener)
@@ -648,6 +669,34 @@ const WorkflowContent = React.memo(() => {
     effectivePermissions.canEdit,
     setTriggerWarning,
   ])
+
+  // Handler for trigger selection from modal
+  const handleTriggerSelect = useCallback(
+    (triggerId: string, enableTriggerMode?: boolean) => {
+      setShowTriggerSelector(false)
+
+      // Get the trigger name
+      const triggerName = TriggerUtils.getDefaultTriggerName(triggerId) || triggerId
+
+      // Create the trigger block at the center of the viewport
+      const centerPosition = project({ x: window.innerWidth / 2, y: window.innerHeight / 2 })
+      const id = `${triggerId}_${Date.now()}`
+
+      // Add the trigger block with trigger mode if specified
+      addBlock(
+        id,
+        triggerId,
+        triggerName,
+        centerPosition,
+        undefined,
+        undefined,
+        undefined,
+        undefined,
+        enableTriggerMode || false
+      )
+    },
+    [project, addBlock]
+  )
 
   // Update the onDrop handler
   const onDrop = useCallback(
@@ -792,10 +841,22 @@ const WorkflowContent = React.memo(() => {
           )
 
           // Add block with parent info
-          addBlock(id, data.type, name, relativePosition, {
-            parentId: containerInfo.loopId,
-            extent: 'parent',
-          })
+          // Note: Blocks dropped inside containers don't get trigger mode from drag
+          // since containers don't support trigger blocks
+          addBlock(
+            id,
+            data.type,
+            name,
+            relativePosition,
+            {
+              parentId: containerInfo.loopId,
+              extent: 'parent',
+            },
+            undefined,
+            undefined,
+            undefined,
+            false
+          )
 
           // Resize the container node to fit the new block
           // Immediate resize without delay
@@ -890,7 +951,19 @@ const WorkflowContent = React.memo(() => {
           }
 
           // Regular canvas drop with auto-connect edge
-          addBlock(id, data.type, name, position, undefined, undefined, undefined, autoConnectEdge)
+          // Use enableTriggerMode from drag data if present (when dragging from Triggers tab)
+          const enableTriggerMode = data.enableTriggerMode || false
+          addBlock(
+            id,
+            data.type,
+            name,
+            position,
+            undefined,
+            undefined,
+            undefined,
+            autoConnectEdge,
+            enableTriggerMode
+          )
         }
       } catch (err) {
         logger.error('Error dropping block:', { err })
@@ -1779,6 +1852,17 @@ const WorkflowContent = React.memo(() => {
           onOpenChange={(open) => setTriggerWarning({ ...triggerWarning, open })}
           triggerName={triggerWarning.triggerName}
           message={triggerWarning.message}
+        />
+
+        {/* Trigger selector for empty workflows */}
+        {isWorkflowEmpty && effectivePermissions.canEdit && (
+          <TriggerPlaceholder onClick={() => setShowTriggerSelector(true)} />
+        )}
+
+        <TriggerSelectorModal
+          open={showTriggerSelector}
+          onClose={() => setShowTriggerSelector(false)}
+          onSelect={handleTriggerSelect}
         />
       </div>
     </div>
