@@ -40,12 +40,6 @@ export function TriggerPlaceholder({ onClick, className }: TriggerPlaceholderPro
             Click to Add Trigger
           </p>
         </div>
-
-        {/* Animated corner accents */}
-        <div className='absolute top-0 left-0 w-3 h-3 border-t-2 border-l-2 border-primary/50 rounded-tl-md opacity-0 group-hover:opacity-100 transition-opacity' />
-        <div className='absolute top-0 right-0 w-3 h-3 border-t-2 border-r-2 border-primary/50 rounded-tr-md opacity-0 group-hover:opacity-100 transition-opacity' />
-        <div className='absolute bottom-0 left-0 w-3 h-3 border-b-2 border-l-2 border-primary/50 rounded-bl-md opacity-0 group-hover:opacity-100 transition-opacity' />
-        <div className='absolute bottom-0 right-0 w-3 h-3 border-b-2 border-r-2 border-primary/50 rounded-br-md opacity-0 group-hover:opacity-100 transition-opacity' />
       </button>
     </div>
   )
