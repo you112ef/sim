@@ -274,20 +274,29 @@ async function executeWorkflow(
     )
 
     // Determine API trigger start block
+    // API execution ONLY works with API trigger blocks (or legacy starter in api/run mode)
     const startBlock = TriggerUtils.findStartBlock(mergedStates, 'api')
+
     if (!startBlock) {
       logger.error(`[${requestId}] No API trigger configured for this workflow`)
-      throw new Error('No API trigger configured for this workflow')
+      throw new Error(
+        'No API trigger configured for this workflow. Add an API Trigger block or use a Start block in API mode.'
+      )
     }
-    const startBlockId = startBlock.blockId
 
-    // Check if the API trigger has any outgoing connections
-    const outgoingConnections = serializedWorkflow.connections.filter(
-      (conn) => conn.source === startBlockId
-    )
-    if (outgoingConnections.length === 0) {
-      logger.error(`[${requestId}] API trigger has no outgoing connections`)
-      throw new Error('API Trigger block must be connected to other blocks to execute')
+    const startBlockId = startBlock.blockId
+    const triggerBlock = startBlock.block
+
+    // Check if the API trigger has any outgoing connections (except for legacy starter blocks)
+    // Legacy starter blocks have their own validation in the executor
+    if (triggerBlock.type !== 'starter') {
+      const outgoingConnections = serializedWorkflow.connections.filter(
+        (conn) => conn.source === startBlockId
+      )
+      if (outgoingConnections.length === 0) {
+        logger.error(`[${requestId}] API trigger has no outgoing connections`)
+        throw new Error('API Trigger block must be connected to other blocks to execute')
+      }
     }
 
     const executor = new Executor({

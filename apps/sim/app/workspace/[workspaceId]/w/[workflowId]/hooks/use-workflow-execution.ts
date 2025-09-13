@@ -650,7 +650,7 @@ export function useWorkflowExecution() {
 
     // Determine start block and workflow input based on execution type
     let startBlockId: string | undefined
-    const finalWorkflowInput = workflowInput
+    let finalWorkflowInput = workflowInput
 
     if (isExecutingFromChat) {
       // For chat execution, find the appropriate chat trigger
@@ -668,54 +668,104 @@ export function useWorkflowExecution() {
         throw new Error('Chat Trigger block must be connected to other blocks to execute')
       }
     } else {
-      // For manual editor runs: look for manual trigger
+      // For manual editor runs: look for Manual trigger OR API trigger
       const entries = Object.entries(filteredStates)
+
+      // Find manual triggers and API triggers
       const manualTriggers = TriggerUtils.findTriggersByType(filteredStates, 'manual')
+      const apiTriggers = TriggerUtils.findTriggersByType(filteredStates, 'api')
 
       logger.info('Manual run trigger check:', {
         manualTriggersCount: manualTriggers.length,
-        hasManualTrigger: manualTriggers.length > 0,
-        triggers: manualTriggers.map((t) => ({
+        apiTriggersCount: apiTriggers.length,
+        manualTriggers: manualTriggers.map((t) => ({
           type: t.type,
+          name: t.name,
           isLegacy: t.type === 'starter',
-          mode: t.type === 'starter' ? t.subBlocks?.startWorkflow?.value : 'n/a',
+        })),
+        apiTriggers: apiTriggers.map((t) => ({
+          type: t.type,
+          name: t.name,
+          isLegacy: t.type === 'starter',
         })),
       })
 
-      if (manualTriggers.length === 1) {
-        const blockEntry = entries.find(([, block]) => block === manualTriggers[0])
+      let selectedTrigger: any = null
+      let selectedBlockId: string | null = null
+
+      // Check for API triggers first (they take precedence over manual triggers)
+      if (apiTriggers.length === 1) {
+        selectedTrigger = apiTriggers[0]
+        const blockEntry = entries.find(([, block]) => block === selectedTrigger)
         if (blockEntry) {
-          startBlockId = blockEntry[0]
-          const trigger = manualTriggers[0]
+          selectedBlockId = blockEntry[0]
 
-          // Check if the manual trigger has any outgoing connections
-          const outgoingConnections = workflowEdges.filter((edge) => edge.source === startBlockId)
-          if (outgoingConnections.length === 0) {
-            const error = new Error(
-              'Manual Trigger block must be connected to other blocks to execute'
-            )
-            logger.error('Manual trigger has no outgoing connections')
-            setIsExecuting(false)
-            throw error
+          // Extract test values from the API trigger's inputFormat
+          if (selectedTrigger.type === 'api_trigger' || selectedTrigger.type === 'starter') {
+            const inputFormatValue = selectedTrigger.subBlocks?.inputFormat?.value
+            if (Array.isArray(inputFormatValue)) {
+              const testInput: Record<string, any> = {}
+              inputFormatValue.forEach((field: any) => {
+                if (field && typeof field === 'object' && field.name && field.value !== undefined) {
+                  testInput[field.name] = field.value
+                }
+              })
+
+              // Use the test input as workflow input
+              if (Object.keys(testInput).length > 0) {
+                finalWorkflowInput = testInput
+                logger.info('Using API trigger test values for manual run:', testInput)
+              }
+            }
           }
-
-          logger.info('Manual trigger found:', {
-            startBlockId,
-            triggerType: trigger.type,
-            isLegacyStarter: trigger.type === 'starter',
-            outgoingConnections: outgoingConnections.length,
-          })
+        }
+      } else if (apiTriggers.length > 1) {
+        const error = new Error('Multiple API Trigger blocks found. Keep only one.')
+        logger.error('Multiple API triggers found')
+        setIsExecuting(false)
+        throw error
+      } else if (manualTriggers.length === 1) {
+        // No API trigger, check for manual trigger
+        selectedTrigger = manualTriggers[0]
+        const blockEntry = entries.find(([, block]) => block === selectedTrigger)
+        if (blockEntry) {
+          selectedBlockId = blockEntry[0]
         }
       } else if (manualTriggers.length > 1) {
-        const error = new Error(TriggerUtils.getTriggerValidationMessage('manual', 'multiple'))
+        const error = new Error('Multiple Manual Trigger blocks found. Keep only one.')
         logger.error('Multiple manual triggers found')
         setIsExecuting(false)
         throw error
       } else {
-        const error = new Error('Manual run requires a Manual Trigger block')
-        logger.error('No manual trigger found for manual run')
+        const error = new Error('Manual run requires a Manual Trigger or API Trigger block')
+        logger.error('No manual or API triggers found for manual run')
         setIsExecuting(false)
         throw error
+      }
+
+      if (selectedBlockId && selectedTrigger) {
+        startBlockId = selectedBlockId
+
+        // Check if the trigger has any outgoing connections (except for legacy starter blocks)
+        // Legacy starter blocks have their own validation in the executor
+        if (selectedTrigger.type !== 'starter') {
+          const outgoingConnections = workflowEdges.filter((edge) => edge.source === startBlockId)
+          if (outgoingConnections.length === 0) {
+            const triggerName = selectedTrigger.name || selectedTrigger.type
+            const error = new Error(`${triggerName} must be connected to other blocks to execute`)
+            logger.error('Trigger has no outgoing connections', { triggerName, startBlockId })
+            setIsExecuting(false)
+            throw error
+          }
+        }
+
+        logger.info('Trigger found for manual run:', {
+          startBlockId,
+          triggerType: selectedTrigger.type,
+          triggerName: selectedTrigger.name,
+          isLegacyStarter: selectedTrigger.type === 'starter',
+          usingTestValues: selectedTrigger.type === 'api_trigger',
+        })
       }
     }
 
