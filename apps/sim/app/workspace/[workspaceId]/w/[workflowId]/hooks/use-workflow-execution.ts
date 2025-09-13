@@ -850,7 +850,7 @@ export function useWorkflowExecution() {
       try {
         // Prefer attributing to specific subflow if we have a structured error
         let blockId = 'serialization'
-        let blockName = 'Serialization'
+        let blockName = 'Workflow'
         let blockType = 'serializer'
         if (error instanceof WorkflowValidationError) {
           blockId = error.blockId || blockId
