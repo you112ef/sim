@@ -1,5 +1,9 @@
-import { StartIcon } from '@/components/icons'
+import type { SVGProps } from 'react'
+import { createElement } from 'react'
+import { MessageCircle } from 'lucide-react'
 import type { BlockConfig } from '@/blocks/types'
+
+const ChatTriggerIcon = (props: SVGProps<SVGSVGElement>) => createElement(MessageCircle, props)
 
 export const ChatTriggerBlock: BlockConfig = {
   type: 'chat_trigger',
@@ -8,7 +12,7 @@ export const ChatTriggerBlock: BlockConfig = {
   longDescription: 'Chat trigger to run the workflow via deployed chat interfaces.',
   category: 'triggers',
   bgColor: '#8B5CF6',
-  icon: StartIcon,
+  icon: ChatTriggerIcon,
   subBlocks: [],
   tools: {
     access: [],

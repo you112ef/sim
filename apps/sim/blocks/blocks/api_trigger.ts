@@ -8,7 +8,7 @@ export const ApiTriggerBlock: BlockConfig = {
   longDescription:
     'API trigger to start the workflow via authenticated HTTP calls with structured input.',
   category: 'triggers',
-  bgColor: '#10B981',
+  bgColor: '#10B981', // Emerald for API
   icon: ApiIcon,
   subBlocks: [
     {
