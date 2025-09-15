@@ -46,7 +46,6 @@ const ChatMessageSchema = z.object({
   implicitFeedback: z.string().optional(),
   fileAttachments: z.array(FileAttachmentSchema).optional(),
   provider: z.string().optional().default('openai'),
-  conversationId: z.string().optional(),
   contexts: z
     .array(
       z.object({
@@ -105,7 +104,6 @@ export async function POST(req: NextRequest) {
       implicitFeedback,
       fileAttachments,
       provider,
-      conversationId,
       contexts,
     } = ChatMessageSchema.parse(body)
     // Ensure we have a consistent user message ID for this request
@@ -355,14 +353,8 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    // Determine provider and conversationId to use for this request
-    const effectiveConversationId =
-      (currentChat?.conversationId as string | undefined) || conversationId
-
-    // If we have a conversationId, only send the most recent user message; else send full history
-    const latestUserMessage =
-      [...messages].reverse().find((m) => m?.role === 'user') || messages[messages.length - 1]
-    const messagesForAgent = effectiveConversationId ? [latestUserMessage] : messages
+    // Always send full history to the agent
+    const messagesForAgent = messages
 
     const requestPayload = {
       messages: messagesForAgent,
@@ -373,7 +365,6 @@ export async function POST(req: NextRequest) {
       mode: mode,
       messageId: userMessageIdToUse,
       ...(providerConfig ? { provider: providerConfig } : {}),
-      ...(effectiveConversationId ? { conversationId: effectiveConversationId } : {}),
       ...(typeof effectiveDepth === 'number' ? { depth: effectiveDepth } : {}),
       ...(typeof effectivePrefetch === 'boolean' ? { prefetch: effectivePrefetch } : {}),
       ...(session?.user?.name && { userName: session.user.name }),
@@ -437,15 +428,6 @@ export async function POST(req: NextRequest) {
           let assistantContent = ''
           const toolCalls: any[] = []
           let buffer = ''
-          const isFirstDone = true
-          let responseIdFromStart: string | undefined
-          let responseIdFromDone: string | undefined
-          // Track tool call progress to identify a safe done event
-          const announcedToolCallIds = new Set<string>()
-          const startedToolExecutionIds = new Set<string>()
-          const completedToolExecutionIds = new Set<string>()
-          let lastDoneResponseId: string | undefined
-          let lastSafeDoneResponseId: string | undefined
 
           // Send chatId as first event
           if (actualChatId) {
@@ -538,22 +520,15 @@ export async function POST(req: NextRequest) {
                       case 'tool_call':
                         if (!event.data?.partial) {
                           toolCalls.push(event.data)
-                          if (event.data?.id) {
-                            announcedToolCallIds.add(event.data.id)
-                          }
                         }
                         break
 
                       case 'tool_generating':
-                        if (event.toolCallId) {
-                          startedToolExecutionIds.add(event.toolCallId)
-                        }
+                        // no-op
                         break
 
                       case 'tool_result':
-                        if (event.toolCallId) {
-                          completedToolExecutionIds.add(event.toolCallId)
-                        }
+                        // no-op
                         break
 
                       case 'tool_error':
@@ -563,31 +538,14 @@ export async function POST(req: NextRequest) {
                           error: event.error,
                           success: event.success,
                         })
-                        if (event.toolCallId) {
-                          completedToolExecutionIds.add(event.toolCallId)
-                        }
                         break
 
                       case 'start':
-                        if (event.data?.responseId) {
-                          responseIdFromStart = event.data.responseId
-                        }
+                        // no-op
                         break
 
                       case 'done':
-                        if (event.data?.responseId) {
-                          responseIdFromDone = event.data.responseId
-                          lastDoneResponseId = responseIdFromDone
-
-                          // Mark this done as safe only if no tool call is currently in progress or pending
-                          const announced = announcedToolCallIds.size
-                          const completed = completedToolExecutionIds.size
-                          const started = startedToolExecutionIds.size
-                          const hasToolInProgress = announced > completed || started > completed
-                          if (!hasToolInProgress) {
-                            lastSafeDoneResponseId = responseIdFromDone
-                          }
-                        }
+                        // no-op
                         break
 
                       case 'error':
@@ -736,17 +694,12 @@ export async function POST(req: NextRequest) {
                 )
               }
 
-              // Persist only a safe conversationId to avoid continuing from a state that expects tool outputs
-              const previousConversationId = currentChat?.conversationId as string | undefined
-              const responseId = lastSafeDoneResponseId || previousConversationId || undefined
-
               // Update chat in database immediately (without title)
               await db
                 .update(copilotChats)
                 .set({
                   messages: updatedMessages,
                   updatedAt: new Date(),
-                  ...(responseId ? { conversationId: responseId } : {}),
                 })
                 .where(eq(copilotChats.id, actualChatId!))
 
@@ -754,7 +707,6 @@ export async function POST(req: NextRequest) {
                 messageCount: updatedMessages.length,
                 savedUserMessage: true,
                 savedAssistantMessage: assistantContent.trim().length > 0,
-                updatedConversationId: responseId || null,
               })
             }
           } catch (error) {
