@@ -38,9 +38,10 @@ export function updateBlockReferences(
 
     return value
   } catch (err) {
-    logger.warn('Failed to update block references', { contextId, error: err instanceof Error ? err.message : String(err) })
+    logger.warn('Failed to update block references', {
+      contextId,
+      error: err instanceof Error ? err.message : String(err),
+    })
     return value
   }
 }
-
-

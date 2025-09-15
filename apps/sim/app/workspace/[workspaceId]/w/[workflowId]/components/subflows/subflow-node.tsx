@@ -5,12 +5,12 @@ import { Handle, type NodeProps, Position, useReactFlow } from 'reactflow'
 import { StartIcon } from '@/components/icons'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
+import { createLogger } from '@/lib/logs/console/logger'
 import { cn } from '@/lib/utils'
 import { type DiffStatus, hasDiffStatus } from '@/lib/workflows/diff/types'
 import { IterationBadges } from '@/app/workspace/[workspaceId]/w/[workflowId]/components/subflows/components/iteration-badges/iteration-badges'
 import { useCurrentWorkflow } from '@/app/workspace/[workspaceId]/w/[workflowId]/hooks'
 import { useCollaborativeWorkflow } from '@/hooks/use-collaborative-workflow'
-import { createLogger } from '@/lib/logs/console/logger'
 
 const logger = createLogger('SubflowNode')
 
@@ -174,7 +174,10 @@ export const SubflowNodeComponent = memo(({ data, id }: NodeProps<SubflowNodeDat
             }}
           >
             {!isPreview && (
-              <div className='absolute top-2 right-2 z-20 flex gap-1 opacity-0 transition-opacity duration-200 group-hover:opacity-100' style={{ pointerEvents: 'auto' }}>
+              <div
+                className='absolute top-2 right-2 z-20 flex gap-1 opacity-0 transition-opacity duration-200 group-hover:opacity-100'
+                style={{ pointerEvents: 'auto' }}
+              >
                 <Button
                   variant='ghost'
                   size='sm'

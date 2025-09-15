@@ -2,9 +2,9 @@ import { useCallback, useEffect, useRef } from 'react'
 import type { Edge } from 'reactflow'
 import { useSession } from '@/lib/auth-client'
 import { createLogger } from '@/lib/logs/console/logger'
+import { updateBlockReferences } from '@/lib/workflows/reference-utils'
 import { getBlock } from '@/blocks'
 import { resolveOutputType } from '@/blocks/utils'
-import { updateBlockReferences } from '@/lib/workflows/reference-utils'
 import { useSocket } from '@/contexts/socket-context'
 import { registerEmitFunctions, useOperationQueue } from '@/stores/operation-queue/store'
 import { useVariablesStore } from '@/stores/panel/variables/store'
@@ -1263,7 +1263,11 @@ export function useCollaborativeWorkflow() {
           child.type,
           newChildName,
           child.position,
-          { ...(child.data ? JSON.parse(JSON.stringify(child.data)) : {}), parentId: newParentId, extent: 'parent' },
+          {
+            ...(child.data ? JSON.parse(JSON.stringify(child.data)) : {}),
+            parentId: newParentId,
+            extent: 'parent',
+          },
           newParentId,
           'parent',
           {
@@ -1290,7 +1294,11 @@ export function useCollaborativeWorkflow() {
           type: child.type,
           name: newChildName,
           position: child.position,
-          data: { ...(child.data ? JSON.parse(JSON.stringify(child.data)) : {}), parentId: newParentId, extent: 'parent' },
+          data: {
+            ...(child.data ? JSON.parse(JSON.stringify(child.data)) : {}),
+            parentId: newParentId,
+            extent: 'parent',
+          },
           subBlocks: clonedSubBlocks,
           outputs: child.outputs ? JSON.parse(JSON.stringify(child.outputs)) : {},
           parentId: newParentId,

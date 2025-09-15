@@ -10,8 +10,8 @@ import {
   loadWorkflowFromNormalizedTables,
   saveWorkflowToNormalizedTables,
 } from '@/lib/workflows/db-helpers'
-import { sanitizeAgentToolsInBlocks } from '@/lib/workflows/validation'
 import { updateBlockReferences } from '@/lib/workflows/reference-utils'
+import { sanitizeAgentToolsInBlocks } from '@/lib/workflows/validation'
 import { getUserId } from '@/app/api/auth/oauth/utils'
 import { getAllBlocks, getBlock } from '@/blocks'
 import type { BlockConfig } from '@/blocks/types'
@@ -31,8 +31,6 @@ const YamlWorkflowRequestSchema = z.object({
   applyAutoLayout: z.boolean().optional().default(false),
   createCheckpoint: z.boolean().optional().default(false),
 })
-
-// moved to shared util in '@/lib/workflows/reference-utils'
 
 /**
  * Helper function to create a checkpoint before workflow changes
