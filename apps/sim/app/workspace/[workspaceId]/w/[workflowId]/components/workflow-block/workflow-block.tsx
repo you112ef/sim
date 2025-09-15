@@ -169,10 +169,12 @@ export function WorkflowBlock({ id, data }: NodeProps<WorkflowBlockProps>) {
     if (currentWorkflow.isDiffMode) {
       setDiffIsWide(isWide)
       setDiffAdvancedMode(blockAdvancedMode)
-      setDiffTriggerMode(blockTriggerMode)
+      // In diff mode, use the trigger mode from the diff block if available
+      const diffBlockTriggerMode = currentBlock?.triggerMode ?? blockTriggerMode
+      setDiffTriggerMode(diffBlockTriggerMode)
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [currentWorkflow.isDiffMode, id])
+  }, [currentWorkflow.isDiffMode, id, currentBlock])
 
   const displayIsWide = currentWorkflow.isDiffMode ? diffIsWide : isWide
   const displayAdvancedMode = currentWorkflow.isDiffMode ? diffAdvancedMode : blockAdvancedMode
@@ -439,8 +441,12 @@ export function WorkflowBlock({ id, data }: NodeProps<WorkflowBlockProps>) {
       stateToUse = mergedState?.subBlocks || {}
     }
 
-    const isAdvancedMode = useWorkflowStore.getState().blocks[blockId]?.advancedMode ?? false
-    const isTriggerMode = useWorkflowStore.getState().blocks[blockId]?.triggerMode ?? false
+    const isAdvancedMode = currentWorkflow.isDiffMode && currentBlock 
+      ? (currentBlock.advancedMode ?? false)
+      : (useWorkflowStore.getState().blocks[blockId]?.advancedMode ?? false)
+    const isTriggerMode = currentWorkflow.isDiffMode && currentBlock
+      ? (currentBlock.triggerMode ?? false) 
+      : (useWorkflowStore.getState().blocks[blockId]?.triggerMode ?? false)
     const effectiveAdvanced = currentWorkflow.isDiffMode ? displayAdvancedMode : isAdvancedMode
     const effectiveTrigger = currentWorkflow.isDiffMode ? displayTriggerMode : isTriggerMode
     const e2bClientEnabled = isTruthy(getEnv('NEXT_PUBLIC_E2B_ENABLED'))

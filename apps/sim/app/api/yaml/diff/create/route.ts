@@ -4,7 +4,7 @@ import { env } from '@/lib/env'
 import { createLogger } from '@/lib/logs/console/logger'
 import { SIM_AGENT_API_URL_DEFAULT } from '@/lib/sim-agent'
 import { generateRequestId } from '@/lib/utils'
-import { getAllBlocks } from '@/blocks/registry'
+import { getAllBlocks, getBlock } from '@/blocks/registry'
 import type { BlockConfig } from '@/blocks/types'
 import { resolveOutputType } from '@/blocks/utils'
 import {
@@ -350,11 +350,125 @@ export async function POST(request: NextRequest) {
       result.diff.proposedState.loops = loops
       result.diff.proposedState.parallels = parallels
 
+      // Set trigger mode for blocks that have trigger configuration
+      Object.values(result.diff.proposedState.blocks).forEach((block: any) => {
+        // Check if block has trigger-related subBlocks
+        const hasTriggerConfig = block.subBlocks && (
+          block.subBlocks.triggerConfig ||
+          block.subBlocks.triggerId ||
+          block.subBlocks.triggerPath
+        )
+        
+        // Check if block is a trigger category block
+        let isTriggerCategory = false
+        try {
+          const blockConfig = getBlock(block.type)
+          isTriggerCategory = blockConfig?.category === 'triggers'
+        } catch {
+          // Block type not found, ignore
+        }
+        
+        // Set triggerMode if either condition is met
+        if (hasTriggerConfig || isTriggerCategory) {
+          block.triggerMode = true
+          logger.info(`[${requestId}] Set triggerMode=true for block ${block.id} (${block.type})`)
+        }
+      })
+
       logger.info(`[${requestId}] Regenerated loops and parallels after fixing parent-child:`, {
         loopsCount: Object.keys(loops).length,
         parallelsCount: Object.keys(parallels).length,
         loops: [] as any[],
       })
+    }
+
+    // If the sim agent returned blocks directly (when auto-layout is applied),
+    // transform it to the expected diff format
+    if (result.success && result.blocks && !result.diff) {
+      logger.info(`[${requestId}] Transforming sim agent blocks response to diff format`)
+
+      // First, fix parent-child relationships based on edges
+      const blocks = result.blocks
+      const edges = result.edges || []
+
+      // Find all loop and parallel blocks
+      const containerBlocks = Object.values(blocks).filter(
+        (block: any) => block.type === 'loop' || block.type === 'parallel'
+      )
+
+      // For each container, find its children based on loop-start edges
+      containerBlocks.forEach((container: any) => {
+        const childEdges = edges.filter(
+          (edge: any) => edge.source === container.id && edge.sourceHandle === 'loop-start-source'
+        )
+
+        childEdges.forEach((edge: any) => {
+          const childBlock = blocks[edge.target]
+          if (childBlock) {
+            // Ensure data field exists
+            if (!childBlock.data) {
+              childBlock.data = {}
+            }
+            // Set parentId and extent
+            childBlock.data.parentId = container.id
+            childBlock.data.extent = 'parent'
+
+            logger.debug(`[${requestId}] Fixed parent-child relationship (auto-layout)`, {
+              parent: container.id,
+              child: childBlock.id,
+            })
+          }
+        })
+      })
+
+      // Set trigger mode for blocks that have trigger configuration
+      Object.values(blocks).forEach((block: any) => {
+        // Check if block has trigger-related subBlocks
+        const hasTriggerConfig = block.subBlocks && (
+          block.subBlocks.triggerConfig ||
+          block.subBlocks.triggerId ||
+          block.subBlocks.triggerPath
+        )
+        
+        // Check if block is a trigger category block
+        let isTriggerCategory = false
+        try {
+          const blockConfig = getBlock(block.type)
+          isTriggerCategory = blockConfig?.category === 'triggers'
+        } catch {
+          // Block type not found, ignore
+        }
+        
+        // Set triggerMode if either condition is met
+        if (hasTriggerConfig || isTriggerCategory) {
+          block.triggerMode = true
+          logger.info(`[${requestId}] Set triggerMode=true for block ${block.id} (${block.type}) in auto-layout`)
+        }
+      })
+
+      // Generate loops and parallels for the blocks with fixed relationships
+      const loops = generateLoopBlocks(result.blocks)
+      const parallels = generateParallelBlocks(result.blocks)
+
+      const transformedResult = {
+        success: result.success,
+        diff: {
+          proposedState: {
+            blocks: result.blocks,
+            edges: result.edges || [],
+            loops: loops,
+            parallels: parallels,
+          },
+          diffAnalysis: diffAnalysis,
+          metadata: result.metadata || {
+            source: 'sim-agent',
+            timestamp: Date.now(),
+          },
+        },
+        errors: result.errors || [],
+      }
+
+      return NextResponse.json(transformedResult)
     }
 
     return NextResponse.json(finalResult)

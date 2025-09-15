@@ -53,16 +53,6 @@ export class EditWorkflowClientTool extends BaseClientTool {
       state: this.getState(),
       hasResult: this.lastResult !== undefined,
     })
-
-    // Apply the diff if present so accepting the tool applies changes
-    try {
-      const diffStore = useWorkflowDiffStore.getState()
-      await diffStore.acceptChanges()
-      logger.info('Applied diff changes on tool accept')
-    } catch (e) {
-      logger.warn('Failed to apply diff on tool accept', e as any)
-    }
-
     this.setState(ClientToolCallState.success)
     await this.markToolComplete(200, 'Workflow edits accepted', this.lastResult)
     this.setState(ClientToolCallState.success)
@@ -157,22 +147,11 @@ export class EditWorkflowClientTool extends BaseClientTool {
         yamlLength: (result?.yamlContent || '').length,
       })
 
-      // Build diffAnalysis from operations to guide the diff engine
-      const diffAnalysis = {
-        new_blocks: operations.filter((op) => op.operation_type === 'add').map((op) => op.block_id),
-        edited_blocks: operations
-          .filter((op) => op.operation_type === 'edit')
-          .map((op) => op.block_id),
-        deleted_blocks: operations
-          .filter((op) => op.operation_type === 'delete')
-          .map((op) => op.block_id),
-      }
-
       // Update diff via YAML so colors/highlights persist
       try {
         if (!this.hasAppliedDiff) {
           const diffStore = useWorkflowDiffStore.getState()
-          await diffStore.setProposedChanges(result.yamlContent, diffAnalysis as any)
+          await diffStore.setProposedChanges(result.yamlContent)
           logger.info('diff proposed changes set for edit_workflow')
           this.hasAppliedDiff = true
         } else {
