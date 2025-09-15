@@ -29,10 +29,7 @@ export async function POST(req: NextRequest) {
   const startTime = Date.now()
 
   try {
-    logger.info(`[${requestId}] Update cost request started`)
-
     if (!isBillingEnabled) {
-      logger.debug(`[${requestId}] Billing is disabled, skipping cost update`)
       return NextResponse.json({
         success: true,
         message: 'Billing disabled, cost update skipped',
@@ -78,15 +75,6 @@ export async function POST(req: NextRequest) {
 
     const { userId, input, output, model, inputMultiplier, outputMultiplier } = validation.data
 
-    logger.info(`[${requestId}] Processing cost update`, {
-      userId,
-      input,
-      output,
-      model,
-      inputMultiplier,
-      outputMultiplier,
-    })
-
     const finalPromptTokens = input
     const finalCompletionTokens = output
     const totalTokens = input + output
@@ -100,17 +88,6 @@ export async function POST(req: NextRequest) {
       inputMultiplier,
       outputMultiplier
     )
-
-    logger.info(`[${requestId}] Cost calculation result`, {
-      userId,
-      model,
-      promptTokens: finalPromptTokens,
-      completionTokens: finalCompletionTokens,
-      totalTokens: totalTokens,
-      inputMultiplier,
-      outputMultiplier,
-      costResult,
-    })
 
     // Follow the exact same logic as ExecutionLogger.updateUserStats but with direct userId
     const costToStore = costResult.total // No additional multiplier needed since calculateCost already applied it
@@ -142,20 +119,7 @@ export async function POST(req: NextRequest) {
 
     await db.update(userStats).set(updateFields).where(eq(userStats.userId, userId))
 
-    logger.info(`[${requestId}] Updated user stats record`, {
-      userId,
-      addedCost: costToStore,
-      addedTokens: totalTokens,
-    })
-
     const duration = Date.now() - startTime
-
-    logger.info(`[${requestId}] Cost update completed successfully`, {
-      userId,
-      duration,
-      cost: costResult.total,
-      totalTokens,
-    })
 
     return NextResponse.json({
       success: true,

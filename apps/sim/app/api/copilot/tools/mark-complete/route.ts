@@ -40,14 +40,6 @@ export async function POST(req: NextRequest) {
 
     const body = await req.json()
 
-    // Log raw body shape for diagnostics (avoid dumping huge payloads)
-    try {
-      const bodyPreview = JSON.stringify(body).slice(0, 300)
-      logger.debug(`[${tracker.requestId}] Incoming mark-complete raw body preview`, {
-        preview: `${bodyPreview}${bodyPreview.length === 300 ? '...' : ''}`,
-      })
-    } catch {}
-
     const parsed = MarkCompleteSchema.parse(body)
 
     const messagePreview = (() => {
@@ -59,17 +51,6 @@ export async function POST(req: NextRequest) {
         return undefined
       }
     })()
-
-    logger.info(`[${tracker.requestId}] Forwarding tool mark-complete`, {
-      userId,
-      toolCallId: parsed.id,
-      toolName: parsed.name,
-      status: parsed.status,
-      hasMessage: parsed.message !== undefined,
-      hasData: parsed.data !== undefined,
-      messagePreview,
-      agentUrl: `${SIM_AGENT_API_URL}/api/tools/mark-complete`,
-    })
 
     const agentRes = await fetch(`${SIM_AGENT_API_URL}/api/tools/mark-complete`, {
       method: 'POST',

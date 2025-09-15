@@ -685,9 +685,6 @@ export async function POST(req: NextRequest) {
                   ...(toolCalls.length > 0 && { toolCalls }),
                 }
                 updatedMessages.push(assistantMessage)
-                logger.info(
-                  `[${tracker.requestId}] Saving assistant message with content (${assistantContent.length} chars) and ${toolCalls.length} tool calls`
-                )
               } else {
                 logger.info(
                   `[${tracker.requestId}] No assistant content or tool calls to save (aborted before response)`
@@ -702,12 +699,6 @@ export async function POST(req: NextRequest) {
                   updatedAt: new Date(),
                 })
                 .where(eq(copilotChats.id, actualChatId!))
-
-              logger.info(`[${tracker.requestId}] Updated chat ${actualChatId} with new messages`, {
-                messageCount: updatedMessages.length,
-                savedUserMessage: true,
-                savedAssistantMessage: assistantContent.trim().length > 0,
-              })
             }
           } catch (error) {
             logger.error(`[${tracker.requestId}] Error processing stream:`, error)

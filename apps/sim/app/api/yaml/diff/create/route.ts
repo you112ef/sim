@@ -124,7 +124,6 @@ export async function POST(request: NextRequest) {
         diffAnalysis,
         blockRegistry,
         currentWorkflowState, // Pass current state for comparison
-
         utilities: {
           generateLoopBlocks: generateLoopBlocks.toString(),
           generateParallelBlocks: generateParallelBlocks.toString(),
@@ -154,6 +153,101 @@ export async function POST(request: NextRequest) {
 
     // Log the full response to see if auto-layout is happening
     logger.info(`[${requestId}] Full sim agent response:`, JSON.stringify(result, null, 2))
+
+    // If sim-agent regenerated block IDs, remap them back to current state IDs when possible
+    try {
+      if (result?.success && result?.diff?.proposedState && currentWorkflowState) {
+        const proposed = result.diff.proposedState
+        const currentBlocks: Record<string, any> = currentWorkflowState.blocks || {}
+        const proposedBlocks: Record<string, any> = proposed.blocks || {}
+
+        // Build index by name+type for current blocks (only unique pairs)
+        const currentIndex = new Map<string, string>()
+        const nameTypeCounts = new Map<string, number>()
+        Object.entries(currentBlocks).forEach(([id, b]: [string, any]) => {
+          const key = `${b?.name || ''}::${b?.type || ''}`
+          nameTypeCounts.set(key, (nameTypeCounts.get(key) || 0) + 1)
+        })
+        Object.entries(currentBlocks).forEach(([id, b]: [string, any]) => {
+          const key = `${b?.name || ''}::${b?.type || ''}`
+          if ((nameTypeCounts.get(key) || 0) === 1) {
+            currentIndex.set(key, id)
+          }
+        })
+
+        const idMap = new Map<string, string>() // proposedId -> currentId
+        Object.entries(proposedBlocks).forEach(([pid, b]: [string, any]) => {
+          const key = `${b?.name || ''}::${b?.type || ''}`
+          const match = currentIndex.get(key)
+          if (match && match !== pid) {
+            idMap.set(pid, match)
+          }
+        })
+
+        if (idMap.size > 0) {
+          logger.info(`[${requestId}] Remapping ${idMap.size} proposed block IDs to current IDs`)
+
+          // Helper to remap a single id
+          const remapId = (id: string) => (idMap.get(id) ? idMap.get(id)! : id)
+
+          // Remap blocks: keys and inner ids (including subBlocks.blockId)
+          const remappedBlocks: Record<string, any> = {}
+          Object.entries(proposedBlocks).forEach(([pid, b]: [string, any]) => {
+            const newId = remapId(pid)
+            const cloned = { ...b, id: newId }
+            if (cloned.subBlocks) {
+              Object.values(cloned.subBlocks as Record<string, any>).forEach((sb: any) => {
+                if (sb && typeof sb === 'object' && 'blockId' in sb && sb.blockId === pid) {
+                  sb.blockId = newId
+                }
+              })
+            }
+            remappedBlocks[newId] = cloned
+          })
+          proposed.blocks = remappedBlocks
+
+          // Remap edges
+          if (Array.isArray(proposed.edges)) {
+            proposed.edges = proposed.edges.map((e: any) => {
+              const source = remapId(e.source)
+              const target = remapId(e.target)
+              const sourceHandle = e.sourceHandle || 'source'
+              const targetHandle = e.targetHandle || 'target'
+              // Rebuild edge id to maintain uniqueness
+              const id = `${source}-${sourceHandle}-${target}-${targetHandle}`
+              return { ...e, id, source, target }
+            })
+          }
+
+          // Remap loops/parallels nodes arrays if present
+          if (proposed.loops) {
+            Object.values(proposed.loops as Record<string, any>).forEach((loop: any) => {
+              if (Array.isArray(loop.nodes)) {
+                loop.nodes = loop.nodes.map((nid: string) => remapId(nid))
+              }
+            })
+          }
+          if (proposed.parallels) {
+            Object.values(proposed.parallels as Record<string, any>).forEach((par: any) => {
+              if (Array.isArray(par.nodes)) {
+                par.nodes = par.nodes.map((nid: string) => remapId(nid))
+              }
+            })
+          }
+
+          // Remap diffAnalysis block id arrays if present
+          if (result.diff.diffAnalysis) {
+            const da = result.diff.diffAnalysis
+            const remapArr = (arr?: string[]) => (Array.isArray(arr) ? arr.map(remapId) : arr)
+            da.new_blocks = remapArr(da.new_blocks) as any
+            da.edited_blocks = remapArr(da.edited_blocks) as any
+            da.deleted_blocks = remapArr(da.deleted_blocks) as any
+          }
+        }
+      }
+    } catch (e) {
+      logger.warn(`[${requestId}] Failed to remap proposed IDs to current IDs`, e as any)
+    }
 
     // Log detailed block information to debug parent-child relationships
     if (result.success) {
@@ -259,82 +353,13 @@ export async function POST(request: NextRequest) {
       logger.info(`[${requestId}] Regenerated loops and parallels after fixing parent-child:`, {
         loopsCount: Object.keys(loops).length,
         parallelsCount: Object.keys(parallels).length,
-        loops: Object.keys(loops).map((id) => ({
-          id,
-          nodes: loops[id].nodes,
-        })),
+        loops: [] as any[],
       })
-    }
-
-    // If the sim agent returned blocks directly (when auto-layout is applied),
-    // transform it to the expected diff format
-    if (result.success && result.blocks && !result.diff) {
-      logger.info(`[${requestId}] Transforming sim agent blocks response to diff format`)
-
-      // First, fix parent-child relationships based on edges
-      const blocks = result.blocks
-      const edges = result.edges || []
-
-      // Find all loop and parallel blocks
-      const containerBlocks = Object.values(blocks).filter(
-        (block: any) => block.type === 'loop' || block.type === 'parallel'
-      )
-
-      // For each container, find its children based on loop-start edges
-      containerBlocks.forEach((container: any) => {
-        const childEdges = edges.filter(
-          (edge: any) => edge.source === container.id && edge.sourceHandle === 'loop-start-source'
-        )
-
-        childEdges.forEach((edge: any) => {
-          const childBlock = blocks[edge.target]
-          if (childBlock) {
-            // Ensure data field exists
-            if (!childBlock.data) {
-              childBlock.data = {}
-            }
-            // Set parentId and extent
-            childBlock.data.parentId = container.id
-            childBlock.data.extent = 'parent'
-
-            logger.info(`[${requestId}] Fixed parent-child relationship (auto-layout):`, {
-              parent: container.id,
-              parentName: container.name,
-              child: childBlock.id,
-              childName: childBlock.name,
-            })
-          }
-        })
-      })
-
-      // Generate loops and parallels for the blocks with fixed relationships
-      const loops = generateLoopBlocks(result.blocks)
-      const parallels = generateParallelBlocks(result.blocks)
-
-      const transformedResult = {
-        success: result.success,
-        diff: {
-          proposedState: {
-            blocks: result.blocks,
-            edges: result.edges || [],
-            loops: loops,
-            parallels: parallels,
-          },
-          diffAnalysis: diffAnalysis,
-          metadata: result.metadata || {
-            source: 'sim-agent',
-            timestamp: Date.now(),
-          },
-        },
-        errors: result.errors || [],
-      }
-
-      return NextResponse.json(transformedResult)
     }
 
     return NextResponse.json(finalResult)
   } catch (error) {
-    logger.error(`[${requestId}] Diff creation failed:`, error)
+    logger.error(`[${requestId}] YAML diff creation failed:`, error)
 
     if (error instanceof z.ZodError) {
       return NextResponse.json(
@@ -344,10 +369,7 @@ export async function POST(request: NextRequest) {
     }
 
     return NextResponse.json(
-      {
-        success: false,
-        errors: [error instanceof Error ? error.message : 'Unknown error'],
-      },
+      { success: false, errors: [error instanceof Error ? error.message : 'Unknown error'] },
       { status: 500 }
     )
   }

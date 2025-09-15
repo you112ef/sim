@@ -71,11 +71,6 @@ export async function POST(req: NextRequest) {
       })
       .where(eq(copilotChats.id, chatId))
 
-    logger.info(`[${tracker.requestId}] Successfully updated chat messages`, {
-      chatId,
-      newMessageCount: messages.length,
-    })
-
     return NextResponse.json({
       success: true,
       messageCount: messages.length,
