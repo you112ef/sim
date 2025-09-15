@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import { Check, ChevronDown } from 'lucide-react'
-import { useParams, usePathname, useRouter } from 'next/navigation'
+import { useParams, usePathname } from 'next/navigation'
 
 const languages = {
   en: { name: 'English', flag: '🇺🇸' },
@@ -13,65 +13,49 @@ const languages = {
 
 export function LanguageDropdown() {
   const [isOpen, setIsOpen] = useState(false)
-  const router = useRouter()
   const pathname = usePathname()
   const params = useParams()
-  const [currentLang, setCurrentLang] = useState('en')
 
-  // Detect current language from params or URL
+  const [currentLang, setCurrentLang] = useState(() => {
+    const langFromParams = params?.lang as string
+    return langFromParams && Object.keys(languages).includes(langFromParams) ? langFromParams : 'en'
+  })
+
   useEffect(() => {
-    // First try to get language from params (Next.js route params)
     const langFromParams = params?.lang as string
 
     if (langFromParams && Object.keys(languages).includes(langFromParams)) {
       if (langFromParams !== currentLang) {
         setCurrentLang(langFromParams)
       }
-      return
-    }
-
-    // Fallback to pathname parsing
-    const segments = pathname.split('/').filter(Boolean)
-    const firstSegment = segments[0]
-
-    if (firstSegment && Object.keys(languages).includes(firstSegment)) {
-      if (firstSegment !== currentLang) {
-        setCurrentLang(firstSegment)
-      }
     } else {
       if (currentLang !== 'en') {
-        setCurrentLang('en') // Default to English
+        setCurrentLang('en')
       }
     }
-  }, [pathname, params, currentLang])
+  }, [params, currentLang])
 
   const handleLanguageChange = (locale: string) => {
     if (locale === currentLang) {
       setIsOpen(false)
-      return // Don't navigate if same language
+      return
     }
 
     setIsOpen(false)
 
-    // Get the current route without language prefix
     const segments = pathname.split('/').filter(Boolean)
 
-    // Remove current locale from path if present
     if (segments[0] && Object.keys(languages).includes(segments[0])) {
-      segments.shift() // Remove first segment (current locale)
+      segments.shift()
     }
 
-    // Build new path with new locale
     let newPath = ''
     if (locale === 'en') {
-      // For default locale (English), no prefix
       newPath = segments.length > 0 ? `/${segments.join('/')}` : '/introduction'
     } else {
-      // For non-default locales, add prefix
       newPath = `/${locale}${segments.length > 0 ? `/${segments.join('/')}` : '/introduction'}`
     }
 
-    // Force a hard navigation to ensure the middleware processes it
     window.location.href = newPath
   }
 
@@ -81,7 +65,6 @@ export function LanguageDropdown() {
         onClick={(e) => {
           e.preventDefault()
           e.stopPropagation()
-          console.log('Dropdown button clicked, current state:', isOpen)
           setIsOpen(!isOpen)
         }}
         className='flex items-center gap-2 rounded-xl border border-border/20 bg-muted/50 px-3 py-2 text-sm backdrop-blur-sm transition-colors hover:bg-muted'
@@ -105,7 +88,6 @@ export function LanguageDropdown() {
                 onClick={(e) => {
                   e.preventDefault()
                   e.stopPropagation()
-                  console.log('Language option clicked:', code, 'current:', currentLang)
                   handleLanguageChange(code)
                 }}
                 className={`flex w-full items-center gap-3 px-3 py-2.5 text-sm transition-colors first:rounded-t-lg last:rounded-b-lg hover:bg-muted/80 ${

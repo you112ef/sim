@@ -5,9 +5,28 @@ export default function RootLayout({ children }: { children: ReactNode }) {
 }
 
 export const metadata = {
-  title: 'Sim',
+  metadataBase: new URL('https://docs.sim.ai'),
+  title: {
+    default: 'Sim Documentation - Visual Workflow Builder for AI Applications',
+    template: '%s',
+  },
   description:
-    'Build agents in seconds with a drag and drop workflow builder. Access comprehensive documentation to help you create efficient workflows and maximize your automation capabilities.',
+    'Comprehensive documentation for Sim - the visual workflow builder for AI applications. Create powerful AI agents, automation workflows, and data processing pipelines by connecting blocks on a canvas—no coding required.',
+  keywords: [
+    'AI workflow builder',
+    'visual workflow editor',
+    'AI automation',
+    'workflow automation',
+    'AI agents',
+    'no-code AI',
+    'drag and drop workflows',
+    'AI integrations',
+    'workflow canvas',
+    'AI development platform',
+  ],
+  authors: [{ name: 'Sim Team', url: 'https://sim.ai' }],
+  category: 'Developer Tools',
+  classification: 'Developer Documentation',
   manifest: '/favicon/site.webmanifest',
   icons: {
     icon: [
@@ -21,5 +40,50 @@ export const metadata = {
     capable: true,
     statusBarStyle: 'default',
     title: 'Sim Docs',
+  },
+  openGraph: {
+    type: 'website',
+    locale: 'en_US',
+    alternateLocale: ['fr_FR', 'zh_CN'],
+    url: 'https://docs.sim.ai',
+    siteName: 'Sim Documentation',
+    title: 'Sim Documentation - Visual Workflow Builder for AI Applications',
+    description:
+      'Comprehensive documentation for Sim - the visual workflow builder for AI applications. Create powerful AI agents, automation workflows, and data processing pipelines.',
+    images: [
+      {
+        url: '/static/og-image.png',
+        width: 1200,
+        height: 630,
+        alt: 'Sim Documentation',
+      },
+    ],
+  },
+  twitter: {
+    card: 'summary_large_image',
+    title: 'Sim Documentation - Visual Workflow Builder for AI Applications',
+    description:
+      'Comprehensive documentation for Sim - the visual workflow builder for AI applications.',
+    images: ['/static/og-image.png'],
+    creator: '@sim_ai',
+  },
+  robots: {
+    index: true,
+    follow: true,
+    googleBot: {
+      index: true,
+      follow: true,
+      'max-video-preview': -1,
+      'max-image-preview': 'large',
+      'max-snippet': -1,
+    },
+  },
+  alternates: {
+    canonical: 'https://docs.sim.ai',
+    languages: {
+      en: '/en',
+      fr: '/fr',
+      zh: '/zh',
+    },
   },
 }
