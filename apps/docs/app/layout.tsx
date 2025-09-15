@@ -1,24 +1,7 @@
 import type { ReactNode } from 'react'
-import { RootProvider } from 'fumadocs-ui/provider'
-import { Inter } from 'next/font/google'
-import './global.css'
-import { Analytics } from '@vercel/analytics/next'
 
-const inter = Inter({
-  subsets: ['latin'],
-})
-
-export default function Layout({ children }: { children: ReactNode }) {
-  return (
-    <html lang='en' className={inter.className} suppressHydrationWarning>
-      <body className='flex min-h-screen flex-col'>
-        <RootProvider>
-          {children}
-          <Analytics />
-        </RootProvider>
-      </body>
-    </html>
-  )
+export default function RootLayout({ children }: { children: ReactNode }) {
+  return children
 }
 
 export const metadata = {
