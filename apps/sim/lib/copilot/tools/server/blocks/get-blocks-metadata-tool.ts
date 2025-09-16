@@ -7,7 +7,45 @@ import {
 } from '@/lib/copilot/tools/shared/schemas'
 import { createLogger } from '@/lib/logs/console/logger'
 import { registry as blockRegistry } from '@/blocks/registry'
+import type { BlockConfig } from '@/blocks/types'
+import { AuthMode } from '@/blocks/types'
 import { tools as toolsRegistry } from '@/tools/registry'
+import { TRIGGER_REGISTRY } from '@/triggers'
+
+export interface CopilotSubblockMetadata {
+  id: string
+  type: string
+  title?: string
+  required?: boolean
+  description?: string
+}
+
+export interface CopilotToolMetadata {
+  id: string
+  name: string
+  description?: string
+  inputs?: any
+  outputs?: any
+}
+
+export interface CopilotTriggerMetadata {
+  id: string
+  outputs?: any
+}
+
+export interface CopilotBlockMetadata {
+  id: string
+  name: string
+  description: string
+  inputs: Record<string, any>
+  outputs: Record<string, any>
+  triggerAllowed?: boolean
+  authType?: 'OAuth' | 'API Key' | 'Bot Token'
+  tools: CopilotToolMetadata[]
+  triggers: CopilotTriggerMetadata[]
+  parameters: CopilotSubblockMetadata[]
+  yamlDocumentation?: string
+}
 
 export const getBlocksMetadataServerTool: BaseServerTool<
   ReturnType<typeof GetBlocksMetadataInput.parse>,
@@ -22,35 +60,68 @@ export const getBlocksMetadataServerTool: BaseServerTool<
     const logger = createLogger('GetBlocksMetadataServerTool')
     logger.debug('Executing get_blocks_metadata', { count: blockIds?.length })
 
-    const result: Record<string, any> = {}
+    const result: Record<string, CopilotBlockMetadata> = {}
     for (const blockId of blockIds || []) {
-      let metadata: any = {}
+      let metadata: any
 
       if (SPECIAL_BLOCKS_METADATA[blockId]) {
-        metadata = { ...SPECIAL_BLOCKS_METADATA[blockId] }
-        metadata.tools = metadata.tools?.access || []
+        const specialBlock = SPECIAL_BLOCKS_METADATA[blockId]
+        metadata = {
+          ...specialBlock,
+          tools: [],
+          triggers: [],
+          parameters: specialBlock.subBlocks ? specialBlock.subBlocks.map(simplifySubBlock) : [],
+        }(metadata as any).subBlocks = undefined
       } else {
-        const blockConfig: any = (blockRegistry as any)[blockId]
+        const blockConfig: BlockConfig | undefined = (blockRegistry as any)[blockId]
         if (!blockConfig) {
           logger.debug('Block not found in registry', { blockId })
           continue
         }
+
+        if (blockConfig.hideFromToolbar) {
+          logger.debug('Skipping block hidden from toolbar', { blockId })
+          continue
+        }
+        const tools: CopilotToolMetadata[] = Array.isArray(blockConfig.tools?.access)
+          ? blockConfig.tools!.access.map((toolId) => {
+              const tool: any = (toolsRegistry as any)[toolId]
+              if (!tool) return { id: toolId, name: toolId }
+              return {
+                id: toolId,
+                name: tool.name || toolId,
+                description: tool.description || '',
+                inputs: tool.params || {},
+                outputs: tool.outputs || {},
+              }
+            })
+          : []
+
+        const triggers: CopilotTriggerMetadata[] = []
+        const availableTriggerIds = blockConfig.triggers?.available || []
+        for (const tid of availableTriggerIds) {
+          const trig = TRIGGER_REGISTRY[tid]
+          triggers.push({
+            id: tid,
+            outputs: trig?.outputs || {},
+          })
+        }
+
+        const parameters: CopilotSubblockMetadata[] = Array.isArray(blockConfig.subBlocks)
+          ? blockConfig.subBlocks.map(simplifySubBlock)
+          : []
+
         metadata = {
           id: blockId,
           name: blockConfig.name || blockId,
-          description: blockConfig.description || '',
-          longDescription: blockConfig.longDescription,
-          category: blockConfig.category,
-          bgColor: blockConfig.bgColor,
+          description: blockConfig.longDescription || blockConfig.description || '',
           inputs: blockConfig.inputs || {},
           outputs: blockConfig.outputs || {},
-          tools: blockConfig.tools?.access || [],
-          hideFromToolbar: blockConfig.hideFromToolbar,
-        }
-        if (blockConfig.subBlocks && Array.isArray(blockConfig.subBlocks)) {
-          metadata.subBlocks = processSubBlocks(blockConfig.subBlocks)
-        } else {
-          metadata.subBlocks = []
+          triggerAllowed: !!blockConfig.triggerAllowed,
+          authType: resolveAuthType(blockConfig.authMode),
+          tools,
+          triggers,
+          parameters,
         }
       }
 
@@ -73,87 +144,41 @@ export const getBlocksMetadataServerTool: BaseServerTool<
         }
       } catch {}
 
-      if (Array.isArray(metadata.tools) && metadata.tools.length > 0) {
-        metadata.toolDetails = {}
-        for (const toolId of metadata.tools) {
-          const tool = (toolsRegistry as any)[toolId]
-          if (tool) {
-            metadata.toolDetails[toolId] = { name: tool.name, description: tool.description }
-          }
-        }
+      if (metadata) {
+        result[blockId] = metadata as CopilotBlockMetadata
       }
-
-      result[blockId] = metadata
     }
 
     return GetBlocksMetadataResult.parse({ metadata: result })
   },
 }
 
-function resolveSubBlockOptions(options: any): any[] {
-  try {
-    if (typeof options === 'function') {
-      const resolved = options()
-      return Array.isArray(resolved) ? resolved : []
-    }
-    return Array.isArray(options) ? options : []
-  } catch {
-    return []
+function simplifySubBlock(sb: any): CopilotSubblockMetadata {
+  const simplified: CopilotSubblockMetadata = {
+    id: sb.id,
+    type: sb.type,
   }
+  if (sb.title) simplified.title = sb.title
+  if (sb.required) simplified.required = sb.required
+  if (sb.description) simplified.description = sb.description
+  return simplified
 }
 
-function processSubBlocks(subBlocks: any[]): any[] {
-  if (!Array.isArray(subBlocks)) return []
-  return subBlocks.map((subBlock) => {
-    const processed: any = {
-      id: subBlock.id,
-      title: subBlock.title,
-      type: subBlock.type,
-      layout: subBlock.layout,
-      mode: subBlock.mode,
-      required: subBlock.required,
-      placeholder: subBlock.placeholder,
-      description: subBlock.description,
-      hidden: subBlock.hidden,
-      condition: subBlock.condition,
-      min: subBlock.min,
-      max: subBlock.max,
-      step: subBlock.step,
-      integer: subBlock.integer,
-      rows: subBlock.rows,
-      password: subBlock.password,
-      multiSelect: subBlock.multiSelect,
-      language: subBlock.language,
-      generationType: subBlock.generationType,
-      provider: subBlock.provider,
-      serviceId: subBlock.serviceId,
-      requiredScopes: subBlock.requiredScopes,
-      mimeType: subBlock.mimeType,
-      acceptedTypes: subBlock.acceptedTypes,
-      multiple: subBlock.multiple,
-      maxSize: subBlock.maxSize,
-      connectionDroppable: subBlock.connectionDroppable,
-      columns: subBlock.columns,
-      value: typeof subBlock.value === 'function' ? 'function' : undefined,
-      wandConfig: subBlock.wandConfig,
-    }
-    if (subBlock.options) {
-      const resolvedOptions = resolveSubBlockOptions(subBlock.options)
-      processed.options = resolvedOptions.map((option: any) => ({
-        label: option.label,
-        id: option.id,
-        hasIcon: !!option.icon,
-      }))
-    }
-    return Object.fromEntries(Object.entries(processed).filter(([_, v]) => v !== undefined))
-  })
+function resolveAuthType(
+  authMode: AuthMode | undefined
+): 'OAuth' | 'API Key' | 'Bot Token' | undefined {
+  if (!authMode) return undefined
+  if (authMode === AuthMode.OAuth) return 'OAuth'
+  if (authMode === AuthMode.ApiKey) return 'API Key'
+  if (authMode === AuthMode.BotToken) return 'Bot Token'
+  return undefined
 }
 
 const DOCS_FILE_MAPPING: Record<string, string> = {}
 
 const SPECIAL_BLOCKS_METADATA: Record<string, any> = {
   loop: {
-    type: 'loop',
+    id: 'loop',
     name: 'Loop',
     description: 'Control flow block for iterating over collections or repeating actions',
     inputs: {
@@ -168,7 +193,6 @@ const SPECIAL_BLOCKS_METADATA: Record<string, any> = {
       currentItem: 'any',
       totalIterations: 'number',
     },
-    tools: { access: [] },
     subBlocks: [
       {
         id: 'loopType',
@@ -208,7 +232,7 @@ const SPECIAL_BLOCKS_METADATA: Record<string, any> = {
     ],
   },
   parallel: {
-    type: 'parallel',
+    id: 'parallel',
     name: 'Parallel',
     description: 'Control flow block for executing multiple branches simultaneously',
     inputs: {
@@ -218,7 +242,6 @@ const SPECIAL_BLOCKS_METADATA: Record<string, any> = {
       maxConcurrency: { type: 'number', required: false, default: 10, minimum: 1, maximum: 50 },
     },
     outputs: { results: 'array', branchId: 'number', branchItem: 'any', totalBranches: 'number' },
-    tools: { access: [] },
     subBlocks: [
       {
         id: 'parallelType',

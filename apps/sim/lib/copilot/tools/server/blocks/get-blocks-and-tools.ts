@@ -5,7 +5,7 @@ import {
 } from '@/lib/copilot/tools/shared/schemas'
 import { createLogger } from '@/lib/logs/console/logger'
 import { registry as blockRegistry } from '@/blocks/registry'
-import { tools as toolsRegistry } from '@/tools/registry'
+import type { BlockConfig } from '@/blocks/types'
 
 export const getBlocksAndToolsServerTool: BaseServerTool<
   ReturnType<typeof GetBlocksAndToolsInput.parse>,
@@ -23,23 +23,35 @@ export const getBlocksAndToolsServerTool: BaseServerTool<
         if ((blockConfig as any).hideFromToolbar) return false
         return true
       })
-      .forEach(([blockType, blockConfig]: any) => {
-        blocks.push({ id: blockType, type: blockType, name: blockConfig.name || blockType })
+      .forEach(([blockType, blockConfig]: [string, BlockConfig]) => {
+        blocks.push({
+          type: blockType,
+          name: blockConfig.name,
+          triggerAllowed: !!blockConfig.triggerAllowed,
+        })
       })
 
-    const specialBlocks = { loop: { name: 'Loop' }, parallel: { name: 'Parallel' } }
+    const specialBlocks = {
+      loop: {
+        name: 'Loop',
+        longDescription:
+          'Control flow block for iterating over collections or repeating actions in a loop',
+      },
+      parallel: {
+        name: 'Parallel',
+        longDescription: 'Control flow block for executing multiple branches simultaneously',
+      },
+    }
     Object.entries(specialBlocks).forEach(([blockType, info]) => {
-      if (!blocks.some((b) => b.id === blockType)) {
-        blocks.push({ id: blockType, type: blockType, name: (info as any).name })
+      if (!blocks.some((b) => b.type === blockType)) {
+        blocks.push({
+          type: blockType,
+          name: (info as any).name,
+          longDescription: (info as any).longDescription,
+        })
       }
     })
 
-    const tools: any[] = Object.entries(toolsRegistry).map(([toolId, toolConfig]: any) => ({
-      id: toolId,
-      type: toolId,
-      name: toolConfig?.name || toolId,
-    }))
-
-    return GetBlocksAndToolsResult.parse({ blocks, tools })
+    return GetBlocksAndToolsResult.parse({ blocks })
   },
 }

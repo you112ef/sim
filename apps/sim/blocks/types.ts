@@ -7,6 +7,13 @@ export type PrimitiveValueType = 'string' | 'number' | 'boolean' | 'json' | 'arr
 
 export type BlockCategory = 'blocks' | 'tools' | 'triggers'
 
+// Authentication modes for sub-blocks and summaries
+export enum AuthMode {
+  OAuth = 'oauth',
+  ApiKey = 'api_key',
+  BotToken = 'bot_token',
+}
+
 export type GenerationType =
   | 'javascript-function-body'
   | 'typescript-function-body'
@@ -186,6 +193,8 @@ export interface BlockConfig<T extends ToolResponse = ToolResponse> {
   bgColor: string
   icon: BlockIcon
   subBlocks: SubBlockConfig[]
+  triggerAllowed?: boolean
+  authMode?: AuthMode
   tools: {
     access: string[]
     config?: {
