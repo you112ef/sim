@@ -1,22 +1,17 @@
 import { i18n } from '@/lib/i18n'
 import { source } from '@/lib/source'
 
-// cached forever
 export const revalidate = false
 
 export async function GET() {
   const baseUrl = 'https://docs.sim.ai'
 
-  // Get all pages from all languages
   const allPages = source.getPages()
 
-  // Generate sitemap entries
   const urls = allPages
     .flatMap((page) => {
-      // Get the base path without language prefix
       const urlWithoutLang = page.url.replace(/^\/[a-z]{2}\//, '/')
 
-      // Create entries for all languages
       return i18n.languages.map((lang) => {
         const url =
           lang === i18n.defaultLanguage

@@ -19,7 +19,6 @@ export function StructuredData({
 }: StructuredDataProps) {
   const baseUrl = 'https://docs.sim.ai'
 
-  // Article structured data
   const articleStructuredData = {
     '@context': 'https://schema.org',
     '@type': 'TechArticle',
@@ -58,7 +57,6 @@ export function StructuredData({
     },
   }
 
-  // Breadcrumb structured data
   const breadcrumbStructuredData = breadcrumb && {
     '@context': 'https://schema.org',
     '@type': 'BreadcrumbList',
@@ -70,7 +68,6 @@ export function StructuredData({
     })),
   }
 
-  // Website structured data (only for home page)
   const websiteStructuredData = url === baseUrl && {
     '@context': 'https://schema.org',
     '@type': 'WebSite',
@@ -94,14 +91,12 @@ export function StructuredData({
     inLanguage: ['en', 'fr', 'zh'],
   }
 
-  // FAQ structured data for pages that might contain FAQ content
   const faqStructuredData = title.toLowerCase().includes('faq') && {
     '@context': 'https://schema.org',
     '@type': 'FAQPage',
-    mainEntity: [], // This would be populated dynamically based on content
+    mainEntity: [],
   }
 
-  // Software Application structured data
   const softwareStructuredData = {
     '@context': 'https://schema.org',
     '@type': 'SoftwareApplication',
