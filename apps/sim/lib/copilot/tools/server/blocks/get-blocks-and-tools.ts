@@ -27,6 +27,7 @@ export const getBlocksAndToolsServerTool: BaseServerTool<
         blocks.push({
           type: blockType,
           name: blockConfig.name,
+          description: blockConfig.longDescription,
           triggerAllowed: !!blockConfig.triggerAllowed,
         })
       })
