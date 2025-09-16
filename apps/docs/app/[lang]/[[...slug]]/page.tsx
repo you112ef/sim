@@ -130,21 +130,12 @@ export async function generateMetadata(props: {
       type: 'article',
       locale: params.lang,
       alternateLocale: ['en', 'fr', 'zh'].filter((lang) => lang !== params.lang),
-      images: [
-        {
-          url: `${baseUrl}/static/og-image.png`,
-          width: 1200,
-          height: 630,
-          alt: `${page.data.title} - Sim Documentation`,
-        },
-      ],
     },
     twitter: {
-      card: 'summary_large_image',
+      card: 'summary',
       title: page.data.title,
       description:
         page.data.description || 'Sim visual workflow builder for AI applications documentation',
-      images: [`${baseUrl}/static/og-image.png`],
     },
     robots: {
       index: true,

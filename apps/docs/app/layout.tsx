@@ -50,21 +50,12 @@ export const metadata = {
     title: 'Sim Documentation - Visual Workflow Builder for AI Applications',
     description:
       'Comprehensive documentation for Sim - the visual workflow builder for AI applications. Create powerful AI agents, automation workflows, and data processing pipelines.',
-    images: [
-      {
-        url: '/static/og-image.png',
-        width: 1200,
-        height: 630,
-        alt: 'Sim Documentation',
-      },
-    ],
   },
   twitter: {
-    card: 'summary_large_image',
+    card: 'summary',
     title: 'Sim Documentation - Visual Workflow Builder for AI Applications',
     description:
       'Comprehensive documentation for Sim - the visual workflow builder for AI applications.',
-    images: ['/static/og-image.png'],
     creator: '@sim_ai',
   },
   robots: {
