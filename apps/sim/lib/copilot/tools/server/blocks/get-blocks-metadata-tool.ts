@@ -37,13 +37,23 @@ export interface CopilotBlockMetadata {
   id: string
   name: string
   description: string
-  inputs: Record<string, any>
-  outputs: Record<string, any>
+  commonParameters: Record<string, any>
   triggerAllowed?: boolean
   authType?: 'OAuth' | 'API Key' | 'Bot Token'
   tools: CopilotToolMetadata[]
   triggers: CopilotTriggerMetadata[]
-  parameters: CopilotSubblockMetadata[]
+  operationParameters: Record<string, CopilotSubblockMetadata[]>
+  operations?: Record<
+    string,
+    {
+      toolId?: string
+      toolName?: string
+      description?: string
+      inputs?: Record<string, any>
+      outputs?: Record<string, any>
+      parameters?: CopilotSubblockMetadata[]
+    }
+  >
   yamlDocumentation?: string
 }
 
@@ -66,12 +76,20 @@ export const getBlocksMetadataServerTool: BaseServerTool<
 
       if (SPECIAL_BLOCKS_METADATA[blockId]) {
         const specialBlock = SPECIAL_BLOCKS_METADATA[blockId]
+        const { operationParameters } = splitParametersByOperation(
+          specialBlock.subBlocks || [],
+          specialBlock.inputs || {}
+        )
         metadata = {
-          ...specialBlock,
+          id: specialBlock.id,
+          name: specialBlock.name,
+          description: specialBlock.description || '',
+          commonParameters: specialBlock.inputs || {},
           tools: [],
           triggers: [],
-          parameters: specialBlock.subBlocks ? specialBlock.subBlocks.map(simplifySubBlock) : [],
-        }(metadata as any).subBlocks = undefined
+          operationParameters,
+        }
+        ;(metadata as any).subBlocks = undefined
       } else {
         const blockConfig: BlockConfig | undefined = (blockRegistry as any)[blockId]
         if (!blockConfig) {
@@ -107,21 +125,45 @@ export const getBlocksMetadataServerTool: BaseServerTool<
           })
         }
 
-        const parameters: CopilotSubblockMetadata[] = Array.isArray(blockConfig.subBlocks)
-          ? blockConfig.subBlocks.map(simplifySubBlock)
-          : []
+        const blockInputs = computeBlockLevelInputs(blockConfig)
+        const { operationParameters } = splitParametersByOperation(
+          Array.isArray(blockConfig.subBlocks) ? blockConfig.subBlocks : [],
+          blockInputs
+        )
+
+        const operationInputs = computeOperationLevelInputs(blockConfig)
+        const operationIds = resolveOperationIds(blockConfig, operationParameters)
+        const operations: Record<string, any> = {}
+        for (const opId of operationIds) {
+          const resolvedToolId = resolveToolIdForOperation(blockConfig, opId)
+          const toolCfg: any = resolvedToolId ? (toolsRegistry as any)[resolvedToolId] : undefined
+          const toolParams: Record<string, any> = toolCfg?.params || {}
+          const toolOutputs: Record<string, any> = toolCfg?.outputs || {}
+          const filteredToolParams: Record<string, any> = {}
+          for (const [k, v] of Object.entries(toolParams)) {
+            if (!(k in blockInputs)) filteredToolParams[k] = v
+          }
+          operations[opId] = {
+            toolId: resolvedToolId,
+            toolName: toolCfg?.name || resolvedToolId,
+            description: toolCfg?.description || undefined,
+            inputs: { ...filteredToolParams, ...(operationInputs[opId] || {}) },
+            outputs: toolOutputs,
+            parameters: operationParameters[opId] || [],
+          }
+        }
 
         metadata = {
           id: blockId,
           name: blockConfig.name || blockId,
           description: blockConfig.longDescription || blockConfig.description || '',
-          inputs: blockConfig.inputs || {},
-          outputs: blockConfig.outputs || {},
+          commonParameters: blockInputs,
           triggerAllowed: !!blockConfig.triggerAllowed,
           authType: resolveAuthType(blockConfig.authMode),
           tools,
           triggers,
-          parameters,
+          operationParameters,
+          operations,
         }
       }
 
@@ -171,6 +213,143 @@ function resolveAuthType(
   if (authMode === AuthMode.OAuth) return 'OAuth'
   if (authMode === AuthMode.ApiKey) return 'API Key'
   if (authMode === AuthMode.BotToken) return 'Bot Token'
+  return undefined
+}
+
+function normalizeCondition(condition: any): any | undefined {
+  try {
+    if (!condition) return undefined
+    if (typeof condition === 'function') {
+      return condition()
+    }
+    return condition
+  } catch {
+    return undefined
+  }
+}
+
+function splitParametersByOperation(
+  subBlocks: any[],
+  blockInputsForDescriptions?: Record<string, any>
+): {
+  commonParameters: CopilotSubblockMetadata[]
+  operationParameters: Record<string, CopilotSubblockMetadata[]>
+} {
+  const commonParameters: CopilotSubblockMetadata[] = []
+  const operationParameters: Record<string, CopilotSubblockMetadata[]> = {}
+
+  for (const sb of subBlocks || []) {
+    const cond = normalizeCondition(sb.condition)
+    const simplified = simplifySubBlock(sb)
+
+    if (cond && cond.field === 'operation' && !cond.not && cond.value !== undefined) {
+      const values: any[] = Array.isArray(cond.value) ? cond.value : [cond.value]
+      for (const v of values) {
+        const key = String(v)
+        if (!operationParameters[key]) operationParameters[key] = []
+        operationParameters[key].push(simplified)
+      }
+    } else {
+      // Override description from blockInputs if available (by id or canonicalParamId)
+      if (blockInputsForDescriptions) {
+        const candidates = [sb.id, sb.canonicalParamId].filter(Boolean)
+        for (const key of candidates) {
+          const bi = (blockInputsForDescriptions as any)[key as string]
+          if (bi && typeof bi.description === 'string') {
+            simplified.description = bi.description
+            break
+          }
+        }
+      }
+      commonParameters.push(simplified)
+    }
+  }
+
+  return { commonParameters, operationParameters }
+}
+
+function computeBlockLevelInputs(blockConfig: BlockConfig): Record<string, any> {
+  const inputs = blockConfig.inputs || {}
+  const subBlocks: any[] = Array.isArray(blockConfig.subBlocks) ? blockConfig.subBlocks : []
+
+  // Build quick lookup of subBlocks by id and canonicalParamId
+  const byParamKey: Record<string, any[]> = {}
+  for (const sb of subBlocks) {
+    if (sb.id) {
+      byParamKey[sb.id] = byParamKey[sb.id] || []
+      byParamKey[sb.id].push(sb)
+    }
+    if (sb.canonicalParamId) {
+      byParamKey[sb.canonicalParamId] = byParamKey[sb.canonicalParamId] || []
+      byParamKey[sb.canonicalParamId].push(sb)
+    }
+  }
+
+  const blockInputs: Record<string, any> = {}
+  for (const key of Object.keys(inputs)) {
+    const sbs = byParamKey[key] || []
+    // If any related subBlock is gated by operation, treat as operation-level and exclude
+    const isOperationGated = sbs.some((sb) => {
+      const cond = normalizeCondition(sb.condition)
+      return cond && cond.field === 'operation' && !cond.not && cond.value !== undefined
+    })
+    if (!isOperationGated) {
+      blockInputs[key] = inputs[key]
+    }
+  }
+
+  return blockInputs
+}
+
+function computeOperationLevelInputs(blockConfig: BlockConfig): Record<string, Record<string, any>> {
+  const inputs = blockConfig.inputs || {}
+  const subBlocks: any[] = Array.isArray(blockConfig.subBlocks) ? blockConfig.subBlocks : []
+
+  const opInputs: Record<string, Record<string, any>> = {}
+
+  // Map subblocks to inputs keys via id or canonicalParamId and collect by operation
+  for (const sb of subBlocks) {
+    const cond = normalizeCondition((sb as any).condition)
+    if (!cond || cond.field !== 'operation' || cond.not) continue
+    const keys: string[] = []
+    if ((sb as any).canonicalParamId) keys.push((sb as any).canonicalParamId)
+    if ((sb as any).id) keys.push((sb as any).id)
+    const values: any[] = Array.isArray(cond.value) ? cond.value : [cond.value]
+    for (const key of keys) {
+      if (!(key in inputs)) continue
+      for (const v of values) {
+        const op = String(v)
+        if (!opInputs[op]) opInputs[op] = {}
+        opInputs[op][key] = inputs[key]
+      }
+    }
+  }
+
+  return opInputs
+}
+
+function resolveOperationIds(
+  blockConfig: BlockConfig,
+  operationParameters: Record<string, CopilotSubblockMetadata[]>
+): string[] {
+  // Prefer explicit operation subblock options if present
+  const opBlock: any = (blockConfig.subBlocks || []).find((sb: any) => sb.id === 'operation')
+  if (opBlock && Array.isArray(opBlock.options)) {
+    const ids = opBlock.options.map((o: any) => o.id).filter(Boolean)
+    if (ids.length > 0) return ids
+  }
+  // Fallback: keys from operationParameters
+  return Object.keys(operationParameters)
+}
+
+function resolveToolIdForOperation(blockConfig: BlockConfig, opId: string): string | undefined {
+  try {
+    const toolSelector = (blockConfig.tools as any)?.config?.tool
+    if (typeof toolSelector === 'function') {
+      const maybeToolId = toolSelector({ operation: opId })
+      if (typeof maybeToolId === 'string') return maybeToolId
+    }
+  } catch {}
   return undefined
 }
 
