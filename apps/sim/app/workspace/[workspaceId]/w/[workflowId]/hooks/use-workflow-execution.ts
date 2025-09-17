@@ -447,7 +447,30 @@ export function useWorkflowExecution() {
                 )
               }
             } catch (error: any) {
-              controller.error(error)
+              // Create a proper error result for logging
+              const errorResult = {
+                success: false,
+                error: error.message || 'Workflow execution failed',
+                output: {},
+                logs: [],
+                metadata: {
+                  duration: 0,
+                  startTime: new Date().toISOString(),
+                  source: 'chat' as const,
+                },
+              }
+
+              // Send the error as final event so downstream handlers can treat it uniformly
+              controller.enqueue(
+                encoder.encode(`data: ${JSON.stringify({ event: 'final', data: errorResult })}\n\n`)
+              )
+
+              // Persist the error to logs so it shows up in the logs page
+              persistLogs(executionId, errorResult).catch((err) =>
+                logger.error('Error persisting error logs:', err)
+              )
+
+              // Do not error the controller to allow consumers to process the final event
             } finally {
               controller.close()
               setIsExecuting(false)
@@ -661,12 +684,6 @@ export function useWorkflowExecution() {
       }
 
       startBlockId = startBlock.blockId
-
-      // Check if the chat trigger has any outgoing connections
-      const outgoingConnections = workflowEdges.filter((edge) => edge.source === startBlockId)
-      if (outgoingConnections.length === 0) {
-        throw new Error('Chat Trigger block must be connected to other blocks to execute')
-      }
     } else {
       // For manual editor runs: look for Manual trigger OR API trigger
       const entries = Object.entries(filteredStates)

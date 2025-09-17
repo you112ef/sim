@@ -774,12 +774,13 @@ export class Executor {
       // If no starter block, look for appropriate trigger block based on context
       if (!initBlock) {
         if (this.isChildExecution) {
-          // Child workflows only use Input Trigger blocks
           const inputTriggerBlocks = this.actualWorkflow.blocks.filter(
             (block) => block.metadata?.id === 'input_trigger'
           )
-          if (inputTriggerBlocks.length > 0) {
+          if (inputTriggerBlocks.length === 1) {
             initBlock = inputTriggerBlocks[0]
+          } else if (inputTriggerBlocks.length > 1) {
+            throw new Error('Child workflow has multiple Input Trigger blocks. Keep only one.')
           }
         } else {
           // Parent workflows can use any trigger block

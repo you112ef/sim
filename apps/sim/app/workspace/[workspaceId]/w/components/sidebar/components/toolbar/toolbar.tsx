@@ -114,7 +114,7 @@ export function Toolbar({ userPermissions, isWorkspaceSelectorVisible = false }:
       {/* Tabs */}
       <Tabs value={activeTab} onValueChange={setActiveTab} className='flex h-full flex-col'>
         <div className='flex-shrink-0 px-2 pt-2'>
-          <TabsList className='grid w-full grid-cols-2 h-9'>
+          <TabsList className='grid h-9 w-full grid-cols-2'>
             <TabsTrigger value='blocks' className='gap-1.5 text-xs'>
               <Blocks className='h-3.5 w-3.5' />
               Blocks
@@ -144,7 +144,7 @@ export function Toolbar({ userPermissions, isWorkspaceSelectorVisible = false }:
         </div>
 
         {/* Blocks Tab Content */}
-        <TabsContent value='blocks' className='flex-1 overflow-hidden mt-0'>
+        <TabsContent value='blocks' className='mt-0 flex-1 overflow-hidden'>
           <ScrollArea className='h-full px-2' hideScrollbar={true}>
             <div className='space-y-1 pb-2'>
               {/* Regular Blocks */}
@@ -178,7 +178,7 @@ export function Toolbar({ userPermissions, isWorkspaceSelectorVisible = false }:
         </TabsContent>
 
         {/* Triggers Tab Content */}
-        <TabsContent value='triggers' className='flex-1 overflow-hidden mt-0'>
+        <TabsContent value='triggers' className='mt-0 flex-1 overflow-hidden'>
           <ScrollArea className='h-full px-2' hideScrollbar={true}>
             <div className='space-y-1 pb-2'>
               {triggers.length > 0 ? (
@@ -191,7 +191,7 @@ export function Toolbar({ userPermissions, isWorkspaceSelectorVisible = false }:
                   />
                 ))
               ) : (
-                <div className='text-center py-8 text-sm text-muted-foreground'>
+                <div className='py-8 text-center text-muted-foreground text-sm'>
                   {searchQuery ? 'No triggers found' : 'Add triggers from the workflow canvas'}
                 </div>
               )}

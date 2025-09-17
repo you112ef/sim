@@ -616,7 +616,23 @@ export async function executeWorkflowForChat(
 
       // Determine the start block for chat execution
       const startBlock = TriggerUtils.findStartBlock(mergedStates, 'chat')
-      const startBlockId = startBlock?.blockId
+
+      if (!startBlock) {
+        const errorMessage =
+          'No Chat trigger configured for this workflow. Add a Chat Trigger block to enable chat execution.'
+        logger.error(`[${requestId}] ${errorMessage}`)
+        await loggingSession.safeCompleteWithError({
+          endedAt: new Date().toISOString(),
+          totalDurationMs: 0,
+          error: {
+            message: errorMessage,
+            stackTrace: undefined,
+          },
+        })
+        throw new Error(errorMessage)
+      }
+
+      const startBlockId = startBlock.blockId
 
       let result
       try {

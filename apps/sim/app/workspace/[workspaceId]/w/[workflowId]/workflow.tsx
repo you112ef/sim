@@ -22,7 +22,10 @@ import { Panel } from '@/app/workspace/[workspaceId]/w/[workflowId]/components/p
 import { SubflowNodeComponent } from '@/app/workspace/[workspaceId]/w/[workflowId]/components/subflows/subflow-node'
 import { TriggerPlaceholder } from '@/app/workspace/[workspaceId]/w/[workflowId]/components/trigger-selector/trigger-placeholder'
 import { TriggerSelectorModal } from '@/app/workspace/[workspaceId]/w/[workflowId]/components/trigger-selector/trigger-selector-modal'
-import { TriggerWarningDialog } from '@/app/workspace/[workspaceId]/w/[workflowId]/components/trigger-warning-dialog'
+import {
+  TriggerWarningDialog,
+  TriggerWarningType,
+} from '@/app/workspace/[workspaceId]/w/[workflowId]/components/trigger-warning-dialog'
 import { WorkflowBlock } from '@/app/workspace/[workspaceId]/w/[workflowId]/components/workflow-block/workflow-block'
 import { WorkflowEdge } from '@/app/workspace/[workspaceId]/w/[workflowId]/components/workflow-edge/workflow-edge'
 import { useCurrentWorkflow } from '@/app/workspace/[workspaceId]/w/[workflowId]/hooks'
@@ -83,10 +86,11 @@ const WorkflowContent = React.memo(() => {
   const [triggerWarning, setTriggerWarning] = useState<{
     open: boolean
     triggerName: string
-    message?: string
+    type: TriggerWarningType
   }>({
     open: false,
     triggerName: '',
+    type: TriggerWarningType.DUPLICATE_TRIGGER,
   })
 
   // State for trigger selector modal
@@ -509,12 +513,11 @@ const WorkflowContent = React.memo(() => {
           setTriggerWarning({
             open: true,
             triggerName: 'new trigger',
-            message:
-              'Cannot add new trigger blocks when a legacy Start block exists. Available in newer workflows.',
+            type: TriggerWarningType.LEGACY_INCOMPATIBILITY,
           })
         } else {
           const triggerName = TriggerUtils.getDefaultTriggerName(type) || 'trigger'
-          setTriggerWarning({ open: true, triggerName })
+          setTriggerWarning({ open: true, triggerName, type: TriggerWarningType.DUPLICATE_TRIGGER })
         }
         return
       }
@@ -616,24 +619,23 @@ const WorkflowContent = React.memo(() => {
         }
       }
 
-      // Enforce only one API trigger
-      if (type === 'api_trigger') {
-        const existingApiTriggers = Object.values(blocks).filter((b) => b.type === 'api_trigger')
-        if (existingApiTriggers.length >= 1) {
-          // Surface a clean UI indication; for now, log and skip add
-          logger.warn('Only one API trigger is allowed per workflow')
-          return
+      // Centralized trigger constraints
+      const additionIssue = TriggerUtils.getTriggerAdditionIssue(blocks, type)
+      if (additionIssue) {
+        if (additionIssue.issue === 'legacy') {
+          setTriggerWarning({
+            open: true,
+            triggerName: additionIssue.triggerName,
+            type: TriggerWarningType.LEGACY_INCOMPATIBILITY,
+          })
+        } else {
+          setTriggerWarning({
+            open: true,
+            triggerName: additionIssue.triggerName,
+            type: TriggerWarningType.DUPLICATE_TRIGGER,
+          })
         }
-      }
-      // Enforce only one Input trigger (single entry point for manual run UX)
-      if (type === 'input_trigger') {
-        const existingInputTriggers = Object.values(blocks).filter(
-          (b) => b.type === 'input_trigger'
-        )
-        if (existingInputTriggers.length >= 1) {
-          logger.warn('Only one Input trigger is recommended; manual run uses a single trigger')
-          return
-        }
+        return
       }
 
       // Add the block to the workflow with auto-connect edge
@@ -714,12 +716,15 @@ const WorkflowContent = React.memo(() => {
             setTriggerWarning({
               open: true,
               triggerName: 'new trigger',
-              message:
-                'Cannot add new trigger blocks when a legacy Start block exists. Available in newer workflows.',
+              type: TriggerWarningType.LEGACY_INCOMPATIBILITY,
             })
           } else {
             const triggerName = TriggerUtils.getDefaultTriggerName(data.type) || 'trigger'
-            setTriggerWarning({ open: true, triggerName })
+            setTriggerWarning({
+              open: true,
+              triggerName,
+              type: TriggerWarningType.DUPLICATE_TRIGGER,
+            })
           }
           return
         }
@@ -910,24 +915,17 @@ const WorkflowContent = React.memo(() => {
             }
           }
         } else {
-          // Check if adding this trigger would violate constraints
-          if (TriggerUtils.wouldViolateSingleInstance(blocks, data.type)) {
-            // Check if it's because of a legacy starter block
-            if (TriggerUtils.hasLegacyStarter(blocks) && TriggerUtils.isAnyTriggerType(data.type)) {
-              setTriggerWarning({
-                open: true,
-                triggerName: 'new trigger',
-                message:
-                  'Cannot add new trigger blocks when a legacy Start block exists. Available in newer workflows.',
-              })
-            } else {
-              const triggerName = TriggerUtils.getDefaultTriggerName(data.type) || data.type
-              setTriggerWarning({
-                open: true,
-                triggerName,
-                message: `Only one ${triggerName} trigger allowed`,
-              })
-            }
+          // Centralized trigger constraints
+          const dropIssue = TriggerUtils.getTriggerAdditionIssue(blocks, data.type)
+          if (dropIssue) {
+            setTriggerWarning({
+              open: true,
+              triggerName: dropIssue.triggerName,
+              type:
+                dropIssue.issue === 'legacy'
+                  ? TriggerWarningType.LEGACY_INCOMPATIBILITY
+                  : TriggerWarningType.DUPLICATE_TRIGGER,
+            })
             return
           }
 
@@ -1851,7 +1849,7 @@ const WorkflowContent = React.memo(() => {
           open={triggerWarning.open}
           onOpenChange={(open) => setTriggerWarning({ ...triggerWarning, open })}
           triggerName={triggerWarning.triggerName}
-          message={triggerWarning.message}
+          type={triggerWarning.type}
         />
 
         {/* Trigger selector for empty workflows - only show after workflow has loaded */}

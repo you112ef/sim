@@ -15,6 +15,19 @@ export const TRIGGER_TYPES = {
 export type TriggerType = (typeof TRIGGER_TYPES)[keyof typeof TRIGGER_TYPES]
 
 /**
+ * Mapping from reference alias (used in inline refs like <api.*>, <chat.*>, etc.)
+ * to concrete trigger block type identifiers used across the system.
+ */
+export const TRIGGER_REFERENCE_ALIAS_MAP = {
+  start: TRIGGER_TYPES.STARTER,
+  api: TRIGGER_TYPES.API,
+  chat: TRIGGER_TYPES.CHAT,
+  manual: TRIGGER_TYPES.INPUT,
+} as const
+
+export type TriggerReferenceAlias = keyof typeof TRIGGER_REFERENCE_ALIAS_MAP
+
+/**
  * Trigger classification and utilities
  */
 export class TriggerUtils {
@@ -45,13 +58,7 @@ export class TriggerUtils {
    * Check if a type string is any trigger type
    */
   static isAnyTriggerType(type: string): boolean {
-    return (
-      type === TRIGGER_TYPES.INPUT ||
-      type === TRIGGER_TYPES.CHAT ||
-      type === TRIGGER_TYPES.API ||
-      type === TRIGGER_TYPES.WEBHOOK ||
-      type === TRIGGER_TYPES.SCHEDULE
-    )
+    return Object.values(TRIGGER_TYPES).includes(type as TriggerType)
   }
 
   /**
@@ -294,6 +301,29 @@ export class TriggerUtils {
     }
 
     return blockArray.some((block) => block.type === triggerType)
+  }
+
+  /**
+   * Evaluate whether adding a trigger of the given type is allowed and, if not, why.
+   * Returns null if allowed; otherwise returns an object describing the violation.
+   * This avoids duplicating UI logic across toolbar/drop handlers.
+   */
+  static getTriggerAdditionIssue<T extends { type: string }>(
+    blocks: T[] | Record<string, T>,
+    triggerType: string
+  ): { issue: 'legacy' | 'duplicate'; triggerName: string } | null {
+    if (!TriggerUtils.wouldViolateSingleInstance(blocks, triggerType)) {
+      return null
+    }
+
+    // Legacy starter present + adding modern trigger → legacy incompatibility
+    if (TriggerUtils.hasLegacyStarter(blocks) && TriggerUtils.isAnyTriggerType(triggerType)) {
+      return { issue: 'legacy', triggerName: 'new trigger' }
+    }
+
+    // Otherwise treat as duplicate of a single-instance trigger
+    const triggerName = TriggerUtils.getDefaultTriggerName(triggerType) || 'trigger'
+    return { issue: 'duplicate', triggerName }
   }
 
   /**

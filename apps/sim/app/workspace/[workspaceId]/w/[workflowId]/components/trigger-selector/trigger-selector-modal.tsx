@@ -5,6 +5,7 @@ import { Search } from 'lucide-react'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Input } from '@/components/ui/input'
 import { cn } from '@/lib/utils'
+import type { TriggerInfo } from '@/lib/workflows/trigger-utils'
 import { getAllTriggerBlocks, getTriggerDisplayName } from '@/lib/workflows/trigger-utils'
 
 interface TriggerSelectorModalProps {
@@ -41,14 +42,55 @@ export function TriggerSelectorModal({ open, onClose, onSelect }: TriggerSelecto
     [filteredOptions]
   )
 
+  const TriggerOptionCard = ({ option }: { option: TriggerInfo }) => {
+    const Icon = option.icon
+    const isHovered = hoveredId === option.id
+    return (
+      <button
+        key={option.id}
+        onClick={() => onSelect(option.id, option.enableTriggerMode)}
+        onMouseEnter={() => setHoveredId(option.id)}
+        onMouseLeave={() => setHoveredId(null)}
+        className={cn(
+          'group relative rounded-xl border-2 p-4 text-left transition-all duration-200',
+          'hover:scale-[1.02] hover:shadow-lg active:scale-[0.98]',
+          'cursor-pointer',
+          isHovered ? 'border-primary shadow-md' : 'border-border'
+        )}
+      >
+        <div
+          className={cn(
+            'mb-3 flex h-10 w-10 items-center justify-center rounded-lg',
+            'transition-transform duration-200',
+            isHovered && 'scale-110'
+          )}
+          style={{ backgroundColor: option.color }}
+        >
+          {Icon ? (
+            <Icon className='h-5 w-5 text-white' />
+          ) : (
+            <div className='h-5 w-5 rounded bg-white/20' />
+          )}
+        </div>
+
+        <h3 className='mb-1 font-semibold text-sm'>{getTriggerDisplayName(option.id)}</h3>
+        <p className='line-clamp-2 text-muted-foreground text-xs'>{option.description}</p>
+
+        {isHovered && (
+          <div className='pointer-events-none absolute inset-0 rounded-xl ring-2 ring-primary ring-opacity-20' />
+        )}
+      </button>
+    )
+  }
+
   return (
     <Dialog open={open} onOpenChange={(open) => !open && onClose()}>
-      <DialogContent className='max-w-5xl p-0 overflow-hidden max-h-[85vh]'>
+      <DialogContent className='max-h-[85vh] max-w-5xl overflow-hidden p-0'>
         <DialogHeader className='px-6 pt-6 pb-4'>
-          <DialogTitle className='text-2xl font-semibold'>
+          <DialogTitle className='font-semibold text-2xl'>
             How do you want to trigger this workflow?
           </DialogTitle>
-          <p className='text-sm text-muted-foreground mt-1'>
+          <p className='mt-1 text-muted-foreground text-sm'>
             Choose how your workflow will be started. You can add more triggers later from the
             sidebar.
           </p>
@@ -56,7 +98,7 @@ export function TriggerSelectorModal({ open, onClose, onSelect }: TriggerSelecto
 
         <div className='px-6'>
           {/* Search Input */}
-          <div className='flex h-9 items-center gap-2 rounded-[8px] border bg-background pr-2 pl-3 mb-4'>
+          <div className='mb-4 flex h-9 items-center gap-2 rounded-[8px] border bg-background pr-2 pl-3'>
             <Search className='h-4 w-4 text-muted-foreground' strokeWidth={2} />
             <Input
               placeholder='Search triggers...'
@@ -71,58 +113,15 @@ export function TriggerSelectorModal({ open, onClose, onSelect }: TriggerSelecto
           </div>
         </div>
 
-        <div className='px-6 pb-6 overflow-y-auto max-h-[60vh]'>
+        <div className='max-h-[60vh] overflow-y-auto px-6 pb-6'>
           {/* Core Triggers Section */}
           {coreOptions.length > 0 && (
             <>
-              <h3 className='text-sm font-medium text-muted-foreground mb-3'>Core Triggers</h3>
-              <div className='grid grid-cols-2 md:grid-cols-3 gap-3 mb-6'>
-                {coreOptions.map((option) => {
-                  const Icon = option.icon
-                  const isHovered = hoveredId === option.id
-
-                  return (
-                    <button
-                      key={option.id}
-                      onClick={() => onSelect(option.id, option.enableTriggerMode)}
-                      onMouseEnter={() => setHoveredId(option.id)}
-                      onMouseLeave={() => setHoveredId(null)}
-                      className={cn(
-                        'relative group rounded-xl border-2 p-4 text-left transition-all duration-200',
-                        'hover:shadow-lg hover:scale-[1.02] active:scale-[0.98]',
-                        'cursor-pointer',
-                        isHovered && 'border-primary shadow-md',
-                        !isHovered && 'border-border'
-                      )}
-                    >
-                      <div
-                        className={cn(
-                          'w-10 h-10 rounded-lg flex items-center justify-center mb-3',
-                          'transition-transform duration-200',
-                          isHovered && 'scale-110'
-                        )}
-                        style={{ backgroundColor: option.color }}
-                      >
-                        {Icon ? (
-                          <Icon className='w-5 h-5 text-white' />
-                        ) : (
-                          <div className='w-5 h-5 bg-white/20 rounded' />
-                        )}
-                      </div>
-
-                      <h3 className='font-semibold text-sm mb-1'>
-                        {getTriggerDisplayName(option.id)}
-                      </h3>
-                      <p className='text-xs text-muted-foreground line-clamp-2'>
-                        {option.description}
-                      </p>
-
-                      {isHovered && (
-                        <div className='absolute inset-0 rounded-xl ring-2 ring-primary ring-opacity-20 pointer-events-none' />
-                      )}
-                    </button>
-                  )
-                })}
+              <h3 className='mb-3 font-medium text-muted-foreground text-sm'>Core Triggers</h3>
+              <div className='mb-6 grid grid-cols-2 gap-3 md:grid-cols-3'>
+                {coreOptions.map((option) => (
+                  <TriggerOptionCard key={option.id} option={option} />
+                ))}
               </div>
             </>
           )}
@@ -130,62 +129,19 @@ export function TriggerSelectorModal({ open, onClose, onSelect }: TriggerSelecto
           {/* Integration Triggers Section */}
           {integrationOptions.length > 0 && (
             <>
-              <h3 className='text-sm font-medium text-muted-foreground mb-3'>
+              <h3 className='mb-3 font-medium text-muted-foreground text-sm'>
                 Integration Triggers
               </h3>
-              <div className='grid grid-cols-2 md:grid-cols-3 gap-3'>
-                {integrationOptions.map((option) => {
-                  const Icon = option.icon
-                  const isHovered = hoveredId === option.id
-
-                  return (
-                    <button
-                      key={option.id}
-                      onClick={() => onSelect(option.id, option.enableTriggerMode)}
-                      onMouseEnter={() => setHoveredId(option.id)}
-                      onMouseLeave={() => setHoveredId(null)}
-                      className={cn(
-                        'relative group rounded-xl border-2 p-4 text-left transition-all duration-200',
-                        'hover:shadow-lg hover:scale-[1.02] active:scale-[0.98]',
-                        'cursor-pointer',
-                        isHovered && 'border-primary shadow-md',
-                        !isHovered && 'border-border'
-                      )}
-                    >
-                      <div
-                        className={cn(
-                          'w-10 h-10 rounded-lg flex items-center justify-center mb-3',
-                          'transition-transform duration-200',
-                          isHovered && 'scale-110'
-                        )}
-                        style={{ backgroundColor: option.color }}
-                      >
-                        {Icon ? (
-                          <Icon className='w-5 h-5 text-white' />
-                        ) : (
-                          <div className='w-5 h-5 bg-white/20 rounded' />
-                        )}
-                      </div>
-
-                      <h3 className='font-semibold text-sm mb-1'>
-                        {getTriggerDisplayName(option.id)}
-                      </h3>
-                      <p className='text-xs text-muted-foreground line-clamp-2'>
-                        {option.description}
-                      </p>
-
-                      {isHovered && (
-                        <div className='absolute inset-0 rounded-xl ring-2 ring-primary ring-opacity-20 pointer-events-none' />
-                      )}
-                    </button>
-                  )
-                })}
+              <div className='grid grid-cols-2 gap-3 md:grid-cols-3'>
+                {integrationOptions.map((option) => (
+                  <TriggerOptionCard key={option.id} option={option} />
+                ))}
               </div>
             </>
           )}
 
           {filteredOptions.length === 0 && (
-            <div className='text-center py-12 text-sm text-muted-foreground'>
+            <div className='py-12 text-center text-muted-foreground text-sm'>
               No triggers found matching "{searchQuery}"
             </div>
           )}

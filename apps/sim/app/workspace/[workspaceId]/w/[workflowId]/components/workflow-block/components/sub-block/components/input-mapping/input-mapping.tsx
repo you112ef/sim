@@ -7,6 +7,33 @@ import { cn } from '@/lib/utils'
 import { useSubBlockValue } from '@/app/workspace/[workspaceId]/w/[workflowId]/components/workflow-block/components/sub-block/hooks/use-sub-block-value'
 import { useWorkflowRegistry } from '@/stores/workflows/registry/store'
 
+interface InputFormatField {
+  name: string
+  type?: string
+}
+
+interface InputTriggerBlock {
+  type: 'input_trigger'
+  subBlocks?: {
+    inputFormat?: { value?: InputFormatField[] }
+  }
+}
+
+function isInputTriggerBlock(value: unknown): value is InputTriggerBlock {
+  return (
+    !!value && typeof value === 'object' && (value as { type?: unknown }).type === 'input_trigger'
+  )
+}
+
+function isInputFormatField(value: unknown): value is InputFormatField {
+  if (typeof value !== 'object' || value === null) return false
+  if (!('name' in value)) return false
+  const { name, type } = value as { name: unknown; type?: unknown }
+  if (typeof name !== 'string' || name.trim() === '') return false
+  if (type !== undefined && typeof type !== 'string') return false
+  return true
+}
+
 interface InputMappingProps {
   blockId: string
   subBlockId: string
@@ -52,20 +79,22 @@ export function InputMapping({
           return
         }
         const { data } = await res.json()
-        const blocks = data?.state?.blocks || {}
-        const triggerEntry = Object.entries(blocks).find(
-          ([, b]: any) => b?.type === 'input_trigger'
-        )
+        const blocks = (data?.state?.blocks as Record<string, unknown>) || {}
+        const triggerEntry = Object.entries(blocks).find(([, b]) => isInputTriggerBlock(b))
         if (!triggerEntry) {
           if (isMounted) setChildInputFields([])
           return
         }
-        const triggerBlock = triggerEntry[1] as any
-        const inputFormat = triggerBlock?.subBlocks?.inputFormat?.value
+        const triggerBlock = triggerEntry[1]
+        if (!isInputTriggerBlock(triggerBlock)) {
+          if (isMounted) setChildInputFields([])
+          return
+        }
+        const inputFormat = triggerBlock.subBlocks?.inputFormat?.value
         if (Array.isArray(inputFormat)) {
-          const fields = inputFormat
-            .filter((f: any) => f && typeof f.name === 'string' && f.name.trim() !== '')
-            .map((f: any) => ({ name: f.name as string, type: f.type as string | undefined }))
+          const fields = (inputFormat as unknown[])
+            .filter(isInputFormatField)
+            .map((f) => ({ name: f.name, type: f.type }))
           if (isMounted) setChildInputFields(fields)
         } else {
           if (isMounted) setChildInputFields([])
@@ -112,8 +141,8 @@ export function InputMapping({
             d='M13 10V3L4 14h7v7l9-11h-7z'
           />
         </svg>
-        <p className='text-sm font-medium text-muted-foreground'>No workflow selected</p>
-        <p className='mt-1 text-xs text-muted-foreground/80'>
+        <p className='font-medium text-muted-foreground text-sm'>No workflow selected</p>
+        <p className='mt-1 text-muted-foreground/80 text-xs'>
           Select a workflow above to configure inputs
         </p>
       </div>
@@ -136,8 +165,8 @@ export function InputMapping({
             d='M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z'
           />
         </svg>
-        <p className='text-sm font-medium text-muted-foreground'>No input fields defined</p>
-        <p className='mt-1 text-xs text-muted-foreground/80 max-w-[200px]'>
+        <p className='font-medium text-muted-foreground text-sm'>No input fields defined</p>
+        <p className='mt-1 max-w-[200px] text-muted-foreground/80 text-xs'>
           The selected workflow needs an Input Trigger with defined fields
         </p>
       </div>
@@ -224,9 +253,9 @@ function InputMappingField({
   return (
     <div className='group relative rounded-lg border border-border/50 bg-background/50 p-3 transition-all hover:border-border hover:bg-background'>
       <div className='mb-2 flex items-center justify-between'>
-        <Label className='text-xs font-medium text-foreground'>{fieldName}</Label>
+        <Label className='font-medium text-foreground text-xs'>{fieldName}</Label>
         {fieldType && (
-          <span className='rounded-md bg-muted px-1.5 py-0.5 text-[10px] font-mono text-muted-foreground'>
+          <span className='rounded-md bg-muted px-1.5 py-0.5 font-mono text-[10px] text-muted-foreground'>
             {fieldType}
           </span>
         )}

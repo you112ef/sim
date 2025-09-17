@@ -1,6 +1,7 @@
 import { BlockPathCalculator } from '@/lib/block-path-calculator'
 import { createLogger } from '@/lib/logs/console/logger'
 import { VariableManager } from '@/lib/variables/variable-manager'
+import { TRIGGER_REFERENCE_ALIAS_MAP } from '@/lib/workflows/triggers'
 import { getBlock } from '@/blocks/index'
 import type { LoopManager } from '@/executor/loops/loops'
 import type { ExecutionContext } from '@/executor/types'
@@ -522,14 +523,8 @@ export class InputResolver {
 
       // Special case for trigger block references (start, api, chat, manual)
       const blockRefLower = blockRef.toLowerCase()
-      const triggerTypeMap: Record<string, string> = {
-        start: 'starter',
-        api: 'api_trigger',
-        chat: 'chat_trigger',
-        manual: 'input_trigger',
-      }
-
-      const triggerType = triggerTypeMap[blockRefLower]
+      const triggerType =
+        TRIGGER_REFERENCE_ALIAS_MAP[blockRefLower as keyof typeof TRIGGER_REFERENCE_ALIAS_MAP]
       if (triggerType) {
         const triggerBlock = this.workflow.blocks.find(
           (block) => block.metadata?.id === triggerType
