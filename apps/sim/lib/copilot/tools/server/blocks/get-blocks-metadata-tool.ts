@@ -301,7 +301,9 @@ function computeBlockLevelInputs(blockConfig: BlockConfig): Record<string, any> 
   return blockInputs
 }
 
-function computeOperationLevelInputs(blockConfig: BlockConfig): Record<string, Record<string, any>> {
+function computeOperationLevelInputs(
+  blockConfig: BlockConfig
+): Record<string, Record<string, any>> {
   const inputs = blockConfig.inputs || {}
   const subBlocks: any[] = Array.isArray(blockConfig.subBlocks) ? blockConfig.subBlocks : []
 
