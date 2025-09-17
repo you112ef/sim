@@ -506,22 +506,6 @@ const WorkflowContent = React.memo(() => {
       if (!type) return
       if (type === 'connectionBlock') return
 
-      // Check for single trigger constraint
-      if (TriggerUtils.wouldViolateSingleInstance(blocks, type)) {
-        // Check if it's because of a legacy starter block
-        if (TriggerUtils.hasLegacyStarter(blocks) && TriggerUtils.isAnyTriggerType(type)) {
-          setTriggerWarning({
-            open: true,
-            triggerName: 'new trigger',
-            type: TriggerWarningType.LEGACY_INCOMPATIBILITY,
-          })
-        } else {
-          const triggerName = TriggerUtils.getDefaultTriggerName(type) || 'trigger'
-          setTriggerWarning({ open: true, triggerName, type: TriggerWarningType.DUPLICATE_TRIGGER })
-        }
-        return
-      }
-
       // Special handling for container nodes (loop or parallel)
       if (type === 'loop' || type === 'parallel') {
         // Create a unique ID and name for the container
@@ -708,26 +692,6 @@ const WorkflowContent = React.memo(() => {
       try {
         const data = JSON.parse(event.dataTransfer.getData('application/json'))
         if (data.type === 'connectionBlock') return
-
-        // Check for single trigger constraint
-        if (TriggerUtils.wouldViolateSingleInstance(blocks, data.type)) {
-          // Check if it's because of a legacy starter block
-          if (TriggerUtils.hasLegacyStarter(blocks) && TriggerUtils.isAnyTriggerType(data.type)) {
-            setTriggerWarning({
-              open: true,
-              triggerName: 'new trigger',
-              type: TriggerWarningType.LEGACY_INCOMPATIBILITY,
-            })
-          } else {
-            const triggerName = TriggerUtils.getDefaultTriggerName(data.type) || 'trigger'
-            setTriggerWarning({
-              open: true,
-              triggerName,
-              type: TriggerWarningType.DUPLICATE_TRIGGER,
-            })
-          }
-          return
-        }
 
         const reactFlowBounds = event.currentTarget.getBoundingClientRect()
         const position = project({

@@ -16,13 +16,16 @@ export const getBlocksAndToolsServerTool: BaseServerTool<
     const logger = createLogger('GetBlocksAndToolsServerTool')
     logger.debug('Executing get_blocks_and_tools')
 
-    const blocks: any[] = []
+    type BlockListItem = {
+      type: string
+      name: string
+      description?: string
+      triggerAllowed?: boolean
+    }
+    const blocks: BlockListItem[] = []
 
     Object.entries(blockRegistry)
-      .filter(([_, blockConfig]: any) => {
-        if ((blockConfig as any).hideFromToolbar) return false
-        return true
-      })
+      .filter(([, blockConfig]: [string, BlockConfig]) => !blockConfig.hideFromToolbar)
       .forEach(([blockType, blockConfig]: [string, BlockConfig]) => {
         blocks.push({
           type: blockType,
@@ -32,23 +35,23 @@ export const getBlocksAndToolsServerTool: BaseServerTool<
         })
       })
 
-    const specialBlocks = {
+    const specialBlocks: Record<string, { name: string; description: string }> = {
       loop: {
         name: 'Loop',
-        longDescription:
+        description:
           'Control flow block for iterating over collections or repeating actions in a loop',
       },
       parallel: {
         name: 'Parallel',
-        longDescription: 'Control flow block for executing multiple branches simultaneously',
+        description: 'Control flow block for executing multiple branches simultaneously',
       },
     }
     Object.entries(specialBlocks).forEach(([blockType, info]) => {
       if (!blocks.some((b) => b.type === blockType)) {
         blocks.push({
           type: blockType,
-          name: (info as any).name,
-          longDescription: (info as any).longDescription,
+          name: info.name,
+          description: info.description,
         })
       }
     })

@@ -47,7 +47,6 @@ export function TriggerSelectorModal({ open, onClose, onSelect }: TriggerSelecto
     const isHovered = hoveredId === option.id
     return (
       <button
-        key={option.id}
         onClick={() => onSelect(option.id, option.enableTriggerMode)}
         onMouseEnter={() => setHoveredId(option.id)}
         onMouseLeave={() => setHoveredId(null)}

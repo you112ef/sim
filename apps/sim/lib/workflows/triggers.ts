@@ -253,10 +253,8 @@ export class TriggerUtils {
       ) {
         return true
       }
-      // Legacy starter CAN coexist with schedules and webhooks
     }
 
-    // Can't add legacy starter if Chat, Input, or API triggers exist
     if (triggerType === TRIGGER_TYPES.STARTER) {
       const hasModernTriggers = blockArray.some(
         (block) =>
@@ -267,17 +265,6 @@ export class TriggerUtils {
       if (hasModernTriggers) {
         return true
       }
-    }
-
-    // Multiple schedules are allowed
-    // Schedules can coexist with anything (except the constraint above with legacy starter)
-    if (triggerType === TRIGGER_TYPES.SCHEDULE) {
-      return false // Always allow schedules
-    }
-
-    // Webhooks can coexist with other triggers (multiple webhooks allowed)
-    if (triggerType === TRIGGER_TYPES.WEBHOOK) {
-      return false // Always allow webhooks
     }
 
     // Only one Input trigger allowed
@@ -295,7 +282,7 @@ export class TriggerUtils {
       return blockArray.some((block) => block.type === TRIGGER_TYPES.CHAT)
     }
 
-    // For other trigger types, check single-instance rules
+    // Centralized rule: only API, Input, Chat are single-instance
     if (!TriggerUtils.requiresSingleInstance(triggerType)) {
       return false
     }
