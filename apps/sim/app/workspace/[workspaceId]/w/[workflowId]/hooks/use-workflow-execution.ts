@@ -732,15 +732,31 @@ export function useWorkflowExecution() {
           selectedBlockId = blockEntry[0]
         }
       } else if (manualTriggers.length > 1) {
-        const error = new Error('Multiple Manual Trigger blocks found. Keep only one.')
-        logger.error('Multiple manual triggers found')
+        const error = new Error('Multiple Input Trigger blocks found. Keep only one.')
+        logger.error('Multiple input triggers found')
         setIsExecuting(false)
         throw error
       } else {
-        const error = new Error('Manual run requires a Manual Trigger or API Trigger block')
-        logger.error('No manual or API triggers found for manual run')
-        setIsExecuting(false)
-        throw error
+        // Fallback: Check for legacy starter block
+        const starterBlock = Object.values(filteredStates).find((block) => block.type === 'starter')
+        if (starterBlock) {
+          // Found a legacy starter block, use it as a manual trigger
+          const blockEntry = Object.entries(filteredStates).find(
+            ([, block]) => block === starterBlock
+          )
+          if (blockEntry) {
+            selectedBlockId = blockEntry[0]
+            selectedTrigger = starterBlock
+            logger.info('Using legacy starter block for manual run')
+          }
+        }
+
+        if (!selectedBlockId || !selectedTrigger) {
+          const error = new Error('Manual run requires an Input Trigger or API Trigger block')
+          logger.error('No input or API triggers found for manual run')
+          setIsExecuting(false)
+          throw error
+        }
       }
 
       if (selectedBlockId && selectedTrigger) {

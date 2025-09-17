@@ -4,7 +4,7 @@ import { getBlock } from '@/blocks'
  * Unified trigger type definitions
  */
 export const TRIGGER_TYPES = {
-  MANUAL: 'manual_trigger',
+  INPUT: 'input_trigger',
   CHAT: 'chat_trigger',
   API: 'api_trigger',
   WEBHOOK: 'webhook',
@@ -46,7 +46,7 @@ export class TriggerUtils {
    */
   static isAnyTriggerType(type: string): boolean {
     return (
-      type === TRIGGER_TYPES.MANUAL ||
+      type === TRIGGER_TYPES.INPUT ||
       type === TRIGGER_TYPES.CHAT ||
       type === TRIGGER_TYPES.API ||
       type === TRIGGER_TYPES.WEBHOOK ||
@@ -74,13 +74,15 @@ export class TriggerUtils {
    * Check if a block is a manual-compatible trigger
    */
   static isManualTrigger(block: { type: string; subBlocks?: any }): boolean {
-    if (block.type === TRIGGER_TYPES.MANUAL) {
+    if (block.type === TRIGGER_TYPES.INPUT) {
       return true
     }
 
-    // Legacy: starter block in manual mode
+    // Legacy: starter block in manual mode or without explicit mode (default to manual)
     if (block.type === TRIGGER_TYPES.STARTER) {
-      return block.subBlocks?.startWorkflow?.value === 'manual'
+      // If startWorkflow is not set or is set to 'manual', treat as manual trigger
+      const startWorkflowValue = block.subBlocks?.startWorkflow?.value
+      return startWorkflowValue === 'manual' || startWorkflowValue === undefined
     }
 
     return false
@@ -88,8 +90,15 @@ export class TriggerUtils {
 
   /**
    * Check if a block is an API-compatible trigger
+   * @param block - Block to check
+   * @param isChildWorkflow - Whether this is being called from a child workflow context
    */
-  static isApiTrigger(block: { type: string; subBlocks?: any }): boolean {
+  static isApiTrigger(block: { type: string; subBlocks?: any }, isChildWorkflow = false): boolean {
+    if (isChildWorkflow) {
+      // Child workflows (workflow-in-workflow) only work with input_trigger
+      return block.type === TRIGGER_TYPES.INPUT
+    }
+    // Direct API calls only work with api_trigger
     if (block.type === TRIGGER_TYPES.API) {
       return true
     }
@@ -121,8 +130,8 @@ export class TriggerUtils {
     switch (triggerType) {
       case TRIGGER_TYPES.CHAT:
         return 'Chat'
-      case TRIGGER_TYPES.MANUAL:
-        return 'Manual'
+      case TRIGGER_TYPES.INPUT:
+        return 'Input Trigger'
       case TRIGGER_TYPES.API:
         return 'API'
       case TRIGGER_TYPES.WEBHOOK:
@@ -139,7 +148,8 @@ export class TriggerUtils {
    */
   static findTriggersByType<T extends { type: string; subBlocks?: any }>(
     blocks: T[] | Record<string, T>,
-    triggerType: 'chat' | 'manual' | 'api'
+    triggerType: 'chat' | 'manual' | 'api',
+    isChildWorkflow = false
   ): T[] {
     const blockArray = Array.isArray(blocks) ? blocks : Object.values(blocks)
 
@@ -149,7 +159,7 @@ export class TriggerUtils {
       case 'manual':
         return blockArray.filter((block) => TriggerUtils.isManualTrigger(block))
       case 'api':
-        return blockArray.filter((block) => TriggerUtils.isApiTrigger(block))
+        return blockArray.filter((block) => TriggerUtils.isApiTrigger(block, isChildWorkflow))
       default:
         return []
     }
@@ -160,12 +170,13 @@ export class TriggerUtils {
    */
   static findStartBlock<T extends { type: string; subBlocks?: any }>(
     blocks: Record<string, T>,
-    executionType: 'chat' | 'manual' | 'api'
+    executionType: 'chat' | 'manual' | 'api',
+    isChildWorkflow = false
   ): { blockId: string; block: T } | null {
     const entries = Object.entries(blocks)
 
     // Look for new trigger blocks first
-    const triggers = TriggerUtils.findTriggersByType(blocks, executionType)
+    const triggers = TriggerUtils.findTriggersByType(blocks, executionType, isChildWorkflow)
     if (triggers.length > 0) {
       const blockId = entries.find(([, b]) => b === triggers[0])?.[0]
       if (blockId) {
@@ -200,7 +211,7 @@ export class TriggerUtils {
   static requiresSingleInstance(triggerType: string): boolean {
     return (
       triggerType === TRIGGER_TYPES.API ||
-      triggerType === TRIGGER_TYPES.MANUAL ||
+      triggerType === TRIGGER_TYPES.INPUT ||
       triggerType === TRIGGER_TYPES.CHAT
     )
   }

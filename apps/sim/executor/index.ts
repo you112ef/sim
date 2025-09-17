@@ -766,10 +766,34 @@ export class Executor {
       // Starting from a specific block (webhook trigger, schedule trigger, or new trigger blocks)
       initBlock = this.actualWorkflow.blocks.find((block) => block.id === startBlockId)
     } else {
-      // Default to starter block (legacy)
+      // Default to starter block (legacy) or find any trigger block
       initBlock = this.actualWorkflow.blocks.find(
         (block) => block.metadata?.id === BlockType.STARTER
       )
+
+      // If no starter block, look for appropriate trigger block based on context
+      if (!initBlock) {
+        if (this.isChildExecution) {
+          // Child workflows only use Input Trigger blocks
+          const inputTriggerBlocks = this.actualWorkflow.blocks.filter(
+            (block) => block.metadata?.id === 'input_trigger'
+          )
+          if (inputTriggerBlocks.length > 0) {
+            initBlock = inputTriggerBlocks[0]
+          }
+        } else {
+          // Parent workflows can use any trigger block
+          const triggerBlocks = this.actualWorkflow.blocks.filter(
+            (block) =>
+              block.metadata?.id === 'input_trigger' ||
+              block.metadata?.id === 'api_trigger' ||
+              block.metadata?.id === 'chat_trigger'
+          )
+          if (triggerBlocks.length > 0) {
+            initBlock = triggerBlocks[0]
+          }
+        }
+      }
     }
 
     if (initBlock) {
@@ -852,9 +876,21 @@ export class Executor {
           // Initialize the starting block with structured input
           let blockOutput: any
 
-          // For API triggers, fields should be at root level without 'input' field
-          if (initBlock.metadata?.id === 'api_trigger') {
-            blockOutput = { ...finalInput }
+          // For API/Input triggers, normalize primitives and mirror objects under input
+          if (
+            initBlock.metadata?.id === 'api_trigger' ||
+            initBlock.metadata?.id === 'input_trigger'
+          ) {
+            const isObject =
+              finalInput !== null && typeof finalInput === 'object' && !Array.isArray(finalInput)
+            if (isObject) {
+              blockOutput = { ...finalInput }
+              // Provide a mirrored input object for universal <start.input> references
+              blockOutput.input = { ...finalInput }
+            } else {
+              // Primitive input: only expose under input
+              blockOutput = { input: finalInput }
+            }
           } else {
             // For legacy starter blocks, keep the old behavior
             blockOutput = {
@@ -893,12 +929,27 @@ export class Executor {
             if (this.workflowInput?.files && Array.isArray(this.workflowInput.files)) {
               starterOutput.files = this.workflowInput.files
             }
-          } else if (initBlock.metadata?.id === 'manual_trigger') {
-            // Manual trigger: no outputs
-            starterOutput = {}
-          } else if (initBlock.metadata?.id === 'api_trigger') {
-            // API trigger without inputFormat: spread the raw input directly
-            starterOutput = { ...(this.workflowInput || {}) }
+          } else if (
+            initBlock.metadata?.id === 'api_trigger' ||
+            initBlock.metadata?.id === 'input_trigger'
+          ) {
+            // API/Input trigger without inputFormat: normalize primitives and mirror objects under input
+            const rawCandidate =
+              this.workflowInput?.input !== undefined
+                ? this.workflowInput.input
+                : this.workflowInput
+            const isObject =
+              rawCandidate !== null &&
+              typeof rawCandidate === 'object' &&
+              !Array.isArray(rawCandidate)
+            if (isObject) {
+              starterOutput = {
+                ...(rawCandidate as Record<string, any>),
+                input: { ...(rawCandidate as Record<string, any>) },
+              }
+            } else {
+              starterOutput = { input: rawCandidate }
+            }
           } else {
             // Legacy starter block handling
             if (this.workflowInput && typeof this.workflowInput === 'object') {

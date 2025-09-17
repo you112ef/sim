@@ -625,13 +625,13 @@ const WorkflowContent = React.memo(() => {
           return
         }
       }
-      // Enforce only one Manual trigger for manual run UX
-      if (type === 'manual_trigger') {
-        const existingManualTriggers = Object.values(blocks).filter(
-          (b) => b.type === 'manual_trigger'
+      // Enforce only one Input trigger (single entry point for manual run UX)
+      if (type === 'input_trigger') {
+        const existingInputTriggers = Object.values(blocks).filter(
+          (b) => b.type === 'input_trigger'
         )
-        if (existingManualTriggers.length >= 1) {
-          logger.warn('Only one Manual trigger is recommended; manual run uses a single trigger')
+        if (existingInputTriggers.length >= 1) {
+          logger.warn('Only one Input trigger is recommended; manual run uses a single trigger')
           return
         }
       }

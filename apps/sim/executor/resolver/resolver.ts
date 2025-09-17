@@ -526,7 +526,7 @@ export class InputResolver {
         start: 'starter',
         api: 'api_trigger',
         chat: 'chat_trigger',
-        manual: 'manual_trigger',
+        manual: 'input_trigger',
       }
 
       const triggerType = triggerTypeMap[blockRefLower]

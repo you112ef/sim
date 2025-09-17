@@ -31,12 +31,12 @@ import { GoogleSheetsBlock } from '@/blocks/blocks/google_sheets'
 import { HuggingFaceBlock } from '@/blocks/blocks/huggingface'
 import { HunterBlock } from '@/blocks/blocks/hunter'
 import { ImageGeneratorBlock } from '@/blocks/blocks/image_generator'
+import { InputTriggerBlock } from '@/blocks/blocks/input_trigger'
 import { JinaBlock } from '@/blocks/blocks/jina'
 import { JiraBlock } from '@/blocks/blocks/jira'
 import { KnowledgeBlock } from '@/blocks/blocks/knowledge'
 import { LinearBlock } from '@/blocks/blocks/linear'
 import { LinkupBlock } from '@/blocks/blocks/linkup'
-import { ManualTriggerBlock } from '@/blocks/blocks/manual_trigger'
 import { McpBlock } from '@/blocks/blocks/mcp'
 import { Mem0Block } from '@/blocks/blocks/mem0'
 import { MemoryBlock } from '@/blocks/blocks/memory'
@@ -79,6 +79,7 @@ import { WebhookBlock } from '@/blocks/blocks/webhook'
 import { WhatsAppBlock } from '@/blocks/blocks/whatsapp'
 import { WikipediaBlock } from '@/blocks/blocks/wikipedia'
 import { WorkflowBlock } from '@/blocks/blocks/workflow'
+import { WorkflowInputBlock } from '@/blocks/blocks/workflow_input'
 import { XBlock } from '@/blocks/blocks/x'
 import { YouTubeBlock } from '@/blocks/blocks/youtube'
 import type { BlockConfig } from '@/blocks/types'
@@ -145,7 +146,7 @@ export const registry: Record<string, BlockConfig> = {
   stagehand_agent: StagehandAgentBlock,
   slack: SlackBlock,
   starter: StarterBlock,
-  manual_trigger: ManualTriggerBlock,
+  input_trigger: InputTriggerBlock,
   chat_trigger: ChatTriggerBlock,
   api_trigger: ApiTriggerBlock,
   supabase: SupabaseBlock,
@@ -161,6 +162,7 @@ export const registry: Record<string, BlockConfig> = {
   whatsapp: WhatsAppBlock,
   wikipedia: WikipediaBlock,
   workflow: WorkflowBlock,
+  workflow_input: WorkflowInputBlock,
   x: XBlock,
   youtube: YouTubeBlock,
 }

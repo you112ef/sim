@@ -274,8 +274,8 @@ async function executeWorkflow(
     )
 
     // Determine API trigger start block
-    // API execution ONLY works with API trigger blocks (or legacy starter in api/run mode)
-    const startBlock = TriggerUtils.findStartBlock(mergedStates, 'api')
+    // Direct API execution ONLY works with API trigger blocks (or legacy starter in api/run mode)
+    const startBlock = TriggerUtils.findStartBlock(mergedStates, 'api', false) // isChildWorkflow = false
 
     if (!startBlock) {
       logger.error(`[${requestId}] No API trigger configured for this workflow`)

@@ -55,8 +55,8 @@ export function getBlockOutputs(
     const inputFormatValue = subBlocks.inputFormat.value
 
     if (Array.isArray(inputFormatValue)) {
-      // For API trigger, only use inputFormat fields
-      if (blockType === 'api_trigger') {
+      // For API and Input triggers, only use inputFormat fields
+      if (blockType === 'api_trigger' || blockType === 'input_trigger') {
         outputs = {} // Clear all default outputs
 
         // Add each field from inputFormat as an output at root level
@@ -69,8 +69,8 @@ export function getBlockOutputs(
           }
         })
       }
-    } else if (blockType === 'api_trigger') {
-      // If no inputFormat defined, API trigger has no outputs
+    } else if (blockType === 'api_trigger' || blockType === 'input_trigger') {
+      // If no inputFormat defined, API/Input trigger has no outputs
       outputs = {}
     }
   }
