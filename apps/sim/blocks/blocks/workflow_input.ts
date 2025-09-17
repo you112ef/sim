@@ -21,7 +21,7 @@ export const WorkflowInputBlock: BlockConfig = {
   name: 'Workflow',
   description: 'Execute another workflow and map variables to its Input Trigger schema.',
   category: 'blocks',
-  bgColor: '#705335',
+  bgColor: '#6366F1', // Indigo - modern and professional
   icon: WorkflowIcon,
   subBlocks: [
     {

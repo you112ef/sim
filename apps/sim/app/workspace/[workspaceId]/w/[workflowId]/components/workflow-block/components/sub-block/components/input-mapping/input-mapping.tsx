@@ -98,22 +98,54 @@ export function InputMapping({
 
   if (!selectedWorkflowId) {
     return (
-      <div className='rounded-lg border border-dashed p-8 text-center text-sm text-muted-foreground'>
-        Select a workflow first.
+      <div className='flex flex-col items-center justify-center rounded-lg border border-border/50 bg-muted/30 p-8 text-center'>
+        <svg
+          className='mb-3 h-10 w-10 text-muted-foreground/60'
+          fill='none'
+          viewBox='0 0 24 24'
+          stroke='currentColor'
+        >
+          <path
+            strokeLinecap='round'
+            strokeLinejoin='round'
+            strokeWidth={1.5}
+            d='M13 10V3L4 14h7v7l9-11h-7z'
+          />
+        </svg>
+        <p className='text-sm font-medium text-muted-foreground'>No workflow selected</p>
+        <p className='mt-1 text-xs text-muted-foreground/80'>
+          Select a workflow above to configure inputs
+        </p>
       </div>
     )
   }
 
   if (!childInputFields || childInputFields.length === 0) {
     return (
-      <div className='rounded-lg border border-dashed p-8 text-center text-sm text-muted-foreground'>
-        The selected workflow must have an Input Trigger with a defined input format to show fields.
+      <div className='flex flex-col items-center justify-center rounded-lg border border-border/50 bg-muted/30 p-8 text-center'>
+        <svg
+          className='mb-3 h-10 w-10 text-muted-foreground/60'
+          fill='none'
+          viewBox='0 0 24 24'
+          stroke='currentColor'
+        >
+          <path
+            strokeLinecap='round'
+            strokeLinejoin='round'
+            strokeWidth={1.5}
+            d='M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z'
+          />
+        </svg>
+        <p className='text-sm font-medium text-muted-foreground'>No input fields defined</p>
+        <p className='mt-1 text-xs text-muted-foreground/80 max-w-[200px]'>
+          The selected workflow needs an Input Trigger with defined fields
+        </p>
       </div>
     )
   }
 
   return (
-    <div className='space-y-3'>
+    <div className='space-y-4'>
       {childInputFields.map((field) => {
         return (
           <InputMappingField
@@ -152,7 +184,6 @@ function InputMappingField({
 }) {
   const [showTags, setShowTags] = useState(false)
   const [cursorPosition, setCursorPosition] = useState(0)
-  const [activeSourceBlockId, setActiveSourceBlockId] = useState<string | null>(null)
   const inputRef = useRef<HTMLInputElement>(null)
   const overlayRef = useRef<HTMLDivElement>(null)
 
@@ -188,63 +219,24 @@ function InputMappingField({
 
   const handleTagSelect = (newValue: string) => {
     onChange(newValue)
-    // Don't emit tag selection here - onChange already updates the parent which handles the state update
-    // emitTagSelection was overwriting the entire inputMapping object with just a string value
-  }
-
-  // Drag and Drop handlers
-  const handleDragOver = (e: React.DragEvent<HTMLInputElement>) => {
-    e.preventDefault()
-  }
-
-  const handleDrop = (e: React.DragEvent<HTMLInputElement>) => {
-    e.preventDefault()
-
-    try {
-      const data = JSON.parse(e.dataTransfer.getData('application/json'))
-      if (data.type !== 'connectionBlock') return
-
-      // Get current cursor position or append to end
-      const dropPosition = inputRef.current?.selectionStart ?? value.length ?? 0
-
-      // Insert '<' at drop position to trigger the dropdown
-      const newValue = `${value.slice(0, dropPosition)}<${value.slice(dropPosition)}`
-
-      // Focus the input first
-      inputRef.current?.focus()
-
-      // Update all state in a single batch
-      Promise.resolve().then(() => {
-        onChange(newValue)
-        setCursorPosition(dropPosition + 1)
-        setShowTags(true)
-
-        // Pass the source block ID from the dropped connection
-        if (data.connectionData?.sourceBlockId) {
-          setActiveSourceBlockId(data.connectionData.sourceBlockId)
-        }
-
-        // Set cursor position after state updates
-        setTimeout(() => {
-          if (inputRef.current) {
-            inputRef.current.selectionStart = dropPosition + 1
-            inputRef.current.selectionEnd = dropPosition + 1
-          }
-        }, 0)
-      })
-    } catch (error) {
-      console.error('Failed to parse drop data:', error)
-    }
   }
 
   return (
-    <div className='space-y-1.5'>
-      <Label className='text-sm'>{fieldName}</Label>
-      <div className='group relative w-full'>
+    <div className='group relative rounded-lg border border-border/50 bg-background/50 p-3 transition-all hover:border-border hover:bg-background'>
+      <div className='mb-2 flex items-center justify-between'>
+        <Label className='text-xs font-medium text-foreground'>{fieldName}</Label>
+        {fieldType && (
+          <span className='rounded-md bg-muted px-1.5 py-0.5 text-[10px] font-mono text-muted-foreground'>
+            {fieldType}
+          </span>
+        )}
+      </div>
+      <div className='relative w-full'>
         <Input
           ref={inputRef}
           className={cn(
-            'allow-scroll w-full overflow-auto text-transparent caret-foreground placeholder:text-muted-foreground/50'
+            'allow-scroll h-9 w-full overflow-auto border-0 bg-muted/50 text-transparent caret-foreground placeholder:text-muted-foreground/50 focus:bg-background',
+            'transition-colors duration-200'
           )}
           type='text'
           value={value}
@@ -255,8 +247,6 @@ function InputMappingField({
           onBlur={() => {
             setShowTags(false)
           }}
-          onDrop={handleDrop}
-          onDragOver={handleDragOver}
           onScroll={handleScroll}
           onKeyDown={handleKeyDown}
           autoComplete='off'
@@ -280,12 +270,11 @@ function InputMappingField({
           visible={showTags}
           onSelect={handleTagSelect}
           blockId={blockId}
-          activeSourceBlockId={activeSourceBlockId}
+          activeSourceBlockId={null}
           inputValue={value}
           cursorPosition={cursorPosition}
           onClose={() => {
             setShowTags(false)
-            setActiveSourceBlockId(null)
           }}
         />
       </div>
