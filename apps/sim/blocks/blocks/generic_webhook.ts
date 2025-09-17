@@ -8,6 +8,7 @@ export const GenericWebhookBlock: BlockConfig = {
   category: 'triggers',
   icon: WebhookIcon,
   bgColor: '#10B981', // Green color for triggers
+  triggerAllowed: true,
 
   subBlocks: [
     // Generic webhook configuration - always visible
