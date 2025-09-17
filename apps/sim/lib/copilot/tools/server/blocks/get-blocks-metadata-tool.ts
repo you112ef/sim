@@ -91,7 +91,7 @@ export const getBlocksMetadataServerTool: BaseServerTool<
         }
         ;(metadata as any).subBlocks = undefined
       } else {
-        const blockConfig: BlockConfig | undefined = (blockRegistry as any)[blockId]
+        const blockConfig: BlockConfig | undefined = blockRegistry[blockId]
         if (!blockConfig) {
           logger.debug('Block not found in registry', { blockId })
           continue
@@ -103,7 +103,7 @@ export const getBlocksMetadataServerTool: BaseServerTool<
         }
         const tools: CopilotToolMetadata[] = Array.isArray(blockConfig.tools?.access)
           ? blockConfig.tools!.access.map((toolId) => {
-              const tool: any = (toolsRegistry as any)[toolId]
+              const tool = toolsRegistry[toolId]
               if (!tool) return { id: toolId, name: toolId }
               return {
                 id: toolId,
@@ -136,7 +136,7 @@ export const getBlocksMetadataServerTool: BaseServerTool<
         const operations: Record<string, any> = {}
         for (const opId of operationIds) {
           const resolvedToolId = resolveToolIdForOperation(blockConfig, opId)
-          const toolCfg: any = resolvedToolId ? (toolsRegistry as any)[resolvedToolId] : undefined
+          const toolCfg = resolvedToolId ? toolsRegistry[resolvedToolId] : undefined
           const toolParams: Record<string, any> = toolCfg?.params || {}
           const toolOutputs: Record<string, any> = toolCfg?.outputs || {}
           const filteredToolParams: Record<string, any> = {}
@@ -305,18 +305,18 @@ function computeOperationLevelInputs(
   blockConfig: BlockConfig
 ): Record<string, Record<string, any>> {
   const inputs = blockConfig.inputs || {}
-  const subBlocks: any[] = Array.isArray(blockConfig.subBlocks) ? blockConfig.subBlocks : []
+  const subBlocks = Array.isArray(blockConfig.subBlocks) ? blockConfig.subBlocks : []
 
   const opInputs: Record<string, Record<string, any>> = {}
 
   // Map subblocks to inputs keys via id or canonicalParamId and collect by operation
   for (const sb of subBlocks) {
-    const cond = normalizeCondition((sb as any).condition)
+    const cond = normalizeCondition(sb.condition)
     if (!cond || cond.field !== 'operation' || cond.not) continue
     const keys: string[] = []
-    if ((sb as any).canonicalParamId) keys.push((sb as any).canonicalParamId)
-    if ((sb as any).id) keys.push((sb as any).id)
-    const values: any[] = Array.isArray(cond.value) ? cond.value : [cond.value]
+    if (sb.canonicalParamId) keys.push(sb.canonicalParamId)
+    if (sb.id) keys.push(sb.id)
+    const values = Array.isArray(cond.value) ? cond.value : [cond.value]
     for (const key of keys) {
       if (!(key in inputs)) continue
       for (const v of values) {
@@ -335,9 +335,9 @@ function resolveOperationIds(
   operationParameters: Record<string, CopilotSubblockMetadata[]>
 ): string[] {
   // Prefer explicit operation subblock options if present
-  const opBlock: any = (blockConfig.subBlocks || []).find((sb: any) => sb.id === 'operation')
+  const opBlock = (blockConfig.subBlocks || []).find((sb) => sb.id === 'operation')
   if (opBlock && Array.isArray(opBlock.options)) {
-    const ids = opBlock.options.map((o: any) => o.id).filter(Boolean)
+    const ids = opBlock.options.map((o) => o.id).filter(Boolean)
     if (ids.length > 0) return ids
   }
   // Fallback: keys from operationParameters
@@ -346,7 +346,7 @@ function resolveOperationIds(
 
 function resolveToolIdForOperation(blockConfig: BlockConfig, opId: string): string | undefined {
   try {
-    const toolSelector = (blockConfig.tools as any)?.config?.tool
+    const toolSelector = blockConfig.tools?.config?.tool
     if (typeof toolSelector === 'function') {
       const maybeToolId = toolSelector({ operation: opId })
       if (typeof maybeToolId === 'string') return maybeToolId
