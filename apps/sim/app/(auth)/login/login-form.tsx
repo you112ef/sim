@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react'
 import { Eye, EyeOff } from 'lucide-react'
 import Link from 'next/link'
-import { useRouter, useSearchParams } from 'next/navigation'
+import { useSearchParams } from 'next/navigation'
 import { Button } from '@/components/ui/button'
 import {
   Dialog,
@@ -19,6 +19,7 @@ import { quickValidateEmail } from '@/lib/email/validation'
 import { createLogger } from '@/lib/logs/console/logger'
 import { cn } from '@/lib/utils'
 import { SocialLoginButtons } from '@/app/(auth)/components/social-login-buttons'
+import { useButtonStyle } from '@/app/(auth)/hooks/use-button-style'
 import { inter } from '@/app/fonts/inter'
 import { soehne } from '@/app/fonts/soehne/soehne'
 
@@ -74,12 +75,12 @@ const validatePassword = (passwordValue: string): string[] => {
 
   if (!PASSWORD_VALIDATIONS.required.test(passwordValue)) {
     errors.push(PASSWORD_VALIDATIONS.required.message)
-    return errors // Return early for required field
+    return errors
   }
 
   if (!PASSWORD_VALIDATIONS.notEmpty.test(passwordValue)) {
     errors.push(PASSWORD_VALIDATIONS.notEmpty.message)
-    return errors // Return early for empty field
+    return errors
   }
 
   return errors
@@ -88,21 +89,18 @@ const validatePassword = (passwordValue: string): string[] => {
 export default function LoginPage({
   githubAvailable,
   googleAvailable,
-  isProduction,
 }: {
   githubAvailable: boolean
   googleAvailable: boolean
-  isProduction: boolean
 }) {
-  const router = useRouter()
   const searchParams = useSearchParams()
   const [isLoading, setIsLoading] = useState(false)
-  const [_mounted, setMounted] = useState(false)
+  const [, setMounted] = useState(false)
   const [showPassword, setShowPassword] = useState(false)
   const [password, setPassword] = useState('')
   const [passwordErrors, setPasswordErrors] = useState<string[]>([])
   const [showValidationError, setShowValidationError] = useState(false)
-  const [buttonClass, setButtonClass] = useState('auth-button-gradient')
+  const buttonClass = useButtonStyle()
 
   // Initialize state for URL parameters
   const [callbackUrl, setCallbackUrl] = useState('/workspace')
@@ -122,53 +120,21 @@ export default function LoginPage({
   const [emailErrors, setEmailErrors] = useState<string[]>([])
   const [showEmailValidationError, setShowEmailValidationError] = useState(false)
 
-  // Extract URL parameters after component mounts to avoid SSR issues
   useEffect(() => {
     setMounted(true)
 
-    // Only access search params on the client side
     if (searchParams) {
       const callback = searchParams.get('callbackUrl')
       if (callback) {
-        // Validate the callbackUrl before setting it
         if (validateCallbackUrl(callback)) {
           setCallbackUrl(callback)
         } else {
           logger.warn('Invalid callback URL detected and blocked:', { url: callback })
-          // Keep the default safe value ('/workspace')
         }
       }
 
       const inviteFlow = searchParams.get('invite_flow') === 'true'
       setIsInviteFlow(inviteFlow)
-    }
-
-    // Check if CSS variable has been customized
-    const checkCustomBrand = () => {
-      const computedStyle = getComputedStyle(document.documentElement)
-      const brandAccent = computedStyle.getPropertyValue('--brand-accent-hex').trim()
-
-      // Check if the CSS variable exists and is different from the default
-      if (brandAccent && brandAccent !== '#6f3dfa') {
-        setButtonClass('auth-button-custom')
-      } else {
-        setButtonClass('auth-button-gradient')
-      }
-    }
-
-    checkCustomBrand()
-
-    // Also check on window resize or theme changes
-    window.addEventListener('resize', checkCustomBrand)
-    const observer = new MutationObserver(checkCustomBrand)
-    observer.observe(document.documentElement, {
-      attributes: true,
-      attributeFilter: ['style', 'class'],
-    })
-
-    return () => {
-      window.removeEventListener('resize', checkCustomBrand)
-      observer.disconnect()
     }
   }, [searchParams])
 
@@ -189,7 +155,6 @@ export default function LoginPage({
     const newEmail = e.target.value
     setEmail(newEmail)
 
-    // Silently validate but don't show errors until submit
     const errors = validateEmailField(newEmail)
     setEmailErrors(errors)
     setShowEmailValidationError(false)
@@ -199,7 +164,6 @@ export default function LoginPage({
     const newPassword = e.target.value
     setPassword(newPassword)
 
-    // Silently validate but don't show errors until submit
     const errors = validatePassword(newPassword)
     setPasswordErrors(errors)
     setShowValidationError(false)
@@ -212,24 +176,20 @@ export default function LoginPage({
     const formData = new FormData(e.currentTarget)
     const email = formData.get('email') as string
 
-    // Validate email on submit
     const emailValidationErrors = validateEmailField(email)
     setEmailErrors(emailValidationErrors)
     setShowEmailValidationError(emailValidationErrors.length > 0)
 
-    // Validate password on submit
     const passwordValidationErrors = validatePassword(password)
     setPasswordErrors(passwordValidationErrors)
     setShowValidationError(passwordValidationErrors.length > 0)
 
-    // If there are validation errors, stop submission
     if (emailValidationErrors.length > 0 || passwordValidationErrors.length > 0) {
       setIsLoading(false)
       return
     }
 
     try {
-      // Final validation before submission
       const safeCallbackUrl = validateCallbackUrl(callbackUrl) ? callbackUrl : '/workspace'
 
       const result = await client.signIn.email(
@@ -243,8 +203,9 @@ export default function LoginPage({
             console.error('Login error:', ctx.error)
             const errorMessage: string[] = ['Invalid email or password']
 
+            // EMAIL_NOT_VERIFIED errors won't occur since we disabled native verification
             if (ctx.error.code?.includes('EMAIL_NOT_VERIFIED')) {
-              return
+              errorMessage.push('Please verify your email address first.')
             }
             if (
               ctx.error.code?.includes('BAD_REQUEST') ||
@@ -291,35 +252,7 @@ export default function LoginPage({
         setIsLoading(false)
         return
       }
-
-      // Mark that the user has previously logged in
-      if (typeof window !== 'undefined') {
-        localStorage.setItem('has_logged_in_before', 'true')
-        document.cookie = 'has_logged_in_before=true; path=/; max-age=31536000; SameSite=Lax' // 1 year expiry
-      }
     } catch (err: any) {
-      // Handle only the special verification case that requires a redirect
-      if (err.message?.includes('not verified') || err.code?.includes('EMAIL_NOT_VERIFIED')) {
-        try {
-          await client.emailOtp.sendVerificationOtp({
-            email,
-            type: 'email-verification',
-          })
-
-          if (typeof window !== 'undefined') {
-            sessionStorage.setItem('verificationEmail', email)
-          }
-
-          router.push('/verify')
-          return
-        } catch (_verifyErr) {
-          setPasswordErrors(['Failed to send verification code. Please try again later.'])
-          setShowValidationError(true)
-          setIsLoading(false)
-          return
-        }
-      }
-
       console.error('Uncaught login error:', err)
     } finally {
       setIsLoading(false)
@@ -514,7 +447,6 @@ export default function LoginPage({
       <SocialLoginButtons
         googleAvailable={googleAvailable}
         githubAvailable={githubAvailable}
-        isProduction={isProduction}
         callbackURL={callbackUrl}
       />
 

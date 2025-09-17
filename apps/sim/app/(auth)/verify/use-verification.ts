@@ -2,15 +2,13 @@
 
 import { useEffect, useState } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
-import { client, useSession } from '@/lib/auth-client'
-import { env, isTruthy } from '@/lib/env'
+import { client } from '@/lib/auth-client'
 import { createLogger } from '@/lib/logs/console/logger'
 
 const logger = createLogger('useVerification')
 
 interface UseVerificationParams {
   hasResendKey: boolean
-  isProduction: boolean
 }
 
 interface UseVerificationReturn {
@@ -21,85 +19,74 @@ interface UseVerificationReturn {
   isInvalidOtp: boolean
   errorMessage: string
   isOtpComplete: boolean
-  hasResendKey: boolean
-  isProduction: boolean
+  isFromSignup: boolean
   verifyCode: () => Promise<void>
   resendCode: () => void
   handleOtpChange: (value: string) => void
+  goBackToAuth: () => void
 }
 
-export function useVerification({
-  hasResendKey,
-  isProduction,
-}: UseVerificationParams): UseVerificationReturn {
+export function useVerification({ hasResendKey }: UseVerificationParams): UseVerificationReturn {
   const router = useRouter()
   const searchParams = useSearchParams()
-  const { refetch: refetchSession } = useSession()
   const [otp, setOtp] = useState('')
   const [email, setEmail] = useState('')
   const [isLoading, setIsLoading] = useState(false)
   const [isVerified, setIsVerified] = useState(false)
-  const [isSendingInitialOtp, setIsSendingInitialOtp] = useState(false)
   const [isInvalidOtp, setIsInvalidOtp] = useState(false)
   const [errorMessage, setErrorMessage] = useState('')
   const [redirectUrl, setRedirectUrl] = useState<string | null>(null)
   const [isInviteFlow, setIsInviteFlow] = useState(false)
+  const [isFromSignup, setIsFromSignup] = useState(false)
 
   useEffect(() => {
-    if (typeof window !== 'undefined') {
-      // Get stored email
-      const storedEmail = sessionStorage.getItem('verificationEmail')
-      if (storedEmail) {
-        setEmail(storedEmail)
-      }
-
-      // Check for redirect information
-      const storedRedirectUrl = sessionStorage.getItem('inviteRedirectUrl')
-      if (storedRedirectUrl) {
-        setRedirectUrl(storedRedirectUrl)
-      }
-
-      // Check if this is an invite flow
-      const storedIsInviteFlow = sessionStorage.getItem('isInviteFlow')
-      if (storedIsInviteFlow === 'true') {
-        setIsInviteFlow(true)
-      }
-    }
-
-    // Also check URL parameters for redirect information
     const redirectParam = searchParams.get('redirectAfter')
     if (redirectParam) {
       setRedirectUrl(redirectParam)
     }
 
-    // Check for invite_flow parameter
     const inviteFlowParam = searchParams.get('invite_flow')
     if (inviteFlowParam === 'true') {
       setIsInviteFlow(true)
     }
+
+    const fromSignupParam = searchParams.get('fromSignup')
+    if (fromSignupParam === 'true') {
+      setIsFromSignup(true)
+    }
+
+    const emailParam = searchParams.get('email')
+    if (emailParam) {
+      setEmail(decodeURIComponent(emailParam))
+    }
   }, [searchParams])
 
-  // Send initial OTP code if this is the first load
+  // Auto-send OTP when arriving from workspace redirect (not from signup)
   useEffect(() => {
-    if (email && !isSendingInitialOtp && hasResendKey) {
-      setIsSendingInitialOtp(true)
+    logger.info('Auto-send OTP effect running', {
+      email: !!email,
+      isFromSignup,
+      isLoading,
+      hasResendKey,
+      shouldSend: email && !isFromSignup && !isLoading && hasResendKey,
+    })
 
-      // Only send verification OTP if we're coming from login page
-      // Skip this if coming from signup since the OTP is already sent
-      if (!searchParams.get('fromSignup')) {
-        client.emailOtp
-          .sendVerificationOtp({
-            email,
-            type: 'email-verification',
-          })
-          .then(() => {})
-          .catch((error) => {
-            logger.error('Failed to send initial verification code:', error)
-            setErrorMessage('Failed to send verification code. Please use the resend button.')
-          })
-      }
+    if (email && !isFromSignup && !isLoading && hasResendKey) {
+      logger.info('Auto-sending OTP for workspace redirect', { email })
+      client.emailOtp
+        .sendVerificationOtp({
+          email,
+          type: 'email-verification',
+        })
+        .then(() => {
+          logger.info('Initial OTP sent successfully')
+        })
+        .catch((error) => {
+          logger.error('Failed to send initial OTP:', error)
+          setErrorMessage('Failed to send verification code. Please try again later.')
+        })
     }
-  }, [email, isSendingInitialOtp, searchParams, hasResendKey])
+  }, [email, isFromSignup, isLoading, hasResendKey])
 
   // Enable the verify button when all 6 digits are entered
   const isOtpComplete = otp.length === 6
@@ -112,51 +99,30 @@ export function useVerification({
     setErrorMessage('')
 
     try {
-      // Call the verification API with the OTP code
       const response = await client.emailOtp.verifyEmail({
         email,
         otp,
       })
 
-      // Check if verification was successful
       if (response && !response.error) {
         setIsVerified(true)
 
-        // Clear verification requirements and session storage
-        if (typeof window !== 'undefined') {
-          sessionStorage.removeItem('verificationEmail')
-
-          // Clear the verification requirement flag
-          document.cookie =
-            'requiresEmailVerification=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT'
-
-          // Also clear invite-related items
-          if (isInviteFlow) {
-            sessionStorage.removeItem('inviteRedirectUrl')
-            sessionStorage.removeItem('isInviteFlow')
-          }
-        }
-
         setTimeout(() => {
           if (isInviteFlow && redirectUrl) {
-            // For invitation flow, redirect to the invitation page
             window.location.href = redirectUrl
           } else {
-            // Default redirect to dashboard
             window.location.href = '/workspace'
           }
         }, 1000)
       } else {
         logger.info('Setting invalid OTP state - API error response')
         const message = 'Invalid verification code. Please check and try again.'
-        // Set both state variables to ensure the error shows
         setIsInvalidOtp(true)
         setErrorMessage(message)
         logger.info('Error state after API error:', {
           isInvalidOtp: true,
           errorMessage: message,
         })
-        // Clear the OTP input on invalid code
         setOtp('')
       }
     } catch (error: any) {
@@ -171,7 +137,6 @@ export function useVerification({
         message = 'Too many failed attempts. Please request a new code.'
       }
 
-      // Set both state variables to ensure the error shows
       setIsInvalidOtp(true)
       setErrorMessage(message)
       logger.info('Error state after caught error:', {
@@ -179,7 +144,6 @@ export function useVerification({
         errorMessage: message,
       })
 
-      // Clear the OTP input on error
       setOtp('')
     } finally {
       setIsLoading(false)
@@ -207,7 +171,6 @@ export function useVerification({
   }
 
   function handleOtpChange(value: string) {
-    // Only clear error when user is actively typing a new code
     if (value.length === 6) {
       setIsInvalidOtp(false)
       setErrorMessage('')
@@ -215,39 +178,39 @@ export function useVerification({
     setOtp(value)
   }
 
-  // Auto-submit when OTP is complete
+  async function goBackToAuth() {
+    const targetPage = isFromSignup ? '/signup' : '/login'
+    const urlParams = new URLSearchParams()
+
+    if (isInviteFlow && redirectUrl) {
+      urlParams.set('invite_flow', 'true')
+      urlParams.set('callbackUrl', redirectUrl)
+    }
+
+    const queryString = urlParams.toString()
+    const fullUrl = queryString ? `${targetPage}?${queryString}` : targetPage
+
+    // If coming from signup, user has a session but wants to start over
+    // Sign them out first, then redirect
+    try {
+      await client.signOut()
+      // Use window.location to ensure clean redirect after signout
+      window.location.href = fullUrl
+    } catch (error) {
+      // If signout fails, still try to navigate
+      router.push(fullUrl)
+    }
+  }
+
   useEffect(() => {
     if (otp.length === 6 && email && !isLoading && !isVerified) {
       const timeoutId = setTimeout(() => {
         verifyCode()
-      }, 300) // Small delay to ensure UI is ready
+      }, 300)
 
       return () => clearTimeout(timeoutId)
     }
   }, [otp, email, isLoading, isVerified])
-
-  useEffect(() => {
-    if (typeof window !== 'undefined') {
-      if (!isProduction || !hasResendKey) {
-        const storedEmail = sessionStorage.getItem('verificationEmail')
-      }
-
-      const isDevOrDocker = !isProduction || isTruthy(env.DOCKER_BUILD)
-
-      if (isDevOrDocker || !hasResendKey) {
-        setIsVerified(true)
-
-        document.cookie =
-          'requiresEmailVerification=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT'
-
-        const timeoutId = setTimeout(() => {
-          window.location.href = '/workspace'
-        }, 1000)
-
-        return () => clearTimeout(timeoutId)
-      }
-    }
-  }, [isProduction, hasResendKey, router])
 
   return {
     otp,
@@ -257,10 +220,10 @@ export function useVerification({
     isInvalidOtp,
     errorMessage,
     isOtpComplete,
-    hasResendKey,
-    isProduction,
+    isFromSignup,
     verifyCode,
     resendCode,
     handleOtpChange,
+    goBackToAuth,
   }
 }

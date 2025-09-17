@@ -1,27 +1,19 @@
 'use client'
 
 import { Suspense, useEffect, useState } from 'react'
-import { useRouter } from 'next/navigation'
 import { Button } from '@/components/ui/button'
 import { InputOTP, InputOTPGroup, InputOTPSlot } from '@/components/ui/input-otp'
 import { cn } from '@/lib/utils'
+import { useButtonStyle } from '@/app/(auth)/hooks/use-button-style'
 import { useVerification } from '@/app/(auth)/verify/use-verification'
 import { inter } from '@/app/fonts/inter'
 import { soehne } from '@/app/fonts/soehne/soehne'
 
 interface VerifyContentProps {
   hasResendKey: boolean
-  baseUrl: string
-  isProduction: boolean
 }
 
-function VerificationForm({
-  hasResendKey,
-  isProduction,
-}: {
-  hasResendKey: boolean
-  isProduction: boolean
-}) {
+function VerificationForm({ hasResendKey }: { hasResendKey: boolean }) {
   const {
     otp,
     email,
@@ -30,13 +22,16 @@ function VerificationForm({
     isInvalidOtp,
     errorMessage,
     isOtpComplete,
+    isFromSignup,
     verifyCode,
     resendCode,
     handleOtpChange,
-  } = useVerification({ hasResendKey, isProduction })
+    goBackToAuth,
+  } = useVerification({ hasResendKey })
 
   const [countdown, setCountdown] = useState(0)
   const [isResendDisabled, setIsResendDisabled] = useState(false)
+  const buttonClass = useButtonStyle()
 
   useEffect(() => {
     if (countdown > 0) {
@@ -48,60 +43,11 @@ function VerificationForm({
     }
   }, [countdown, isResendDisabled])
 
-  const router = useRouter()
-
   const handleResend = () => {
     resendCode()
     setIsResendDisabled(true)
     setCountdown(30)
   }
-
-  const handleCancelVerification = () => {
-    // Clear verification data
-    if (typeof window !== 'undefined') {
-      sessionStorage.removeItem('verificationEmail')
-      sessionStorage.removeItem('inviteRedirectUrl')
-      sessionStorage.removeItem('isInviteFlow')
-
-      // Clear the verification requirement cookie
-      document.cookie = 'requiresEmailVerification=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT'
-    }
-
-    // Redirect to login
-    router.push('/login')
-  }
-
-  const [buttonClass, setButtonClass] = useState('auth-button-gradient')
-
-  useEffect(() => {
-    // Check if CSS variable has been customized
-    const checkCustomBrand = () => {
-      const computedStyle = getComputedStyle(document.documentElement)
-      const brandAccent = computedStyle.getPropertyValue('--brand-accent-hex').trim()
-
-      // Check if the CSS variable exists and is different from the default
-      if (brandAccent && brandAccent !== '#6f3dfa') {
-        setButtonClass('auth-button-custom')
-      } else {
-        setButtonClass('auth-button-gradient')
-      }
-    }
-
-    checkCustomBrand()
-
-    // Also check on window resize or theme changes
-    window.addEventListener('resize', checkCustomBrand)
-    const observer = new MutationObserver(checkCustomBrand)
-    observer.observe(document.documentElement, {
-      attributes: true,
-      attributeFilter: ['style', 'class'],
-    })
-
-    return () => {
-      window.removeEventListener('resize', checkCustomBrand)
-      observer.disconnect()
-    }
-  }, [])
 
   return (
     <>
@@ -114,9 +60,7 @@ function VerificationForm({
             ? 'Your email has been verified. Redirecting to dashboard...'
             : hasResendKey
               ? `A verification code has been sent to ${email || 'your email'}`
-              : !isProduction
-                ? 'Development mode: Check your console logs for the verification code'
-                : 'Error: Invalid API key configuration'}
+              : 'Development mode: Email verification is disabled'}
         </p>
       </div>
 
@@ -232,14 +176,14 @@ function VerificationForm({
             </div>
           )}
 
-          {/* <div className='text-center font-light text-[14px]'>
+          <div className='text-center font-light text-[14px]'>
             <button
-              onClick={handleCancelVerification}
+              onClick={goBackToAuth}
               className='font-medium text-[var(--brand-accent-hex)] underline-offset-4 transition hover:text-[var(--brand-accent-hover-hex)] hover:underline'
             >
-              Back to login
+              {isFromSignup ? 'Back to signup' : 'Back to login'}
             </button>
-          </div> */}
+          </div>
         </div>
       )}
     </>
@@ -258,10 +202,10 @@ function VerificationFormFallback() {
   )
 }
 
-export function VerifyContent({ hasResendKey, baseUrl, isProduction }: VerifyContentProps) {
+export function VerifyContent({ hasResendKey }: VerifyContentProps) {
   return (
     <Suspense fallback={<VerificationFormFallback />}>
-      <VerificationForm hasResendKey={hasResendKey} isProduction={isProduction} />
+      <VerificationForm hasResendKey={hasResendKey} />
     </Suspense>
   )
 }

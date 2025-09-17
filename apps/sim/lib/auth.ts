@@ -147,11 +147,9 @@ export const auth = betterAuth({
   },
   emailAndPassword: {
     enabled: true,
-    requireEmailVerification: false,
-    sendVerificationOnSignUp: false,
     throwOnMissingCredentials: true,
     throwOnInvalidCredentials: true,
-    sendResetPassword: async ({ user, url, token }, request) => {
+    sendResetPassword: async ({ user, url }) => {
       const username = user.name || ''
 
       const html = await renderPasswordResetEmail(username, url)
@@ -220,13 +218,14 @@ export const auth = betterAuth({
       session,
     })),
     emailOTP({
+      overrideDefaultEmailVerification: isProd && Boolean(env.RESEND_API_KEY), // Use emailOTP in production with email service
       sendVerificationOTP: async (data: {
         email: string
         otp: string
         type: 'sign-in' | 'email-verification' | 'forget-password'
       }) => {
         if (!isProd) {
-          logger.info('Skipping email verification in dev/docker')
+          logger.info('Skipping email verification')
           return
         }
         try {
@@ -234,7 +233,6 @@ export const auth = betterAuth({
             throw new Error('Email is required')
           }
 
-          // Validate email before sending OTP
           const validation = quickValidateEmail(data.email)
           if (!validation.isValid) {
             logger.warn('Email validation failed', {
@@ -250,7 +248,6 @@ export const auth = betterAuth({
 
           const html = await renderOTPEmail(data.otp, data.email, data.type)
 
-          // Send email via consolidated mailer (supports Resend, Azure, or logging fallback)
           const result = await sendEmail({
             to: data.email,
             subject: getEmailSubject(data.type),
@@ -259,7 +256,6 @@ export const auth = betterAuth({
             emailType: 'transactional',
           })
 
-          // If no email service is configured, log verification code for development
           if (!result.success && result.message.includes('no email service configured')) {
             logger.info('🔑 VERIFICATION CODE FOR LOGIN/SIGNUP', {
               email: data.email,
@@ -330,7 +326,6 @@ export const auth = betterAuth({
                 if (emailsResponse.ok) {
                   const emails = await emailsResponse.json()
 
-                  // Find primary email or use the first one
                   const primaryEmail =
                     emails.find(
                       (email: { primary: boolean; email: string; verified: boolean }) =>
@@ -366,7 +361,7 @@ export const auth = betterAuth({
           },
         },
 
-        // Google providers for different purposes
+        // Google providers
         {
           providerId: 'google-email',
           clientId: env.GOOGLE_CLIENT_ID as string,
@@ -378,7 +373,6 @@ export const auth = betterAuth({
             'https://www.googleapis.com/auth/userinfo.profile',
             'https://www.googleapis.com/auth/gmail.send',
             'https://www.googleapis.com/auth/gmail.modify',
-            // 'https://www.googleapis.com/auth/gmail.readonly',
             'https://www.googleapis.com/auth/gmail.labels',
           ],
           prompt: 'consent',
@@ -594,7 +588,7 @@ export const auth = betterAuth({
           scopes: ['login', 'data'],
           responseType: 'code',
           redirectURI: `${env.NEXT_PUBLIC_APP_URL}/api/auth/oauth2/callback/wealthbox`,
-          getUserInfo: async (tokens) => {
+          getUserInfo: async () => {
             try {
               logger.info('Creating Wealthbox user profile from token data')
 
@@ -625,8 +619,6 @@ export const auth = betterAuth({
           clientSecret: env.SUPABASE_CLIENT_SECRET as string,
           authorizationUrl: 'https://api.supabase.com/v1/oauth/authorize',
           tokenUrl: 'https://api.supabase.com/v1/oauth/token',
-          // Supabase doesn't have a standard userInfo endpoint that works with our flow,
-          // so we use a dummy URL and rely on our custom getUserInfo implementation
           userInfoUrl: 'https://dummy-not-used.supabase.co',
           scopes: ['database.read', 'database.write', 'projects.read'],
           responseType: 'code',
@@ -636,11 +628,9 @@ export const auth = betterAuth({
             try {
               logger.info('Creating Supabase user profile from token data')
 
-              // Extract user identifier from tokens if possible
               let userId = 'supabase-user'
               if (tokens.idToken) {
                 try {
-                  // Try to decode the JWT to get user information
                   const decodedToken = JSON.parse(
                     Buffer.from(tokens.idToken.split('.')[1], 'base64').toString()
                   )
@@ -654,12 +644,10 @@ export const auth = betterAuth({
                 }
               }
 
-              // Generate a unique enough identifier
               const uniqueId = `${userId}-${Date.now()}`
 
               const now = new Date()
 
-              // Create a synthetic user profile since we can't fetch one
               return {
                 id: uniqueId,
                 name: 'Supabase User',
@@ -721,7 +709,7 @@ export const auth = betterAuth({
               return {
                 id: profile.data.id,
                 name: profile.data.name || 'X User',
-                email: `${profile.data.username}@x.com`, // Create synthetic email with username
+                email: `${profile.data.username}@x.com`,
                 image: profile.data.profile_image_url,
                 emailVerified: profile.data.verified || false,
                 createdAt: now,
@@ -774,7 +762,7 @@ export const auth = betterAuth({
                 name: profile.name || profile.display_name || 'Confluence User',
                 email: profile.email || `${profile.account_id}@atlassian.com`,
                 image: profile.picture || undefined,
-                emailVerified: true, // Assume verified since it's an Atlassian account
+                emailVerified: true,
                 createdAt: now,
                 updatedAt: now,
               }
@@ -895,7 +883,7 @@ export const auth = betterAuth({
                 name: profile.name || profile.display_name || 'Jira User',
                 email: profile.email || `${profile.account_id}@atlassian.com`,
                 image: profile.picture || undefined,
-                emailVerified: true, // Assume verified since it's an Atlassian account
+                emailVerified: true,
                 createdAt: now,
                 updatedAt: now,
               }
@@ -933,7 +921,7 @@ export const auth = betterAuth({
           userInfoUrl: 'https://api.notion.com/v1/users/me',
           scopes: ['workspace.content', 'workspace.name', 'page.read', 'page.write'],
           responseType: 'code',
-          pkce: false, // Notion doesn't support PKCE
+          pkce: false,
           accessType: 'offline',
           authentication: 'basic',
           prompt: 'consent',
@@ -943,7 +931,7 @@ export const auth = betterAuth({
               const response = await fetch('https://api.notion.com/v1/users/me', {
                 headers: {
                   Authorization: `Bearer ${tokens.accessToken}`,
-                  'Notion-Version': '2022-06-28', // Specify the Notion API version
+                  'Notion-Version': '2022-06-28',
                 },
               })
 
@@ -1011,7 +999,7 @@ export const auth = betterAuth({
               return {
                 id: data.id,
                 name: data.name || 'Reddit User',
-                email: `${data.name}@reddit.user`, // Reddit doesn't provide email in identity scope
+                email: `${data.name}@reddit.user`,
                 image: data.icon_img || undefined,
                 emailVerified: false,
                 createdAt: now,
@@ -1105,7 +1093,6 @@ export const auth = betterAuth({
           tokenUrl: 'https://slack.com/api/oauth.v2.access',
           userInfoUrl: 'https://slack.com/api/users.identity',
           scopes: [
-            // Bot token scopes only - app acts as a bot user
             'channels:read',
             'channels:history',
             'groups:read',
@@ -1124,11 +1111,9 @@ export const auth = betterAuth({
             try {
               logger.info('Creating Slack bot profile from token data')
 
-              // Extract user identifier from tokens if possible
               let userId = 'slack-bot'
               if (tokens.idToken) {
                 try {
-                  // Try to decode the JWT to get user information
                   const decodedToken = JSON.parse(
                     Buffer.from(tokens.idToken.split('.')[1], 'base64').toString()
                   )
@@ -1140,12 +1125,10 @@ export const auth = betterAuth({
                 }
               }
 
-              // Generate a unique enough identifier
               const uniqueId = `${userId}-${Date.now()}`
 
               const now = new Date()
 
-              // Create a synthetic user profile since we can't fetch one
               return {
                 id: uniqueId,
                 name: 'Slack Bot',
@@ -1468,6 +1451,9 @@ export async function getSession() {
     headers: hdrs,
   })
 }
+
+// Better Auth now handles email verification natively
+// getSession() will only return sessions for verified users when requireEmailVerification: true
 
 export const signIn = auth.api.signInEmail
 export const signUp = auth.api.signUpEmail

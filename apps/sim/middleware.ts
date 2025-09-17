@@ -137,13 +137,6 @@ export async function middleware(request: NextRequest) {
     if (!hasActiveSession) {
       return NextResponse.redirect(new URL('/login', request.url))
     }
-
-    // Check if user needs email verification
-    const requiresVerification = request.cookies.get('requiresEmailVerification')
-    if (requiresVerification?.value === 'true') {
-      return NextResponse.redirect(new URL('/verify', request.url))
-    }
-
     return NextResponse.next()
   }
 

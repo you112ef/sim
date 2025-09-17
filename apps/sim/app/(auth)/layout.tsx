@@ -4,7 +4,6 @@ import { useEffect } from 'react'
 import Nav from '@/app/(landing)/components/nav/nav'
 import AuthBackground from './components/auth-background'
 
-// Helper to detect if a color is dark
 function isColorDark(hexColor: string): boolean {
   const hex = hexColor.replace('#', '')
   const r = Number.parseInt(hex.substr(0, 2), 16)
@@ -16,7 +15,6 @@ function isColorDark(hexColor: string): boolean {
 
 export default function AuthLayout({ children }: { children: React.ReactNode }) {
   useEffect(() => {
-    // Check if brand background is dark and add class accordingly
     const rootStyle = getComputedStyle(document.documentElement)
     const brandBackground = rootStyle.getPropertyValue('--brand-background-hex').trim()
 

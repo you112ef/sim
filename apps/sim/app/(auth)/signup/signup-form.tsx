@@ -3,15 +3,18 @@
 import { Suspense, useEffect, useState } from 'react'
 import { Eye, EyeOff } from 'lucide-react'
 import Link from 'next/link'
-import { useRouter, useSearchParams } from 'next/navigation'
+import { useSearchParams } from 'next/navigation'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import { client, useSession } from '@/lib/auth-client'
+import { client } from '@/lib/auth-client'
 import { quickValidateEmail } from '@/lib/email/validation'
+import { env } from '@/lib/env'
+import { isProd } from '@/lib/environment'
 import { createLogger } from '@/lib/logs/console/logger'
 import { cn } from '@/lib/utils'
 import { SocialLoginButtons } from '@/app/(auth)/components/social-login-buttons'
+import { useButtonStyle } from '@/app/(auth)/hooks/use-button-style'
 import { inter } from '@/app/fonts/inter'
 import { soehne } from '@/app/fonts/soehne/soehne'
 
@@ -72,17 +75,12 @@ const validateEmailField = (emailValue: string): string[] => {
 function SignupFormContent({
   githubAvailable,
   googleAvailable,
-  isProduction,
 }: {
   githubAvailable: boolean
   googleAvailable: boolean
-  isProduction: boolean
 }) {
-  const router = useRouter()
   const searchParams = useSearchParams()
-  const { refetch: refetchSession } = useSession()
   const [isLoading, setIsLoading] = useState(false)
-  const [, setMounted] = useState(false)
   const [showPassword, setShowPassword] = useState(false)
   const [password, setPassword] = useState('')
   const [passwordErrors, setPasswordErrors] = useState<string[]>([])
@@ -93,7 +91,7 @@ function SignupFormContent({
   const [showEmailValidationError, setShowEmailValidationError] = useState(false)
   const [redirectUrl, setRedirectUrl] = useState('')
   const [isInviteFlow, setIsInviteFlow] = useState(false)
-  const [buttonClass, setButtonClass] = useState('auth-button-gradient')
+  const buttonClass = useButtonStyle()
 
   // Name validation state
   const [name, setName] = useState('')
@@ -101,7 +99,6 @@ function SignupFormContent({
   const [showNameValidationError, setShowNameValidationError] = useState(false)
 
   useEffect(() => {
-    setMounted(true)
     const emailParam = searchParams.get('email')
     if (emailParam) {
       setEmail(emailParam)
@@ -123,37 +120,8 @@ function SignupFormContent({
     if (inviteFlowParam === 'true') {
       setIsInviteFlow(true)
     }
-
-    // Check if CSS variable has been customized
-    const checkCustomBrand = () => {
-      const computedStyle = getComputedStyle(document.documentElement)
-      const brandAccent = computedStyle.getPropertyValue('--brand-accent-hex').trim()
-
-      // Check if the CSS variable exists and is different from the default
-      if (brandAccent && brandAccent !== '#6f3dfa') {
-        setButtonClass('auth-button-custom')
-      } else {
-        setButtonClass('auth-button-gradient')
-      }
-    }
-
-    checkCustomBrand()
-
-    // Also check on window resize or theme changes
-    window.addEventListener('resize', checkCustomBrand)
-    const observer = new MutationObserver(checkCustomBrand)
-    observer.observe(document.documentElement, {
-      attributes: true,
-      attributeFilter: ['style', 'class'],
-    })
-
-    return () => {
-      window.removeEventListener('resize', checkCustomBrand)
-      observer.disconnect()
-    }
   }, [searchParams])
 
-  // Validate password and return array of error messages
   const validatePassword = (passwordValue: string): string[] => {
     const errors: string[] = []
 
@@ -180,18 +148,17 @@ function SignupFormContent({
     return errors
   }
 
-  // Validate name and return array of error messages
   const validateName = (nameValue: string): string[] => {
     const errors: string[] = []
 
     if (!NAME_VALIDATIONS.required.test(nameValue)) {
       errors.push(NAME_VALIDATIONS.required.message)
-      return errors // Return early for required field
+      return errors
     }
 
     if (!NAME_VALIDATIONS.notEmpty.test(nameValue)) {
       errors.push(NAME_VALIDATIONS.notEmpty.message)
-      return errors // Return early for empty field
+      return errors
     }
 
     if (!NAME_VALIDATIONS.validCharacters.regex.test(nameValue.trim())) {
@@ -209,7 +176,6 @@ function SignupFormContent({
     const newPassword = e.target.value
     setPassword(newPassword)
 
-    // Silently validate but don't show errors
     const errors = validatePassword(newPassword)
     setPasswordErrors(errors)
     setShowValidationError(false)
@@ -228,12 +194,10 @@ function SignupFormContent({
     const newEmail = e.target.value
     setEmail(newEmail)
 
-    // Silently validate but don't show errors until submit
     const errors = validateEmailField(newEmail)
     setEmailErrors(errors)
     setShowEmailValidationError(false)
 
-    // Clear any previous server-side email errors when the user starts typing
     if (emailError) {
       setEmailError('')
     }
@@ -348,43 +312,37 @@ function SignupFormContent({
         return
       }
 
-      // Refresh session to get the new user data immediately after signup
-      try {
-        await refetchSession()
-        logger.info('Session refreshed after successful signup')
-      } catch (sessionError) {
-        logger.error('Failed to refresh session after signup:', sessionError)
-      }
-
-      // For new signups, always require verification
-      if (typeof window !== 'undefined') {
-        sessionStorage.setItem('verificationEmail', emailValue)
-        localStorage.setItem('has_logged_in_before', 'true')
-
-        // Set cookie flag for middleware check
-        document.cookie = 'requiresEmailVerification=true; path=/; max-age=900; SameSite=Lax' // 15 min expiry
-        document.cookie = 'has_logged_in_before=true; path=/; max-age=31536000; SameSite=Lax'
-
-        // Store invitation flow state if applicable
-        if (isInviteFlow && redirectUrl) {
-          sessionStorage.setItem('inviteRedirectUrl', redirectUrl)
-          sessionStorage.setItem('isInviteFlow', 'true')
+      // In production with RESEND_API_KEY, send verification OTP
+      if (isProd && env.RESEND_API_KEY) {
+        try {
+          await client.emailOtp.sendVerificationOtp({
+            email: emailValue,
+            type: 'email-verification',
+          })
+        } catch (otpError) {
+          logger.error('Failed to send verification OTP:', otpError)
         }
+
+        // Redirect to verification page
+        const verifyUrl = new URL('/verify', window.location.origin)
+        verifyUrl.searchParams.set('email', encodeURIComponent(emailValue))
+        verifyUrl.searchParams.set('fromSignup', 'true')
+
+        if (isInviteFlow && redirectUrl) {
+          verifyUrl.searchParams.set('invite_flow', 'true')
+          verifyUrl.searchParams.set('redirectAfter', redirectUrl)
+        }
+
+        window.location.href = verifyUrl.toString()
+        return
       }
 
-      // Send verification OTP manually
-      try {
-        await client.emailOtp.sendVerificationOtp({
-          email: emailValue,
-          type: 'email-verification',
-        })
-      } catch (otpError) {
-        logger.error('Failed to send OTP:', otpError)
-        // Continue anyway - user can use resend button
+      // Development or no email service - go directly to workspace
+      if (isInviteFlow && redirectUrl) {
+        window.location.href = redirectUrl
+      } else {
+        window.location.href = '/workspace'
       }
-
-      // Always redirect to verification for new signups
-      router.push('/verify?fromSignup=true')
     } catch (error) {
       logger.error('Signup error:', error)
       setIsLoading(false)
@@ -530,7 +488,6 @@ function SignupFormContent({
         githubAvailable={githubAvailable}
         googleAvailable={googleAvailable}
         callbackURL={redirectUrl || '/workspace'}
-        isProduction={isProduction}
       />
 
       <div className={`${inter.className} pt-6 text-center font-light text-[14px]`}>
@@ -572,21 +529,15 @@ function SignupFormContent({
 export default function SignupPage({
   githubAvailable,
   googleAvailable,
-  isProduction,
 }: {
   githubAvailable: boolean
   googleAvailable: boolean
-  isProduction: boolean
 }) {
   return (
     <Suspense
       fallback={<div className='flex h-screen items-center justify-center'>Loading...</div>}
     >
-      <SignupFormContent
-        githubAvailable={githubAvailable}
-        googleAvailable={googleAvailable}
-        isProduction={isProduction}
-      />
+      <SignupFormContent githubAvailable={githubAvailable} googleAvailable={googleAvailable} />
     </Suspense>
   )
 }
