@@ -1854,8 +1854,8 @@ const WorkflowContent = React.memo(() => {
           message={triggerWarning.message}
         />
 
-        {/* Trigger selector for empty workflows */}
-        {isWorkflowEmpty && effectivePermissions.canEdit && (
+        {/* Trigger selector for empty workflows - only show after workflow has loaded */}
+        {isWorkflowReady && isWorkflowEmpty && effectivePermissions.canEdit && (
           <TriggerPlaceholder onClick={() => setShowTriggerSelector(true)} />
         )}
 
