@@ -24,7 +24,7 @@ export function TriggerPlaceholder({ onClick, className }: TriggerPlaceholderPro
           'border-2 border-dashed border-muted-foreground/30',
           'bg-background/50 backdrop-blur-sm',
           'transition-all duration-300 ease-out',
-          'hover:border-primary/50 hover:bg-background/80',
+          'hover:border-foreground/50 hover:bg-background/80',
           'hover:shadow-lg hover:scale-[1.02]',
           'active:scale-[0.98]',
           'cursor-pointer'
@@ -32,8 +32,8 @@ export function TriggerPlaceholder({ onClick, className }: TriggerPlaceholderPro
       >
         <div className='flex flex-col items-center justify-center h-full px-4'>
           <div className='relative mb-2'>
-            <Zap className='w-8 h-8 text-muted-foreground group-hover:text-primary transition-colors' />
-            <Plus className='absolute -bottom-1 -right-1 w-4 h-4 text-primary opacity-0 group-hover:opacity-100 transition-opacity' />
+            <Zap className='w-8 h-8 text-muted-foreground group-hover:text-foreground transition-colors duration-300' />
+            <Plus className='absolute -bottom-1 -right-1 w-4 h-4 text-muted-foreground opacity-0 group-hover:opacity-100 group-hover:text-foreground transition-all duration-300' />
           </div>
 
           <p className='text-sm font-medium text-muted-foreground group-hover:text-foreground transition-colors'>
