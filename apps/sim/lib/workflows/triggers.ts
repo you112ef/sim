@@ -209,6 +209,9 @@ export class TriggerUtils {
    * Check if a trigger type requires single instance constraint
    */
   static requiresSingleInstance(triggerType: string): boolean {
+    // API and Input triggers cannot coexist with each other
+    // Chat trigger must be unique
+    // Schedules and webhooks can coexist with API/Input triggers
     return (
       triggerType === TRIGGER_TYPES.API ||
       triggerType === TRIGGER_TYPES.INPUT ||
@@ -232,13 +235,60 @@ export class TriggerUtils {
     triggerType: string
   ): boolean {
     const blockArray = Array.isArray(blocks) ? blocks : Object.values(blocks)
+    const hasLegacyStarter = TriggerUtils.hasLegacyStarter(blocks)
 
-    // Can't add new triggers if legacy starter block exists
-    if (TriggerUtils.hasLegacyStarter(blocks) && TriggerUtils.isAnyTriggerType(triggerType)) {
-      return true
+    // Legacy starter block can't coexist with Chat, Input, or API triggers
+    if (hasLegacyStarter) {
+      if (
+        triggerType === TRIGGER_TYPES.CHAT ||
+        triggerType === TRIGGER_TYPES.INPUT ||
+        triggerType === TRIGGER_TYPES.API
+      ) {
+        return true
+      }
+      // Legacy starter CAN coexist with schedules and webhooks
     }
 
-    // Check single-instance rules
+    // Can't add legacy starter if Chat, Input, or API triggers exist
+    if (triggerType === TRIGGER_TYPES.STARTER) {
+      const hasModernTriggers = blockArray.some(
+        (block) =>
+          block.type === TRIGGER_TYPES.CHAT ||
+          block.type === TRIGGER_TYPES.INPUT ||
+          block.type === TRIGGER_TYPES.API
+      )
+      if (hasModernTriggers) {
+        return true
+      }
+    }
+
+    // Multiple schedules are allowed
+    // Schedules can coexist with anything (except the constraint above with legacy starter)
+    if (triggerType === TRIGGER_TYPES.SCHEDULE) {
+      return false // Always allow schedules
+    }
+
+    // Webhooks can coexist with other triggers (multiple webhooks allowed)
+    if (triggerType === TRIGGER_TYPES.WEBHOOK) {
+      return false // Always allow webhooks
+    }
+
+    // Only one Input trigger allowed
+    if (triggerType === TRIGGER_TYPES.INPUT) {
+      return blockArray.some((block) => block.type === TRIGGER_TYPES.INPUT)
+    }
+
+    // Only one API trigger allowed
+    if (triggerType === TRIGGER_TYPES.API) {
+      return blockArray.some((block) => block.type === TRIGGER_TYPES.API)
+    }
+
+    // Chat trigger must be unique
+    if (triggerType === TRIGGER_TYPES.CHAT) {
+      return blockArray.some((block) => block.type === TRIGGER_TYPES.CHAT)
+    }
+
+    // For other trigger types, check single-instance rules
     if (!TriggerUtils.requiresSingleInstance(triggerType)) {
       return false
     }

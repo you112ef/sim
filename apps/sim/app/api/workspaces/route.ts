@@ -110,8 +110,8 @@ async function createWorkspace(userId: string, name: string) {
         updatedAt: now,
       })
 
-      // Create initial workflow for the workspace with start block
-      const starterId = crypto.randomUUID()
+      // Create initial workflow for the workspace with Input Trigger
+      const triggerId = crypto.randomUUID()
 
       // Create the workflow
       await tx.insert(workflow).values({
@@ -133,12 +133,12 @@ async function createWorkspace(userId: string, name: string) {
         marketplaceData: null,
       })
 
-      // Insert the start block into workflow_blocks table
+      // Insert the Input Trigger block into workflow_blocks table
       await tx.insert(workflowBlocks).values({
-        id: starterId,
+        id: triggerId,
         workflowId: workflowId,
-        type: 'starter',
-        name: 'Start',
+        type: 'input_trigger',
+        name: 'Input Trigger',
         positionX: '100',
         positionY: '100',
         enabled: true,
@@ -147,44 +147,13 @@ async function createWorkspace(userId: string, name: string) {
         advancedMode: false,
         height: '95',
         subBlocks: {
-          startWorkflow: {
-            id: 'startWorkflow',
-            type: 'dropdown',
-            value: 'manual',
-          },
-          webhookPath: {
-            id: 'webhookPath',
-            type: 'short-input',
-            value: '',
-          },
-          webhookSecret: {
-            id: 'webhookSecret',
-            type: 'short-input',
-            value: '',
-          },
-          scheduleType: {
-            id: 'scheduleType',
-            type: 'dropdown',
-            value: 'daily',
-          },
-          minutesInterval: {
-            id: 'minutesInterval',
-            type: 'short-input',
-            value: '',
-          },
-          minutesStartingAt: {
-            id: 'minutesStartingAt',
-            type: 'short-input',
-            value: '',
+          inputFormat: {
+            id: 'inputFormat',
+            type: 'input-format',
+            value: [],
           },
         },
-        outputs: {
-          response: {
-            type: {
-              input: 'any',
-            },
-          },
-        },
+        outputs: {},
         createdAt: now,
         updatedAt: now,
       })

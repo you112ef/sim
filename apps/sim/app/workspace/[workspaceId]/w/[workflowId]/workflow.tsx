@@ -510,7 +510,7 @@ const WorkflowContent = React.memo(() => {
             open: true,
             triggerName: 'new trigger',
             message:
-              'Cannot add new trigger blocks when a legacy Start block exists. Please remove the Start block first.',
+              'Cannot add new trigger blocks when a legacy Start block exists. Available in newer workflows.',
           })
         } else {
           const triggerName = TriggerUtils.getDefaultTriggerName(type) || 'trigger'
@@ -715,7 +715,7 @@ const WorkflowContent = React.memo(() => {
               open: true,
               triggerName: 'new trigger',
               message:
-                'Cannot add new trigger blocks when a legacy Start block exists. Please remove the Start block first.',
+                'Cannot add new trigger blocks when a legacy Start block exists. Available in newer workflows.',
             })
           } else {
             const triggerName = TriggerUtils.getDefaultTriggerName(data.type) || 'trigger'
@@ -918,7 +918,7 @@ const WorkflowContent = React.memo(() => {
                 open: true,
                 triggerName: 'new trigger',
                 message:
-                  'Cannot add new trigger blocks when a legacy Start block exists. Please remove the Start block first.',
+                  'Cannot add new trigger blocks when a legacy Start block exists. Available in newer workflows.',
               })
             } else {
               const triggerName = TriggerUtils.getDefaultTriggerName(data.type) || data.type
