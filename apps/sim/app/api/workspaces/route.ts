@@ -3,7 +3,7 @@ import { NextResponse } from 'next/server'
 import { getSession } from '@/lib/auth'
 import { createLogger } from '@/lib/logs/console/logger'
 import { db } from '@/db'
-import { permissions, workflow, workflowBlocks, workspace } from '@/db/schema'
+import { permissions, workflow, workspace } from '@/db/schema'
 
 const logger = createLogger('Workspaces')
 
@@ -110,9 +110,7 @@ async function createWorkspace(userId: string, name: string) {
         updatedAt: now,
       })
 
-      // Create initial workflow for the workspace with Input Trigger
-      const triggerId = crypto.randomUUID()
-
+      // Create initial workflow for the workspace (empty canvas)
       // Create the workflow
       await tx.insert(workflow).values({
         id: workflowId,
@@ -133,30 +131,7 @@ async function createWorkspace(userId: string, name: string) {
         marketplaceData: null,
       })
 
-      // Insert the Input Trigger block into workflow_blocks table
-      await tx.insert(workflowBlocks).values({
-        id: triggerId,
-        workflowId: workflowId,
-        type: 'input_trigger',
-        name: 'Input Trigger',
-        positionX: '100',
-        positionY: '100',
-        enabled: true,
-        horizontalHandles: true,
-        isWide: false,
-        advancedMode: false,
-        height: '95',
-        subBlocks: {
-          inputFormat: {
-            id: 'inputFormat',
-            type: 'input-format',
-            value: [],
-          },
-        },
-        outputs: {},
-        createdAt: now,
-        updatedAt: now,
-      })
+      // No blocks are inserted - empty canvas
 
       logger.info(
         `Created workspace ${workspaceId} with initial workflow ${workflowId} for user ${userId}`
