@@ -23,6 +23,8 @@
     "test:billing:suite": "bun run scripts/test-billing-suite.ts"
   },
   "dependencies": {
+    "drizzle-orm": "^0.41.0",
+    "postgres": "^3.4.5",
     "@anthropic-ai/sdk": "^0.39.0",
     "@aws-sdk/client-s3": "^3.779.0",
     "@aws-sdk/s3-request-presigner": "^3.779.0",
