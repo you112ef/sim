@@ -509,6 +509,18 @@ async function handleInternalRequest(
       }
     }
 
+    if (tool.transformResponse) {
+      try {
+        const data = await tool.transformResponse(response, params)
+        return data
+      } catch (transformError) {
+        logger.error(`[${requestId}] Transform response error for ${toolId}:`, {
+          error: transformError instanceof Error ? transformError.message : String(transformError),
+        })
+        throw transformError
+      }
+    }
+
     // Parse response data once with guard for empty 202 bodies
     let responseData
     const status = response.status
@@ -539,32 +551,6 @@ async function handleInternalRequest(
       })
 
       throw errorToTransform
-    }
-
-    // Success case: use transformResponse if available
-    if (tool.transformResponse) {
-      try {
-        // Create a mock response object that provides the methods transformResponse needs
-        const mockResponse = {
-          ok: response.ok,
-          status: response.status,
-          statusText: response.statusText,
-          headers: response.headers,
-          // Provide the resolved URL so tool transforms can safely read response.url
-          url: fullUrl,
-          json: async () => responseData,
-          text: async () =>
-            typeof responseData === 'string' ? responseData : JSON.stringify(responseData),
-        } as Response
-
-        const data = await tool.transformResponse(mockResponse, params)
-        return data
-      } catch (transformError) {
-        logger.error(`[${requestId}] Transform response error for ${toolId}:`, {
-          error: transformError instanceof Error ? transformError.message : String(transformError),
-        })
-        throw transformError
-      }
     }
 
     // Default success response handling
