@@ -20,8 +20,7 @@ import { DiffControls } from '@/app/workspace/[workspaceId]/w/[workflowId]/compo
 import { ErrorBoundary } from '@/app/workspace/[workspaceId]/w/[workflowId]/components/error/index'
 import { Panel } from '@/app/workspace/[workspaceId]/w/[workflowId]/components/panel/panel'
 import { SubflowNodeComponent } from '@/app/workspace/[workspaceId]/w/[workflowId]/components/subflows/subflow-node'
-import { TriggerPlaceholder } from '@/app/workspace/[workspaceId]/w/[workflowId]/components/trigger-selector/trigger-placeholder'
-import { TriggerSelectorModal } from '@/app/workspace/[workspaceId]/w/[workflowId]/components/trigger-selector/trigger-selector-modal'
+import { TriggerList } from '@/app/workspace/[workspaceId]/w/[workflowId]/components/trigger-list/trigger-list'
 import {
   TriggerWarningDialog,
   TriggerWarningType,
@@ -92,9 +91,6 @@ const WorkflowContent = React.memo(() => {
     triggerName: '',
     type: TriggerWarningType.DUPLICATE_TRIGGER,
   })
-
-  // State for trigger selector modal
-  const [showTriggerSelector, setShowTriggerSelector] = useState(false)
 
   // Hooks
   const params = useParams()
@@ -656,11 +652,9 @@ const WorkflowContent = React.memo(() => {
     setTriggerWarning,
   ])
 
-  // Handler for trigger selection from modal
+  // Handler for trigger selection from list
   const handleTriggerSelect = useCallback(
     (triggerId: string, enableTriggerMode?: boolean) => {
-      setShowTriggerSelector(false)
-
       // Get the trigger name
       const triggerName = TriggerUtils.getDefaultTriggerName(triggerId) || triggerId
 
@@ -1816,16 +1810,10 @@ const WorkflowContent = React.memo(() => {
           type={triggerWarning.type}
         />
 
-        {/* Trigger selector for empty workflows - only show after workflow has loaded */}
+        {/* Trigger list for empty workflows - only show after workflow has loaded */}
         {isWorkflowReady && isWorkflowEmpty && effectivePermissions.canEdit && (
-          <TriggerPlaceholder onClick={() => setShowTriggerSelector(true)} />
+          <TriggerList onSelect={handleTriggerSelect} />
         )}
-
-        <TriggerSelectorModal
-          open={showTriggerSelector}
-          onClose={() => setShowTriggerSelector(false)}
-          onSelect={handleTriggerSelect}
-        />
       </div>
     </div>
   )

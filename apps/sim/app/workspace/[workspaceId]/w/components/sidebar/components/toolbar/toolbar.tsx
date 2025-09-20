@@ -1,10 +1,10 @@
 'use client'
 
 import { useMemo, useState } from 'react'
-import { Blocks, Search, Zap } from 'lucide-react'
+import { Search } from 'lucide-react'
 import { Input } from '@/components/ui/input'
 import { ScrollArea } from '@/components/ui/scroll-area'
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
+import { Tabs, TabsContent } from '@/components/ui/tabs'
 import {
   getBlocksForSidebar,
   getTriggersForSidebar,
@@ -114,16 +114,24 @@ export function Toolbar({ userPermissions, isWorkspaceSelectorVisible = false }:
       {/* Tabs */}
       <Tabs value={activeTab} onValueChange={setActiveTab} className='flex h-full flex-col'>
         <div className='flex-shrink-0 px-2 pt-2'>
-          <TabsList className='grid h-9 w-full grid-cols-2'>
-            <TabsTrigger value='blocks' className='gap-1.5 text-xs'>
-              <Blocks className='h-3.5 w-3.5' />
+          <div className='flex h-9 w-full items-center gap-1 rounded-[10px] border bg-card px-[2.5px] py-1 shadow-xs'>
+            <button
+              onClick={() => setActiveTab('blocks')}
+              className={`panel-tab-base inline-flex flex-1 cursor-pointer items-center justify-center rounded-[8px] border border-transparent py-1 font-[450] text-sm outline-none transition-colors duration-200 ${
+                activeTab === 'blocks' ? 'panel-tab-active' : 'panel-tab-inactive'
+              }`}
+            >
               Blocks
-            </TabsTrigger>
-            <TabsTrigger value='triggers' className='gap-1.5 text-xs'>
-              <Zap className='h-3.5 w-3.5' />
+            </button>
+            <button
+              onClick={() => setActiveTab('triggers')}
+              className={`panel-tab-base inline-flex flex-1 cursor-pointer items-center justify-center rounded-[8px] border border-transparent py-1 font-[450] text-sm outline-none transition-colors duration-200 ${
+                activeTab === 'triggers' ? 'panel-tab-active' : 'panel-tab-inactive'
+              }`}
+            >
               Triggers
-            </TabsTrigger>
-          </TabsList>
+            </button>
+          </div>
         </div>
 
         {/* Search */}

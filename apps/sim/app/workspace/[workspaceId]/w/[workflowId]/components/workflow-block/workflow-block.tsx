@@ -660,7 +660,10 @@ export function WorkflowBlock({ id, data }: NodeProps<WorkflowBlockProps>) {
 
         {/* Block Header */}
         <div
-          className='workflow-drag-handle flex cursor-grab items-center justify-between border-b p-3 [&:active]:cursor-grabbing'
+          className={cn(
+            'workflow-drag-handle flex cursor-grab items-center justify-between p-3 [&:active]:cursor-grabbing',
+            subBlockRows.length > 0 && 'border-b'
+          )}
           onMouseDown={(e) => {
             e.stopPropagation()
           }}
@@ -929,90 +932,92 @@ export function WorkflowBlock({ id, data }: NodeProps<WorkflowBlockProps>) {
                 </Tooltip>
               )
             )}
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Button
-                  variant='ghost'
-                  size='sm'
-                  onClick={() => {
-                    if (currentWorkflow.isDiffMode) {
-                      setDiffIsWide((prev) => !prev)
-                    } else if (userPermissions.canEdit) {
-                      collaborativeToggleBlockWide(id)
-                    }
-                  }}
-                  className={cn(
-                    'h-7 p-1 text-gray-500',
-                    !userPermissions.canEdit &&
-                      !currentWorkflow.isDiffMode &&
-                      'cursor-not-allowed opacity-50'
-                  )}
-                  disabled={!userPermissions.canEdit && !currentWorkflow.isDiffMode}
-                >
-                  {displayIsWide ? (
-                    <RectangleHorizontal className='h-5 w-5' />
-                  ) : (
-                    <RectangleVertical className='h-5 w-5' />
-                  )}
-                </Button>
-              </TooltipTrigger>
-              <TooltipContent side='top'>
-                {!userPermissions.canEdit && !currentWorkflow.isDiffMode
-                  ? userPermissions.isOfflineMode
-                    ? 'Connection lost - please refresh'
-                    : 'Read-only mode'
-                  : displayIsWide
-                    ? 'Narrow Block'
-                    : 'Expand Block'}
-              </TooltipContent>
-            </Tooltip>
+            {subBlockRows.length > 0 && (
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button
+                    variant='ghost'
+                    size='sm'
+                    onClick={() => {
+                      if (currentWorkflow.isDiffMode) {
+                        setDiffIsWide((prev) => !prev)
+                      } else if (userPermissions.canEdit) {
+                        collaborativeToggleBlockWide(id)
+                      }
+                    }}
+                    className={cn(
+                      'h-7 p-1 text-gray-500',
+                      !userPermissions.canEdit &&
+                        !currentWorkflow.isDiffMode &&
+                        'cursor-not-allowed opacity-50'
+                    )}
+                    disabled={!userPermissions.canEdit && !currentWorkflow.isDiffMode}
+                  >
+                    {displayIsWide ? (
+                      <RectangleHorizontal className='h-5 w-5' />
+                    ) : (
+                      <RectangleVertical className='h-5 w-5' />
+                    )}
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent side='top'>
+                  {!userPermissions.canEdit && !currentWorkflow.isDiffMode
+                    ? userPermissions.isOfflineMode
+                      ? 'Connection lost - please refresh'
+                      : 'Read-only mode'
+                    : displayIsWide
+                      ? 'Narrow Block'
+                      : 'Expand Block'}
+                </TooltipContent>
+              </Tooltip>
+            )}
           </div>
         </div>
 
-        {/* Block Content */}
-        <div
-          ref={contentRef}
-          className='cursor-pointer space-y-4 px-4 pt-3 pb-4'
-          onMouseDown={(e) => {
-            e.stopPropagation()
-          }}
-        >
-          {subBlockRows.length > 0
-            ? subBlockRows.map((row, rowIndex) => (
-                <div key={`row-${rowIndex}`} className='flex gap-4'>
-                  {row.map((subBlock, blockIndex) => (
-                    <div
-                      key={`${id}-${rowIndex}-${blockIndex}`}
-                      className={cn('space-y-1', subBlock.layout === 'half' ? 'flex-1' : 'w-full')}
-                    >
-                      <SubBlock
-                        blockId={id}
-                        config={subBlock}
-                        isConnecting={isConnecting}
-                        isPreview={data.isPreview || currentWorkflow.isDiffMode}
-                        subBlockValues={
-                          data.subBlockValues ||
-                          (currentWorkflow.isDiffMode && currentBlock
-                            ? (currentBlock as any).subBlocks
-                            : undefined)
-                        }
-                        disabled={!userPermissions.canEdit}
-                        fieldDiffStatus={
-                          fieldDiff?.changed_fields?.includes(subBlock.id)
-                            ? 'changed'
-                            : fieldDiff?.unchanged_fields?.includes(subBlock.id)
-                              ? 'unchanged'
-                              : undefined
-                        }
-                        allowExpandInPreview={currentWorkflow.isDiffMode}
-                        isWide={displayIsWide}
-                      />
-                    </div>
-                  ))}
-                </div>
-              ))
-            : null}
-        </div>
+        {/* Block Content - Only render if there are subblocks */}
+        {subBlockRows.length > 0 && (
+          <div
+            ref={contentRef}
+            className='cursor-pointer space-y-4 px-4 pt-3 pb-4'
+            onMouseDown={(e) => {
+              e.stopPropagation()
+            }}
+          >
+            {subBlockRows.map((row, rowIndex) => (
+              <div key={`row-${rowIndex}`} className='flex gap-4'>
+                {row.map((subBlock, blockIndex) => (
+                  <div
+                    key={`${id}-${rowIndex}-${blockIndex}`}
+                    className={cn('space-y-1', subBlock.layout === 'half' ? 'flex-1' : 'w-full')}
+                  >
+                    <SubBlock
+                      blockId={id}
+                      config={subBlock}
+                      isConnecting={isConnecting}
+                      isPreview={data.isPreview || currentWorkflow.isDiffMode}
+                      subBlockValues={
+                        data.subBlockValues ||
+                        (currentWorkflow.isDiffMode && currentBlock
+                          ? (currentBlock as any).subBlocks
+                          : undefined)
+                      }
+                      disabled={!userPermissions.canEdit}
+                      fieldDiffStatus={
+                        fieldDiff?.changed_fields?.includes(subBlock.id)
+                          ? 'changed'
+                          : fieldDiff?.unchanged_fields?.includes(subBlock.id)
+                            ? 'unchanged'
+                            : undefined
+                      }
+                      allowExpandInPreview={currentWorkflow.isDiffMode}
+                      isWide={displayIsWide}
+                    />
+                  </div>
+                ))}
+              </div>
+            ))}
+          </div>
+        )}
 
         {/* Output Handle */}
         {type !== 'condition' && type !== 'response' && (

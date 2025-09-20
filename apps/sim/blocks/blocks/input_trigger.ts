@@ -7,7 +7,7 @@ const InputTriggerIcon = (props: SVGProps<SVGSVGElement>) => createElement(Play,
 
 export const InputTriggerBlock: BlockConfig = {
   type: 'input_trigger',
-  name: 'Input Trigger',
+  name: 'Input Form',
   description: 'Start workflow manually with a defined input schema',
   longDescription:
     'Manually trigger the workflow from the editor with a structured input schema. This enables typed inputs for parent workflows to map into.',

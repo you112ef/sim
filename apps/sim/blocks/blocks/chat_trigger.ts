@@ -7,11 +7,11 @@ const ChatTriggerIcon = (props: SVGProps<SVGSVGElement>) => createElement(Messag
 
 export const ChatTriggerBlock: BlockConfig = {
   type: 'chat_trigger',
-  name: 'Chat Trigger',
+  name: 'Chat',
   description: 'Start workflow from a chat deployment',
   longDescription: 'Chat trigger to run the workflow via deployed chat interfaces.',
   category: 'triggers',
-  bgColor: '#8B5CF6',
+  bgColor: '#6F3DFA',
   icon: ChatTriggerIcon,
   subBlocks: [],
   tools: {

@@ -3,12 +3,12 @@ import type { BlockConfig } from '@/blocks/types'
 
 export const ApiTriggerBlock: BlockConfig = {
   type: 'api_trigger',
-  name: 'API Trigger',
+  name: 'API',
   description: 'Expose as HTTP API endpoint',
   longDescription:
     'API trigger to start the workflow via authenticated HTTP calls with structured input.',
   category: 'triggers',
-  bgColor: '#10B981', // Emerald for API
+  bgColor: '#2F55FF',
   icon: ApiIcon,
   subBlocks: [
     {
