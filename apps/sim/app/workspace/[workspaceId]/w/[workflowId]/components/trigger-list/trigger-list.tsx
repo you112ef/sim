@@ -204,29 +204,13 @@ export function TriggerList({ onSelect, className }: TriggerListProps) {
                   <h3 className='mb-2 ml-4 font-normal font-sans text-[13px] text-muted-foreground leading-none tracking-normal'>
                     Core Triggers
                   </h3>
-                  <div
-                    className='scrollbar-none flex gap-2 overflow-x-auto px-4 pb-1'
-                    style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
-                  >
-                    {/* Group core triggers in pairs of 2 vertically */}
-                    {Array.from({ length: Math.ceil(coreOptions.length / 2) }).map(
-                      (_, groupIndex) => {
-                        const firstIndex = groupIndex * 2
-                        const secondIndex = firstIndex + 1
-                        const firstTrigger = coreOptions[firstIndex]
-                        const secondTrigger = coreOptions[secondIndex]
-
-                        return (
-                          <div
-                            key={`group-${groupIndex}`}
-                            className='flex flex-shrink-0 flex-col gap-1'
-                          >
-                            <TriggerItem trigger={firstTrigger} />
-                            {secondTrigger && <TriggerItem trigger={secondTrigger} />}
-                          </div>
-                        )
-                      }
-                    )}
+                  <div className='px-4 pb-1'>
+                    {/* Display triggers in a 3-column grid */}
+                    <div className='grid grid-cols-3 gap-2'>
+                      {coreOptions.map((trigger) => (
+                        <TriggerItem key={trigger.id} trigger={trigger} />
+                      ))}
+                    </div>
                   </div>
                 </div>
               )}
@@ -238,28 +222,15 @@ export function TriggerList({ onSelect, className }: TriggerListProps) {
                     Integration Triggers
                   </h3>
                   <div
-                    className='scrollbar-none flex gap-2 overflow-x-auto px-4 pb-1'
+                    className='max-h-[200px] overflow-y-auto px-4 pb-1'
                     style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
                   >
-                    {/* Group integration triggers in pairs of 2 vertically */}
-                    {Array.from({ length: Math.ceil(integrationOptions.length / 2) }).map(
-                      (_, groupIndex) => {
-                        const firstIndex = groupIndex * 2
-                        const secondIndex = firstIndex + 1
-                        const firstTrigger = integrationOptions[firstIndex]
-                        const secondTrigger = integrationOptions[secondIndex]
-
-                        return (
-                          <div
-                            key={`group-${groupIndex}`}
-                            className='flex flex-shrink-0 flex-col gap-1'
-                          >
-                            <TriggerItem trigger={firstTrigger} />
-                            {secondTrigger && <TriggerItem trigger={secondTrigger} />}
-                          </div>
-                        )
-                      }
-                    )}
+                    {/* Display triggers in a 3-column grid */}
+                    <div className='grid grid-cols-3 gap-2'>
+                      {integrationOptions.map((trigger) => (
+                        <TriggerItem key={trigger.id} trigger={trigger} />
+                      ))}
+                    </div>
                   </div>
                 </div>
               )}
