@@ -659,11 +659,10 @@ const WorkflowContent = React.memo(() => {
 
       // Create a new block with a unique ID
       const id = crypto.randomUUID()
-      // Prefer semantic default names for triggers to support <chat.*>, <manual.*>, <api.*> references
+      // Prefer semantic default names for triggers; then ensure unique numbering centrally
       const defaultTriggerName = TriggerUtils.getDefaultTriggerName(type)
-      const name =
-        defaultTriggerName ||
-        `${blockConfig.name} ${Object.values(blocks).filter((b) => b.type === type).length + 1}`
+      const baseName = defaultTriggerName || blockConfig.name
+      const name = getUniqueBlockName(baseName, blocks)
 
       // Auto-connect logic
       const isAutoConnectEnabled = useGeneralStore.getState().isAutoConnectEnabled
@@ -867,15 +866,15 @@ const WorkflowContent = React.memo(() => {
 
         // Generate id and name here so they're available in all code paths
         const id = crypto.randomUUID()
-        // Prefer semantic default names for triggers to support <chat.*>, <manual.*>, <api.*> references
+        // Prefer semantic default names for triggers; then ensure unique numbering centrally
         const defaultTriggerNameDrop = TriggerUtils.getDefaultTriggerName(data.type)
-        const name =
+        const baseName =
           data.type === 'loop'
-            ? `Loop ${Object.values(blocks).filter((b) => b.type === 'loop').length + 1}`
+            ? 'Loop'
             : data.type === 'parallel'
-              ? `Parallel ${Object.values(blocks).filter((b) => b.type === 'parallel').length + 1}`
-              : defaultTriggerNameDrop ||
-                `${blockConfig!.name} ${Object.values(blocks).filter((b) => b.type === data.type).length + 1}`
+              ? 'Parallel'
+              : defaultTriggerNameDrop || blockConfig!.name
+        const name = getUniqueBlockName(baseName, blocks)
 
         if (containerInfo) {
           // Calculate position relative to the container node
