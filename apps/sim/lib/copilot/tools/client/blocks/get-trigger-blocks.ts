@@ -61,4 +61,4 @@ export class GetTriggerBlocksClientTool extends BaseClientTool {
       this.setState(ClientToolCallState.error)
     }
   }
-} 
+}

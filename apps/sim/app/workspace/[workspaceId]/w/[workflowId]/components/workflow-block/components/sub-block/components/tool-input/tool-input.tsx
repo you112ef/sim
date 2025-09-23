@@ -1,5 +1,5 @@
-import { useCallback, useEffect, useState } from 'react'
-import { PlusIcon, Server, WrenchIcon, XIcon } from 'lucide-react'
+import React, { useCallback, useEffect, useState } from 'react'
+import { AlertCircle, PlusIcon, Server, WrenchIcon, XIcon } from 'lucide-react'
 import { useParams } from 'next/navigation'
 import { Button } from '@/components/ui/button'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
@@ -51,8 +51,6 @@ import {
   isPasswordParameter,
   type ToolParameterConfig,
 } from '@/tools/params'
-import { AlertCircle } from 'lucide-react'
-import React from 'react'
 
 const logger = createLogger('ToolInput')
 
@@ -397,12 +395,12 @@ class ToolInputErrorBoundary extends React.Component<
   render() {
     if (this.state.hasError) {
       return (
-        <div className="rounded-md bg-red-50 p-4 text-sm text-red-800 dark:bg-red-900/20 dark:text-red-200">
-          <div className="flex items-center gap-2">
-            <AlertCircle className="h-4 w-4" />
-            <span className="font-medium">Tool Configuration Error</span>
+        <div className='rounded-md bg-red-50 p-4 text-red-800 text-sm dark:bg-red-900/20 dark:text-red-200'>
+          <div className='flex items-center gap-2'>
+            <AlertCircle className='h-4 w-4' />
+            <span className='font-medium'>Tool Configuration Error</span>
           </div>
-          <p className="mt-1 text-xs opacity-80">
+          <p className='mt-1 text-xs opacity-80'>
             {this.props.blockName ? `Block "${this.props.blockName}": ` : ''}
             Invalid tool reference. Please check the workflow configuration.
           </p>

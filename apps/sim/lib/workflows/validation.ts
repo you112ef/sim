@@ -1,7 +1,7 @@
 import { createLogger } from '@/lib/logs/console/logger'
+import { getBlock } from '@/blocks/registry'
 import type { WorkflowState } from '@/stores/workflows/workflow/types'
 import { getTool } from '@/tools/utils'
-import { getBlock } from '@/blocks/registry'
 
 const logger = createLogger('WorkflowValidation')
 
@@ -167,7 +167,7 @@ export function validateWorkflowState(
         // For API and generic blocks, the tool is determined by the block's tool configuration
         // In the workflow state, we need to check if the block type has valid tool access
         const blockConfig = getBlock(block.type)
-        if (blockConfig && blockConfig.tools?.access) {
+        if (blockConfig?.tools?.access) {
           // API block has static tool access
           const toolIds = blockConfig.tools.access
           for (const toolId of toolIds) {
@@ -203,7 +203,7 @@ export function validateWorkflowState(
       const blockIds = new Set(Object.keys(sanitizedBlocks))
       const loopIds = new Set(Object.keys(workflowState.loops || {}))
       const parallelIds = new Set(Object.keys(workflowState.parallels || {}))
-      
+
       for (const edge of workflowState.edges) {
         if (!edge || typeof edge !== 'object') {
           errors.push('Invalid edge structure')
@@ -211,8 +211,10 @@ export function validateWorkflowState(
         }
 
         // Check if source and target exist
-        const sourceExists = blockIds.has(edge.source) || loopIds.has(edge.source) || parallelIds.has(edge.source)
-        const targetExists = blockIds.has(edge.target) || loopIds.has(edge.target) || parallelIds.has(edge.target)
+        const sourceExists =
+          blockIds.has(edge.source) || loopIds.has(edge.source) || parallelIds.has(edge.source)
+        const targetExists =
+          blockIds.has(edge.target) || loopIds.has(edge.target) || parallelIds.has(edge.target)
 
         if (!sourceExists) {
           errors.push(`Edge references non-existent source block '${edge.source}'`)

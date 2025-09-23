@@ -1,13 +1,13 @@
+import type { BaseServerTool } from '@/lib/copilot/tools/server/base-tool'
+import type { BuildWorkflowInput, BuildWorkflowResult } from '@/lib/copilot/tools/shared/schemas'
 import { env } from '@/lib/env'
 import { createLogger } from '@/lib/logs/console/logger'
 import { SIM_AGENT_API_URL_DEFAULT } from '@/lib/sim-agent'
+import { validateWorkflowState } from '@/lib/workflows/validation'
 import { getAllBlocks } from '@/blocks/registry'
 import type { BlockConfig } from '@/blocks/types'
 import { resolveOutputType } from '@/blocks/utils'
 import { generateLoopBlocks, generateParallelBlocks } from '@/stores/workflows/workflow/utils'
-import type { BaseServerTool } from '@/lib/copilot/tools/server/base-tool'
-import { BuildWorkflowInput, BuildWorkflowResult } from '@/lib/copilot/tools/shared/schemas'
-import { validateWorkflowState } from '@/lib/workflows/validation'
 
 const SIM_AGENT_API_URL = env.SIM_AGENT_API_URL || SIM_AGENT_API_URL_DEFAULT
 
@@ -71,16 +71,14 @@ export const buildWorkflowServerTool: BaseServerTool<
           errors: conversionResult.errors,
           warnings: conversionResult.warnings,
         })
-        throw new Error(
-          conversionResult.errors?.join(', ') || 'Failed to convert YAML to workflow'
-        )
+        throw new Error(conversionResult.errors?.join(', ') || 'Failed to convert YAML to workflow')
       }
 
       const workflowState = conversionResult.workflowState
 
       // Validate the workflow state before returning
       const validation = validateWorkflowState(workflowState, { sanitize: true })
-      
+
       if (!validation.valid) {
         logger.error('Generated workflow state is invalid', {
           errors: validation.errors,

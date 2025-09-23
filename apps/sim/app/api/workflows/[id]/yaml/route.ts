@@ -12,8 +12,7 @@ import {
   loadWorkflowFromNormalizedTables,
   saveWorkflowToNormalizedTables,
 } from '@/lib/workflows/db-helpers'
-import { sanitizeAgentToolsInBlocks } from '@/lib/workflows/validation'
-import { validateWorkflowState } from '@/lib/workflows/validation'
+import { sanitizeAgentToolsInBlocks, validateWorkflowState } from '@/lib/workflows/validation'
 import { getUserId } from '@/app/api/auth/oauth/utils'
 import { getAllBlocks, getBlock } from '@/blocks'
 import type { BlockConfig } from '@/blocks/types'
@@ -405,7 +404,7 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
 
     // Validate the workflow state before persisting
     const validation = validateWorkflowState(workflowState, { sanitize: true })
-    
+
     if (!validation.valid) {
       logger.error(`[${requestId}] Workflow validation failed`, {
         errors: validation.errors,

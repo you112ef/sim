@@ -3,12 +3,12 @@ import { devtools } from 'zustand/middleware'
 import { getClientTool } from '@/lib/copilot/tools/client/manager'
 import { createLogger } from '@/lib/logs/console/logger'
 import { type DiffAnalysis, WorkflowDiffEngine } from '@/lib/workflows/diff'
+import { validateWorkflowState } from '@/lib/workflows/validation'
 import { Serializer } from '@/serializer'
 import { useWorkflowRegistry } from '../workflows/registry/store'
 import { useSubBlockStore } from '../workflows/subblock/store'
 import { useWorkflowStore } from '../workflows/workflow/store'
 import type { WorkflowState } from '../workflows/workflow/types'
-import { validateWorkflowState } from '@/lib/workflows/validation'
 
 const logger = createLogger('WorkflowDiffStore')
 
@@ -296,22 +296,22 @@ export const useWorkflowDiffStore = create<WorkflowDiffState & WorkflowDiffActio
 
             // Validate the clean state before applying
             const validation = validateWorkflowState(cleanState, { sanitize: true })
-            
+
             if (!validation.valid) {
               logger.error('Cannot accept diff - workflow state is invalid', {
                 errors: validation.errors,
                 warnings: validation.warnings,
               })
-              
+
               // Show error to user
               batchedUpdate({
                 diffError: `Cannot apply changes: ${validation.errors.join('; ')}`,
                 isDiffReady: false,
               })
-              
+
               // Clear the diff to prevent further attempts
               diffEngine.clearDiff()
-              
+
               throw new Error(`Invalid workflow: ${validation.errors.join('; ')}`)
             }
 

@@ -11,8 +11,8 @@ import { ClientToolCallState } from '@/lib/copilot/tools/client/base-tool'
 import { GetBlocksAndToolsClientTool } from '@/lib/copilot/tools/client/blocks/get-blocks-and-tools'
 import { GetBlocksMetadataClientTool } from '@/lib/copilot/tools/client/blocks/get-blocks-metadata'
 import { GetTriggerBlocksClientTool } from '@/lib/copilot/tools/client/blocks/get-trigger-blocks'
-import { GetTriggerExamplesClientTool } from '@/lib/copilot/tools/client/examples/get-trigger-examples'
 import { GetExamplesRagClientTool } from '@/lib/copilot/tools/client/examples/get-examples-rag'
+import { GetTriggerExamplesClientTool } from '@/lib/copilot/tools/client/examples/get-trigger-examples'
 import { ListGDriveFilesClientTool } from '@/lib/copilot/tools/client/gdrive/list-files'
 import { ReadGDriveFileClientTool } from '@/lib/copilot/tools/client/gdrive/read-file'
 import { GDriveRequestAccessClientTool } from '@/lib/copilot/tools/client/google/gdrive-request-access'
@@ -1275,8 +1275,9 @@ async function* parseSSEStream(
 // Initial state (subset required for UI/streaming)
 const initialState = {
   mode: 'agent' as const,
-  agentDepth: 1 as 0 | 1 | 2 | 3,
+  selectedModel: 'gpt-5' as CopilotStore['selectedModel'],
   agentPrefetch: true,
+  isCollapsed: false,
   currentChat: null as CopilotChat | null,
   chats: [] as CopilotChat[],
   messages: [] as CopilotMessage[],
@@ -1331,7 +1332,7 @@ export const useCopilotStore = create<CopilotStore>()(
         ...initialState,
         workflowId,
         mode: get().mode,
-        agentDepth: get().agentDepth,
+        selectedModel: get().selectedModel,
         agentPrefetch: get().agentPrefetch,
       })
     },
@@ -1548,16 +1549,9 @@ export const useCopilotStore = create<CopilotStore>()(
       }
 
       const isFirstMessage = get().messages.length === 0 && !currentChat?.title
-      // Capture send-time meta for reliable stats
-      const sendDepth = get().agentDepth
-      const sendMaxEnabled = sendDepth >= 2 && !get().agentPrefetch
       set((state) => ({
         messages: newMessages,
         currentUserMessageId: userMessage.id,
-        messageMetaById: {
-          ...(state.messageMetaById || {}),
-          [userMessage.id]: { depth: sendDepth, maxEnabled: sendMaxEnabled },
-        },
       }))
 
       if (isFirstMessage) {
@@ -1592,7 +1586,7 @@ export const useCopilotStore = create<CopilotStore>()(
           chatId: currentChat?.id,
           workflowId,
           mode: mode === 'ask' ? 'ask' : 'agent',
-          depth: get().agentDepth,
+          model: get().selectedModel,
           prefetch: get().agentPrefetch,
           createNewChat: !currentChat,
           stream,
@@ -1629,8 +1623,7 @@ export const useCopilotStore = create<CopilotStore>()(
             errorContent =
               '_Please upgrade to the latest version of the Sim platform to continue using the copilot._'
           } else if (result.status === 429) {
-            errorContent =
-              '_Provider rate limit exceeded. Please try again later._'
+            errorContent = '_Provider rate limit exceeded. Please try again later._'
           }
 
           const errorMessage = createErrorMessage(streamingMessage.id, errorContent)
@@ -1707,7 +1700,7 @@ export const useCopilotStore = create<CopilotStore>()(
 
     // Implicit feedback (send a continuation) - minimal
     sendImplicitFeedback: async (implicitFeedback: string) => {
-      const { workflowId, currentChat, mode, agentDepth } = get()
+      const { workflowId, currentChat, mode, selectedModel } = get()
       if (!workflowId) return
       const abortController = new AbortController()
       set({ isSendingMessage: true, error: null, abortController })
@@ -1719,7 +1712,7 @@ export const useCopilotStore = create<CopilotStore>()(
           chatId: currentChat?.id,
           workflowId,
           mode: mode === 'ask' ? 'ask' : 'agent',
-          depth: agentDepth,
+          model: selectedModel,
           prefetch: get().agentPrefetch,
           createNewChat: !currentChat,
           stream: true,
@@ -2192,7 +2185,7 @@ export const useCopilotStore = create<CopilotStore>()(
     updateDiffStore: async (_yamlContent: string) => {},
     updateDiffStoreWithWorkflowState: async (_workflowState: any) => {},
 
-    setAgentDepth: (depth) => set({ agentDepth: depth }),
+    setSelectedModel: (model) => set({ selectedModel: model }),
     setAgentPrefetch: (prefetch) => set({ agentPrefetch: prefetch }),
   }))
 )

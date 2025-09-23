@@ -1,5 +1,5 @@
-import type { BaseServerTool } from '@/lib/copilot/tools/server/base-tool'
 import { z } from 'zod'
+import type { BaseServerTool } from '@/lib/copilot/tools/server/base-tool'
 import { createLogger } from '@/lib/logs/console/logger'
 import { registry as blockRegistry } from '@/blocks/registry'
 import type { BlockConfig } from '@/blocks/types'
@@ -45,4 +45,4 @@ export const getTriggerBlocksServerTool: BaseServerTool<
     logger.debug(`Found ${triggerBlockIds.length} trigger blocks`)
     return GetTriggerBlocksResult.parse({ triggerBlockIds })
   },
-} 
+}

@@ -51,7 +51,6 @@ import {
 import { useSession } from '@/lib/auth-client'
 import { createLogger } from '@/lib/logs/console/logger'
 import { cn } from '@/lib/utils'
-import { CopilotSlider } from '@/app/workspace/[workspaceId]/w/[workflowId]/components/panel/components/copilot/components/user-input/components/copilot-slider'
 import { useCopilotStore } from '@/stores/copilot/store'
 import type { ChatContext } from '@/stores/copilot/types'
 import { useWorkflowStore } from '@/stores/workflows/workflow/store'
@@ -1754,55 +1753,48 @@ const UserInput = forwardRef<UserInputRef, UserInputProps>(
       return 'Agent'
     }
 
-    // Depth toggle state comes from global store; access via useCopilotStore
-    const { agentDepth, agentPrefetch, setAgentDepth, setAgentPrefetch } = useCopilotStore()
+    // Model selection state comes from global store; access via useCopilotStore
+    const { selectedModel, agentPrefetch, setSelectedModel, setAgentPrefetch } = useCopilotStore()
 
-    // Ensure MAX mode is off for Fast and Balanced depths
-    useEffect(() => {
-      if (agentDepth < 2 && !agentPrefetch) {
-        setAgentPrefetch(true)
-      }
-    }, [agentDepth, agentPrefetch, setAgentPrefetch])
-
-    const cycleDepth = () => {
-      // 8 modes: depths 0-3, each with prefetch off/on. Cycle depth, then toggle prefetch when wrapping.
-      const nextDepth = agentDepth === 3 ? 0 : ((agentDepth + 1) as 0 | 1 | 2 | 3)
-      if (nextDepth === 0 && agentDepth === 3) {
-        setAgentPrefetch(!agentPrefetch)
-      }
-      setAgentDepth(nextDepth)
-    }
+    // Model configurations with their display names
+    const modelOptions = [
+      { value: 'gpt-5-fast', label: 'GPT-5 Fast' },
+      { value: 'gpt-5', label: 'GPT-5' },
+      { value: 'gpt-5-high', label: 'GPT-5 High' },
+      { value: 'gpt-4o', label: 'GPT-4o' },
+      { value: 'gpt-4.1', label: 'GPT-4.1' },
+      { value: 'o3', label: 'o3' },
+      { value: 'claude-4-sonnet', label: 'Claude 4 Sonnet' },
+      { value: 'claude-4.1-opus', label: 'Claude 4.1 Opus' },
+    ] as const
 
     const getCollapsedModeLabel = () => {
-      const base = getDepthLabelFor(agentDepth)
-      return !agentPrefetch ? `${base} MAX` : base
+      const model = modelOptions.find((m) => m.value === selectedModel)
+      return model ? model.label : 'GPT-5 Default'
     }
 
-    const getDepthLabelFor = (value: 0 | 1 | 2 | 3) => {
-      return value === 0 ? 'Fast' : value === 1 ? 'Balanced' : value === 2 ? 'Advanced' : 'Behemoth'
-    }
-
-    // Removed descriptive suffixes; concise labels only
-    const getDepthDescription = (value: 0 | 1 | 2 | 3) => {
-      if (value === 0)
-        return 'Fastest and cheapest. Good for small edits, simple workflows, and small tasks'
-      if (value === 1) return 'Balances speed and reasoning. Good fit for most tasks'
-      if (value === 2)
-        return 'More reasoning for larger workflows and complex edits, still balanced for speed'
-      return 'Maximum reasoning power. Best for complex workflow building and debugging'
-    }
-
-    const getDepthIconFor = (value: 0 | 1 | 2 | 3) => {
+    const getModelIcon = () => {
       const colorClass = !agentPrefetch
         ? 'text-[var(--brand-primary-hover-hex)]'
         : 'text-muted-foreground'
-      if (value === 0) return <Zap className={`h-3 w-3 ${colorClass}`} />
-      if (value === 1) return <InfinityIcon className={`h-3 w-3 ${colorClass}`} />
-      if (value === 2) return <Brain className={`h-3 w-3 ${colorClass}`} />
-      return <BrainCircuit className={`h-3 w-3 ${colorClass}`} />
-    }
 
-    const getDepthIcon = () => getDepthIconFor(agentDepth)
+      switch (selectedModel) {
+        case 'gpt-5-fast':
+          return <Zap className={`h-3 w-3 ${colorClass}`} />
+        case 'gpt-5':
+          return <InfinityIcon className={`h-3 w-3 ${colorClass}`} />
+        case 'gpt-5-high':
+        case 'gpt-4o':
+        case 'claude-4-sonnet':
+          return <Brain className={`h-3 w-3 ${colorClass}`} />
+        case 'gpt-4.1':
+        case 'o3':
+        case 'claude-4.1-opus':
+          return <BrainCircuit className={`h-3 w-3 ${colorClass}`} />
+        default:
+          return <InfinityIcon className={`h-3 w-3 ${colorClass}`} />
+      }
+    }
 
     const scrollActiveItemIntoView = (index: number) => {
       const container = menuListRef.current
@@ -3057,7 +3049,7 @@ const UserInput = forwardRef<UserInputRef, UserInputProps>(
                     <span>{getModeText()}</span>
                   </Button>
                 </DropdownMenuTrigger>
-                <DropdownMenuContent align='start' className='p-0'>
+                <DropdownMenuContent align='start' side='top' className='p-0'>
                   <TooltipProvider>
                     <div className='w-[160px] p-1'>
                       <Tooltip>
@@ -3131,14 +3123,14 @@ const UserInput = forwardRef<UserInputRef, UserInputProps>(
                       )}
                       title='Choose mode'
                     >
-                      {getDepthIcon()}
+                      {getModelIcon()}
                       <span>{getCollapsedModeLabel()}</span>
                     </Button>
                   </DropdownMenuTrigger>
-                  <DropdownMenuContent align='start' className='p-0'>
+                  <DropdownMenuContent align='start' side='top' className='p-0'>
                     <TooltipProvider delayDuration={100} skipDelayDuration={0}>
-                      <div className='w-[260px] p-3'>
-                        <div className='mb-3 flex items-center justify-between'>
+                      <div className='w-[220px] p-2'>
+                        <div className='mb-2 flex items-center justify-between'>
                           <div className='flex items-center gap-1.5'>
                             <span className='font-medium text-xs'>MAX mode</span>
                             <Tooltip>
@@ -3167,49 +3159,55 @@ const UserInput = forwardRef<UserInputRef, UserInputProps>(
                           </div>
                           <Switch
                             checked={!agentPrefetch}
-                            disabled={agentDepth < 2}
+                            disabled={['gpt-5-fast', 'gpt-5'].includes(selectedModel)}
                             title={
-                              agentDepth < 2
-                                ? 'MAX mode is only available for Advanced or Expert'
+                              ['gpt-5-fast', 'gpt-5'].includes(selectedModel)
+                                ? 'MAX mode is only available for higher-tier models'
                                 : undefined
                             }
                             onCheckedChange={(checked) => {
-                              if (agentDepth < 2) return
+                              if (['gpt-5-fast', 'gpt-5'].includes(selectedModel)) return
                               setAgentPrefetch(!checked)
                             }}
                           />
                         </div>
-                        <div className='my-2 flex justify-center'>
+                        <div className='my-1.5 flex justify-center'>
                           <div className='h-px w-[100%] bg-border' />
                         </div>
-                        <div className='mb-3'>
-                          <div className='mb-2 flex items-center justify-between'>
-                            <span className='font-medium text-xs'>Mode</span>
-                            <div className='flex items-center gap-1'>
-                              {getDepthIconFor(agentDepth)}
-                              <span className='text-muted-foreground text-xs'>
-                                {getDepthLabelFor(agentDepth)}
-                              </span>
-                            </div>
+                        <div>
+                          <div className='mb-1'>
+                            <span className='font-medium text-xs'>Model</span>
                           </div>
-                          <div className='relative'>
-                            <CopilotSlider
-                              min={0}
-                              max={3}
-                              step={1}
-                              value={[agentDepth]}
-                              onValueChange={(val) =>
-                                setAgentDepth((val?.[0] ?? 0) as 0 | 1 | 2 | 3)
+                          <div className='space-y-0.5'>
+                            {modelOptions.map((option) => {
+                              const getIcon = () => {
+                                if (['gpt-5-high', 'claude-4.1-opus'].includes(option.value)) {
+                                  return <BrainCircuit className='h-3 w-3 text-muted-foreground' />
+                                }
+                                if (['gpt-5', 'o3', 'claude-4-sonnet'].includes(option.value)) {
+                                  return <Brain className='h-3 w-3 text-muted-foreground' />
+                                }
+                                if (['gpt-4o', 'gpt-4.1', 'gpt-5-fast'].includes(option.value)) {
+                                  return <Zap className='h-3 w-3 text-muted-foreground' />
+                                }
+                                return <div className='h-3 w-3' />
                               }
-                            />
-                            <div className='pointer-events-none absolute inset-0'>
-                              <div className='-translate-x-1/2 -translate-y-1/2 absolute top-1/2 left-[33.333%] h-2 w-[3px] bg-background' />
-                              <div className='-translate-x-1/2 -translate-y-1/2 absolute top-1/2 left-[66.667%] h-2 w-[3px] bg-background' />
-                            </div>
+
+                              return (
+                                <DropdownMenuItem
+                                  key={option.value}
+                                  onSelect={() => setSelectedModel(option.value)}
+                                  className={cn(
+                                    'flex h-7 items-center gap-1.5 px-2 py-1 text-left text-xs',
+                                    selectedModel === option.value ? 'bg-muted/50' : ''
+                                  )}
+                                >
+                                  {getIcon()}
+                                  <span>{option.label}</span>
+                                </DropdownMenuItem>
+                              )
+                            })}
                           </div>
-                        </div>
-                        <div className='mt-3 text-[11px] text-muted-foreground'>
-                          {getDepthDescription(agentDepth)}
                         </div>
                       </div>
                     </TooltipProvider>

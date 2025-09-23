@@ -4,6 +4,7 @@ import { env } from '@/lib/env'
 import { createLogger } from '@/lib/logs/console/logger'
 import { SIM_AGENT_API_URL_DEFAULT } from '@/lib/sim-agent'
 import { generateRequestId } from '@/lib/utils'
+import { validateWorkflowState } from '@/lib/workflows/validation'
 import { getAllBlocks } from '@/blocks/registry'
 import type { BlockConfig } from '@/blocks/types'
 import { resolveOutputType } from '@/blocks/utils'
@@ -15,7 +16,6 @@ import {
   generateLoopBlocks,
   generateParallelBlocks,
 } from '@/stores/workflows/workflow/utils'
-import { validateWorkflowState } from '@/lib/workflows/validation'
 
 const logger = createLogger('YamlDiffCreateAPI')
 
@@ -263,7 +263,7 @@ export async function POST(request: NextRequest) {
 
       // Validate the proposed workflow state
       const validation = validateWorkflowState(result.diff.proposedState, { sanitize: true })
-      
+
       if (!validation.valid) {
         logger.error(`[${requestId}] Proposed workflow state validation failed`, {
           errors: validation.errors,

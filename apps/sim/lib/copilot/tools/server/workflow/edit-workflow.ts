@@ -6,11 +6,11 @@ import { env } from '@/lib/env'
 import { createLogger } from '@/lib/logs/console/logger'
 import { SIM_AGENT_API_URL_DEFAULT } from '@/lib/sim-agent'
 import { loadWorkflowFromNormalizedTables } from '@/lib/workflows/db-helpers'
+import { validateWorkflowState } from '@/lib/workflows/validation'
 import { getAllBlocks } from '@/blocks/registry'
 import type { BlockConfig } from '@/blocks/types'
 import { resolveOutputType } from '@/blocks/utils'
 import { generateLoopBlocks, generateParallelBlocks } from '@/stores/workflows/workflow/utils'
-import { validateWorkflowState } from '@/lib/workflows/validation'
 
 interface EditWorkflowOperation {
   operation_type: 'add' | 'edit' | 'delete'
@@ -285,7 +285,7 @@ export const editWorkflowServerTool: BaseServerTool<EditWorkflowParams, any> = {
 
     // Validate the workflow state
     const validation = validateWorkflowState(validationResult.workflowState, { sanitize: true })
-    
+
     if (!validation.valid) {
       logger.error('Edited workflow state is invalid', {
         errors: validation.errors,
