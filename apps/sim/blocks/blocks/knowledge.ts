@@ -7,6 +7,9 @@ export const KnowledgeBlock: BlockConfig = {
   description: 'Use vector search',
   longDescription:
     'Integrate Knowledge into the workflow. Can search, upload chunks, and create documents.',
+  bestPractices: `
+  - Search up examples with knowledge base blocks to understand YAML syntax. 
+  `,
   bgColor: '#00B0B0',
   icon: PackageSearchIcon,
   category: 'blocks',
