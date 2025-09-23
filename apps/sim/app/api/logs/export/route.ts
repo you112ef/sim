@@ -4,6 +4,7 @@ import { and, desc, eq, gte, inArray, lte, type SQL, sql } from 'drizzle-orm'
 import { type NextRequest, NextResponse } from 'next/server'
 import { z } from 'zod'
 import { getSession } from '@/lib/auth'
+import { getCostMultiplier } from '@/lib/environment'
 import { createLogger } from '@/lib/logs/console/logger'
 
 const logger = createLogger('LogsExportAPI')
@@ -140,6 +141,8 @@ export async function GET(request: NextRequest) {
 
             if (!rows.length) break
 
+            const costMultiplier = getCostMultiplier()
+
             for (const r of rows as any[]) {
               let message = ''
               let traces: any = null
@@ -155,13 +158,17 @@ export async function GET(request: NextRequest) {
                   if (ed.traceSpans) traces = ed.traceSpans
                 }
               } catch {}
+
+              const rawCost = r.cost?.total ?? r.cost?.value?.total ?? 0
+              const multipliedCost = Number.parseFloat(rawCost.toString()) * costMultiplier
+
               const line = [
                 escapeCsv(r.startedAt?.toISOString?.() || r.startedAt),
                 escapeCsv(r.level),
                 escapeCsv(r.workflowName),
                 escapeCsv(r.trigger),
                 escapeCsv(r.totalDurationMs ?? ''),
-                escapeCsv(r.cost?.total ?? r.cost?.value?.total ?? ''),
+                escapeCsv(multipliedCost || ''),
                 escapeCsv(r.workflowId ?? ''),
                 escapeCsv(r.executionId ?? ''),
                 escapeCsv(message),
