@@ -641,12 +641,18 @@ export class Executor {
       (block) => block.metadata?.id === BlockType.STARTER
     )
 
+    // Check for any type of trigger block (dedicated triggers or trigger-mode blocks)
     const hasTriggerBlocks = this.actualWorkflow.blocks.some((block) => {
-      return block.metadata?.category === 'triggers' || block.config?.params?.triggerMode === true
+      // Check if it's a dedicated trigger block (category: 'triggers')
+      if (block.metadata?.category === 'triggers') return true
+      // Check if it's a block with trigger mode enabled
+      if (block.config?.params?.triggerMode === true) return true
+      return false
     })
 
     if (hasTriggerBlocks) {
-      // When triggers exist, we allow execution without a starter block
+      // When triggers exist (either dedicated or trigger-mode), we allow execution without a starter block
+      // The actual start block will be determined at runtime based on the execution context
     } else {
       // Legacy workflows: require a valid starter block and basic connection checks
       if (!starterBlock || !starterBlock.enabled) {
@@ -783,12 +789,14 @@ export class Executor {
             throw new Error('Child workflow has multiple Input Trigger blocks. Keep only one.')
           }
         } else {
-          // Parent workflows can use any trigger block
+          // Parent workflows can use any trigger block (dedicated or trigger-mode)
           const triggerBlocks = this.actualWorkflow.blocks.filter(
             (block) =>
               block.metadata?.id === 'input_trigger' ||
               block.metadata?.id === 'api_trigger' ||
-              block.metadata?.id === 'chat_trigger'
+              block.metadata?.id === 'chat_trigger' ||
+              block.metadata?.category === 'triggers' ||
+              block.config?.params?.triggerMode === true
           )
           if (triggerBlocks.length > 0) {
             initBlock = triggerBlocks[0]
