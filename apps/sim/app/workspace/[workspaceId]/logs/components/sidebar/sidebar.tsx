@@ -7,6 +7,7 @@ import { CopyButton } from '@/components/ui/copy-button'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
 import { BASE_EXECUTION_CHARGE } from '@/lib/billing/constants'
+import { getCostMultiplier } from '@/lib/environment'
 import { redactApiKeys } from '@/lib/utils'
 import { FrozenCanvasModal } from '@/app/workspace/[workspaceId]/logs/components/frozen-canvas/frozen-canvas-modal'
 import { FileDownload } from '@/app/workspace/[workspaceId]/logs/components/sidebar/components/file-download'
@@ -16,6 +17,12 @@ import { TraceSpansDisplay } from '@/app/workspace/[workspaceId]/logs/components
 import { formatDate } from '@/app/workspace/[workspaceId]/logs/utils/format-date'
 import { formatCost } from '@/providers/utils'
 import type { WorkflowLog } from '@/stores/logs/filters/types'
+
+function formatMultipliedCost(rawCost: number): string {
+  const costMultiplier = getCostMultiplier()
+  const multipliedCost = rawCost * costMultiplier
+  return formatCost(multipliedCost)
+}
 
 interface LogSidebarProps {
   log: WorkflowLog | null
@@ -583,16 +590,20 @@ export function Sidebar({
                         </div>
                         <div className='flex items-center justify-between'>
                           <span className='text-muted-foreground text-sm'>Model Input:</span>
-                          <span className='text-sm'>{formatCost(log.cost?.input || 0)}</span>
+                          <span className='text-sm'>
+                            {formatMultipliedCost(log.cost?.input || 0)}
+                          </span>
                         </div>
                         <div className='flex items-center justify-between'>
                           <span className='text-muted-foreground text-sm'>Model Output:</span>
-                          <span className='text-sm'>{formatCost(log.cost?.output || 0)}</span>
+                          <span className='text-sm'>
+                            {formatMultipliedCost(log.cost?.output || 0)}
+                          </span>
                         </div>
                         <div className='mt-1 flex items-center justify-between border-t pt-2'>
                           <span className='text-muted-foreground text-sm'>Total:</span>
                           <span className='text-foreground text-sm'>
-                            {formatCost(log.cost?.total || 0)}
+                            {formatMultipliedCost(log.cost?.total || 0)}
                           </span>
                         </div>
                         <div className='flex items-center justify-between'>
@@ -630,16 +641,16 @@ export function Sidebar({
                                     <div className='space-y-1 text-xs'>
                                       <div className='flex justify-between'>
                                         <span className='text-muted-foreground'>Input:</span>
-                                        <span>{formatCost(cost.input || 0)}</span>
+                                        <span>{formatMultipliedCost(cost.input || 0)}</span>
                                       </div>
                                       <div className='flex justify-between'>
                                         <span className='text-muted-foreground'>Output:</span>
-                                        <span>{formatCost(cost.output || 0)}</span>
+                                        <span>{formatMultipliedCost(cost.output || 0)}</span>
                                       </div>
                                       <div className='flex justify-between border-t pt-1'>
                                         <span className='text-muted-foreground'>Total:</span>
                                         <span className='font-medium'>
-                                          {formatCost(cost.total || 0)}
+                                          {formatMultipliedCost(cost.total || 0)}
                                         </span>
                                       </div>
                                       <div className='flex justify-between'>

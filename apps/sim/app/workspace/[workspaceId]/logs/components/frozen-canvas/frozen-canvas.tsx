@@ -17,6 +17,7 @@ import {
 } from 'lucide-react'
 import { Badge } from '@/components/ui/badge'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { getCostMultiplier } from '@/lib/environment'
 import { createLogger } from '@/lib/logs/console/logger'
 import { cn, redactApiKeys } from '@/lib/utils'
 import { WorkflowPreview } from '@/app/workspace/[workspaceId]/w/components/workflow-preview/workflow-preview'
@@ -113,11 +114,14 @@ function formatExecutionData(executionData: any) {
     errorMessage,
     errorStackTrace,
     cost: cost
-      ? {
-          input: cost.input || 0,
-          output: cost.output || 0,
-          total: cost.total || 0,
-        }
+      ? (() => {
+          const costMultiplier = getCostMultiplier()
+          return {
+            input: (cost.input || 0) * costMultiplier,
+            output: (cost.output || 0) * costMultiplier,
+            total: (cost.total || 0) * costMultiplier,
+          }
+        })()
       : null,
     tokens: tokens
       ? {

@@ -8,6 +8,7 @@ import {
 import { task, wait } from '@trigger.dev/sdk'
 import { and, eq, isNull, lte, or, sql } from 'drizzle-orm'
 import { v4 as uuidv4 } from 'uuid'
+import { getCostMultiplier } from '@/lib/environment'
 import { createLogger } from '@/lib/logs/console/logger'
 import type { WorkflowExecutionLog } from '@/lib/logs/types'
 import { decryptSecret } from '@/lib/utils'
@@ -143,6 +144,29 @@ export const logsWebhookDelivery = task({
       const timestamp = Date.now()
       const eventId = `evt_${uuidv4()}`
 
+      const costMultiplier = getCostMultiplier()
+      const multipliedCost = log.cost
+        ? {
+            input: (log.cost.input || 0) * costMultiplier,
+            output: (log.cost.output || 0) * costMultiplier,
+            total: (log.cost.total || 0) * costMultiplier,
+            tokens: log.cost.tokens,
+            models: log.cost.models
+              ? Object.fromEntries(
+                  Object.entries(log.cost.models).map(([model, cost]: [string, any]) => [
+                    model,
+                    {
+                      input: (cost.input || 0) * costMultiplier,
+                      output: (cost.output || 0) * costMultiplier,
+                      total: (cost.total || 0) * costMultiplier,
+                      tokens: cost.tokens,
+                    },
+                  ])
+                )
+              : undefined,
+          }
+        : log.cost
+
       const payload: WebhookPayload = {
         id: eventId,
         type: 'workflow.execution.completed',
@@ -156,7 +180,7 @@ export const logsWebhookDelivery = task({
           startedAt: log.startedAt,
           endedAt: log.endedAt || log.startedAt,
           totalDurationMs: log.totalDurationMs,
-          cost: log.cost,
+          cost: multipliedCost,
           files: (log as any).files,
         },
         links: {
@@ -173,7 +197,6 @@ export const logsWebhookDelivery = task({
         payload.data.traceSpans = (log.executionData as any).traceSpans
       }
 
-      // Fetch rate limits and usage data if requested
       if ((subscription.includeRateLimits || subscription.includeUsageData) && log.executionData) {
         const executionData = log.executionData as any
 

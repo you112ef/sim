@@ -5,6 +5,7 @@ import { AlertCircle, Info, Loader2, Play, RefreshCw, Square } from 'lucide-reac
 import { useParams } from 'next/navigation'
 import { Button } from '@/components/ui/button'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
+import { getCostMultiplier } from '@/lib/environment'
 import { createLogger } from '@/lib/logs/console/logger'
 import { parseQuery, queryToApiParams } from '@/lib/logs/query-parser'
 import { cn } from '@/lib/utils'
@@ -868,7 +869,12 @@ export default function Logs() {
                           <div>
                             <div className='font-medium text-muted-foreground text-xs'>
                               {typeof (log as any)?.cost?.total === 'number'
-                                ? `$${((log as any).cost.total as number).toFixed(4)}`
+                                ? (() => {
+                                    const rawCost = (log as any).cost.total as number
+                                    const costMultiplier = getCostMultiplier()
+                                    const multipliedCost = rawCost * costMultiplier
+                                    return `$${multipliedCost.toFixed(4)}`
+                                  })()
                                 : '—'}
                             </div>
                           </div>
