@@ -15,6 +15,7 @@ import {
   generateLoopBlocks,
   generateParallelBlocks,
 } from '@/stores/workflows/workflow/utils'
+import { validateWorkflowState } from '@/lib/workflows/validation'
 
 const logger = createLogger('YamlDiffCreateAPI')
 
@@ -256,7 +257,44 @@ export async function POST(request: NextRequest) {
 
     if (result.success && result.diff?.proposedState) {
       // Normalize blocks that use 'inputs' field to standard 'subBlocks' structure
-      result.diff.proposedState.blocks = normalizeBlockStructure(result.diff.proposedState.blocks)
+      if (result.diff.proposedState.blocks) {
+        result.diff.proposedState.blocks = normalizeBlockStructure(result.diff.proposedState.blocks)
+      }
+
+      // Validate the proposed workflow state
+      const validation = validateWorkflowState(result.diff.proposedState, { sanitize: true })
+      
+      if (!validation.valid) {
+        logger.error(`[${requestId}] Proposed workflow state validation failed`, {
+          errors: validation.errors,
+          warnings: validation.warnings,
+        })
+        return NextResponse.json(
+          {
+            success: false,
+            errors: validation.errors,
+          },
+          { status: 400 }
+        )
+      }
+
+      // Use sanitized state if available
+      if (validation.sanitizedState) {
+        result.diff.proposedState = validation.sanitizedState
+      }
+
+      if (validation.warnings.length > 0) {
+        logger.warn(`[${requestId}] Proposed workflow validation warnings`, {
+          warnings: validation.warnings,
+        })
+        // Include warnings in the response
+        if (!result.warnings) {
+          result.warnings = []
+        }
+        result.warnings.push(...validation.warnings)
+      }
+
+      logger.info(`[${requestId}] Successfully created diff with normalized and validated blocks`)
 
       // First, fix parent-child relationships based on edges
       const blocks = result.diff.proposedState.blocks

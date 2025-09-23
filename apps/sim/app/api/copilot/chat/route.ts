@@ -15,7 +15,7 @@ import { getCopilotModel } from '@/lib/copilot/config'
 import type { CopilotProviderConfig } from '@/lib/copilot/types'
 import { env } from '@/lib/env'
 import { createLogger } from '@/lib/logs/console/logger'
-import { SIM_AGENT_API_URL_DEFAULT } from '@/lib/sim-agent'
+import { SIM_AGENT_API_URL_DEFAULT, SIM_AGENT_VERSION } from '@/lib/sim-agent'
 import { generateChatTitle } from '@/lib/sim-agent/utils'
 import { createFileContent, isSupportedFileType } from '@/lib/uploads/file-utils'
 import { S3_COPILOT_CONFIG } from '@/lib/uploads/setup'
@@ -366,12 +366,14 @@ export async function POST(req: NextRequest) {
 
     const requestPayload = {
       messages: messagesForAgent,
+      chatMessages: messages, // Full unfiltered messages array
       workflowId,
       userId: authenticatedUserId,
       stream: stream,
       streamToolCalls: true,
       mode: mode,
       messageId: userMessageIdToUse,
+      version: SIM_AGENT_VERSION,
       ...(providerConfig ? { provider: providerConfig } : {}),
       ...(effectiveConversationId ? { conversationId: effectiveConversationId } : {}),
       ...(typeof effectiveDepth === 'number' ? { depth: effectiveDepth } : {}),
@@ -384,6 +386,9 @@ export async function POST(req: NextRequest) {
     try {
       logger.info(`[${tracker.requestId}] About to call Sim Agent with context`, {
         context: (requestPayload as any).context,
+        messagesCount: messagesForAgent.length,
+        chatMessagesCount: messages.length,
+        hasConversationId: !!effectiveConversationId,
       })
     } catch {}
 

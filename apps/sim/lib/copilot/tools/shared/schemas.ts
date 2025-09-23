@@ -28,6 +28,13 @@ export const GetBlocksMetadataInput = z.object({ blockIds: z.array(z.string()).m
 export const GetBlocksMetadataResult = z.object({ metadata: z.record(z.any()) })
 export type GetBlocksMetadataResultType = z.infer<typeof GetBlocksMetadataResult>
 
+// get_trigger_blocks
+export const GetTriggerBlocksInput = z.object({})
+export const GetTriggerBlocksResult = z.object({
+  triggerBlockIds: z.array(z.string()),
+})
+export type GetTriggerBlocksResultType = z.infer<typeof GetTriggerBlocksResult>
+
 // build_workflow
 export const BuildWorkflowInput = z.object({
   yamlContent: z.string(),

@@ -13,6 +13,7 @@ import {
   saveWorkflowToNormalizedTables,
 } from '@/lib/workflows/db-helpers'
 import { sanitizeAgentToolsInBlocks } from '@/lib/workflows/validation'
+import { validateWorkflowState } from '@/lib/workflows/validation'
 import { getUserId } from '@/app/api/auth/oauth/utils'
 import { getAllBlocks, getBlock } from '@/blocks'
 import type { BlockConfig } from '@/blocks/types'
@@ -402,29 +403,59 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
       workflowState.blocks = normalizeBlockStructure(workflowState.blocks)
     }
 
+    // Validate the workflow state before persisting
+    const validation = validateWorkflowState(workflowState, { sanitize: true })
+    
+    if (!validation.valid) {
+      logger.error(`[${requestId}] Workflow validation failed`, {
+        errors: validation.errors,
+        warnings: validation.warnings,
+      })
+      return NextResponse.json({
+        success: false,
+        message: 'Invalid workflow structure',
+        errors: validation.errors,
+        warnings: validation.warnings || [],
+      })
+    }
+
+    // Use sanitized state if available
+    const finalWorkflowState = validation.sanitizedState || workflowState
+
+    if (validation.warnings.length > 0) {
+      logger.warn(`[${requestId}] Workflow validation warnings`, {
+        warnings: validation.warnings,
+      })
+    }
+
     // Ensure all blocks have required fields
-    Object.values(workflowState.blocks).forEach((block: any) => {
-      if (block.enabled === undefined) {
-        block.enabled = true
+    Object.entries(finalWorkflowState.blocks).forEach(([blockId, block]) => {
+      const blockData = block as any
+      if (!blockData.id) blockData.id = blockId
+      if (!blockData.position) {
+        blockData.position = { x: 0, y: 0 }
       }
-      if (block.horizontalHandles === undefined) {
-        block.horizontalHandles = true
+      if (blockData.enabled === undefined) {
+        blockData.enabled = true
       }
-      if (block.isWide === undefined) {
-        block.isWide = false
+      if (blockData.horizontalHandles === undefined) {
+        blockData.horizontalHandles = true
       }
-      if (block.height === undefined) {
-        block.height = 0
+      if (blockData.isWide === undefined) {
+        blockData.isWide = false
       }
-      if (!block.subBlocks) {
-        block.subBlocks = {}
+      if (blockData.height === undefined) {
+        blockData.height = 0
       }
-      if (!block.outputs) {
-        block.outputs = {}
+      if (!blockData.subBlocks) {
+        blockData.subBlocks = {}
+      }
+      if (!blockData.outputs) {
+        blockData.outputs = {}
       }
     })
 
-    const blocks = Object.values(workflowState.blocks) as Array<{
+    const blocks = Object.values(finalWorkflowState.blocks) as Array<{
       id: string
       type: string
       name: string
@@ -434,7 +465,7 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
       parentId?: string
       extent?: string
     }>
-    const edges = workflowState.edges
+    const edges = finalWorkflowState.edges
     const warnings = conversionResult.warnings || []
 
     // Create workflow state
