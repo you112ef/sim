@@ -431,9 +431,10 @@ export async function executeWorkflowForChat(
     (acc, [id, block]) => {
       const blockConfig = getBlock(block.type)
       const isTriggerBlock = blockConfig?.category === 'triggers'
+      const isChatTrigger = block.type === 'chat_trigger'
 
-      // Skip trigger blocks during chat execution
-      if (!isTriggerBlock) {
+      // Keep all non-trigger blocks and also keep the chat_trigger block
+      if (!isTriggerBlock || isChatTrigger) {
         acc[id] = block
       }
       return acc
@@ -488,8 +489,10 @@ export async function executeWorkflowForChat(
 
   // Filter edges to exclude connections to/from trigger blocks (same as manual execution)
   const triggerBlockIds = Object.keys(mergedStates).filter((id) => {
-    const blockConfig = getBlock(mergedStates[id].type)
-    return blockConfig?.category === 'triggers'
+    const type = mergedStates[id].type
+    const blockConfig = getBlock(type)
+    // Exclude chat_trigger from the list so its edges are preserved
+    return blockConfig?.category === 'triggers' && type !== 'chat_trigger'
   })
 
   const filteredEdges = edges.filter(
