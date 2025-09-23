@@ -1168,6 +1168,10 @@ const WorkflowContent = React.memo(() => {
       // Handle container nodes differently
       if (block.type === 'loop' || block.type === 'parallel') {
         const hasNestedError = nestedSubflowErrors.has(block.id)
+        const diffStatus = currentWorkflow.isDiffMode && block && 'is_diff' in block
+          ? (block as any).is_diff
+          : undefined
+          
         nodeArray.push({
           id: block.id,
           type: 'subflowNode',
@@ -1181,7 +1185,9 @@ const WorkflowContent = React.memo(() => {
             height: block.data?.height || 300,
             hasNestedError,
             kind: block.type === 'loop' ? 'loop' : 'parallel',
+            diffStatus,
           },
+          className: diffStatus ? `diff-${diffStatus}` : undefined,
         })
         return
       }
@@ -1198,6 +1204,11 @@ const WorkflowContent = React.memo(() => {
 
       const isActive = activeBlockIds.has(block.id)
       const isPending = isDebugModeEnabled && pendingBlocks.includes(block.id)
+      
+      // Get diff status for animations
+      const diffStatus = currentWorkflow.isDiffMode && block && 'is_diff' in block
+        ? (block as any).is_diff
+        : undefined
 
       nodeArray.push({
         id: block.id,
@@ -1216,11 +1227,12 @@ const WorkflowContent = React.memo(() => {
         // Include dynamic dimensions for container resizing calculations
         width: block.isWide ? 450 : 350, // Standard width based on isWide state
         height: Math.max(block.height || 100, 100), // Use actual height with minimum
+        className: diffStatus ? `diff-${diffStatus}` : undefined,
       })
     })
 
     return nodeArray
-  }, [blocks, activeBlockIds, pendingBlocks, isDebugModeEnabled, nestedSubflowErrors])
+  }, [blocks, activeBlockIds, pendingBlocks, isDebugModeEnabled, nestedSubflowErrors, currentWorkflow.isDiffMode])
 
   // Update nodes - use store version to avoid collaborative feedback loops
   const onNodesChange = useCallback(
@@ -1919,6 +1931,9 @@ const WorkflowContent = React.memo(() => {
           elevateNodesOnSelect={true}
           autoPanOnConnect={effectivePermissions.canEdit}
           autoPanOnNodeDrag={effectivePermissions.canEdit}
+          // Optimize animations for performance
+          translateExtent={[[-10000, -10000], [10000, 10000]]}
+          nodeExtent={[[-10000, -10000], [10000, 10000]]}
         >
           <Background
             color='hsl(var(--workflow-dots))'

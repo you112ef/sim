@@ -2,7 +2,7 @@
  * Type definitions for workflow diff functionality
  */
 
-export type DiffStatus = 'new' | 'edited' | undefined
+export type DiffStatus = 'new' | 'edited' | 'deleted' | undefined
 
 export type FieldDiffStatus = 'changed' | 'unchanged'
 

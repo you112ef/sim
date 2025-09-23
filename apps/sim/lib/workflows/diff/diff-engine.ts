@@ -2,6 +2,7 @@ import { createLogger } from '@/lib/logs/console/logger'
 import { mergeSubblockState } from '@/stores/workflows/utils'
 import type { BlockState, WorkflowState } from '@/stores/workflows/workflow/types'
 import type { BlockWithDiff } from './types'
+import { SmartLayoutEngine } from './smart-layout'
 
 const logger = createLogger('WorkflowDiffEngine')
 
@@ -42,6 +43,7 @@ export interface DiffResult {
  */
 export class WorkflowDiffEngine {
   private currentDiff: WorkflowDiff | undefined = undefined
+  private smartLayoutEngine = new SmartLayoutEngine()
 
   /**
    * Create a diff from YAML content
@@ -100,7 +102,7 @@ export class WorkflowDiffEngine {
           direction: 'auto',
           spacing: {
             horizontal: 500,
-            vertical: 400,
+            vertical: 200,
             layer: 700,
           },
           alignment: 'center',
@@ -108,7 +110,16 @@ export class WorkflowDiffEngine {
             x: 250,
             y: 250,
           },
+          preserveExisting: true,
         },
+      }
+
+      // Always pass the current workflow state to help server compute a stable layout
+      body.currentWorkflowState = {
+        blocks: mergedBaseline.blocks,
+        edges: mergedBaseline.edges,
+        loops: mergedBaseline.loops || {},
+        parallels: mergedBaseline.parallels || {},
       }
 
       const response = await fetch('/api/yaml/diff/create', {
@@ -170,6 +181,23 @@ export class WorkflowDiffEngine {
 
       // Store the current diff
       this.currentDiff = result.diff
+
+      // Apply smart layout to preserve existing positions (client-side guard)
+      if (this.currentDiff && this.currentDiff.proposedState) {
+        const layoutedProposed = this.smartLayoutEngine.applySmartLayout(
+          mergedBaseline,
+          this.currentDiff.proposedState,
+          {
+            preserveExisting: true,
+            spacing: {
+              horizontal: 500,
+              vertical: 200,
+              layer: 700,
+            },
+          }
+        )
+        this.currentDiff.proposedState = layoutedProposed
+      }
 
       logger.info('Diff created successfully', {
         blocksCount: Object.keys(result.diff.proposedState.blocks).length,

@@ -57,6 +57,9 @@ interface WorkflowDiffState {
   _lastDisplayStateHash?: string
   // Track the user message id that triggered the current diff (for stats correlation)
   _triggerMessageId?: string | null
+  // Animation state for smooth transitions
+  isTransitioning?: boolean
+  transitionDuration?: number
 }
 
 interface WorkflowDiffActions {
@@ -69,6 +72,13 @@ interface WorkflowDiffActions {
   rejectChanges: () => Promise<void>
   // PERFORMANCE OPTIMIZATION: Batched state updates
   _batchedStateUpdate: (updates: Partial<WorkflowDiffState>) => void
+  setShowingDiff: (show: boolean) => void
+  setDiffError: (error: string | null) => void
+  setIsReady: (ready: boolean) => void
+  _setTriggerMessageId: (messageId: string | null) => void
+  getDisplayState: () => WorkflowState
+  // Animation control
+  setTransitioning: (transitioning: boolean) => void
 }
 
 /**
@@ -116,12 +126,14 @@ export const useWorkflowDiffStore = create<WorkflowDiffState & WorkflowDiffActio
         _cachedDisplayState: undefined,
         _lastDisplayStateHash: undefined,
         _triggerMessageId: null,
+        isTransitioning: false,
+        transitionDuration: 400,
 
         _batchedStateUpdate: batchedUpdate,
 
         setProposedChanges: async (yamlContent: string, diffAnalysis?: DiffAnalysis) => {
           // PERFORMANCE OPTIMIZATION: Immediate state update to prevent UI flicker
-          batchedUpdate({ isDiffReady: false, diffError: null })
+          batchedUpdate({ isDiffReady: false, diffError: null, isTransitioning: true })
 
           // Clear any existing diff state to ensure a fresh start
           diffEngine.clearDiff()
@@ -129,76 +141,37 @@ export const useWorkflowDiffStore = create<WorkflowDiffState & WorkflowDiffActio
           const result = await diffEngine.createDiffFromYaml(yamlContent, diffAnalysis)
 
           if (result.success && result.diff) {
-            // Validate proposed workflow using serializer round-trip to catch canvas-breaking issues
-            try {
-              const proposed = result.diff.proposedState
-              const serializer = new Serializer()
-              const serialized = serializer.serializeWorkflow(
-                proposed.blocks,
-                proposed.edges,
-                proposed.loops,
-                proposed.parallels,
-                false // do not enforce user-only required params at diff time
-              )
-              // Ensure we can deserialize back without errors
-              serializer.deserializeWorkflow(serialized)
-            } catch (e: any) {
-              const message =
-                e instanceof Error ? e.message : 'Invalid workflow in proposed changes'
-              logger.error('[DiffStore] Diff validation failed:', { message, error: e })
-              // Do not mark ready; store error and keep diff hidden
-              batchedUpdate({ isDiffReady: false, diffError: message, isShowingDiff: false })
-              return
-            }
+            const proposedWorkflow = result.diff.proposedState
 
-            // Attempt to capture the triggering user message id from copilot store
-            let triggerMessageId: string | null = null
-            try {
-              const { useCopilotStore } = await import('@/stores/copilot/store')
-              const { messages } = useCopilotStore.getState() as any
-              if (Array.isArray(messages) && messages.length > 0) {
-                for (let i = messages.length - 1; i >= 0; i--) {
-                  const m = messages[i]
-                  if (m?.role === 'user' && m?.id) {
-                    triggerMessageId = m.id
-                    break
-                  }
-                }
-              }
-            } catch {}
-
-            // PERFORMANCE OPTIMIZATION: Log diff analysis efficiently
-            if (result.diff.diffAnalysis) {
-              const analysis = result.diff.diffAnalysis
-              logger.info('[DiffStore] Diff analysis:', {
-                new: analysis.new_blocks,
-                edited: analysis.edited_blocks,
-                deleted: analysis.deleted_blocks,
-                total: Object.keys(result.diff.proposedState.blocks).length,
-              })
-            }
-
-            // PERFORMANCE OPTIMIZATION: Single batched state update
+            // PERFORMANCE OPTIMIZATION: Batch all state updates
             batchedUpdate({
-              isShowingDiff: true,
+              diffWorkflow: {
+                ...proposedWorkflow,
+                isDiffMode: true,
+              } as WorkflowState,
               isDiffReady: true,
-              diffWorkflow: result.diff.proposedState,
+              isShowingDiff: true,
               diffAnalysis: result.diff.diffAnalysis || null,
-              diffMetadata: result.diff.metadata,
+              diffMetadata: result.diff.metadata || {
+                source: 'yaml',
+                timestamp: Date.now(),
+              },
               diffError: null,
-              _cachedDisplayState: undefined, // Clear cache
-              _lastDisplayStateHash: undefined,
-              _triggerMessageId: triggerMessageId,
+              isTransitioning: false,
             })
 
-            logger.info('Diff created successfully')
-          } else {
-            logger.error('Failed to create diff:', result.errors)
-            batchedUpdate({
-              isDiffReady: false,
-              diffError: result.errors?.join(', ') || 'Failed to create diff',
+            logger.info('Diff created and stored successfully', {
+              blocksCount: Object.keys(proposedWorkflow.blocks).length,
+              edgesCount: proposedWorkflow.edges.length,
             })
-            throw new Error(result.errors?.join(', ') || 'Failed to create diff')
+          } else {
+            const errorMsg = result.errors?.[0] || 'Failed to create diff'
+            batchedUpdate({
+              diffError: errorMsg,
+              isDiffReady: false,
+              isTransitioning: false,
+            })
+            logger.error('Failed to create diff:', errorMsg)
           }
         },
 
@@ -253,16 +226,26 @@ export const useWorkflowDiffStore = create<WorkflowDiffState & WorkflowDiffActio
         },
 
         clearDiff: () => {
-          logger.info('Clearing diff')
-          diffEngine.clearDiff()
-          batchedUpdate({
-            isShowingDiff: false,
-            isDiffReady: false, // Reset ready flag
-            diffWorkflow: null,
-            diffAnalysis: null,
-            diffMetadata: null,
-            diffError: null,
-          })
+          // Start transition for clearing
+          set({ isTransitioning: true })
+          
+          setTimeout(() => {
+            batchedUpdate({
+              isShowingDiff: false,
+              isDiffReady: false,
+              diffWorkflow: null,
+              diffAnalysis: null,
+              diffMetadata: null,
+              diffError: null,
+              _cachedDisplayState: undefined,
+              _lastDisplayStateHash: undefined,
+              _triggerMessageId: null,
+              isTransitioning: false,
+            })
+            
+            // Clear the diff engine state
+            diffEngine.clearDiff()
+          }, get().transitionDuration || 400)
         },
 
         toggleDiffView: () => {
@@ -544,6 +527,42 @@ export const useWorkflowDiffStore = create<WorkflowDiffState & WorkflowDiffActio
 
           // PERFORMANCE OPTIMIZATION: Use cached workflow state selector
           return stateSelectors.getWorkflowState()
+        },
+
+        setShowingDiff: (show: boolean) => {
+          // Start transition animation
+          set({ isTransitioning: true })
+          
+          // Small delay to allow CSS transitions to start
+          setTimeout(() => {
+            set({ isShowingDiff: show })
+            
+            // End transition after animation completes
+            setTimeout(() => {
+              set({ isTransitioning: false })
+            }, get().transitionDuration || 400)
+          }, 10)
+        },
+
+        setDiffError: (error: string | null) => {
+          set({ diffError: error })
+        },
+
+        setIsReady: (ready: boolean) => {
+          set({ isDiffReady: ready })
+        },
+
+        _setTriggerMessageId: (messageId: string | null) => {
+          set({ _triggerMessageId: messageId })
+        },
+
+        getDisplayState: () => {
+          const currentState = stateSelectors.getWorkflowState()
+          return diffEngine.getDisplayState(currentState)
+        },
+
+        setTransitioning: (transitioning: boolean) => {
+          set({ isTransitioning: transitioning })
         },
       }
     },
