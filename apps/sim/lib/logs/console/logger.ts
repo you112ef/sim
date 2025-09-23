@@ -23,14 +23,19 @@ const isEdgeRuntime = () => {
 // Conditional TraceRoot import - only in Node runtime
 let traceRootLogger: any = null
 
-if (!isEdgeRuntime()) {
-  try {
-    const traceRoot = require('traceroot-sdk-ts')
-    traceRootLogger = traceRoot.getLogger
-  } catch (importError) {
-    console.warn('TraceRoot SDK not available, falling back to console logging')
+const initializeTraceRoot = async () => {
+  if (!isEdgeRuntime()) {
+    try {
+      const moduleSpecifier = 'traceroot-sdk-ts'
+      const traceRoot = await import(moduleSpecifier)
+      traceRootLogger = traceRoot.getLogger
+    } catch (importError) {
+      console.warn('TraceRoot SDK not available, falling back to console logging')
+    }
   }
 }
+
+initializeTraceRoot()
 
 /**
  * LogLevel enum defines the severity levels for logging
@@ -146,16 +151,19 @@ export class Logger {
   constructor(module: string) {
     this.module = module
 
-    // Initialize TraceRoot logger instance if available
-    if (traceRootLogger) {
-      try {
-        this.traceRootLoggerInstance = traceRootLogger(module)
-      } catch (error) {
-        console.warn(
-          `Failed to create TraceRoot logger for module ${module}, falling back to console logging`
-        )
+    // Initialize TraceRoot logger instance asynchronously if available
+    // This won't block the constructor and will be available after initialization
+    initializeTraceRoot().then(() => {
+      if (traceRootLogger) {
+        try {
+          this.traceRootLoggerInstance = traceRootLogger(module)
+        } catch (error) {
+          console.warn(
+            `Failed to create TraceRoot logger for module ${module}, falling back to console logging`
+          )
+        }
       }
-    }
+    })
   }
 
   /**
