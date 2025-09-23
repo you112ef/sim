@@ -1760,6 +1760,7 @@ const UserInput = forwardRef<UserInputRef, UserInputProps>(
     const modelOptions = [
       { value: 'gpt-5-fast', label: 'GPT-5 Fast' },
       { value: 'gpt-5', label: 'GPT-5' },
+      { value: 'gpt-5-medium', label: 'GPT-5 Medium' },
       { value: 'gpt-5-high', label: 'GPT-5 High' },
       { value: 'gpt-4o', label: 'GPT-4o' },
       { value: 'gpt-4.1', label: 'GPT-4.1' },
@@ -1783,6 +1784,7 @@ const UserInput = forwardRef<UserInputRef, UserInputProps>(
           return <Zap className={`h-3 w-3 ${colorClass}`} />
         case 'gpt-5':
           return <InfinityIcon className={`h-3 w-3 ${colorClass}`} />
+        case 'gpt-5-medium':
         case 'gpt-5-high':
         case 'gpt-4o':
         case 'claude-4-sonnet':
@@ -3184,7 +3186,7 @@ const UserInput = forwardRef<UserInputRef, UserInputProps>(
                                 if (['gpt-5-high', 'claude-4.1-opus'].includes(option.value)) {
                                   return <BrainCircuit className='h-3 w-3 text-muted-foreground' />
                                 }
-                                if (['gpt-5', 'o3', 'claude-4-sonnet'].includes(option.value)) {
+                                if (['gpt-5', 'gpt-5-medium', 'o3', 'claude-4-sonnet'].includes(option.value)) {
                                   return <Brain className='h-3 w-3 text-muted-foreground' />
                                 }
                                 if (['gpt-4o', 'gpt-4.1', 'gpt-5-fast'].includes(option.value)) {

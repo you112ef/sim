@@ -250,15 +250,16 @@ function normalizeBlockStructure(blocks: Record<string, any>): Record<string, an
   for (const [blockId, block] of Object.entries(blocks)) {
     const normalizedBlock = { ...block }
 
-    // Check if this is a trigger block with 'inputs' field
-    if (
-      block.inputs &&
-      (block.type === 'api_trigger' ||
-        block.type === 'input_trigger' ||
-        block.type === 'starter' ||
-        block.type === 'chat_trigger' ||
-        block.type === 'generic_webhook')
-    ) {
+    // Normalize position coordinates (handle both uppercase and lowercase)
+    if (block.position) {
+      normalizedBlock.position = {
+        x: block.position.x ?? block.position.X ?? 0,
+        y: block.position.y ?? block.position.Y ?? 0,
+      }
+    }
+
+    // Convert any inputs map into subBlocks for consistency (applies to all blocks)
+    if (block.inputs) {
       // Convert inputs.inputFormat to subBlocks.inputFormat
       if (block.inputs.inputFormat) {
         if (!normalizedBlock.subBlocks) {
@@ -272,14 +273,19 @@ function normalizeBlockStructure(blocks: Record<string, any>): Record<string, an
         }
       }
 
-      // Copy any other inputs fields to subBlocks
+      // Copy all inputs fields to subBlocks (creating entries as needed)
       for (const [inputKey, inputValue] of Object.entries(block.inputs)) {
-        if (inputKey !== 'inputFormat' && !normalizedBlock.subBlocks[inputKey]) {
+        if (!normalizedBlock.subBlocks) {
+          normalizedBlock.subBlocks = {}
+        }
+        if (!normalizedBlock.subBlocks[inputKey]) {
           normalizedBlock.subBlocks[inputKey] = {
             id: inputKey,
             type: 'short-input', // Default type, may need adjustment based on actual field
             value: inputValue,
           }
+        } else {
+          normalizedBlock.subBlocks[inputKey].value = inputValue
         }
       }
 
@@ -460,6 +466,8 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
       name: string
       position: { x: number; y: number }
       subBlocks?: Record<string, any>
+      inputs?: Record<string, any>
+      triggerMode?: boolean
       data?: Record<string, any>
       parentId?: string
       extent?: string
@@ -542,6 +550,23 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
           })
         }
 
+        // Handle blocks that have inputs instead of subBlocks (from YAML/copilot format)
+        // This is especially important for trigger configuration
+        if (block.inputs) {
+          Object.entries(block.inputs).forEach(([inputKey, inputValue]) => {
+            const matchingSubBlock = blockConfig.subBlocks.find((sb) => sb.id === inputKey)
+            if (!subBlocks[inputKey]) {
+              subBlocks[inputKey] = {
+                id: inputKey,
+                type: matchingSubBlock?.type || (inputKey === 'triggerConfig' ? 'trigger-config' : 'short-input'),
+                value: inputValue,
+              }
+            } else if (inputValue !== undefined) {
+              subBlocks[inputKey].value = inputValue
+            }
+          })
+        }
+
         // Set up outputs from block configuration
         const outputs = resolveOutputType(blockConfig.outputs)
 
@@ -564,10 +589,17 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
           isWide: false,
           advancedMode: false,
           height: 0,
+          triggerMode: block.triggerMode || false, // Preserve triggerMode from imported block
           data: blockData,
         }
 
-        logger.debug(`[${requestId}] Processed regular block: ${block.id} -> ${newId}`)
+        logger.debug(`[${requestId}] Processed regular block: ${block.id} -> ${newId}`, {
+          blockType: block.type,
+          hasTriggerMode: block.triggerMode,
+          hasInputs: !!block.inputs,
+          inputKeys: block.inputs ? Object.keys(block.inputs) : [],
+          subBlockKeys: Object.keys(subBlocks),
+        })
       } else {
         logger.warn(`[${requestId}] Unknown block type: ${block.type}`)
       }

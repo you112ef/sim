@@ -71,6 +71,7 @@ export interface CopilotState {
   selectedModel:
     | 'gpt-5-fast'
     | 'gpt-5'
+    | 'gpt-5-medium'
     | 'gpt-5-high'
     | 'gpt-4o'
     | 'gpt-4.1'
