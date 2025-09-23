@@ -10,6 +10,9 @@ import type {
 import { ClientToolCallState } from '@/lib/copilot/tools/client/base-tool'
 import { GetBlocksAndToolsClientTool } from '@/lib/copilot/tools/client/blocks/get-blocks-and-tools'
 import { GetBlocksMetadataClientTool } from '@/lib/copilot/tools/client/blocks/get-blocks-metadata'
+import { GetTriggerBlocksClientTool } from '@/lib/copilot/tools/client/blocks/get-trigger-blocks'
+import { GetTriggerExamplesClientTool } from '@/lib/copilot/tools/client/examples/get-trigger-examples'
+import { GetExamplesRagClientTool } from '@/lib/copilot/tools/client/examples/get-examples-rag'
 import { ListGDriveFilesClientTool } from '@/lib/copilot/tools/client/gdrive/list-files'
 import { ReadGDriveFileClientTool } from '@/lib/copilot/tools/client/gdrive/read-file'
 import { GDriveRequestAccessClientTool } from '@/lib/copilot/tools/client/google/gdrive-request-access'
@@ -66,6 +69,7 @@ const CLIENT_TOOL_INSTANTIATORS: Record<string, (id: string) => any> = {
   get_workflow_console: (id) => new GetWorkflowConsoleClientTool(id),
   get_blocks_and_tools: (id) => new GetBlocksAndToolsClientTool(id),
   get_blocks_metadata: (id) => new GetBlocksMetadataClientTool(id),
+  get_trigger_blocks: (id) => new GetTriggerBlocksClientTool(id),
   search_online: (id) => new SearchOnlineClientTool(id),
   search_documentation: (id) => new SearchDocumentationClientTool(id),
   get_environment_variables: (id) => new GetEnvironmentVariablesClientTool(id),
@@ -86,6 +90,8 @@ const CLIENT_TOOL_INSTANTIATORS: Record<string, (id: string) => any> = {
   get_workflow_from_name: (id) => new GetWorkflowFromNameClientTool(id),
   get_global_workflow_variables: (id) => new GetGlobalWorkflowVariablesClientTool(id),
   set_global_workflow_variables: (id) => new SetGlobalWorkflowVariablesClientTool(id),
+  get_trigger_examples: (id) => new GetTriggerExamplesClientTool(id),
+  get_examples_rag: (id) => new GetExamplesRagClientTool(id),
 }
 
 // Read-only static metadata for class-based tools (no instances)
@@ -94,6 +100,7 @@ export const CLASS_TOOL_METADATA: Record<string, BaseClientToolMetadata | undefi
   get_workflow_console: (GetWorkflowConsoleClientTool as any)?.metadata,
   get_blocks_and_tools: (GetBlocksAndToolsClientTool as any)?.metadata,
   get_blocks_metadata: (GetBlocksMetadataClientTool as any)?.metadata,
+  get_trigger_blocks: (GetTriggerBlocksClientTool as any)?.metadata,
   search_online: (SearchOnlineClientTool as any)?.metadata,
   search_documentation: (SearchDocumentationClientTool as any)?.metadata,
   get_environment_variables: (GetEnvironmentVariablesClientTool as any)?.metadata,
@@ -113,6 +120,8 @@ export const CLASS_TOOL_METADATA: Record<string, BaseClientToolMetadata | undefi
   get_workflow_from_name: (GetWorkflowFromNameClientTool as any)?.metadata,
   get_global_workflow_variables: (GetGlobalWorkflowVariablesClientTool as any)?.metadata,
   set_global_workflow_variables: (SetGlobalWorkflowVariablesClientTool as any)?.metadata,
+  get_trigger_examples: (GetTriggerExamplesClientTool as any)?.metadata,
+  get_examples_rag: (GetExamplesRagClientTool as any)?.metadata,
   oauth_request_access: (OAuthRequestAccessClientTool as any)?.metadata,
 }
 
@@ -1616,6 +1625,12 @@ export const useCopilotStore = create<CopilotStore>()(
           } else if (result.status === 403) {
             errorContent =
               '_Provider config not allowed for non-enterprise users. Please remove the provider config and try again_'
+          } else if (result.status === 426) {
+            errorContent =
+              '_Please upgrade to the latest version of the Sim platform to continue using the copilot._'
+          } else if (result.status === 429) {
+            errorContent =
+              '_Provider rate limit exceeded. Please try again later._'
           }
 
           const errorMessage = createErrorMessage(streamingMessage.id, errorContent)

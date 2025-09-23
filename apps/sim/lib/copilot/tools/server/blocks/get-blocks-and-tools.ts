@@ -31,7 +31,7 @@ export const getBlocksAndToolsServerTool: BaseServerTool<
           type: blockType,
           name: blockConfig.name,
           description: blockConfig.longDescription,
-          triggerAllowed: !!blockConfig.triggerAllowed,
+          triggerAllowed: 'triggerAllowed' in blockConfig ? !!blockConfig.triggerAllowed : false,
         })
       })
 

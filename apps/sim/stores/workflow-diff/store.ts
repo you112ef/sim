@@ -8,6 +8,7 @@ import { useWorkflowRegistry } from '../workflows/registry/store'
 import { useSubBlockStore } from '../workflows/subblock/store'
 import { useWorkflowStore } from '../workflows/workflow/store'
 import type { WorkflowState } from '../workflows/workflow/types'
+import { validateWorkflowState } from '@/lib/workflows/validation'
 
 const logger = createLogger('WorkflowDiffStore')
 
@@ -293,6 +294,36 @@ export const useWorkflowDiffStore = create<WorkflowDiffState & WorkflowDiffActio
               return
             }
 
+            // Validate the clean state before applying
+            const validation = validateWorkflowState(cleanState, { sanitize: true })
+            
+            if (!validation.valid) {
+              logger.error('Cannot accept diff - workflow state is invalid', {
+                errors: validation.errors,
+                warnings: validation.warnings,
+              })
+              
+              // Show error to user
+              batchedUpdate({
+                diffError: `Cannot apply changes: ${validation.errors.join('; ')}`,
+                isDiffReady: false,
+              })
+              
+              // Clear the diff to prevent further attempts
+              diffEngine.clearDiff()
+              
+              throw new Error(`Invalid workflow: ${validation.errors.join('; ')}`)
+            }
+
+            // Use sanitized state if available
+            const stateToApply = validation.sanitizedState || cleanState
+
+            if (validation.warnings.length > 0) {
+              logger.warn('Workflow validation warnings during diff acceptance', {
+                warnings: validation.warnings,
+              })
+            }
+
             // Immediately flag diffAccepted on stats if we can (early upsert with minimal fields)
             try {
               const { useCopilotStore } = await import('@/stores/copilot/store')
@@ -313,19 +344,19 @@ export const useWorkflowDiffStore = create<WorkflowDiffState & WorkflowDiffActio
 
             // Update the main workflow store state
             useWorkflowStore.setState({
-              blocks: cleanState.blocks,
-              edges: cleanState.edges,
-              loops: cleanState.loops,
-              parallels: cleanState.parallels,
+              blocks: stateToApply.blocks,
+              edges: stateToApply.edges,
+              loops: stateToApply.loops,
+              parallels: stateToApply.parallels,
             })
 
             // Update the subblock store with the values from the diff workflow blocks
             const subblockValues: Record<string, Record<string, any>> = {}
 
-            Object.entries(cleanState.blocks).forEach(([blockId, block]) => {
+            Object.entries(stateToApply.blocks).forEach(([blockId, block]) => {
               subblockValues[blockId] = {}
               Object.entries(block.subBlocks || {}).forEach(([subblockId, subblock]) => {
-                subblockValues[blockId][subblockId] = (subblock as any).value
+                subblockValues[blockId][subblockId] = subblock.value
               })
             })
 

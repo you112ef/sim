@@ -10,6 +10,7 @@ import { getAllBlocks } from '@/blocks/registry'
 import type { BlockConfig } from '@/blocks/types'
 import { resolveOutputType } from '@/blocks/utils'
 import { generateLoopBlocks, generateParallelBlocks } from '@/stores/workflows/workflow/utils'
+import { validateWorkflowState } from '@/lib/workflows/validation'
 
 interface EditWorkflowOperation {
   operation_type: 'add' | 'edit' | 'delete'
@@ -255,9 +256,55 @@ export const editWorkflowServerTool: BaseServerTool<EditWorkflowParams, any> = {
 
     const modifiedYaml = await applyOperationsToYaml(currentYaml, operations)
 
+    // Convert the modified YAML back to workflow state for validation
+    const validationResponse = await fetch(`${SIM_AGENT_API_URL}/api/yaml/to-workflow`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        yamlContent: modifiedYaml,
+        blockRegistry,
+        utilities: {
+          generateLoopBlocks: generateLoopBlocks.toString(),
+          generateParallelBlocks: generateParallelBlocks.toString(),
+          resolveOutputType: resolveOutputType.toString(),
+        },
+        options: { generateNewIds: false, preservePositions: true },
+      }),
+    })
+
+    if (!validationResponse.ok) {
+      throw new Error(`Failed to validate edited workflow: ${validationResponse.statusText}`)
+    }
+
+    const validationResult = await validationResponse.json()
+    if (!validationResult.success || !validationResult.workflowState) {
+      throw new Error(
+        validationResult.errors?.join(', ') || 'Failed to convert edited YAML to workflow'
+      )
+    }
+
+    // Validate the workflow state
+    const validation = validateWorkflowState(validationResult.workflowState, { sanitize: true })
+    
+    if (!validation.valid) {
+      logger.error('Edited workflow state is invalid', {
+        errors: validation.errors,
+        warnings: validation.warnings,
+      })
+      throw new Error(`Invalid edited workflow: ${validation.errors.join('; ')}`)
+    }
+
+    if (validation.warnings.length > 0) {
+      logger.warn('Edited workflow validation warnings', {
+        warnings: validation.warnings,
+      })
+    }
+
     logger.info('edit_workflow generated modified YAML', {
       operationCount: operations.length,
       modifiedYamlLength: modifiedYaml.length,
+      validationErrors: validation.errors.length,
+      validationWarnings: validation.warnings.length,
     })
 
     return { success: true, yamlContent: modifiedYaml }
