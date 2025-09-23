@@ -558,7 +558,9 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
             if (!subBlocks[inputKey]) {
               subBlocks[inputKey] = {
                 id: inputKey,
-                type: matchingSubBlock?.type || (inputKey === 'triggerConfig' ? 'trigger-config' : 'short-input'),
+                type:
+                  matchingSubBlock?.type ||
+                  (inputKey === 'triggerConfig' ? 'trigger-config' : 'short-input'),
                 value: inputValue,
               }
             } else if (inputValue !== undefined) {

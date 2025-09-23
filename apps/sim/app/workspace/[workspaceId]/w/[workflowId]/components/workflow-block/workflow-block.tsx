@@ -142,27 +142,31 @@ export function WorkflowBlock({ id, data }: NodeProps<WorkflowBlockProps>) {
     id,
   ])
   // Always call hooks to maintain consistent hook order
-  const storeHorizontalHandles = useWorkflowStore((state) => state.blocks[id]?.horizontalHandles ?? true)
+  const storeHorizontalHandles = useWorkflowStore(
+    (state) => state.blocks[id]?.horizontalHandles ?? true
+  )
   const storeIsWide = useWorkflowStore((state) => state.blocks[id]?.isWide ?? false)
   const storeBlockHeight = useWorkflowStore((state) => state.blocks[id]?.height ?? 0)
-  const storeBlockAdvancedMode = useWorkflowStore((state) => state.blocks[id]?.advancedMode ?? false)
+  const storeBlockAdvancedMode = useWorkflowStore(
+    (state) => state.blocks[id]?.advancedMode ?? false
+  )
   const storeBlockTriggerMode = useWorkflowStore((state) => state.blocks[id]?.triggerMode ?? false)
-  
+
   // Get block properties from currentWorkflow when in diff mode, otherwise from workflow store
   const horizontalHandles = data.isPreview
     ? (data.blockState?.horizontalHandles ?? true) // In preview mode, use blockState and default to horizontal
     : currentWorkflow.isDiffMode
       ? (currentWorkflow.blocks[id]?.horizontalHandles ?? true)
       : storeHorizontalHandles
-  
+
   const isWide = currentWorkflow.isDiffMode
     ? (currentWorkflow.blocks[id]?.isWide ?? false)
     : storeIsWide
-    
+
   const blockHeight = currentWorkflow.isDiffMode
     ? (currentWorkflow.blocks[id]?.height ?? 0)
     : storeBlockHeight
-    
+
   // Get per-block webhook status by checking if webhook is configured
   const activeWorkflowId = useWorkflowRegistry((state) => state.activeWorkflowId)
 
@@ -177,10 +181,10 @@ export function WorkflowBlock({ id, data }: NodeProps<WorkflowBlockProps>) {
   const blockAdvancedMode = currentWorkflow.isDiffMode
     ? (currentWorkflow.blocks[id]?.advancedMode ?? false)
     : storeBlockAdvancedMode
-  
+
   // Get triggerMode from currentWorkflow blocks when in diff mode, otherwise from workflow store
-  const blockTriggerMode = currentWorkflow.isDiffMode 
-    ? currentWorkflow.blocks[id]?.triggerMode ?? false
+  const blockTriggerMode = currentWorkflow.isDiffMode
+    ? (currentWorkflow.blocks[id]?.triggerMode ?? false)
     : storeBlockTriggerMode
 
   // Local UI state for diff mode controls
