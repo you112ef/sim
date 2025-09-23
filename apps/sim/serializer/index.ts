@@ -418,7 +418,7 @@ export class Serializer {
     params: Record<string, any>
   ) {
     // Skip validation if the block is in trigger mode
-    if (block.triggerMode || blockConfig.category === 'triggers') {
+    if (block.triggerMode || blockConfig.category === 'triggers' || params.triggerMode === true) {
       logger.info('Skipping validation for block in trigger mode', {
         blockId: block.id,
         blockType: block.type,
