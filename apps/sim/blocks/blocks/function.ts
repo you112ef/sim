@@ -13,7 +13,7 @@ export const FunctionBlock: BlockConfig<CodeExecutionOutput> = {
   - If the user asks for Python, you should always use the Remote Code Execution switch and select Python.
   - If the user asks Javascript and you need imports, you should use the Remote Code Execution switch and select Javascript.
   - If the user asks for a simple function, don't turn on the Remote Code Execution switch and write it in javascript.
-  - Can reference workflow variables using <blockName.output> syntax as usual within code. Avoid XML/HTML tags in the code as much as possible.
+  - Can reference workflow variables using <blockName.output> syntax as usual within code. Avoid XML/HTML tags.
   `,
   docsLink: 'https://docs.sim.ai/blocks/function',
   category: 'blocks',
@@ -50,7 +50,7 @@ export const FunctionBlock: BlockConfig<CodeExecutionOutput> = {
         enabled: true,
         maintainHistory: true,
         prompt: `You are an expert JavaScript programmer.
-Generate ONLY the raw body of a JavaScript function based on the user's request.
+Generate ONLY the raw body of a JavaScript function based on the user's request. Never wrap in markdown formatting.
 The code should be executable within an 'async function(params, environmentVariables) {...}' context.
 - 'params' (object): Contains input parameters derived from the JSON schema. Access these directly using the parameter name wrapped in angle brackets, e.g., '<paramName>'. Do NOT use 'params.paramName'.
 - 'environmentVariables' (object): Contains environment variables. Reference these using the double curly brace syntax: '{{ENV_VAR_NAME}}'. Do NOT use 'environmentVariables.VAR_NAME' or env.

@@ -370,6 +370,7 @@ const SPECIAL_BLOCKS_METADATA: Record<string, any> = {
     - Set reasonable limits for iterations.
     - Use forEach for collection processing, for loops for fixed iterations.
     - Cannot have loops/parallels inside a loop block.
+    - For yaml it needs to connect blocks inside to the start field of the block.
     `,
     inputs: {
       loopType: { type: 'string', required: true, enum: ['for', 'forEach'] },
@@ -430,6 +431,7 @@ const SPECIAL_BLOCKS_METADATA: Record<string, any> = {
     - Keep structures inside simple. Cannot have multiple blocks within a parallel block.
     - Cannot have loops/parallels inside a parallel block.
     - Agent block combobox can be <parallel.currentItem> if the user wants to query multiple models in parallel. The collection has to be an array of correct model strings available for the agent block.
+    - For yaml it needs to connect blocks inside to the start field of the block.
     `,
     inputs: {
       parallelType: { type: 'string', required: true, enum: ['count', 'collection'] },
