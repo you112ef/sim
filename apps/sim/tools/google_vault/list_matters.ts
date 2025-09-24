@@ -4,13 +4,9 @@ export interface GoogleVaultListMattersParams {
   accessToken: string
   pageSize?: number
   pageToken?: string
-  view?: 'MATTER_VIEW_UNSPECIFIED' | 'BASIC' | 'FULL'
-  state?: 'STATE_UNSPECIFIED' | 'OPEN' | 'CLOSED' | 'DELETED'
   matterId?: string // Optional get for a specific matter
 }
 
-// matters.list (and optional matters.get when matterId provided)
-// GET https://vault.googleapis.com/v1/matters
 export const listMattersTool: ToolConfig<GoogleVaultListMattersParams> = {
   id: 'list_matters',
   name: 'Vault List Matters',
@@ -27,9 +23,7 @@ export const listMattersTool: ToolConfig<GoogleVaultListMattersParams> = {
     accessToken: { type: 'string', required: true, visibility: 'hidden' },
     pageSize: { type: 'number', required: false, visibility: 'user-only' },
     pageToken: { type: 'string', required: false, visibility: 'hidden' },
-    view: { type: 'string', required: false, visibility: 'user-or-llm' },
-    state: { type: 'string', required: false, visibility: 'user-or-llm' },
-    matterId: { type: 'string', required: false, visibility: 'user-or-llm' },
+    matterId: { type: 'string', required: true, visibility: 'user-or-llm' },
   },
 
   request: {
@@ -38,10 +32,12 @@ export const listMattersTool: ToolConfig<GoogleVaultListMattersParams> = {
         return `https://vault.googleapis.com/v1/matters/${params.matterId}`
       }
       const url = new URL('https://vault.googleapis.com/v1/matters')
-      if (params.pageSize) url.searchParams.set('pageSize', String(params.pageSize))
+      // Coerce numeric-like strings and only set when a finite number
+      const raw = (params as any).pageSize
+      const pageSize = typeof raw === 'string' ? Number(raw.trim()) : raw
+      if (Number.isFinite(pageSize)) url.searchParams.set('pageSize', String(pageSize))
       if (params.pageToken) url.searchParams.set('pageToken', params.pageToken)
-      if (params.view) url.searchParams.set('view', params.view)
-      if (params.state) url.searchParams.set('state', params.state)
+      // Default BASIC view implicitly by omitting 'view' and 'state' params
       return url.toString()
     },
     method: 'GET',

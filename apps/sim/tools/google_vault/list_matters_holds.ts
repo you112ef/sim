@@ -17,7 +17,7 @@ export const listMattersHoldsTool: ToolConfig<GoogleVaultListMattersHoldsParams>
     accessToken: { type: 'string', required: true, visibility: 'hidden' },
     matterId: { type: 'string', required: true, visibility: 'user-or-llm' },
     pageSize: { type: 'number', required: false, visibility: 'user-only' },
-    view: { type: 'string', required: false, visibility: 'user-or-llm' },
+    pageToken: { type: 'string', required: false, visibility: 'hidden' },
     holdId: { type: 'string', required: false, visibility: 'user-or-llm' },
   },
 
@@ -27,9 +27,12 @@ export const listMattersHoldsTool: ToolConfig<GoogleVaultListMattersHoldsParams>
         return `https://vault.googleapis.com/v1/matters/${params.matterId}/holds/${params.holdId}`
       }
       const url = new URL(`https://vault.googleapis.com/v1/matters/${params.matterId}/holds`)
-      if (params.pageSize !== undefined) url.searchParams.set('pageSize', String(params.pageSize))
+      // Coerce numeric-like strings and only set when a finite number
+      const raw = (params as any).pageSize
+      const pageSize = typeof raw === 'string' ? Number(raw.trim()) : raw
+      if (Number.isFinite(pageSize)) url.searchParams.set('pageSize', String(pageSize))
       if (params.pageToken) url.searchParams.set('pageToken', params.pageToken)
-      if (params.view) url.searchParams.set('view', params.view)
+      // Default BASIC_HOLD implicitly by omitting 'view'
       return url.toString()
     },
     method: 'GET',

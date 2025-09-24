@@ -29,7 +29,10 @@ export const listMattersExportTool: ToolConfig<GoogleVaultListMattersExportParam
         return `https://vault.googleapis.com/v1/matters/${params.matterId}/exports/${params.exportId}`
       }
       const url = new URL(`https://vault.googleapis.com/v1/matters/${params.matterId}/exports`)
-      if (params.pageSize) url.searchParams.set('pageSize', String(params.pageSize))
+      // Coerce numeric-like strings and only set when a finite number
+      const raw = (params as any).pageSize
+      const pageSize = typeof raw === 'string' ? Number(raw.trim()) : raw
+      if (Number.isFinite(pageSize)) url.searchParams.set('pageSize', String(pageSize))
       if (params.pageToken) url.searchParams.set('pageToken', params.pageToken)
       return url.toString()
     },

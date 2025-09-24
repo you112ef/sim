@@ -673,19 +673,23 @@ interface ProviderAuthConfig {
 /**
  * Get OAuth provider configuration for token refresh
  */
-function getProviderAuthConfig(provider: string): ProviderAuthConfig {
+function getProviderAuthConfig(providerId: string): ProviderAuthConfig {
+  // Determine base provider for token endpoint selection (e.g., 'google-drive' -> 'google')
+  const baseProvider = providerId.split('-')[0]
   const getCredentials = (clientId: string | undefined, clientSecret: string | undefined) => {
     if (!clientId || !clientSecret) {
-      throw new Error(`Missing client credentials for provider: ${provider}`)
+      throw new Error(`Missing client credentials for provider: ${providerId}`)
     }
     return { clientId, clientSecret }
   }
 
-  switch (provider) {
+  switch (baseProvider) {
     case 'google': {
+      // Use separate credentials for Google Vault if requested
+      const isVault = providerId === 'google-vault'
       const { clientId, clientSecret } = getCredentials(
-        env.GOOGLE_CLIENT_ID,
-        env.GOOGLE_CLIENT_SECRET
+        isVault ? env.GOOGLE_VAULT_CLIENT_ID : env.GOOGLE_CLIENT_ID,
+        isVault ? env.GOOGLE_VAULT_CLIENT_SECRET : env.GOOGLE_CLIENT_SECRET
       )
       return {
         tokenEndpoint: 'https://oauth2.googleapis.com/token',
@@ -886,7 +890,7 @@ function getProviderAuthConfig(provider: string): ProviderAuthConfig {
       }
     }
     default:
-      throw new Error(`Unsupported provider: ${provider}`)
+      throw new Error(`Unsupported provider: ${providerId}`)
   }
 }
 
@@ -932,11 +936,8 @@ export async function refreshOAuthToken(
   refreshToken: string
 ): Promise<{ accessToken: string; expiresIn: number; refreshToken: string } | null> {
   try {
-    // Get the provider from the providerId (e.g., 'google-drive' -> 'google')
-    const provider = providerId.split('-')[0]
-
     // Get provider configuration
-    const config = getProviderAuthConfig(provider)
+    const config = getProviderAuthConfig(providerId)
 
     // Build authentication request
     const { headers, bodyParams } = buildAuthRequest(config, refreshToken)
@@ -963,7 +964,6 @@ export async function refreshOAuthToken(
         status: response.status,
         error: errorText,
         parsedError: errorData,
-        provider,
         providerId,
       })
       throw new Error(`Failed to refresh token: ${response.status} ${errorText}`)
@@ -978,7 +978,7 @@ export async function refreshOAuthToken(
     let newRefreshToken = null
     if (config.supportsRefreshTokenRotation && data.refresh_token) {
       newRefreshToken = data.refresh_token
-      logger.info(`Received new refresh token from ${provider}`)
+      logger.info(`Received new refresh token from ${providerId}`)
     }
 
     // Get expiration time - use provider's value or default to 1 hour (3600 seconds)
@@ -993,7 +993,7 @@ export async function refreshOAuthToken(
     logger.info('Token refreshed successfully with expiration', {
       expiresIn,
       hasNewRefreshToken: !!newRefreshToken,
-      provider,
+      providerId,
     })
 
     return {

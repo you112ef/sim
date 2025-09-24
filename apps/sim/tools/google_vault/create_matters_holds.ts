@@ -18,6 +18,25 @@ export const createMattersHoldsTool: ToolConfig<GoogleVaultCreateMattersHoldsPar
   params: {
     accessToken: { type: 'string', required: true, visibility: 'hidden' },
     matterId: { type: 'string', required: true, visibility: 'user-or-llm' },
+    holdName: { type: 'string', required: true, visibility: 'user-or-llm' },
+    corpus: {
+      type: 'string',
+      required: true,
+      visibility: 'user-or-llm',
+      description: 'Data corpus to hold (MAIL, DRIVE, GROUPS, HANGOUTS_CHAT, VOICE)',
+    },
+    accountEmails: {
+      type: 'string',
+      required: false,
+      visibility: 'user-or-llm',
+      description: 'Comma-separated list of user emails to put on hold',
+    },
+    orgUnitId: {
+      type: 'string',
+      required: false,
+      visibility: 'user-or-llm',
+      description: 'Organization unit ID to put on hold (alternative to accounts)',
+    },
   },
 
   request: {
@@ -27,8 +46,32 @@ export const createMattersHoldsTool: ToolConfig<GoogleVaultCreateMattersHoldsPar
       Authorization: `Bearer ${params.accessToken}`,
       'Content-Type': 'application/json',
     }),
-    // Only path param required per provided spec; body intentionally empty
-    body: () => ({}),
+    body: (params) => {
+      // Build Hold body. One of accounts or orgUnit must be provided.
+      const body: any = {
+        name: params.holdName,
+        corpus: params.corpus,
+      }
+
+      const emailsRaw = (params as any).accountEmails
+      const emails = Array.isArray(emailsRaw)
+        ? emailsRaw
+        : typeof emailsRaw === 'string'
+          ? emailsRaw
+              .split(',')
+              .map((e) => e.trim())
+              .filter(Boolean)
+          : []
+
+      if (emails.length > 0) {
+        // Google Vault expects HeldAccount objects with 'email' or 'accountId'. Use 'email' here.
+        body.accounts = emails.map((email: string) => ({ email }))
+      } else if (params.orgUnitId) {
+        body.orgUnit = { orgUnitId: params.orgUnitId }
+      }
+
+      return body
+    },
   },
 
   transformResponse: async (response: Response) => {

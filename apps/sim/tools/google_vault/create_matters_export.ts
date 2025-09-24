@@ -18,6 +18,7 @@ export const createMattersExportTool: ToolConfig<GoogleVaultCreateMattersExportP
   params: {
     accessToken: { type: 'string', required: true, visibility: 'hidden' },
     matterId: { type: 'string', required: true, visibility: 'user-or-llm' },
+    exportName: { type: 'string', required: true, visibility: 'user-or-llm' },
   },
 
   request: {
@@ -27,8 +28,9 @@ export const createMattersExportTool: ToolConfig<GoogleVaultCreateMattersExportP
       Authorization: `Bearer ${params.accessToken}`,
       'Content-Type': 'application/json',
     }),
-    // Only path param required per your spec; body intentionally empty here
-    body: () => ({}),
+    body: (params) => ({
+      name: params.exportName,
+    }),
   },
 
   transformResponse: async (response: Response) => {

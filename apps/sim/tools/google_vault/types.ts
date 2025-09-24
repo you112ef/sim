@@ -6,7 +6,9 @@ export interface GoogleVaultCommonParams {
 }
 
 // Exports
-export interface GoogleVaultCreateMattersExportParams extends GoogleVaultCommonParams {}
+export interface GoogleVaultCreateMattersExportParams extends GoogleVaultCommonParams {
+  exportName: string
+}
 
 export interface GoogleVaultListMattersExportParams extends GoogleVaultCommonParams {
   pageSize?: number
@@ -19,14 +21,21 @@ export interface GoogleVaultListMattersExportResponse extends ToolResponse {
 }
 
 // Holds
-export type GoogleVaultHoldView = 'HOLD_VIEW_UNSPECIFIED' | 'BASIC_HOLD' | 'FULL_HOLD'
+// Simplified: default to BASIC_HOLD by omission in requests
+export type GoogleVaultHoldView = 'BASIC_HOLD' | 'FULL_HOLD'
 
-export interface GoogleVaultCreateMattersHoldsParams extends GoogleVaultCommonParams {}
+export type GoogleVaultCorpus = 'MAIL' | 'DRIVE' | 'GROUPS' | 'HANGOUTS_CHAT' | 'VOICE'
+
+export interface GoogleVaultCreateMattersHoldsParams extends GoogleVaultCommonParams {
+  holdName: string
+  corpus: GoogleVaultCorpus
+  accountEmails?: string | string[]
+  orgUnitId?: string
+}
 
 export interface GoogleVaultListMattersHoldsParams extends GoogleVaultCommonParams {
   pageSize?: number
   pageToken?: string
-  view?: GoogleVaultHoldView
   holdId?: string // Short input to fetch a specific hold
 }
 

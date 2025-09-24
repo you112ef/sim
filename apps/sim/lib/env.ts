@@ -166,6 +166,8 @@ export const env = createEnv({
     // OAuth Integration Credentials - All optional, enables third-party integrations
     GOOGLE_CLIENT_ID:                      z.string().optional(),                  // Google OAuth client ID for Google services
     GOOGLE_CLIENT_SECRET:                  z.string().optional(),                  // Google OAuth client secret
+    GOOGLE_VAULT_CLIENT_ID:                z.string().optional(),                  // Google OAuth client ID specifically for Google Vault
+    GOOGLE_VAULT_CLIENT_SECRET:            z.string().optional(),                  // Google OAuth client secret for Google Vault
     GITHUB_CLIENT_ID:                      z.string().optional(),                  // GitHub OAuth client ID for GitHub integration
     GITHUB_CLIENT_SECRET:                  z.string().optional(),                  // GitHub OAuth client secret
     GITHUB_REPO_CLIENT_ID:                 z.string().optional(),                  // GitHub OAuth client ID for repo access
