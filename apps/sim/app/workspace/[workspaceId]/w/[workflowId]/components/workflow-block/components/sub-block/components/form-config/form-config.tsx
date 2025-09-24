@@ -156,13 +156,14 @@ export function FormConfig({
       {hasFormConfigured ? (
         <div className='space-y-2'>
           <div
-            className='cursor-pointer rounded border border-border bg-background p-3 transition-colors hover:border-primary/20 hover:bg-muted/50'
+            className='cursor-pointer rounded-lg border border-border bg-background p-3 transition-colors hover:border-primary/20 hover:bg-muted/50'
             onClick={handleOpenModal}
             title='Click to edit form'
           >
-            <div className='mb-2 flex items-center justify-between gap-2'>
-              <div className='truncate text-muted-foreground text-sm'>
-                Form URL: sim.ai/form/{formPath}
+            <div className='flex items-center justify-between gap-2'>
+              <div className='min-w-0 truncate text-muted-foreground text-sm'>
+                <span className='mr-2 text-xs'>Form URL:</span>
+                <span className='font-mono text-foreground/80 text-xs'>sim.ai/form/{formPath}</span>
               </div>
               <Button
                 type='button'
@@ -178,19 +179,23 @@ export function FormConfig({
                 <ExternalLink className='h-4 w-4' />
               </Button>
             </div>
-            <div className='space-y-1'>
-              <div className='font-medium text-sm'>Fields</div>
-              <ul className='grid grid-cols-2 gap-1 text-muted-foreground text-xs'>
+
+            <div className='mt-3'>
+              <div className='mb-1 font-medium text-sm'>Fields</div>
+              <div className='flex flex-wrap gap-2'>
                 {(formConfig?.fields || []).map((f: any) => (
-                  <li key={f.id || f.name} className='flex items-center gap-2'>
-                    <span className='rounded-md bg-muted px-1.5 py-0.5 font-mono text-[10px]'>
+                  <div
+                    key={f.id || f.name}
+                    className='inline-flex items-center gap-2 rounded-full border bg-card px-2.5 py-1'
+                  >
+                    <span className='rounded bg-muted px-1.5 py-0.5 font-mono text-[10px]'>
                       {f?.name || f?.label || 'unnamed'}
                     </span>
-                    <span className='text-muted-foreground'>{f?.type || 'text'}</span>
-                    {f?.required ? <span className='text-red-500'>*</span> : null}
-                  </li>
+                    <span className='text-muted-foreground text-xs'>{f?.type || 'text'}</span>
+                    {f?.required ? <span className='text-destructive text-xs'>*</span> : null}
+                  </div>
                 ))}
-              </ul>
+              </div>
             </div>
           </div>
         </div>
