@@ -94,7 +94,7 @@ export class WorkflowDiffEngine {
       }
 
       body.options = {
-        applyAutoLayout: true,
+        applyAutoLayout: false,
         layoutOptions: {
           strategy: 'smart',
           direction: 'auto',
@@ -215,7 +215,7 @@ export class WorkflowDiffEngine {
       }
 
       body.options = {
-        applyAutoLayout: true,
+        applyAutoLayout: false,
         layoutOptions: {
           strategy: 'smart',
           direction: 'auto',
