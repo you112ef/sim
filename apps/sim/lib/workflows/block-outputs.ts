@@ -50,6 +50,43 @@ export function getBlockOutputs(
     }
   }
 
+  // Dynamic outputs for Form Trigger based on configured fields
+  if (blockType === 'form_trigger') {
+    // Override defaults: expose ONLY configured fields, using label as the key when present
+    outputs = {}
+    const formConfigValue = subBlocks?.formConfig?.value || subBlocks?.formConfig
+    const fields = formConfigValue?.fields
+    if (Array.isArray(fields)) {
+      const sanitizeKey = (val: string | undefined): string => {
+        const s = (val || '').toString().trim()
+        if (!s) return ''
+        return s
+          .replace(/[^a-zA-Z0-9]+/g, '_')
+          .replace(/^_+|_+$/g, '')
+          .toLowerCase()
+      }
+
+      for (const field of fields) {
+        const keyFromLabel = sanitizeKey(field?.label)
+        const keyFromName = sanitizeKey(field?.name)
+        // Prefer the field name for the tag path; fall back to label only if name missing
+        const key = keyFromName || keyFromLabel
+        if (!key) continue
+
+        // Map form field types to primitive output types
+        const type = (() => {
+          const t = (field?.type || '').toString()
+          if (t === 'number') return 'number'
+          if (t === 'checkbox') return 'boolean'
+          // text, email, textarea, select and unknowns → string
+          return 'string'
+        })()
+
+        outputs[key] = { type: type as any, description: 'Field from form configuration' }
+      }
+    }
+  }
+
   // For blocks with inputFormat, add dynamic outputs
   if (hasInputFormat(blockConfig) && subBlocks?.inputFormat?.value) {
     const inputFormatValue = subBlocks.inputFormat.value

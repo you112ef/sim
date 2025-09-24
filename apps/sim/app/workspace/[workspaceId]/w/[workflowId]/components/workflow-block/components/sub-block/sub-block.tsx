@@ -17,6 +17,7 @@ import {
   FileSelectorInput,
   FileUpload,
   FolderSelectorInput,
+  FormConfig,
   InputFormat,
   InputMapping,
   KnowledgeBaseSelector,
@@ -317,6 +318,27 @@ export function SubBlock({
             isConnecting={isConnecting}
             isPreview={isPreview}
             value={webhookValue}
+            disabled={isDisabled}
+          />
+        )
+      }
+      case 'form-config': {
+        // For form config, we need to construct the value from multiple subblock values
+        const formValue =
+          isPreview && subBlockValues
+            ? {
+                formId: subBlockValues.formId?.value,
+                formPath: subBlockValues.formPath?.value,
+                formConfig: subBlockValues.formConfig?.value,
+              }
+            : previewValue
+
+        return (
+          <FormConfig
+            blockId={blockId}
+            isConnecting={isConnecting}
+            isPreview={isPreview}
+            value={formValue}
             disabled={isDisabled}
           />
         )
