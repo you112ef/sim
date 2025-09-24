@@ -52,6 +52,7 @@ import type {
 import { useWorkflowDiffStore } from '@/stores/workflow-diff/store'
 import { useSubBlockStore } from '@/stores/workflows/subblock/store'
 import { useWorkflowStore } from '@/stores/workflows/workflow/store'
+import { GetOperationsExamplesClientTool } from '@/lib/copilot/tools/client/examples/get-operations-examples'
 
 const logger = createLogger('CopilotStore')
 
@@ -92,6 +93,7 @@ const CLIENT_TOOL_INSTANTIATORS: Record<string, (id: string) => any> = {
   set_global_workflow_variables: (id) => new SetGlobalWorkflowVariablesClientTool(id),
   get_trigger_examples: (id) => new GetTriggerExamplesClientTool(id),
   get_examples_rag: (id) => new GetExamplesRagClientTool(id),
+  get_operations_examples: (id) => new GetOperationsExamplesClientTool(id),
 }
 
 // Read-only static metadata for class-based tools (no instances)
@@ -122,6 +124,7 @@ export const CLASS_TOOL_METADATA: Record<string, BaseClientToolMetadata | undefi
   set_global_workflow_variables: (SetGlobalWorkflowVariablesClientTool as any)?.metadata,
   get_trigger_examples: (GetTriggerExamplesClientTool as any)?.metadata,
   get_examples_rag: (GetExamplesRagClientTool as any)?.metadata,
+  get_operations_examples: (GetOperationsExamplesClientTool as any)?.metadata,
   oauth_request_access: (OAuthRequestAccessClientTool as any)?.metadata,
 }
 
