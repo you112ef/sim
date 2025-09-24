@@ -21,9 +21,6 @@ const logger = createLogger('TriggerFormExecution')
 
 export type { FormSubmissionPayload }
 
-/**
- * Helper function to process block states for execution
- */
 function processBlockStatesForExecution(mergedStates: any): Record<string, Record<string, any>> {
   return Object.fromEntries(
     Object.entries(mergedStates).map(([blockId, blockState]: [string, any]) => [
@@ -112,20 +109,16 @@ async function executeFormSubmissionJobInternal(
     )
     const decryptedEnvVars: Record<string, string> = Object.fromEntries(decryptedPairs)
 
-    // Start logging session
     await loggingSession.safeStart({
       userId: payload.userId,
       workspaceId: workspaceId || '',
       variables: decryptedEnvVars,
     })
 
-    // Merge subblock states (matching workflow-execution pattern)
     const mergedStates = mergeSubblockState(blocks, {})
 
-    // Process block states for execution
     const processedBlockStates = processBlockStatesForExecution(mergedStates)
 
-    // Create serialized workflow
     const serializer = new Serializer()
     const serializedWorkflow = serializer.serializeWorkflow(
       mergedStates,
@@ -135,13 +128,11 @@ async function executeFormSubmissionJobInternal(
       true // Enable validation during execution
     )
 
-    // Format form input - normalize field names to lowercase for case-insensitive access
     const input: Record<string, any> = {}
     Object.entries(payload.formData).forEach(([key, value]) => {
       input[key.toLowerCase()] = value
     })
 
-    // Create executor and execute
     const executor = new Executor({
       workflow: serializedWorkflow,
       currentBlockStates: processedBlockStates,
@@ -153,15 +144,12 @@ async function executeFormSubmissionJobInternal(
       },
     })
 
-    // Set up logging on the executor
     loggingSession.setupExecutor(executor)
 
     logger.info(`[${requestId}] Executing workflow for form submission`)
 
-    // Execute the workflow
     const result = await executor.execute(payload.workflowId, payload.blockId)
 
-    // Check if we got a StreamingExecution result
     const executionResult = 'stream' in result && 'execution' in result ? result.execution : result
 
     logger.info(`[${requestId}] Form submission execution completed`, {
@@ -169,12 +157,9 @@ async function executeFormSubmissionJobInternal(
       workflowId: payload.workflowId,
     })
 
-    // Update workflow run counts on success
     if (executionResult.success) {
       await updateWorkflowRunCounts(payload.workflowId)
 
-      // Track execution in user stats - we'll need to add a new column for form triggers
-      // For now, we can track it as a manual execution since forms are user-initiated
       await db
         .update(userStats)
         .set({
@@ -184,7 +169,6 @@ async function executeFormSubmissionJobInternal(
         .where(eq(userStats.userId, payload.userId))
     }
 
-    // Build trace spans and complete logging session
     const { traceSpans, totalDuration } = buildTraceSpans(executionResult)
 
     await loggingSession.safeComplete({
@@ -210,7 +194,6 @@ async function executeFormSubmissionJobInternal(
       formId: payload.formId,
     })
 
-    // Complete logging session with error
     try {
       await loggingSession.safeCompleteWithError({
         endedAt: new Date().toISOString(),

@@ -1,8 +1,8 @@
 import { db } from '@sim/db'
 import { workflow, workflowForm } from '@sim/db/schema'
 import { and, eq } from 'drizzle-orm'
-import { nanoid } from 'nanoid'
 import { type NextRequest, NextResponse } from 'next/server'
+import { v4 as uuidv4 } from 'uuid'
 import { getSession } from '@/lib/auth'
 
 export const dynamic = 'force-dynamic'
@@ -22,7 +22,6 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
 
     const { blockId, title, description, formConfig, settings, styling } = body
 
-    // Verify workflow ownership
     const workflowResult = await db
       .select()
       .from(workflow)
@@ -38,14 +37,13 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
       return new NextResponse('Access denied', { status: 403 })
     }
 
-    // Check if form already exists for this workflow/block
     const existingForm = await db
       .select()
       .from(workflowForm)
       .where(and(eq(workflowForm.workflowId, workflowId), eq(workflowForm.blockId, blockId)))
       .limit(1)
 
-    const formPath = nanoid(10) // Generate a unique path
+    const formPath = uuidv4()
     const formData = {
       workflowId,
       blockId,
@@ -60,12 +58,11 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
 
     let result
     if (existingForm.length > 0) {
-      // Update existing form
       result = await db
         .update(workflowForm)
         .set({
           ...formData,
-          path: existingForm[0].path, // Keep the existing path
+          path: existingForm[0].path,
           updatedAt: new Date(),
         })
         .where(eq(workflowForm.id, existingForm[0].id))
@@ -73,11 +70,10 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
 
       result[0] = { ...result[0], path: existingForm[0].path }
     } else {
-      // Create new form
       result = await db
         .insert(workflowForm)
         .values({
-          id: nanoid(),
+          id: uuidv4(),
           ...formData,
         })
         .returning()
@@ -111,7 +107,6 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
     const url = new URL(request.url)
     const blockId = url.searchParams.get('blockId')
 
-    // Verify workflow ownership
     const workflowResult = await db
       .select()
       .from(workflow)
@@ -127,7 +122,6 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
       return new NextResponse('Access denied', { status: 403 })
     }
 
-    // Build query conditions
     const baseCondition = eq(workflowForm.workflowId, workflowId)
     const whereConditions = blockId
       ? and(baseCondition, eq(workflowForm.blockId, blockId))!
@@ -159,7 +153,6 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
 
     const { blockId, title, description, formConfig, settings, styling } = body
 
-    // Verify workflow ownership
     const workflowResult = await db
       .select()
       .from(workflow)
@@ -175,7 +168,6 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
       return new NextResponse('Access denied', { status: 403 })
     }
 
-    // Find existing form
     const existingForm = await db
       .select()
       .from(workflowForm)
@@ -186,7 +178,6 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
       return new NextResponse('Form not found', { status: 404 })
     }
 
-    // Update the form
     const result = await db
       .update(workflowForm)
       .set({

@@ -19,11 +19,6 @@ export const dynamic = 'force-dynamic'
 export const maxDuration = 300
 export const runtime = 'nodejs'
 
-/**
- * Form Submission Handler (POST)
- *
- * Processes form submissions and triggers workflow execution
- */
 export async function POST(
   request: NextRequest,
   { params }: { params: Promise<{ formId: string }> }
@@ -32,7 +27,6 @@ export async function POST(
   let foundWorkflow: any = null
   let foundForm: any = null
 
-  // --- PHASE 1: Request validation and parsing ---
   let body: any
   try {
     body = await request.json()
@@ -48,11 +42,9 @@ export async function POST(
     return new NextResponse('Invalid form data', { status: 400 })
   }
 
-  // --- PHASE 2: Form identification ---
   const formId = (await params).formId
   logger.info(`[${requestId}] Processing form submission for form: ${formId}`)
 
-  // Find form and associated workflow
   const forms = await db
     .select({
       form: workflowForm,
@@ -71,19 +63,16 @@ export async function POST(
   foundForm = forms[0].form
   foundWorkflow = forms[0].workflow
 
-  // --- PHASE 3: Form validation ---
   try {
     const formConfig = foundForm.formConfig as any
     const fields = formConfig.fields || []
 
-    // Validate required fields
     for (const field of fields) {
       if (field.required && (!body[field.name] || body[field.name] === '')) {
         logger.warn(`[${requestId}] Missing required field: ${field.name}`)
         return NextResponse.json({ error: `Field '${field.label}' is required` }, { status: 400 })
       }
 
-      // Basic field type validation
       if (body[field.name] && field.type === 'email') {
         const validation = quickValidateEmail(body[field.name])
         if (!validation.isValid) {
@@ -101,7 +90,6 @@ export async function POST(
     return new NextResponse('Form validation failed', { status: 400 })
   }
 
-  // --- PHASE 4: Rate limiting ---
   try {
     const userSubscription = await getHighestPrioritySubscription(foundWorkflow.userId)
 
@@ -116,7 +104,7 @@ export async function POST(
       foundWorkflow.userId,
       userSubscription,
       'form',
-      true // isAsync = true for form execution
+      true
     )
 
     logger.info(`[${requestId}] Rate limit check result`, {
@@ -143,10 +131,8 @@ export async function POST(
     })
   } catch (rateLimitError) {
     logger.error(`[${requestId}] Error checking form rate limits:`, rateLimitError)
-    // Continue processing - better to risk rate limit bypass than fail form submission
   }
 
-  // --- PHASE 5: Usage limit check ---
   try {
     const usageCheck = await checkServerSideUsageLimits(foundWorkflow.userId)
     if (usageCheck.isExceeded) {
@@ -171,10 +157,8 @@ export async function POST(
     })
   } catch (usageError) {
     logger.error(`[${requestId}] Error checking form usage limits:`, usageError)
-    // Continue processing - better to risk usage limit bypass than fail form submission
   }
 
-  // --- PHASE 6: Execute form submission ---
   try {
     const payload = {
       formId: foundForm.id,
@@ -204,7 +188,6 @@ export async function POST(
         }
       }
 
-      // Fire-and-forget direct execution
       void executeFormSubmissionJob(payload).catch((error) => {
         logger.error(`[${requestId}] Direct form execution failed`, error)
       })
@@ -224,7 +207,6 @@ export async function POST(
 
     logger.debug(`[${requestId}] Form submission result:`, result)
 
-    // Get success message from form settings
     const settings = foundForm.settings as any
     const successMessage = settings?.successMessage || 'Thank you for your submission!'
     const redirectUrl = settings?.redirectUrl

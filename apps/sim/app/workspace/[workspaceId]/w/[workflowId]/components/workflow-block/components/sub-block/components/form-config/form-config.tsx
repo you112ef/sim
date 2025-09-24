@@ -36,19 +36,16 @@ export function FormConfig({
   const params = useParams()
   const workflowId = params.workflowId as string
 
-  // Get form configuration from the block state
   const [storeFormId, setFormId] = useSubBlockValue(blockId, 'formId')
   const [storeFormPath, setFormPath] = useSubBlockValue(blockId, 'formPath')
   const [storeFormConfig, setFormConfig] = useSubBlockValue(blockId, 'formConfig')
 
-  // Use prop values when available (preview mode), otherwise use store values
   const formId = propValue?.formId ?? storeFormId
   const formPath = propValue?.formPath ?? storeFormPath
   const formConfig = propValue?.formConfig ?? storeFormConfig
 
   const hasFormConfigured = formId && formPath
 
-  // Refresh form state on component mount
   const refreshFormState = useCallback(async () => {
     if (isPreview) {
       setIsLoading(false)
@@ -93,7 +90,6 @@ export function FormConfig({
       setError(null)
 
       try {
-        // Use PUT if form already exists (has formId), otherwise POST to create
         const method = formId ? 'PUT' : 'POST'
         const response = await fetch(`/api/workflows/${workflowId}/forms`, {
           method,
@@ -116,7 +112,6 @@ export function FormConfig({
 
         const result = await response.json()
 
-        // Update local state
         setFormId(result.id)
         setFormPath(result.path)
         setFormConfig(config)
@@ -148,7 +143,6 @@ export function FormConfig({
     )
   }
 
-  // Match the exact structure and styling of TriggerConfig
   return (
     <div className='space-y-3'>
       {error && <div className='text-destructive text-sm'>{error}</div>}

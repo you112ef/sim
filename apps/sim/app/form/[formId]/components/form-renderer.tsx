@@ -37,7 +37,6 @@ export function FormRenderer({ formId, formConfig, styling, settings }: FormRend
       [fieldName]: value,
     }))
 
-    // Clear field error when user starts typing
     if (errors[fieldName]) {
       setErrors((prev) => ({
         ...prev,
@@ -57,7 +56,6 @@ export function FormRenderer({ formId, formConfig, styling, settings }: FormRend
         }
       }
 
-      // Email validation
       if (field.type === 'email' && formData[field.name]) {
         const validation = quickValidateEmail(formData[field.name])
         if (!validation.isValid) {
@@ -98,7 +96,6 @@ export function FormRenderer({ formId, formConfig, styling, settings }: FormRend
 
       setIsSubmitted(true)
 
-      // Handle redirect if specified
       if (result.redirectUrl) {
         setTimeout(() => {
           window.location.href = result.redirectUrl
@@ -113,7 +110,6 @@ export function FormRenderer({ formId, formConfig, styling, settings }: FormRend
 
   const renderField = (field: FormField) => {
     const value = formData[field.name] || ''
-    const error = errors[field.name]
 
     const commonProps = {
       id: field.name,

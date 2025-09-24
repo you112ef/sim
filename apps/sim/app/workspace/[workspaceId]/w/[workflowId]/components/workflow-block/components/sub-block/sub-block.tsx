@@ -323,7 +323,6 @@ export function SubBlock({
         )
       }
       case 'form-config': {
-        // For form config, we need to construct the value from multiple subblock values
         const formValue =
           isPreview && subBlockValues
             ? {

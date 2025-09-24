@@ -5,11 +5,6 @@ import { type NextRequest, NextResponse } from 'next/server'
 
 export const dynamic = 'force-dynamic'
 
-/**
- * Form Rendering Handler (GET)
- *
- * Returns form configuration for public form rendering
- */
 export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ formId: string }> }
@@ -17,7 +12,6 @@ export async function GET(
   try {
     const formId = (await params).formId
 
-    // Find form and associated workflow
     const forms = await db
       .select({
         form: workflowForm,
