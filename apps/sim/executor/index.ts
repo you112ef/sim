@@ -1205,7 +1205,9 @@ export class Executor {
   }
 
   /**
-   * Check if a specific parallel iteration is complete (all blocks executed).
+   * Check if a specific parallel iteration is complete (all blocks that should execute have executed).
+   * This method now considers conditional execution paths - only blocks in the active execution
+   * path are expected to execute.
    *
    * @param parallelId - ID of the parallel block
    * @param iteration - Iteration index to check
@@ -1223,13 +1225,159 @@ export class Executor {
       return true
     }
 
-    for (const nodeId of parallel.nodes) {
+    const expectedBlocks = this.getExpectedBlocksForIteration(
+      parallelId,
+      iteration,
+      parallel,
+      context
+    )
+
+    // Check if all expected blocks have been executed
+    for (const nodeId of expectedBlocks) {
       const virtualBlockId = `${nodeId}_parallel_${parallelId}_iteration_${iteration}`
       if (!context.executedBlocks.has(virtualBlockId)) {
         return false
       }
     }
     return true
+  }
+
+  /**
+   * Get the blocks that are expected to execute in a parallel iteration based on
+   * the active execution path. This handles conditional logic where some blocks
+   * may not execute due to condition or router blocks.
+   *
+   * @param parallelId - ID of the parallel block
+   * @param iteration - Iteration index
+   * @param parallel - Parallel configuration
+   * @param context - Execution context
+   * @returns Array of node IDs that should execute in this iteration
+   */
+  private getExpectedBlocksForIteration(
+    parallelId: string,
+    iteration: number,
+    parallel: any,
+    context: ExecutionContext
+  ): string[] {
+    if (!parallel || !parallel.nodes) {
+      return []
+    }
+
+    const expectedBlocks: string[] = []
+
+    for (const nodeId of parallel.nodes) {
+      const block = this.actualWorkflow.blocks.find((b) => b.id === nodeId)
+
+      // If block doesn't exist in workflow, fall back to original behavior (assume it should execute)
+      // This maintains compatibility with tests and edge cases
+      if (!block) {
+        expectedBlocks.push(nodeId)
+        continue
+      }
+
+      if (!block.enabled) {
+        continue
+      }
+
+      const virtualBlockId = `${nodeId}_parallel_${parallelId}_iteration_${iteration}`
+
+      // Skip blocks that have already been executed
+      if (context.executedBlocks.has(virtualBlockId)) {
+        expectedBlocks.push(nodeId)
+        continue
+      }
+
+      // Check if this block should execute based on the active execution path
+      // We need to check if the original block is reachable based on current routing decisions
+      try {
+        const shouldExecute = this.shouldBlockExecuteInParallelIteration(
+          nodeId,
+          parallelId,
+          iteration,
+          context
+        )
+
+        if (shouldExecute) {
+          expectedBlocks.push(nodeId)
+        }
+      } catch (error) {
+        // If path checking fails, default to including the block to maintain existing behavior
+        logger.warn(
+          `Path check failed for block ${nodeId} in parallel ${parallelId}, iteration ${iteration}:`,
+          error
+        )
+        expectedBlocks.push(nodeId)
+      }
+    }
+
+    return expectedBlocks
+  }
+
+  /**
+   * Determines if a block should execute in a specific parallel iteration
+   * based on conditional routing and active execution paths.
+   *
+   * @param nodeId - ID of the block to check
+   * @param parallelId - ID of the parallel block
+   * @param iteration - Current iteration index
+   * @param context - Execution context
+   * @returns Whether the block should execute
+   */
+  private shouldBlockExecuteInParallelIteration(
+    nodeId: string,
+    parallelId: string,
+    iteration: number,
+    context: ExecutionContext
+  ): boolean {
+    const parallel = this.actualWorkflow.parallels?.[parallelId]
+    if (!parallel) return false
+
+    const incomingConnections = this.actualWorkflow.connections.filter(
+      (conn) => conn.target === nodeId
+    )
+
+    // Find connections from within the same parallel
+    const internalConnections = incomingConnections.filter((conn) =>
+      parallel.nodes.includes(conn.source)
+    )
+
+    // If no internal connections, this is a starting block in the parallel - should always execute
+    if (internalConnections.length === 0) {
+      return true
+    }
+
+    // For blocks with dependencies within the parallel, check if any incoming connection is active
+    // based on routing decisions made by executed source blocks
+    return internalConnections.some((conn) => {
+      const sourceVirtualId = `${conn.source}_parallel_${parallelId}_iteration_${iteration}`
+
+      // Source must be executed for the connection to be considered
+      if (!context.executedBlocks.has(sourceVirtualId)) {
+        return false
+      }
+
+      // Get the source block to determine its type
+      const sourceBlock = this.actualWorkflow.blocks.find((b) => b.id === conn.source)
+      if (!sourceBlock) return false
+
+      const sourceBlockType = sourceBlock.metadata?.id || ''
+
+      // Check if this is a routing block (condition or router)
+      if (sourceBlockType === BlockType.CONDITION) {
+        // For condition blocks in parallels, check using the virtual block ID
+        const selectedCondition = context.decisions.condition.get(sourceVirtualId)
+        const expectedHandle = `condition-${selectedCondition}`
+        return conn.sourceHandle === expectedHandle
+      }
+      if (sourceBlockType === BlockType.ROUTER) {
+        // For router blocks in parallels, check using the virtual block ID
+        const selectedTarget = context.decisions.router.get(sourceVirtualId)
+        return selectedTarget === nodeId
+      }
+      // For regular blocks, the connection is active if the source executed successfully
+      const sourceBlockState = context.blockStates.get(conn.source)
+      return !sourceBlockState?.output?.error
+    })
   }
 
   /**
@@ -1269,6 +1417,8 @@ export class Executor {
 
   /**
    * Process a single parallel iteration with topological ordering of dependencies.
+   * Now includes conditional execution logic - only processes blocks that should execute
+   * based on the active execution path (handles conditions, routers, etc.).
    *
    * @param parallelId - ID of the parallel block
    * @param iteration - Current iteration index
@@ -1293,7 +1443,7 @@ export class Executor {
       }
     >()
 
-    // Build dependency graph for this iteration
+    // Build dependency graph for this iteration - only include blocks that should execute
     for (const nodeId of parallel.nodes) {
       const virtualBlockId = `${nodeId}_parallel_${parallelId}_iteration_${iteration}`
       const isExecuted = context.executedBlocks.has(virtualBlockId)
@@ -1304,6 +1454,26 @@ export class Executor {
 
       const block = this.actualWorkflow.blocks.find((b) => b.id === nodeId)
       if (!block || !block.enabled) continue
+
+      // Check if this block should execute in this iteration based on conditional paths
+      try {
+        const shouldExecute = this.shouldBlockExecuteInParallelIteration(
+          nodeId,
+          parallelId,
+          iteration,
+          context
+        )
+
+        if (!shouldExecute) {
+          continue
+        }
+      } catch (error) {
+        // If path checking fails, default to processing the block to maintain existing behavior
+        logger.warn(
+          `Path check failed for block ${nodeId} in parallel ${parallelId}, iteration ${iteration}:`,
+          error
+        )
+      }
 
       // Find dependencies within this iteration
       const incomingConnections = this.actualWorkflow.connections.filter(
