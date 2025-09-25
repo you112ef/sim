@@ -6,8 +6,6 @@ import { SIM_AGENT_API_URL_DEFAULT } from '@/lib/sim-agent'
 
 const logger = createLogger('CopilotApiKeysGenerate')
 
-const SIM_AGENT_API_URL = env.SIM_AGENT_API_URL || SIM_AGENT_API_URL_DEFAULT
-
 export async function POST(req: NextRequest) {
   try {
     const session = await getSession()
@@ -16,6 +14,9 @@ export async function POST(req: NextRequest) {
     }
 
     const userId = session.user.id
+
+    // Move environment variable access inside the function
+    const SIM_AGENT_API_URL = env.SIM_AGENT_API_URL || SIM_AGENT_API_URL_DEFAULT
 
     const res = await fetch(`${SIM_AGENT_API_URL}/api/validate-key/generate`, {
       method: 'POST',
