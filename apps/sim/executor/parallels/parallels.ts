@@ -1,4 +1,5 @@
 import { createLogger } from '@/lib/logs/console/logger'
+import { ParallelRoutingUtils } from '@/executor/parallels/utils'
 import type { ExecutionContext, NormalizedBlockOutput } from '@/executor/types'
 import type { SerializedBlock, SerializedParallel, SerializedWorkflow } from '@/serializer/types'
 
@@ -56,23 +57,30 @@ export class ParallelManager {
   }
 
   /**
-   * Checks if all virtual blocks for a parallel have been executed.
+   * Checks if all virtual blocks that SHOULD execute for a parallel have been executed.
+   * This now respects conditional routing - only checks blocks that should execute.
    */
   areAllVirtualBlocksExecuted(
     parallelId: string,
     parallel: SerializedParallel,
     executedBlocks: Set<string>,
-    parallelState: ParallelState
+    parallelState: ParallelState,
+    context: ExecutionContext
   ): boolean {
-    for (const nodeId of parallel.nodes) {
-      for (let i = 0; i < parallelState.parallelCount; i++) {
-        const virtualBlockId = `${nodeId}_parallel_${parallelId}_iteration_${i}`
-        if (!executedBlocks.has(virtualBlockId)) {
-          return false
-        }
-      }
+    const result = ParallelRoutingUtils.areAllRequiredVirtualBlocksExecuted(
+      parallel,
+      parallelState.parallelCount,
+      executedBlocks,
+      context
+    )
+
+    if (result) {
+      logger.info(`All required virtual blocks completed for parallel ${parallelId}`)
+    } else {
+      logger.info(`Parallel ${parallelId} not complete - some blocks still need to execute`)
     }
-    return true
+
+    return result
   }
 
   /**
@@ -106,7 +114,8 @@ export class ParallelManager {
         parallelId,
         parallel,
         context.executedBlocks,
-        parallelState
+        parallelState,
+        context
       )
 
       if (allVirtualBlocksExecuted && !context.completedLoops.has(parallelId)) {

@@ -50,26 +50,8 @@ export class LoopManager {
         // All blocks in the loop have been executed
         const currentIteration = context.loopIterations.get(loopId) || 1
 
-        // Store the results from this iteration before potentially resetting blocks
-        const iterationResults: any[] = []
-        for (const nodeId of loop.nodes) {
-          const blockState = context.blockStates.get(nodeId)
-          if (blockState?.output) {
-            // Just push the output directly, not nested under block ID
-            iterationResults.push(blockState.output)
-          }
-        }
-
-        // Store the iteration results
-        if (iterationResults.length > 0) {
-          this.storeIterationResult(
-            context,
-            loopId,
-            currentIteration - 1, // Convert back to 0-based for storage
-            'iteration',
-            iterationResults
-          )
-        }
+        // Results are now stored individually as blocks execute (like parallels)
+        // No need for bulk collection here
 
         // The loop block will handle incrementing the iteration when it executes next
         // We just need to reset the blocks so they can run again
@@ -114,11 +96,7 @@ export class LoopManager {
             for (let i = 0; i < maxIterations; i++) {
               const result = loopState.executionResults.get(`iteration_${i}`)
               if (result) {
-                if (Array.isArray(result)) {
-                  results.push(...result)
-                } else {
-                  results.push(result)
-                }
+                results.push(result)
               }
             }
           }
@@ -318,7 +296,6 @@ export class LoopManager {
     context: ExecutionContext,
     loopId: string,
     iterationIndex: number,
-    _blockId: string, // Not used anymore since we're storing results directly
     output: any
   ): void {
     if (!context.loopExecutions) {
