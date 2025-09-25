@@ -19,6 +19,7 @@ import {
 } from '@/executor/handlers'
 import { LoopManager } from '@/executor/loops/loops'
 import { ParallelManager } from '@/executor/parallels/parallels'
+import { ParallelRoutingUtils } from '@/executor/parallels/utils'
 import { PathTracker } from '@/executor/path/path'
 import { InputResolver } from '@/executor/resolver/resolver'
 import type {
@@ -30,7 +31,6 @@ import type {
   StreamingExecution,
 } from '@/executor/types'
 import { streamingResponseFormatProcessor } from '@/executor/utils'
-import { ConnectionUtils } from '@/executor/utils/connections'
 import { VirtualBlockUtils } from '@/executor/utils/virtual-blocks'
 import type { SerializedBlock, SerializedWorkflow } from '@/serializer/types'
 import { useExecutionStore } from '@/stores/execution/store'
@@ -1336,58 +1336,12 @@ export class Executor {
     const parallel = this.actualWorkflow.parallels?.[parallelId]
     if (!parallel) return false
 
-    const internalConnections = ConnectionUtils.getInternalConnections(
+    return ParallelRoutingUtils.shouldBlockExecuteInParallelIteration(
       nodeId,
-      parallel.nodes,
-      this.actualWorkflow.connections
+      parallel,
+      iteration,
+      context
     )
-
-    // If no internal connections, check if this is truly a starting block or an unconnected block
-    if (internalConnections.length === 0) {
-      // Use helper to check if this is an unconnected block
-      if (ConnectionUtils.isUnconnectedBlock(nodeId, this.actualWorkflow.connections)) {
-        return false
-      }
-      // If there are external connections, this is a legitimate starting block - should execute
-      return true
-    }
-
-    // For blocks with dependencies within the parallel, check if any incoming connection is active
-    // based on routing decisions made by executed source blocks
-    return internalConnections.some((conn) => {
-      const sourceVirtualId = VirtualBlockUtils.generateParallelId(
-        conn.source,
-        parallelId,
-        iteration
-      )
-
-      // Source must be executed for the connection to be considered
-      if (!context.executedBlocks.has(sourceVirtualId)) {
-        return false
-      }
-
-      // Get the source block to determine its type
-      const sourceBlock = this.actualWorkflow.blocks.find((b) => b.id === conn.source)
-      if (!sourceBlock) return false
-
-      const sourceBlockType = sourceBlock.metadata?.id || ''
-
-      // Check if this is a routing block (condition or router)
-      if (sourceBlockType === BlockType.CONDITION) {
-        // For condition blocks in parallels, check using the virtual block ID
-        const selectedCondition = context.decisions.condition.get(sourceVirtualId)
-        const expectedHandle = `condition-${selectedCondition}`
-        return conn.sourceHandle === expectedHandle
-      }
-      if (sourceBlockType === BlockType.ROUTER) {
-        // For router blocks in parallels, check using the virtual block ID
-        const selectedTarget = context.decisions.router.get(sourceVirtualId)
-        return selectedTarget === nodeId
-      }
-      // For regular blocks, the connection is active if the source executed successfully
-      const sourceBlockState = context.blockStates.get(conn.source)
-      return !sourceBlockState?.output?.error
-    })
   }
 
   /**
@@ -1957,6 +1911,21 @@ export class Executor {
           )
         }
 
+        // Store result for loops (IDENTICAL to parallel logic)
+        const containingLoopId = this.resolver.getContainingLoopId(block.id)
+        if (containingLoopId && !parallelInfo) {
+          // Only store for loops if not already in a parallel (avoid double storage)
+          const currentIteration = context.loopIterations.get(containingLoopId)
+          if (currentIteration !== undefined) {
+            this.loopManager.storeIterationResult(
+              context,
+              containingLoopId,
+              currentIteration - 1, // Convert to 0-based index
+              output
+            )
+          }
+        }
+
         // Update the execution log
         blockLog.success = true
         blockLog.output = output
@@ -2065,6 +2034,21 @@ export class Executor {
           parallelInfo.iterationIndex,
           output
         )
+      }
+
+      // Store result for loops (IDENTICAL to parallel logic)
+      const containingLoopId = this.resolver.getContainingLoopId(block.id)
+      if (containingLoopId && !parallelInfo) {
+        // Only store for loops if not already in a parallel (avoid double storage)
+        const currentIteration = context.loopIterations.get(containingLoopId)
+        if (currentIteration !== undefined) {
+          this.loopManager.storeIterationResult(
+            context,
+            containingLoopId,
+            currentIteration - 1, // Convert to 0-based index
+            output
+          )
+        }
       }
 
       // Update the execution log

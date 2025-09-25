@@ -310,7 +310,7 @@ describe('LoopManager', () => {
     test('should create new loop state if none exists', () => {
       const output = { result: 'test result' }
 
-      manager.storeIterationResult(mockContext, 'loop-1', 0, 'block-1', output)
+      manager.storeIterationResult(mockContext, 'loop-1', 0, output)
 
       expect(mockContext.loopExecutions).toBeDefined()
       const loopState = mockContext.loopExecutions!.get('loop-1')
@@ -335,7 +335,7 @@ describe('LoopManager', () => {
       const output2 = { result: 'result2' }
 
       manager.storeIterationResult(mockContext, 'loop-1', 0, 'block-1', output1)
-      manager.storeIterationResult(mockContext, 'loop-1', 0, 'block-2', output2)
+      manager.storeIterationResult(mockContext, 'loop-1', 0, output2)
 
       const loopState = mockContext.loopExecutions.get('loop-1')
       const iterationResults = loopState?.executionResults.get('iteration_0')
@@ -349,7 +349,7 @@ describe('LoopManager', () => {
 
       const output = { result: 'test result' }
 
-      manager.storeIterationResult(mockContext, 'loop-1', 0, 'block-1', output)
+      manager.storeIterationResult(mockContext, 'loop-1', 0, output)
 
       const loopState = mockContext.loopExecutions!.get('loop-1')
       expect(loopState?.loopType).toBe('forEach')
