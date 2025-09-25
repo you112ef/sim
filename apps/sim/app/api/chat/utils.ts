@@ -404,6 +404,7 @@ export async function executeWorkflowForChat(
     .select({
       isDeployed: workflow.isDeployed,
       variables: workflow.variables,
+      workspaceId: workflow.workspaceId,
     })
     .from(workflow)
     .where(eq(workflow.id, workflowId))
@@ -462,13 +463,7 @@ export async function executeWorkflowForChat(
   // Get user environment variables with workspace precedence
   let envVars: Record<string, string> = {}
   try {
-    const wfWorkspaceRow = await db
-      .select({ workspaceId: workflow.workspaceId })
-      .from(workflow)
-      .where(eq(workflow.id, workflowId))
-      .limit(1)
-
-    const workspaceId = wfWorkspaceRow[0]?.workspaceId || undefined
+    const workspaceId = workflowResult[0].workspaceId || undefined
     const { personalEncrypted, workspaceEncrypted } = await getPersonalAndWorkspaceEnv(
       deployment.userId,
       workspaceId
@@ -628,6 +623,13 @@ export async function executeWorkflowForChat(
         const errorMessage =
           'No Chat trigger configured for this workflow. Add a Chat Trigger block to enable chat execution.'
         logger.error(`[${requestId}] ${errorMessage}`)
+
+        await loggingSession.safeStart({
+          userId: deployment.userId,
+          workspaceId: workflowResult[0].workspaceId || '',
+          variables: {},
+        })
+
         await loggingSession.safeCompleteWithError({
           endedAt: new Date().toISOString(),
           totalDurationMs: 0,
