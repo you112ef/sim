@@ -2,6 +2,8 @@ import { createLogger } from '@/lib/logs/console/logger'
 import { BlockType } from '@/executor/consts'
 import { Routing } from '@/executor/routing/routing'
 import type { BlockState, ExecutionContext } from '@/executor/types'
+import { ConnectionUtils } from '@/executor/utils/connections'
+import { VirtualBlockUtils } from '@/executor/utils/virtual-blocks'
 import type { SerializedBlock, SerializedConnection, SerializedWorkflow } from '@/serializer/types'
 
 const logger = createLogger('PathTracker')
@@ -71,26 +73,21 @@ export class PathTracker {
    * @returns Original block ID
    */
   private extractOriginalBlockId(blockId: string): string {
-    if (blockId.includes('_parallel_') && blockId.includes('_iteration_')) {
-      const parts = blockId.split('_parallel_')
-      const originalId = parts[0]
-      return originalId.length > 0 ? originalId : blockId
-    }
-    return blockId
+    return VirtualBlockUtils.extractOriginalId(blockId)
   }
 
   /**
    * Get all incoming connections to a block
    */
   private getIncomingConnections(blockId: string): SerializedConnection[] {
-    return this.workflow.connections.filter((conn) => conn.target === blockId)
+    return ConnectionUtils.getIncomingConnections(blockId, this.workflow.connections)
   }
 
   /**
    * Get all outgoing connections from a block
    */
   private getOutgoingConnections(blockId: string): SerializedConnection[] {
-    return this.workflow.connections.filter((conn) => conn.source === blockId)
+    return ConnectionUtils.getOutgoingConnections(blockId, this.workflow.connections)
   }
 
   /**

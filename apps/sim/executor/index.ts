@@ -30,6 +30,8 @@ import type {
   StreamingExecution,
 } from '@/executor/types'
 import { streamingResponseFormatProcessor } from '@/executor/utils'
+import { ConnectionUtils } from '@/executor/utils/connections'
+import { VirtualBlockUtils } from '@/executor/utils/virtual-blocks'
 import type { SerializedBlock, SerializedWorkflow } from '@/serializer/types'
 import { useExecutionStore } from '@/stores/execution/store'
 import { useConsoleStore } from '@/stores/panel/console/store'
@@ -1110,7 +1112,7 @@ export class Executor {
         if (parallelState) {
           let allVirtualInstancesExecuted = true
           for (let i = 0; i < parallelState.parallelCount; i++) {
-            const virtualBlockId = `${block.id}_parallel_${insideParallel}_iteration_${i}`
+            const virtualBlockId = VirtualBlockUtils.generateParallelId(block.id, insideParallel, i)
             if (!executedBlocks.has(virtualBlockId)) {
               allVirtualInstancesExecuted = false
               break
@@ -1233,7 +1235,7 @@ export class Executor {
 
     // Check if all expected blocks have been executed
     for (const nodeId of expectedBlocks) {
-      const virtualBlockId = `${nodeId}_parallel_${parallelId}_iteration_${iteration}`
+      const virtualBlockId = VirtualBlockUtils.generateParallelId(nodeId, parallelId, iteration)
       if (!context.executedBlocks.has(virtualBlockId)) {
         return false
       }
@@ -1278,7 +1280,7 @@ export class Executor {
         continue
       }
 
-      const virtualBlockId = `${nodeId}_parallel_${parallelId}_iteration_${iteration}`
+      const virtualBlockId = VirtualBlockUtils.generateParallelId(nodeId, parallelId, iteration)
 
       // Skip blocks that have already been executed
       if (context.executedBlocks.has(virtualBlockId)) {
@@ -1334,19 +1336,16 @@ export class Executor {
     const parallel = this.actualWorkflow.parallels?.[parallelId]
     if (!parallel) return false
 
-    const incomingConnections = this.actualWorkflow.connections.filter(
-      (conn) => conn.target === nodeId
-    )
-
-    // Find connections from within the same parallel
-    const internalConnections = incomingConnections.filter((conn) =>
-      parallel.nodes.includes(conn.source)
+    const internalConnections = ConnectionUtils.getInternalConnections(
+      nodeId,
+      parallel.nodes,
+      this.actualWorkflow.connections
     )
 
     // If no internal connections, check if this is truly a starting block or an unconnected block
     if (internalConnections.length === 0) {
-      // If there are no incoming connections at all, this is an unconnected block - should NOT execute
-      if (incomingConnections.length === 0) {
+      // Use helper to check if this is an unconnected block
+      if (ConnectionUtils.isUnconnectedBlock(nodeId, this.actualWorkflow.connections)) {
         return false
       }
       // If there are external connections, this is a legitimate starting block - should execute
@@ -1356,7 +1355,11 @@ export class Executor {
     // For blocks with dependencies within the parallel, check if any incoming connection is active
     // based on routing decisions made by executed source blocks
     return internalConnections.some((conn) => {
-      const sourceVirtualId = `${conn.source}_parallel_${parallelId}_iteration_${iteration}`
+      const sourceVirtualId = VirtualBlockUtils.generateParallelId(
+        conn.source,
+        parallelId,
+        iteration
+      )
 
       // Source must be executed for the connection to be considered
       if (!context.executedBlocks.has(sourceVirtualId)) {
@@ -1452,7 +1455,7 @@ export class Executor {
 
     // Build dependency graph for this iteration - only include blocks that should execute
     for (const nodeId of parallel.nodes) {
-      const virtualBlockId = `${nodeId}_parallel_${parallelId}_iteration_${iteration}`
+      const virtualBlockId = VirtualBlockUtils.generateParallelId(nodeId, parallelId, iteration)
       const isExecuted = context.executedBlocks.has(virtualBlockId)
 
       if (isExecuted) {
@@ -1491,7 +1494,11 @@ export class Executor {
       for (const conn of incomingConnections) {
         // Check if the source is within the same parallel
         if (parallel.nodes.includes(conn.source)) {
-          const sourceDependencyId = `${conn.source}_parallel_${parallelId}_iteration_${iteration}`
+          const sourceDependencyId = VirtualBlockUtils.generateParallelId(
+            conn.source,
+            parallelId,
+            iteration
+          )
           dependencies.push(sourceDependencyId)
         } else {
           // External dependency - check if it's met
@@ -1599,7 +1606,11 @@ export class Executor {
           sourceBlock &&
           this.actualWorkflow.parallels?.[insideParallel]?.nodes.includes(conn.source)
         ) {
-          sourceId = `${conn.source}_parallel_${insideParallel}_iteration_${iterationIndex}`
+          sourceId = VirtualBlockUtils.generateParallelId(
+            conn.source,
+            insideParallel,
+            iterationIndex
+          )
         }
       }
 
