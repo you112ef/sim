@@ -23,7 +23,7 @@ export const listMattersTool: ToolConfig<GoogleVaultListMattersParams> = {
     accessToken: { type: 'string', required: true, visibility: 'hidden' },
     pageSize: { type: 'number', required: false, visibility: 'user-only' },
     pageToken: { type: 'string', required: false, visibility: 'hidden' },
-    matterId: { type: 'string', required: true, visibility: 'user-or-llm' },
+    matterId: { type: 'string', required: false, visibility: 'user-only' },
   },
 
   request: {

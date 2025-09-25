@@ -22,8 +22,8 @@ export const createMattersTool: ToolConfig<GoogleVaultCreateMattersParams> = {
 
   params: {
     accessToken: { type: 'string', required: true, visibility: 'hidden' },
-    name: { type: 'string', required: true, visibility: 'user-or-llm' },
-    description: { type: 'string', required: false, visibility: 'user-or-llm' },
+    name: { type: 'string', required: true, visibility: 'user-only' },
+    description: { type: 'string', required: false, visibility: 'user-only' },
   },
 
   request: {

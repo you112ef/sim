@@ -22,6 +22,7 @@ export const GoogleVaultBlock: BlockConfig = {
       options: [
         { label: 'Create Export', id: 'create_matters_export' },
         { label: 'List Exports', id: 'list_matters_export' },
+        { label: 'Download Export File', id: 'download_export_file' },
         { label: 'Create Hold', id: 'create_matters_holds' },
         { label: 'List Holds', id: 'list_matters_holds' },
         { label: 'Create Matter', id: 'create_matters' },
@@ -38,10 +39,66 @@ export const GoogleVaultBlock: BlockConfig = {
       required: true,
       provider: 'google-vault',
       serviceId: 'google-vault',
-      requiredScopes: ['https://www.googleapis.com/auth/ediscovery'],
+      requiredScopes: [
+        'https://www.googleapis.com/auth/ediscovery',
+        'https://www.googleapis.com/auth/devstorage.read_only',
+      ],
       placeholder: 'Select Google Vault account',
     },
     // Create Hold inputs
+    {
+      id: 'matterId',
+      title: 'Matter ID',
+      type: 'short-input',
+      layout: 'full',
+      placeholder: 'Enter Matter ID',
+      condition: () => ({
+        field: 'operation',
+        value: [
+          'create_matters_export',
+          'list_matters_export',
+          'download_export_file',
+          'create_matters_holds',
+          'list_matters_holds',
+        ],
+      }),
+    },
+    // Download Export File inputs
+    {
+      id: 'bucketName',
+      title: 'Bucket Name',
+      type: 'short-input',
+      layout: 'full',
+      placeholder: 'Vault export bucket (from cloudStorageSink.files.bucketName)',
+      condition: { field: 'operation', value: 'download_export_file' },
+      required: true,
+    },
+    {
+      id: 'objectName',
+      title: 'Object Name',
+      type: 'long-input',
+      layout: 'full',
+      placeholder: 'Vault export object (from cloudStorageSink.files.objectName)',
+      condition: { field: 'operation', value: 'download_export_file' },
+      required: true,
+    },
+    {
+      id: 'fileName',
+      title: 'File Name (optional)',
+      type: 'short-input',
+      layout: 'full',
+      placeholder: 'Override filename used for storage/display',
+      condition: { field: 'operation', value: 'download_export_file' },
+    },
+    {
+      id: 'exportName',
+      title: 'Export Name',
+      type: 'short-input',
+      layout: 'full',
+      placeholder: 'Name for the export',
+      condition: { field: 'operation', value: 'create_matters_export' },
+      required: true,
+    },
     {
       id: 'holdName',
       title: 'Hold Name',
@@ -63,7 +120,7 @@ export const GoogleVaultBlock: BlockConfig = {
         { id: 'HANGOUTS_CHAT', label: 'HANGOUTS_CHAT' },
         { id: 'VOICE', label: 'VOICE' },
       ],
-      condition: { field: 'operation', value: 'create_matters_holds' },
+      condition: { field: 'operation', value: ['create_matters_holds', 'create_matters_export'] },
       required: true,
     },
     {
@@ -72,7 +129,7 @@ export const GoogleVaultBlock: BlockConfig = {
       type: 'long-input',
       layout: 'full',
       placeholder: 'Comma-separated emails (alternative to Org Unit)',
-      condition: { field: 'operation', value: 'create_matters_holds' },
+      condition: { field: 'operation', value: ['create_matters_holds', 'create_matters_export'] },
     },
     {
       id: 'orgUnitId',
@@ -80,23 +137,7 @@ export const GoogleVaultBlock: BlockConfig = {
       type: 'short-input',
       layout: 'half',
       placeholder: 'Org Unit ID (alternative to emails)',
-      condition: { field: 'operation', value: 'create_matters_holds' },
-    },
-    {
-      id: 'matterId',
-      title: 'Matter ID',
-      type: 'short-input',
-      layout: 'full',
-      placeholder: 'Enter Matter ID',
-      condition: () => ({
-        field: 'operation',
-        value: [
-          'create_matters_export',
-          'list_matters_export',
-          'create_matters_holds',
-          'list_matters_holds',
-        ],
-      }),
+      condition: { field: 'operation', value: ['create_matters_holds', 'create_matters_export'] },
     },
     {
       id: 'exportId',
@@ -105,15 +146,6 @@ export const GoogleVaultBlock: BlockConfig = {
       layout: 'full',
       placeholder: 'Enter Export ID (optional to fetch a specific export)',
       condition: { field: 'operation', value: 'list_matters_export' },
-    },
-    {
-      id: 'exportName',
-      title: 'Export Name',
-      type: 'short-input',
-      layout: 'full',
-      placeholder: 'Name for the export',
-      condition: { field: 'operation', value: 'create_matters_export' },
-      required: true,
     },
     {
       id: 'holdId',
@@ -129,7 +161,7 @@ export const GoogleVaultBlock: BlockConfig = {
       type: 'short-input',
       layout: 'half',
       placeholder: 'Number of items to return',
-      condition: { field: 'operation', value: 'list_matters_export' },
+      condition: { field: 'operation', value: ['list_matters_export', 'list_matters_holds', 'list_matters'] },
     },
     {
       id: 'pageToken',
@@ -137,23 +169,7 @@ export const GoogleVaultBlock: BlockConfig = {
       type: 'short-input',
       layout: 'half',
       placeholder: 'Pagination token',
-      condition: { field: 'operation', value: 'list_matters_export' },
-    },
-    {
-      id: 'pageSize',
-      title: 'Page Size',
-      type: 'short-input',
-      layout: 'half',
-      placeholder: 'Number of holds to return (0-100)',
-      condition: { field: 'operation', value: 'list_matters_holds' },
-    },
-    {
-      id: 'pageToken',
-      title: 'Page Token',
-      type: 'short-input',
-      layout: 'half',
-      placeholder: 'Pagination token',
-      condition: { field: 'operation', value: 'list_matters_holds' },
+      condition: { field: 'operation', value: ['list_matters_export', 'list_matters_holds', 'list_matters'] },
     },
 
     {
@@ -173,24 +189,6 @@ export const GoogleVaultBlock: BlockConfig = {
       placeholder: 'Optional description for the matter',
       condition: { field: 'operation', value: 'create_matters' },
     },
-    // List matters filters
-    {
-      id: 'pageSize',
-      title: 'Page Size',
-      type: 'short-input',
-      layout: 'half',
-      placeholder: 'Number of matters to return',
-      condition: { field: 'operation', value: 'list_matters' },
-    },
-    {
-      id: 'pageToken',
-      title: 'Page Token',
-      type: 'short-input',
-      layout: 'half',
-      placeholder: 'Pagination token',
-      condition: { field: 'operation', value: 'list_matters' },
-    },
-    // Matter view and state removed; default BASIC implicitly
     // Optional get specific matter by ID
     {
       id: 'matterId',
@@ -205,6 +203,7 @@ export const GoogleVaultBlock: BlockConfig = {
     access: [
       'google_vault_create_matters_export',
       'google_vault_list_matters_export',
+      'google_vault_download_export_file',
       'google_vault_create_matters_holds',
       'google_vault_list_matters_holds',
       'google_vault_create_matters',
@@ -217,6 +216,8 @@ export const GoogleVaultBlock: BlockConfig = {
             return 'google_vault_create_matters_export'
           case 'list_matters_export':
             return 'google_vault_list_matters_export'
+          case 'download_export_file':
+            return 'google_vault_download_export_file'
           case 'create_matters_holds':
             return 'google_vault_create_matters_holds'
           case 'list_matters_holds':
@@ -239,19 +240,39 @@ export const GoogleVaultBlock: BlockConfig = {
     },
   },
   inputs: {
+    // Core inputs
     operation: { type: 'string', description: 'Operation to perform' },
     credential: { type: 'string', description: 'Google Vault OAuth credential' },
     matterId: { type: 'string', description: 'Matter ID' },
-    exportId: { type: 'string', description: 'Export ID (optional for single fetch)' },
-    exportName: { type: 'string', description: 'Export name (create export)' },
-    holdId: { type: 'string', description: 'Hold ID (optional for single fetch)' },
-    pageSize: { type: 'number', description: 'Page size for list operations' },
-    pageToken: { type: 'string', description: 'Page token for pagination' },
-    name: { type: 'string', description: 'Matter name (create)' },
-    description: { type: 'string', description: 'Matter description (create)' },
+    
+    // Create export inputs
+    exportName: { type: 'string', description: 'Name for the export' },
+    corpus: { type: 'string', description: 'Data corpus (MAIL, DRIVE, GROUPS, etc.)' },
+    accountEmails: { type: 'string', description: 'Comma-separated account emails' },
+    orgUnitId: { type: 'string', description: 'Organization unit ID' },
+    
+    // Create hold inputs
+    holdName: { type: 'string', description: 'Name for the hold' },
+    
+    // Download export file inputs
+    bucketName: { type: 'string', description: 'GCS bucket name from export' },
+    objectName: { type: 'string', description: 'GCS object name from export' },
+    fileName: { type: 'string', description: 'Optional filename override' },
+    
+    // List operations inputs
+    exportId: { type: 'string', description: 'Specific export ID to fetch' },
+    holdId: { type: 'string', description: 'Specific hold ID to fetch' },
+    pageSize: { type: 'number', description: 'Number of items per page' },
+    pageToken: { type: 'string', description: 'Pagination token' },
+    
+    // Create matter inputs
+    name: { type: 'string', description: 'Matter name' },
+    description: { type: 'string', description: 'Matter description' },
   },
   outputs: {
-    data: { type: 'json', description: 'Vault API response data' },
-    metadata: { type: 'json', description: 'Operation metadata' },
+    // Common outputs
+    output: { type: 'json', description: 'Vault API response data' },
+    // Download export file output
+    file: { type: 'json', description: 'Downloaded export file (UserFile) from execution files' },
   },
 }

@@ -17,8 +17,26 @@ export const createMattersExportTool: ToolConfig<GoogleVaultCreateMattersExportP
 
   params: {
     accessToken: { type: 'string', required: true, visibility: 'hidden' },
-    matterId: { type: 'string', required: true, visibility: 'user-or-llm' },
-    exportName: { type: 'string', required: true, visibility: 'user-or-llm' },
+    matterId: { type: 'string', required: true, visibility: 'user-only' },
+    exportName: { type: 'string', required: true, visibility: 'user-only' },
+    corpus: {
+      type: 'string',
+      required: true,
+      visibility: 'user-only',
+      description: 'Data corpus to export (MAIL, DRIVE, GROUPS, HANGOUTS_CHAT, VOICE)',
+    },
+    accountEmails: {
+      type: 'string',
+      required: false,
+      visibility: 'user-only',
+      description: 'Comma-separated list of user emails to scope export',
+    },
+    orgUnitId: {
+      type: 'string',
+      required: false,
+      visibility: 'user-only',
+      description: 'Organization unit ID to scope export (alternative to emails)',
+    },
   },
 
   request: {
@@ -28,9 +46,41 @@ export const createMattersExportTool: ToolConfig<GoogleVaultCreateMattersExportP
       Authorization: `Bearer ${params.accessToken}`,
       'Content-Type': 'application/json',
     }),
-    body: (params) => ({
-      name: params.exportName,
-    }),
+    body: (params) => {
+      const emailsRaw = (params as any).accountEmails
+      const emails = Array.isArray(emailsRaw)
+        ? emailsRaw
+        : typeof emailsRaw === 'string'
+          ? emailsRaw
+              .split(',')
+              .map((e) => e.trim())
+              .filter(Boolean)
+          : []
+
+      const scope = emails.length > 0
+        ? { accountInfo: { emails } }
+        : params.orgUnitId
+          ? { orgUnitInfo: { orgUnitId: params.orgUnitId } }
+          : {}
+
+      const searchMethod = emails.length > 0 ? 'ACCOUNT' : params.orgUnitId ? 'ORG_UNIT' : undefined
+
+      const query: any = {
+        corpus: params.corpus,
+        dataScope: 'ALL_DATA',
+        searchMethod: searchMethod,
+        terms: params.terms || undefined,
+        startTime: params.startTime || undefined,
+        endTime: params.endTime || undefined,
+        timeZone: params.timeZone || undefined,
+        ...scope,
+      }
+
+      return {
+        name: params.exportName,
+        query,
+      }
+    },
   },
 
   transformResponse: async (response: Response) => {

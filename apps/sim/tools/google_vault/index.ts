@@ -4,3 +4,4 @@ export { createMattersHoldsTool } from '@/tools/google_vault/create_matters_hold
 export { listMattersTool } from '@/tools/google_vault/list_matters'
 export { listMattersExportTool } from '@/tools/google_vault/list_matters_export'
 export { listMattersHoldsTool } from '@/tools/google_vault/list_matters_holds'
+export { downloadExportFileTool } from '@/tools/google_vault/download_export_file'

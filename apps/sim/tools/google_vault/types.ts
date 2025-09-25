@@ -8,6 +8,14 @@ export interface GoogleVaultCommonParams {
 // Exports
 export interface GoogleVaultCreateMattersExportParams extends GoogleVaultCommonParams {
   exportName: string
+  corpus: GoogleVaultCorpus
+  accountEmails?: string | string[]
+  orgUnitId?: string
+  terms?: string
+  startTime?: string
+  endTime?: string
+  timeZone?: string
+  includeSharedDrives?: boolean
 }
 
 export interface GoogleVaultListMattersExportParams extends GoogleVaultCommonParams {

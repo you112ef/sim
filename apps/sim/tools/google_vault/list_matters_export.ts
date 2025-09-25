@@ -17,10 +17,10 @@ export const listMattersExportTool: ToolConfig<GoogleVaultListMattersExportParam
 
   params: {
     accessToken: { type: 'string', required: true, visibility: 'hidden' },
-    matterId: { type: 'string', required: true, visibility: 'user-or-llm' },
+    matterId: { type: 'string', required: true, visibility: 'user-only' },
     pageSize: { type: 'number', required: false, visibility: 'user-only' },
     pageToken: { type: 'string', required: false, visibility: 'hidden' },
-    exportId: { type: 'string', required: false, visibility: 'user-or-llm' },
+    exportId: { type: 'string', required: false, visibility: 'user-only' },
   },
 
   request: {
@@ -45,6 +45,8 @@ export const listMattersExportTool: ToolConfig<GoogleVaultListMattersExportParam
     if (!response.ok) {
       throw new Error(data.error?.message || 'Failed to list exports')
     }
+
+    // Return the raw API response without modifications
     return { success: true, output: data }
   },
 }

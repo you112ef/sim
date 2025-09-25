@@ -17,24 +17,24 @@ export const createMattersHoldsTool: ToolConfig<GoogleVaultCreateMattersHoldsPar
 
   params: {
     accessToken: { type: 'string', required: true, visibility: 'hidden' },
-    matterId: { type: 'string', required: true, visibility: 'user-or-llm' },
-    holdName: { type: 'string', required: true, visibility: 'user-or-llm' },
+    matterId: { type: 'string', required: true, visibility: 'user-only' },
+    holdName: { type: 'string', required: true, visibility: 'user-only' },
     corpus: {
       type: 'string',
       required: true,
-      visibility: 'user-or-llm',
+      visibility: 'user-only',
       description: 'Data corpus to hold (MAIL, DRIVE, GROUPS, HANGOUTS_CHAT, VOICE)',
     },
     accountEmails: {
       type: 'string',
       required: false,
-      visibility: 'user-or-llm',
+      visibility: 'user-only',
       description: 'Comma-separated list of user emails to put on hold',
     },
     orgUnitId: {
       type: 'string',
       required: false,
-      visibility: 'user-or-llm',
+      visibility: 'user-only',
       description: 'Organization unit ID to put on hold (alternative to accounts)',
     },
   },
