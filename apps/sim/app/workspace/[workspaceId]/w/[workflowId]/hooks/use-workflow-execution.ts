@@ -671,6 +671,19 @@ export function useWorkflowExecution() {
       selectedOutputIds = chatStore.getState().getSelectedWorkflowOutput(activeWorkflowId)
     }
 
+    // Helper to extract test values from inputFormat subblock
+    const extractTestValuesFromInputFormat = (inputFormatValue: any): Record<string, any> => {
+      const testInput: Record<string, any> = {}
+      if (Array.isArray(inputFormatValue)) {
+        inputFormatValue.forEach((field: any) => {
+          if (field && typeof field === 'object' && field.name && field.value !== undefined) {
+            testInput[field.name] = field.value
+          }
+        })
+      }
+      return testInput
+    }
+
     // Determine start block and workflow input based on execution type
     let startBlockId: string | undefined
     let finalWorkflowInput = workflowInput
@@ -720,19 +733,12 @@ export function useWorkflowExecution() {
           // Extract test values from the API trigger's inputFormat
           if (selectedTrigger.type === 'api_trigger' || selectedTrigger.type === 'starter') {
             const inputFormatValue = selectedTrigger.subBlocks?.inputFormat?.value
-            if (Array.isArray(inputFormatValue)) {
-              const testInput: Record<string, any> = {}
-              inputFormatValue.forEach((field: any) => {
-                if (field && typeof field === 'object' && field.name && field.value !== undefined) {
-                  testInput[field.name] = field.value
-                }
-              })
+            const testInput = extractTestValuesFromInputFormat(inputFormatValue)
 
-              // Use the test input as workflow input
-              if (Object.keys(testInput).length > 0) {
-                finalWorkflowInput = testInput
-                logger.info('Using API trigger test values for manual run:', testInput)
-              }
+            // Use the test input as workflow input
+            if (Object.keys(testInput).length > 0) {
+              finalWorkflowInput = testInput
+              logger.info('Using API trigger test values for manual run:', testInput)
             }
           }
         }
@@ -755,19 +761,12 @@ export function useWorkflowExecution() {
           // Extract test values from input trigger's inputFormat if it's an input_trigger
           if (selectedTrigger.type === 'input_trigger') {
             const inputFormatValue = selectedTrigger.subBlocks?.inputFormat?.value
-            if (Array.isArray(inputFormatValue)) {
-              const testInput: Record<string, any> = {}
-              inputFormatValue.forEach((field: any) => {
-                if (field && typeof field === 'object' && field.name && field.value !== undefined) {
-                  testInput[field.name] = field.value
-                }
-              })
+            const testInput = extractTestValuesFromInputFormat(inputFormatValue)
 
-              // Use the test input as workflow input
-              if (Object.keys(testInput).length > 0) {
-                finalWorkflowInput = testInput
-                logger.info('Using Input trigger test values for manual run:', testInput)
-              }
+            // Use the test input as workflow input
+            if (Object.keys(testInput).length > 0) {
+              finalWorkflowInput = testInput
+              logger.info('Using Input trigger test values for manual run:', testInput)
             }
           }
         }
