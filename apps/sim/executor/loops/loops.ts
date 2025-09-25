@@ -169,6 +169,115 @@ export class LoopManager {
   }
 
   /**
+   * Checks if all reachable blocks in a loop have been executed.
+   * This method now excludes completely unconnected blocks from consideration,
+   * ensuring they don't prevent loop completion.
+   *
+   * @param nodeIds - All node IDs in the loop
+   * @param context - Execution context
+   * @returns Whether all reachable blocks have been executed
+   */
+  private allBlocksExecuted(nodeIds: string[], context: ExecutionContext): boolean {
+    return this.allReachableBlocksExecuted(nodeIds, context)
+  }
+
+  /**
+   * Helper method to check if all reachable blocks have been executed.
+   * Separated for clarity and potential future testing.
+   */
+  private allReachableBlocksExecuted(nodeIds: string[], context: ExecutionContext): boolean {
+    // Get all connections within the loop
+    const loopConnections =
+      context.workflow?.connections.filter(
+        (conn) => nodeIds.includes(conn.source) && nodeIds.includes(conn.target)
+      ) || []
+
+    // Build a map of blocks to their outgoing connections within the loop
+    const blockOutgoingConnections = new Map<string, typeof loopConnections>()
+    for (const nodeId of nodeIds) {
+      blockOutgoingConnections.set(
+        nodeId,
+        loopConnections.filter((conn) => conn.source === nodeId)
+      )
+    }
+
+    // Find blocks that have no incoming connections within the loop (entry points)
+    // Only consider blocks as entry points if they have external connections to the loop
+    const entryBlocks = nodeIds.filter((nodeId) => {
+      const hasIncomingFromLoop = loopConnections.some((conn) => conn.target === nodeId)
+      if (hasIncomingFromLoop) {
+        return false // Has internal connections, not an entry point
+      }
+
+      // Check if this block has any incoming connections at all (external to the loop)
+      const allIncomingConnections =
+        context.workflow?.connections.filter((conn) => conn.target === nodeId) || []
+
+      // If no incoming connections at all, this is an unconnected block - should NOT be an entry point
+      return allIncomingConnections.length > 0
+    })
+
+    // Track which blocks we've visited and determined are reachable
+    const reachableBlocks = new Set<string>()
+    const toVisit = [...entryBlocks]
+
+    // Traverse the graph to find all reachable blocks
+    while (toVisit.length > 0) {
+      const currentBlockId = toVisit.shift()!
+
+      // Skip if already visited
+      if (reachableBlocks.has(currentBlockId)) continue
+
+      reachableBlocks.add(currentBlockId)
+
+      // Get the block
+      const block = context.workflow?.blocks.find((b) => b.id === currentBlockId)
+      if (!block) continue
+
+      // Get outgoing connections from this block
+      const outgoing = blockOutgoingConnections.get(currentBlockId) || []
+
+      // Handle routing blocks specially
+      if (block.metadata?.id === BlockType.ROUTER) {
+        // For router blocks, only follow the selected path
+        const selectedTarget = context.decisions.router.get(currentBlockId)
+        if (selectedTarget && nodeIds.includes(selectedTarget)) {
+          toVisit.push(selectedTarget)
+        }
+      } else if (block.metadata?.id === BlockType.CONDITION) {
+        // For condition blocks, only follow the selected condition path
+        const selectedConditionId = context.decisions.condition.get(currentBlockId)
+        if (selectedConditionId) {
+          const selectedConnection = outgoing.find(
+            (conn) => conn.sourceHandle === `condition-${selectedConditionId}`
+          )
+          if (selectedConnection?.target) {
+            toVisit.push(selectedConnection.target)
+          }
+        }
+      } else {
+        // For regular blocks, use the extracted error handling method
+        this.handleErrorConnections(currentBlockId, outgoing, context, toVisit)
+      }
+    }
+
+    // Now check if all reachable blocks have been executed
+    for (const reachableBlockId of reachableBlocks) {
+      if (!context.executedBlocks.has(reachableBlockId)) {
+        logger.info(
+          `Loop iteration not complete - block ${reachableBlockId} is reachable but not executed`
+        )
+        return false
+      }
+    }
+
+    logger.info(
+      `All reachable blocks in loop have been executed. Reachable: ${Array.from(reachableBlocks).join(', ')}`
+    )
+    return true
+  }
+
+  /**
    * Helper to get the length of items for forEach loops
    */
   private getItemsLength(forEachItems: any): number {
@@ -286,96 +395,6 @@ export class LoopManager {
    */
   getCurrentItem(loopId: string, context: ExecutionContext): any {
     return context.loopItems.get(loopId)
-  }
-
-  /**
-   * Checks if all blocks in a list have been executed.
-   * For routing blocks (condition/router), only checks if the selected path has been executed.
-   *
-   * @param nodeIds - IDs of nodes to check
-   * @param context - Current execution context
-   * @returns Whether all blocks have been executed
-   */
-  private allBlocksExecuted(nodeIds: string[], context: ExecutionContext): boolean {
-    // Get all connections within the loop
-    const loopConnections =
-      context.workflow?.connections.filter(
-        (conn) => nodeIds.includes(conn.source) && nodeIds.includes(conn.target)
-      ) || []
-
-    // Build a map of blocks to their outgoing connections within the loop
-    const blockOutgoingConnections = new Map<string, typeof loopConnections>()
-    for (const nodeId of nodeIds) {
-      blockOutgoingConnections.set(
-        nodeId,
-        loopConnections.filter((conn) => conn.source === nodeId)
-      )
-    }
-
-    // Find blocks that have no incoming connections within the loop (entry points)
-    const entryBlocks = nodeIds.filter((nodeId) => {
-      const hasIncomingFromLoop = loopConnections.some((conn) => conn.target === nodeId)
-      return !hasIncomingFromLoop
-    })
-
-    // Track which blocks we've visited and determined are reachable
-    const reachableBlocks = new Set<string>()
-    const toVisit = [...entryBlocks]
-
-    // Traverse the graph to find all reachable blocks
-    while (toVisit.length > 0) {
-      const currentBlockId = toVisit.shift()!
-
-      // Skip if already visited
-      if (reachableBlocks.has(currentBlockId)) continue
-
-      reachableBlocks.add(currentBlockId)
-
-      // Get the block
-      const block = context.workflow?.blocks.find((b) => b.id === currentBlockId)
-      if (!block) continue
-
-      // Get outgoing connections from this block
-      const outgoing = blockOutgoingConnections.get(currentBlockId) || []
-
-      // Handle routing blocks specially
-      if (block.metadata?.id === BlockType.ROUTER) {
-        // For router blocks, only follow the selected path
-        const selectedTarget = context.decisions.router.get(currentBlockId)
-        if (selectedTarget && nodeIds.includes(selectedTarget)) {
-          toVisit.push(selectedTarget)
-        }
-      } else if (block.metadata?.id === BlockType.CONDITION) {
-        // For condition blocks, only follow the selected condition path
-        const selectedConditionId = context.decisions.condition.get(currentBlockId)
-        if (selectedConditionId) {
-          const selectedConnection = outgoing.find(
-            (conn) => conn.sourceHandle === `condition-${selectedConditionId}`
-          )
-          if (selectedConnection?.target) {
-            toVisit.push(selectedConnection.target)
-          }
-        }
-      } else {
-        // For regular blocks, use the extracted error handling method
-        this.handleErrorConnections(currentBlockId, outgoing, context, toVisit)
-      }
-    }
-
-    // Now check if all reachable blocks have been executed
-    for (const reachableBlockId of reachableBlocks) {
-      if (!context.executedBlocks.has(reachableBlockId)) {
-        logger.info(
-          `Loop iteration not complete - block ${reachableBlockId} is reachable but not executed`
-        )
-        return false
-      }
-    }
-
-    logger.info(
-      `All reachable blocks in loop have been executed. Reachable: ${Array.from(reachableBlocks).join(', ')}`
-    )
-    return true
   }
 
   /**
