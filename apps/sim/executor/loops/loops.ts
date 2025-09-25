@@ -1,6 +1,7 @@
 import { createLogger } from '@/lib/logs/console/logger'
 import { BlockType } from '@/executor/consts'
 import type { ExecutionContext } from '@/executor/types'
+import { ConnectionUtils } from '@/executor/utils/connections'
 import type { SerializedBlock, SerializedConnection, SerializedLoop } from '@/serializer/types'
 
 const logger = createLogger('LoopManager')
@@ -195,27 +196,15 @@ export class LoopManager {
     // Build a map of blocks to their outgoing connections within the loop
     const blockOutgoingConnections = new Map<string, typeof loopConnections>()
     for (const nodeId of nodeIds) {
-      blockOutgoingConnections.set(
-        nodeId,
-        loopConnections.filter((conn) => conn.source === nodeId)
-      )
+      const outgoingConnections = ConnectionUtils.getOutgoingConnections(nodeId, loopConnections)
+      blockOutgoingConnections.set(nodeId, outgoingConnections)
     }
 
     // Find blocks that have no incoming connections within the loop (entry points)
     // Only consider blocks as entry points if they have external connections to the loop
-    const entryBlocks = nodeIds.filter((nodeId) => {
-      const hasIncomingFromLoop = loopConnections.some((conn) => conn.target === nodeId)
-      if (hasIncomingFromLoop) {
-        return false // Has internal connections, not an entry point
-      }
-
-      // Check if this block has any incoming connections at all (external to the loop)
-      const allIncomingConnections =
-        context.workflow?.connections.filter((conn) => conn.target === nodeId) || []
-
-      // If no incoming connections at all, this is an unconnected block - should NOT be an entry point
-      return allIncomingConnections.length > 0
-    })
+    const entryBlocks = nodeIds.filter((nodeId) =>
+      ConnectionUtils.isEntryPoint(nodeId, nodeIds, context.workflow?.connections || [])
+    )
 
     // Track which blocks we've visited and determined are reachable
     const reachableBlocks = new Set<string>()
