@@ -1,11 +1,9 @@
 import { env } from '@/lib/env'
 import { createLogger } from '@/lib/logs/console/logger'
+import { SIM_AGENT_API_URL_DEFAULT } from '@/lib/sim-agent'
 import { generateRequestId } from '@/lib/utils'
-import { SIM_AGENT_API_URL_DEFAULT } from './constants'
 
 const logger = createLogger('SimAgentClient')
-
-const SIM_AGENT_BASE_URL = env.SIM_AGENT_API_URL || SIM_AGENT_API_URL_DEFAULT
 
 export interface SimAgentRequest {
   workflowId: string
@@ -24,7 +22,8 @@ class SimAgentClient {
   private baseUrl: string
 
   constructor() {
-    this.baseUrl = SIM_AGENT_BASE_URL
+    // Move environment variable access inside the constructor
+    this.baseUrl = env.SIM_AGENT_API_URL || SIM_AGENT_API_URL_DEFAULT
   }
 
   /**
@@ -58,7 +57,7 @@ class SimAgentClient {
 
       const fetchOptions: RequestInit = {
         method,
-        headers: requestHeaders,
+        headers: requestHeaders,git
       }
 
       if (body && (method === 'POST' || method === 'PUT')) {
