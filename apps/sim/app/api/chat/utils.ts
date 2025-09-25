@@ -547,7 +547,7 @@ export async function executeWorkflowForChat(
   // Start logging session
   await loggingSession.safeStart({
     userId: deployment.userId,
-    workspaceId: '', // TODO: Get from workflow
+    workspaceId: workflowResult[0].workspaceId || '',
     variables: workflowVariables,
   })
 
@@ -624,12 +624,7 @@ export async function executeWorkflowForChat(
           'No Chat trigger configured for this workflow. Add a Chat Trigger block to enable chat execution.'
         logger.error(`[${requestId}] ${errorMessage}`)
 
-        await loggingSession.safeStart({
-          userId: deployment.userId,
-          workspaceId: workflowResult[0].workspaceId || '',
-          variables: {},
-        })
-
+        // Don't call safeStart again - it was already called before the stream started
         await loggingSession.safeCompleteWithError({
           endedAt: new Date().toISOString(),
           totalDurationMs: 0,
@@ -638,7 +633,18 @@ export async function executeWorkflowForChat(
             stackTrace: undefined,
           },
         })
-        throw new Error(errorMessage)
+
+        // Send error to stream before throwing
+        controller.enqueue(
+          encoder.encode(
+            `data: ${JSON.stringify({
+              event: 'error',
+              error: errorMessage,
+            })}\n\n`
+          )
+        )
+        controller.close()
+        return // Don't throw - just return to end the stream gracefully
       }
 
       const startBlockId = startBlock.blockId
@@ -656,7 +662,18 @@ export async function executeWorkflowForChat(
             stackTrace: error.stack,
           },
         })
-        throw error
+
+        // Send error to stream before ending
+        controller.enqueue(
+          encoder.encode(
+            `data: ${JSON.stringify({
+              event: 'error',
+              error: error.message || 'Chat workflow execution failed',
+            })}\n\n`
+          )
+        )
+        controller.close()
+        return // Don't throw - just return to end the stream gracefully
       }
 
       // Handle both ExecutionResult and StreamingExecution types
@@ -779,8 +796,8 @@ export async function executeWorkflowForChat(
           }
           ;(enrichedResult.metadata as any).conversationId = conversationId
         }
-        const executionId = uuidv4()
-        logger.debug(`Generated execution ID for deployed chat: ${executionId}`)
+        // Use the executionId created at the beginning of this function
+        logger.debug(`Using execution ID for deployed chat: ${executionId}`)
 
         if (executionResult.success) {
           try {
@@ -804,7 +821,8 @@ export async function executeWorkflowForChat(
         )
       }
 
-      // Complete logging session (for both success and failure)
+      // Complete logging session only if we got here successfully
+      // (error cases already completed the session with safeCompleteWithError)
       if (executionResult?.logs) {
         const { traceSpans } = buildTraceSpans(executionResult)
         await loggingSession.safeComplete({
