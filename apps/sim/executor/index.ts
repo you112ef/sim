@@ -1316,6 +1316,9 @@ export class Executor {
    * Determines if a block should execute in a specific parallel iteration
    * based on conditional routing and active execution paths.
    *
+   * Blocks are excluded from execution if they are completely unconnected (no incoming connections).
+   * Starting blocks (with external connections only) and conditionally routed blocks execute as expected.
+   *
    * @param nodeId - ID of the block to check
    * @param parallelId - ID of the parallel block
    * @param iteration - Current iteration index
@@ -1340,8 +1343,13 @@ export class Executor {
       parallel.nodes.includes(conn.source)
     )
 
-    // If no internal connections, this is a starting block in the parallel - should always execute
+    // If no internal connections, check if this is truly a starting block or an unconnected block
     if (internalConnections.length === 0) {
+      // If there are no incoming connections at all, this is an unconnected block - should NOT execute
+      if (incomingConnections.length === 0) {
+        return false
+      }
+      // If there are external connections, this is a legitimate starting block - should execute
       return true
     }
 
