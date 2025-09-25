@@ -58,7 +58,6 @@ class SimAgentClient {
       const fetchOptions: RequestInit = {
         method,
         headers: requestHeaders,
-        git,
       }
 
       if (body && (method === 'POST' || method === 'PUT')) {

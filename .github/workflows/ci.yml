@@ -57,16 +57,16 @@ jobs:
 
   # Call GHCR build workflow (runs in parallel with ECR)
   build-ghcr:
-    name: Build GHCR
+    name: Build GHCR Images
     needs: test
     if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/staging')
-    uses: ./.github/workflows/build.yml
+    uses: ./.github/workflows/build-ghcr-build.yml
     secrets: inherit
     permissions:
       contents: read
       packages: write
 
-  # Call ECR build workflow (runs in parallel with GHCR)
+  # Call ECR build workflow (runs in parallel with GHCR build)
   build-ecr-deploy:
     name: Build ECR and Deploy
     needs: test
@@ -85,10 +85,21 @@ jobs:
     uses: ./.github/workflows/trigger-deploy.yml
     secrets: inherit
 
-  # Run database migrations (depends on all deployments)
+  # Push GHCR images after ECR/ECS deployment is complete
+  push-ghcr:
+    name: Push GHCR Images
+    needs: [build-ghcr, build-ecr-deploy]
+    if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/staging')
+    uses: ./.github/workflows/build-ghcr-push.yml
+    secrets: inherit
+    permissions:
+      contents: read
+      packages: write
+
+  # Run database migrations (depends on GHCR push and trigger deployment)
   migrations:
     name: Apply Database Migrations
-    needs: [build-ghcr, build-ecr-deploy, trigger-deploy]
+    needs: [push-ghcr, trigger-deploy]
     runs-on: ubuntu-latest
     if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/staging')
     
