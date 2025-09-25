@@ -6,7 +6,8 @@ import { type NextRequest, NextResponse } from 'next/server'
 import { z } from 'zod'
 import { env } from '@/lib/env'
 import { createLogger } from '@/lib/logs/console/logger'
-import { SIM_AGENT_API_URL_DEFAULT, simAgentClient } from '@/lib/sim-agent'
+import { SIM_AGENT_API_URL_DEFAULT } from '@/lib/sim-agent/constants'
+import { simAgentClient } from '@/lib/sim-agent/client'
 import { generateRequestId } from '@/lib/utils'
 import {
   loadWorkflowFromNormalizedTables,
