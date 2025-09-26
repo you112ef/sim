@@ -334,13 +334,14 @@ describe('LoopManager', () => {
       const output1 = { result: 'result1' }
       const output2 = { result: 'result2' }
 
-      manager.storeIterationResult(mockContext, 'loop-1', 0, 'block-1', output1)
+      manager.storeIterationResult(mockContext, 'loop-1', 0, output1)
       manager.storeIterationResult(mockContext, 'loop-1', 0, output2)
 
       const loopState = mockContext.loopExecutions.get('loop-1')
       const iterationResults = loopState?.executionResults.get('iteration_0')
 
-      expect(iterationResults).toEqual(output2)
+      // When multiple results are stored for the same iteration, they are combined into an array
+      expect(iterationResults).toEqual([output1, output2])
     })
 
     test('should handle forEach loop state creation', () => {
