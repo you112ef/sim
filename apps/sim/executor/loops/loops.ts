@@ -321,9 +321,18 @@ export class LoopManager {
       context.loopExecutions.set(loopId, loopState)
     }
 
-    // Store the output directly for this iteration
     const iterationKey = `iteration_${iterationIndex}`
-    loopState.executionResults.set(iterationKey, output)
+    const existingResult = loopState.executionResults.get(iterationKey)
+
+    if (existingResult) {
+      if (Array.isArray(existingResult)) {
+        existingResult.push(output)
+      } else {
+        loopState.executionResults.set(iterationKey, [existingResult, output])
+      }
+    } else {
+      loopState.executionResults.set(iterationKey, output)
+    }
   }
 
   /**

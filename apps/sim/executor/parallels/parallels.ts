@@ -223,7 +223,18 @@ export class ParallelManager {
   ): void {
     const parallelState = context.parallelExecutions?.get(parallelId)
     if (parallelState) {
-      parallelState.executionResults.set(`iteration_${iterationIndex}`, output)
+      const iterationKey = `iteration_${iterationIndex}`
+      const existingResult = parallelState.executionResults.get(iterationKey)
+
+      if (existingResult) {
+        if (Array.isArray(existingResult)) {
+          existingResult.push(output)
+        } else {
+          parallelState.executionResults.set(iterationKey, [existingResult, output])
+        }
+      } else {
+        parallelState.executionResults.set(iterationKey, output)
+      }
     }
   }
 }
