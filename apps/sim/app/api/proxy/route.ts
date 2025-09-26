@@ -1,12 +1,12 @@
 import { NextResponse } from 'next/server'
+import { generateInternalToken } from '@/lib/auth/internal'
 import { isDev } from '@/lib/environment'
 import { createLogger } from '@/lib/logs/console/logger'
 import { validateProxyUrl } from '@/lib/security/url-validation'
+import { getBaseUrl } from '@/lib/urls/utils'
 import { generateRequestId } from '@/lib/utils'
 import { executeTool } from '@/tools'
 import { getTool, validateRequiredParametersAfterMerge } from '@/tools/utils'
-import { getBaseUrl } from '@/lib/urls/utils'
-import { generateInternalToken } from '@/lib/auth/internal'
 
 const logger = createLogger('ProxyAPI')
 

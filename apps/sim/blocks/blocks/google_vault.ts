@@ -161,7 +161,10 @@ export const GoogleVaultBlock: BlockConfig = {
       type: 'short-input',
       layout: 'half',
       placeholder: 'Number of items to return',
-      condition: { field: 'operation', value: ['list_matters_export', 'list_matters_holds', 'list_matters'] },
+      condition: {
+        field: 'operation',
+        value: ['list_matters_export', 'list_matters_holds', 'list_matters'],
+      },
     },
     {
       id: 'pageToken',
@@ -169,7 +172,10 @@ export const GoogleVaultBlock: BlockConfig = {
       type: 'short-input',
       layout: 'half',
       placeholder: 'Pagination token',
-      condition: { field: 'operation', value: ['list_matters_export', 'list_matters_holds', 'list_matters'] },
+      condition: {
+        field: 'operation',
+        value: ['list_matters_export', 'list_matters_holds', 'list_matters'],
+      },
     },
 
     {
@@ -244,27 +250,27 @@ export const GoogleVaultBlock: BlockConfig = {
     operation: { type: 'string', description: 'Operation to perform' },
     credential: { type: 'string', description: 'Google Vault OAuth credential' },
     matterId: { type: 'string', description: 'Matter ID' },
-    
+
     // Create export inputs
     exportName: { type: 'string', description: 'Name for the export' },
     corpus: { type: 'string', description: 'Data corpus (MAIL, DRIVE, GROUPS, etc.)' },
     accountEmails: { type: 'string', description: 'Comma-separated account emails' },
     orgUnitId: { type: 'string', description: 'Organization unit ID' },
-    
+
     // Create hold inputs
     holdName: { type: 'string', description: 'Name for the hold' },
-    
+
     // Download export file inputs
     bucketName: { type: 'string', description: 'GCS bucket name from export' },
     objectName: { type: 'string', description: 'GCS object name from export' },
     fileName: { type: 'string', description: 'Optional filename override' },
-    
+
     // List operations inputs
     exportId: { type: 'string', description: 'Specific export ID to fetch' },
     holdId: { type: 'string', description: 'Specific hold ID to fetch' },
     pageSize: { type: 'number', description: 'Number of items per page' },
     pageToken: { type: 'string', description: 'Pagination token' },
-    
+
     // Create matter inputs
     name: { type: 'string', description: 'Matter name' },
     description: { type: 'string', description: 'Matter description' },

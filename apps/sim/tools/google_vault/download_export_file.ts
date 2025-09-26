@@ -51,7 +51,7 @@ export const downloadExportFileTool: ToolConfig<DownloadParams> = {
 
   transformResponse: async (response: Response, params?: DownloadParams) => {
     if (!response.ok) {
-      let details: any = undefined
+      let details: any
       try {
         details = await response.json()
       } catch {
@@ -130,5 +130,3 @@ export const downloadExportFileTool: ToolConfig<DownloadParams> = {
     file: { type: 'file', description: 'Downloaded Vault export file stored in execution files' },
   },
 }
-
-

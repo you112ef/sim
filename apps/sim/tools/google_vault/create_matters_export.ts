@@ -57,11 +57,12 @@ export const createMattersExportTool: ToolConfig<GoogleVaultCreateMattersExportP
               .filter(Boolean)
           : []
 
-      const scope = emails.length > 0
-        ? { accountInfo: { emails } }
-        : params.orgUnitId
-          ? { orgUnitInfo: { orgUnitId: params.orgUnitId } }
-          : {}
+      const scope =
+        emails.length > 0
+          ? { accountInfo: { emails } }
+          : params.orgUnitId
+            ? { orgUnitInfo: { orgUnitId: params.orgUnitId } }
+            : {}
 
       const searchMethod = emails.length > 0 ? 'ACCOUNT' : params.orgUnitId ? 'ORG_UNIT' : undefined
 
