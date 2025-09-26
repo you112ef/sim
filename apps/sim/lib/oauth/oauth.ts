@@ -674,7 +674,6 @@ interface ProviderAuthConfig {
  * Get OAuth provider configuration for token refresh
  */
 function getProviderAuthConfig(provider: string): ProviderAuthConfig {
-  // Determine base provider for token endpoint selection (e.g., 'google-drive' -> 'google')
   const getCredentials = (clientId: string | undefined, clientSecret: string | undefined) => {
     if (!clientId || !clientSecret) {
       throw new Error(`Missing client credentials for provider: ${provider}`)
@@ -978,7 +977,7 @@ export async function refreshOAuthToken(
     let newRefreshToken = null
     if (config.supportsRefreshTokenRotation && data.refresh_token) {
       newRefreshToken = data.refresh_token
-      logger.info(`Received new refresh token from ${providerId}`)
+      logger.info(`Received new refresh token from ${provider}`)
     }
 
     // Get expiration time - use provider's value or default to 1 hour (3600 seconds)
