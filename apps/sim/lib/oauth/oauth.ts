@@ -685,11 +685,9 @@ function getProviderAuthConfig(providerId: string): ProviderAuthConfig {
 
   switch (baseProvider) {
     case 'google': {
-      // Use separate credentials for Google Vault if requested
-      const isVault = providerId === 'google-vault'
       const { clientId, clientSecret } = getCredentials(
-        isVault ? env.GOOGLE_VAULT_CLIENT_ID : env.GOOGLE_CLIENT_ID,
-        isVault ? env.GOOGLE_VAULT_CLIENT_SECRET : env.GOOGLE_CLIENT_SECRET
+        env.GOOGLE_CLIENT_ID,
+        env.GOOGLE_CLIENT_SECRET
       )
       return {
         tokenEndpoint: 'https://oauth2.googleapis.com/token',
