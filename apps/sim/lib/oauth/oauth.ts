@@ -673,17 +673,16 @@ interface ProviderAuthConfig {
 /**
  * Get OAuth provider configuration for token refresh
  */
-function getProviderAuthConfig(providerId: string): ProviderAuthConfig {
+function getProviderAuthConfig(provider: string): ProviderAuthConfig {
   // Determine base provider for token endpoint selection (e.g., 'google-drive' -> 'google')
-  const baseProvider = providerId.split('-')[0]
   const getCredentials = (clientId: string | undefined, clientSecret: string | undefined) => {
     if (!clientId || !clientSecret) {
-      throw new Error(`Missing client credentials for provider: ${providerId}`)
+      throw new Error(`Missing client credentials for provider: ${provider}`)
     }
     return { clientId, clientSecret }
   }
 
-  switch (baseProvider) {
+  switch (provider) {
     case 'google': {
       const { clientId, clientSecret } = getCredentials(
         env.GOOGLE_CLIENT_ID,
@@ -888,7 +887,7 @@ function getProviderAuthConfig(providerId: string): ProviderAuthConfig {
       }
     }
     default:
-      throw new Error(`Unsupported provider: ${providerId}`)
+      throw new Error(`Unsupported provider: ${provider}`)
   }
 }
 
@@ -934,8 +933,11 @@ export async function refreshOAuthToken(
   refreshToken: string
 ): Promise<{ accessToken: string; expiresIn: number; refreshToken: string } | null> {
   try {
+    // Get the provider from the providerId (e.g., 'google-drive' -> 'google')
+    const provider = providerId.split('-')[0]
+
     // Get provider configuration
-    const config = getProviderAuthConfig(providerId)
+    const config = getProviderAuthConfig(provider)
 
     // Build authentication request
     const { headers, bodyParams } = buildAuthRequest(config, refreshToken)
@@ -991,7 +993,7 @@ export async function refreshOAuthToken(
     logger.info('Token refreshed successfully with expiration', {
       expiresIn,
       hasNewRefreshToken: !!newRefreshToken,
-      providerId,
+      provider,
     })
 
     return {
