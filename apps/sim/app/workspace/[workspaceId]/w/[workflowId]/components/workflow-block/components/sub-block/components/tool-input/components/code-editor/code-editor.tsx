@@ -220,7 +220,7 @@ export function CodeEditor({
           onClick={onWandClick}
           disabled={wandButtonDisabled}
           aria-label='Generate with AI'
-          className='absolute top-2 right-3 z-10 h-8 w-8 rounded-full border border-transparent bg-muted/80 text-muted-foreground opacity-0 shadow-sm transition-all duration-200 hover:border-primary/20 hover:bg-muted hover:text-foreground hover:shadow group-hover:opacity-100'
+          className='absolute top-2 right-3 z-10 h-8 w-8 rounded-full border border-transparent bg-muted/80 text-muted-foreground opacity-0 shadow-xs transition-all duration-200 hover:border-primary/20 hover:bg-muted hover:text-foreground hover:shadow-sm group-hover:opacity-100'
         >
           <Wand2 className='h-4 w-4' />
         </Button>
@@ -286,12 +286,12 @@ export function CodeEditor({
             height: '100%',
           }}
           className={cn(
-            'h-full focus:outline-none',
+            'h-full focus:outline-hidden',
             isCollapsed && 'pointer-events-none select-none'
           )}
           textareaClassName={cn(
-            'focus:outline-none focus:ring-0 bg-transparent',
-            '!min-h-full !h-full resize-none !block',
+            'focus:outline-hidden focus:ring-0 bg-transparent',
+            'min-h-full! h-full! resize-none block!',
             (isCollapsed || disabled) && 'pointer-events-none'
           )}
         />

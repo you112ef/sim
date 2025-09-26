@@ -1256,7 +1256,7 @@ export const TagDropdown: React.FC<TagDropdownProps> = ({
     <div
       ref={containerRef}
       className={cn(
-        'absolute z-[9999] mt-1 w-full overflow-visible rounded-md border bg-popover shadow-md',
+        'absolute z-9999 mt-1 w-full overflow-visible rounded-md border bg-popover shadow-md',
         className
       )}
       style={style}
@@ -1283,7 +1283,7 @@ export const TagDropdown: React.FC<TagDropdownProps> = ({
                         className={cn(
                           'flex w-full items-center gap-2 px-3 py-1.5 text-left text-sm',
                           'hover:bg-accent hover:text-accent-foreground',
-                          'focus:bg-accent focus:text-accent-foreground focus:outline-none',
+                          'focus:bg-accent focus:text-accent-foreground focus:outline-hidden',
                           tagIndex === selectedIndex &&
                             tagIndex >= 0 &&
                             'bg-accent text-accent-foreground'
@@ -1412,7 +1412,7 @@ export const TagDropdown: React.FC<TagDropdownProps> = ({
                                 className={cn(
                                   'flex w-full items-center gap-2 px-3 py-1.5 text-left text-sm',
                                   'hover:bg-accent hover:text-accent-foreground',
-                                  'focus:bg-accent focus:text-accent-foreground focus:outline-none',
+                                  'focus:bg-accent focus:text-accent-foreground focus:outline-hidden',
                                   isKeyboardSelected && 'bg-accent text-accent-foreground'
                                 )}
                                 onMouseEnter={() => {
@@ -1465,7 +1465,7 @@ export const TagDropdown: React.FC<TagDropdownProps> = ({
                                 disabled={false}
                               >
                                 <div
-                                  className='flex h-5 w-5 flex-shrink-0 items-center justify-center rounded'
+                                  className='flex h-5 w-5 shrink-0 items-center justify-center rounded'
                                   style={{ backgroundColor: blockColor }}
                                 >
                                   <span className='h-3 w-3 font-bold text-white text-xs'>
@@ -1486,7 +1486,7 @@ export const TagDropdown: React.FC<TagDropdownProps> = ({
                               {/* Nested submenu */}
                               {hasChildren && isHovered && (
                                 <div
-                                  className='absolute top-0 left-full z-[10000] ml-0.5 min-w-[200px] max-w-[300px] rounded-md border border-border bg-background shadow-lg'
+                                  className='absolute top-0 left-full z-10000 ml-0.5 min-w-[200px] max-w-[300px] rounded-md border border-border bg-background shadow-lg'
                                   onMouseEnter={() => {
                                     setSubmenuHovered(true)
                                     const parentKey = `${group.blockId}-${nestedTag.key}`
@@ -1535,7 +1535,7 @@ export const TagDropdown: React.FC<TagDropdownProps> = ({
                                           key={child.key}
                                           className={cn(
                                             'flex w-full items-center gap-2 px-3 py-1.5 text-left text-sm',
-                                            'focus:bg-accent focus:text-accent-foreground focus:outline-none',
+                                            'focus:bg-accent focus:text-accent-foreground focus:outline-hidden',
                                             'transition-colors duration-150',
                                             isSelected
                                               ? 'bg-accent text-accent-foreground'
@@ -1559,7 +1559,7 @@ export const TagDropdown: React.FC<TagDropdownProps> = ({
                                           }}
                                         >
                                           <div
-                                            className='flex h-5 w-5 flex-shrink-0 items-center justify-center rounded'
+                                            className='flex h-5 w-5 shrink-0 items-center justify-center rounded'
                                             style={{ backgroundColor: blockColor }}
                                           >
                                             <span className='h-3 w-3 font-bold text-white text-xs'>

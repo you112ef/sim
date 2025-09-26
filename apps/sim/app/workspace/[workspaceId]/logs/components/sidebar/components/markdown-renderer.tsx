@@ -146,7 +146,7 @@ export default function LogMarkdownRenderer({ content }: { content: string }) {
     ),
 
     // Horizontal rule
-    hr: () => <hr className='my-5 border-gray-500/[.15] border-t dark:border-gray-400/[.15]' />,
+    hr: () => <hr className='my-5 border-gray-500/15 border-t dark:border-gray-400/15' />,
 
     // Links with hover effect and preview
     a: ({ href, children, ...props }: React.AnchorHTMLAttributes<HTMLAnchorElement>) => (

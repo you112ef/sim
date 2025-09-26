@@ -568,7 +568,7 @@ export function ConfluenceFileSelector({
               </Button>
             </div>
             <div className='flex items-center gap-3 pr-4'>
-              <div className='flex h-6 w-6 flex-shrink-0 items-center justify-center rounded bg-muted/20'>
+              <div className='flex h-6 w-6 shrink-0 items-center justify-center rounded bg-muted/20'>
                 <ConfluenceIcon className='h-4 w-4' />
               </div>
               <div className='min-w-0 flex-1 overflow-hidden'>

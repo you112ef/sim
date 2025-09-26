@@ -140,7 +140,7 @@ export function Copilot() {
           <Skeleton className='h-9 w-56 rounded-lg' />
         ) : (
           <div className='flex h-9 w-56 items-center gap-2 rounded-lg border bg-transparent pr-2 pl-3'>
-            <Search className='h-4 w-4 flex-shrink-0 text-muted-foreground' strokeWidth={2} />
+            <Search className='h-4 w-4 shrink-0 text-muted-foreground' strokeWidth={2} />
             <Input
               placeholder='Search API keys...'
               value={searchTerm}
@@ -190,9 +190,9 @@ export function Copilot() {
                                   className='h-4 w-4 p-0 text-muted-foreground transition-colors hover:bg-transparent hover:text-foreground'
                                 >
                                   {isVisible ? (
-                                    <EyeOff className='!h-3.5 !w-3.5' />
+                                    <EyeOff className='h-3.5! w-3.5!' />
                                   ) : (
-                                    <Eye className='!h-3.5 !w-3.5' />
+                                    <Eye className='h-3.5! w-3.5!' />
                                   )}
                                 </Button>
                               </TooltipTrigger>
@@ -210,9 +210,9 @@ export function Copilot() {
                                   className='h-4 w-4 p-0 text-muted-foreground transition-colors hover:bg-transparent hover:text-foreground'
                                 >
                                   {copiedKeyIds[k.id] ? (
-                                    <Check className='!h-3.5 !w-3.5' />
+                                    <Check className='h-3.5! w-3.5!' />
                                   ) : (
-                                    <Copy className='!h-3.5 !w-3.5' />
+                                    <Copy className='h-3.5! w-3.5!' />
                                   )}
                                 </Button>
                               </TooltipTrigger>
@@ -261,7 +261,7 @@ export function Copilot() {
               <Button
                 onClick={onGenerate}
                 variant='ghost'
-                className='h-9 rounded-[8px] border bg-background px-3 shadow-xs hover:bg-muted focus:outline-none focus-visible:ring-0 focus-visible:ring-offset-0'
+                className='h-9 rounded-[8px] border bg-background px-3 shadow-2xs hover:bg-muted focus:outline-hidden focus-visible:ring-0 focus-visible:ring-offset-0'
                 disabled={isLoading}
               >
                 <Plus className='h-4 w-4 stroke-[2px]' />
@@ -305,9 +305,9 @@ export function Copilot() {
                 onClick={() => onCopy(newKey.apiKey)}
               >
                 {newKeyCopySuccess ? (
-                  <Check className='!h-3.5 !w-3.5' />
+                  <Check className='h-3.5! w-3.5!' />
                 ) : (
-                  <Copy className='!h-3.5 !w-3.5' />
+                  <Copy className='h-3.5! w-3.5!' />
                 )}
                 <span className='sr-only'>Copy to clipboard</span>
               </Button>

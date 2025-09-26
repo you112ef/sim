@@ -73,7 +73,7 @@ export function ChatHeader({ chatConfig, starCount }: ChatHeaderProps) {
               alt='Sim - Workflows for LLMs'
               width={29.869884}
               height={14.5656}
-              className='h-[14.5656px] w-auto pb-[1px]'
+              className='h-[14.5656px] w-auto pb-px'
               priority
               loading='eager'
               quality={100}

@@ -90,7 +90,7 @@ export function DeployedWorkflowModal({
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent
-        className='max-h-[100vh] overflow-y-auto sm:max-w-[1100px]'
+        className='max-h-screen overflow-y-auto sm:max-w-[1100px]'
         style={{ zIndex: 1000 }}
         hideCloseButton={true}
       >

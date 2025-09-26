@@ -899,7 +899,7 @@ try {
                   }
                   onChange={schemaGeneration.updatePromptValue}
                   placeholder='Describe the JSON schema to generate...'
-                  className='!top-0 relative mb-2'
+                  className='relative top-0! mb-2'
                 />
               )}
 
@@ -918,7 +918,7 @@ try {
                   }
                   onChange={codeGeneration.updatePromptValue}
                   placeholder='Describe the JavaScript code to generate...'
-                  className='!top-0 relative mb-2'
+                  className='relative top-0! mb-2'
                 />
               )}
 
@@ -1105,7 +1105,7 @@ try {
                   {showSchemaParams && schemaParameters.length > 0 && (
                     <div
                       ref={schemaParamsDropdownRef}
-                      className='absolute z-[9999] mt-1 w-64 overflow-visible rounded-md border bg-popover shadow-md'
+                      className='absolute z-9999 mt-1 w-64 overflow-visible rounded-md border bg-popover shadow-md'
                       style={{
                         top: `${dropdownPosition.top}px`,
                         left: `${dropdownPosition.left}px`,
@@ -1124,7 +1124,7 @@ try {
                               className={cn(
                                 'flex w-full items-center gap-2 px-3 py-1.5 text-left text-sm',
                                 'hover:bg-accent hover:text-accent-foreground',
-                                'focus:bg-accent focus:text-accent-foreground focus:outline-none',
+                                'focus:bg-accent focus:text-accent-foreground focus:outline-hidden',
                                 index === schemaParamSelectedIndex &&
                                   'bg-accent text-accent-foreground'
                               )}

@@ -318,7 +318,7 @@ export function DeployForm({
                     )}
                   </SelectTrigger>
                 </FormControl>
-                <SelectContent align='start' className='w-[var(--radix-select-trigger-width)] py-1'>
+                <SelectContent align='start' className='w-(--radix-select-trigger-width) py-1'>
                   {apiKeysData && apiKeysData.workspace.length > 0 && (
                     <SelectGroup>
                       <SelectLabel className='px-3 py-1.5 font-medium text-muted-foreground text-xs uppercase tracking-wide'>
@@ -333,7 +333,7 @@ export function DeployForm({
                           <div className='flex w-full items-center'>
                             <div className='flex w-full items-center justify-between'>
                               <span className='mr-2 truncate text-sm'>{apiKey.name}</span>
-                              <span className='mt-[1px] flex-shrink-0 rounded bg-muted px-1.5 py-0.5 font-mono text-muted-foreground text-xs'>
+                              <span className='mt-px shrink-0 rounded bg-muted px-1.5 py-0.5 font-mono text-muted-foreground text-xs'>
                                 {apiKey.displayKey || apiKey.key}
                               </span>
                             </div>
@@ -358,7 +358,7 @@ export function DeployForm({
                           <div className='flex w-full items-center'>
                             <div className='flex w-full items-center justify-between'>
                               <span className='mr-2 truncate text-sm'>{apiKey.name}</span>
-                              <span className='mt-[1px] flex-shrink-0 rounded bg-muted px-1.5 py-0.5 font-mono text-muted-foreground text-xs'>
+                              <span className='mt-px shrink-0 rounded bg-muted px-1.5 py-0.5 font-mono text-muted-foreground text-xs'>
                                 {apiKey.displayKey || apiKey.key}
                               </span>
                             </div>

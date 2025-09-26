@@ -43,7 +43,7 @@ export function FloatingControls() {
 
   return (
     <div className='-translate-x-1/2 fixed bottom-6 left-1/2 z-10'>
-      <div className='flex items-center gap-1 rounded-[14px] border bg-card/95 p-1 shadow-lg backdrop-blur-sm'>
+      <div className='flex items-center gap-1 rounded-[14px] border bg-card/95 p-1 shadow-lg backdrop-blur-xs'>
         <Tooltip>
           <TooltipTrigger asChild>
             <Button

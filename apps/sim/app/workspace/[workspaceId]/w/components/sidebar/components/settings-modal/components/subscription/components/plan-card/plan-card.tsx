@@ -61,7 +61,7 @@ export function PlanCard({
         <div className='mt-3 flex flex-wrap items-center gap-4'>
           {features.map((feature, index) => (
             <div key={`${feature.text}-${index}`} className='flex items-center gap-2 text-xs'>
-              <feature.icon className='h-3 w-3 flex-shrink-0 text-muted-foreground' />
+              <feature.icon className='h-3 w-3 shrink-0 text-muted-foreground' />
               <span className='text-muted-foreground'>{feature.text}</span>
               {index < features.length - 1 && (
                 <div className='ml-4 h-4 w-px bg-border' aria-hidden='true' />
@@ -77,7 +77,7 @@ export function PlanCard({
         {features.map((feature, index) => (
           <li key={`${feature.text}-${index}`} className='flex items-start gap-2 text-xs'>
             <feature.icon
-              className='mt-0.5 h-3 w-3 flex-shrink-0 text-muted-foreground'
+              className='mt-0.5 h-3 w-3 shrink-0 text-muted-foreground'
               aria-hidden='true'
             />
             <span className='text-muted-foreground'>{feature.text}</span>

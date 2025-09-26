@@ -30,7 +30,7 @@ interface TeamSeatsOverviewProps {
 
 function TeamSeatsSkeleton() {
   return (
-    <div className='rounded-[8px] border bg-background p-3 shadow-xs'>
+    <div className='rounded-[8px] border bg-background p-3 shadow-2xs'>
       <div className='space-y-2'>
         <div className='flex items-center justify-between'>
           <div className='flex items-center gap-2'>
@@ -68,7 +68,7 @@ export function TeamSeatsOverview({
 
   if (!subscriptionData) {
     return (
-      <div className='rounded-[8px] border bg-background p-3 shadow-xs'>
+      <div className='rounded-[8px] border bg-background p-3 shadow-2xs'>
         <div className='space-y-4 text-center'>
           <div className='mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-amber-100'>
             <Building2 className='h-6 w-6 text-amber-600' />
@@ -94,7 +94,7 @@ export function TeamSeatsOverview({
   }
 
   return (
-    <div className='rounded-[8px] border bg-background p-3 shadow-xs'>
+    <div className='rounded-[8px] border bg-background p-3 shadow-2xs'>
       <div className='space-y-2'>
         {/* Seats info and usage - matching team usage layout */}
         <div className='flex items-center justify-between'>

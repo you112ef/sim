@@ -100,7 +100,7 @@ export function ConnectionBlocks({
         onDragStart={(e) => handleDragStart(e, connection)}
         onDragEnd={handleDragEnd}
         className={cn(
-          'group flex w-max items-center gap-2 rounded-lg border bg-card p-2 shadow-sm transition-colors',
+          'group flex w-max items-center gap-2 rounded-lg border bg-card p-2 shadow-xs transition-colors',
           !isDisabled
             ? 'cursor-grab hover:bg-accent/50 active:cursor-grabbing'
             : 'cursor-not-allowed opacity-60'
@@ -109,7 +109,7 @@ export function ConnectionBlocks({
         {/* Block icon with color */}
         {Icon && (
           <div
-            className='flex h-5 w-5 flex-shrink-0 items-center justify-center rounded'
+            className='flex h-5 w-5 shrink-0 items-center justify-center rounded'
             style={{ backgroundColor: bgColor }}
           >
             <Icon className='h-3 w-3 text-white' />

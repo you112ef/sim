@@ -338,7 +338,7 @@ export function Credentials({ onOpenChange, registerCloseHandler }: CredentialsP
       {/* Search Input */}
       <div className='px-6 pt-4 pb-2'>
         <div className='flex h-9 w-56 items-center gap-2 rounded-[8px] border bg-transparent pr-2 pl-3'>
-          <Search className='h-4 w-4 flex-shrink-0 text-muted-foreground' strokeWidth={2} />
+          <Search className='h-4 w-4 shrink-0 text-muted-foreground' strokeWidth={2} />
           <Input
             placeholder='Search services...'
             value={searchTerm}
@@ -355,7 +355,7 @@ export function Credentials({ onOpenChange, registerCloseHandler }: CredentialsP
           {authSuccess && (
             <div className='rounded-[8px] border border-green-200 bg-green-50 p-4'>
               <div className='flex'>
-                <div className='flex-shrink-0'>
+                <div className='shrink-0'>
                   <Check className='h-5 w-5 text-green-400' />
                 </div>
                 <div className='ml-3'>
@@ -369,7 +369,7 @@ export function Credentials({ onOpenChange, registerCloseHandler }: CredentialsP
 
           {/* Pending service message - only shown when coming from OAuth required modal */}
           {pendingService && showActionRequired && (
-            <div className='flex items-start gap-3 rounded-[8px] border border-primary/20 bg-primary/5 p-5 text-sm shadow-sm'>
+            <div className='flex items-start gap-3 rounded-[8px] border border-primary/20 bg-primary/5 p-5 text-sm shadow-xs'>
               <div className='mt-0.5 min-w-5'>
                 <ExternalLink className='h-4 w-4 text-muted-foreground' />
               </div>

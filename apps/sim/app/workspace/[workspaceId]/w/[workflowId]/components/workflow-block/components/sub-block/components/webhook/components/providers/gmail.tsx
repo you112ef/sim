@@ -228,7 +228,7 @@ export function GmailConfig({
             <TooltipContent
               side='right'
               align='center'
-              className='z-[100] max-w-[300px] p-3'
+              className='z-100 max-w-[300px] p-3'
               role='tooltip'
             >
               <p className='text-sm'>{TOOLTIPS.labels}</p>
@@ -284,7 +284,7 @@ export function GmailConfig({
               <TooltipContent
                 side='right'
                 align='center'
-                className='z-[100] max-w-[300px] p-3'
+                className='z-100 max-w-[300px] p-3'
                 role='tooltip'
               >
                 <p className='text-sm'>{TOOLTIPS.labelFilter}</p>
@@ -330,7 +330,7 @@ export function GmailConfig({
                     <Info className='h-4 w-4' />
                   </Button>
                 </TooltipTrigger>
-                <TooltipContent side='top' align='center' className='z-[100] max-w-[300px] p-3'>
+                <TooltipContent side='top' align='center' className='z-100 max-w-[300px] p-3'>
                   <p className='text-sm'>{TOOLTIPS.markAsRead}</p>
                 </TooltipContent>
               </Tooltip>
@@ -358,7 +358,7 @@ export function GmailConfig({
                     <Info className='h-4 w-4' />
                   </Button>
                 </TooltipTrigger>
-                <TooltipContent side='top' align='center' className='z-[100] max-w-[300px] p-3'>
+                <TooltipContent side='top' align='center' className='z-100 max-w-[300px] p-3'>
                   <p className='text-sm'>{TOOLTIPS.includeRawEmail}</p>
                 </TooltipContent>
               </Tooltip>
@@ -370,7 +370,7 @@ export function GmailConfig({
       <Notice
         variant='default'
         className='border-slate-200 bg-white dark:border-border dark:bg-background'
-        icon={<GmailIcon className='mt-0.5 mr-3.5 h-5 w-5 flex-shrink-0 text-red-500' />}
+        icon={<GmailIcon className='mt-0.5 mr-3.5 h-5 w-5 shrink-0 text-red-500' />}
         title='Gmail Event Payload Example'
       >
         <div className='overflow-wrap-anywhere mt-2 whitespace-normal break-normal font-mono text-sm'>

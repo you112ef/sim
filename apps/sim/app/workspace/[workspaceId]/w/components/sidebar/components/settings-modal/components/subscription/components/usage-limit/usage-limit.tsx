@@ -190,7 +190,7 @@ export const UsageLimit = forwardRef<UsageLimitRef, UsageLimitProps>(
               }}
               className={cn(
                 'border-0 bg-transparent p-0 text-xs tabular-nums',
-                'outline-none focus:outline-none focus:ring-0 focus-visible:outline-none focus-visible:ring-0 focus-visible:ring-offset-0',
+                'outline-hidden focus:outline-hidden focus:ring-0 focus-visible:outline-hidden focus-visible:ring-0 focus-visible:ring-offset-0',
                 '[appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none',
                 hasError && 'text-red-500'
               )}
@@ -222,12 +222,12 @@ export const UsageLimit = forwardRef<UsageLimitRef, UsageLimitProps>(
           >
             {isEditing ? (
               hasError ? (
-                <X className='!h-3 !w-3' />
+                <X className='h-3! w-3!' />
               ) : (
-                <Check className='!h-3 !w-3' />
+                <Check className='h-3! w-3!' />
               )
             ) : (
-              <Pencil className='!h-3 !w-3' />
+              <Pencil className='h-3! w-3!' />
             )}
             <span className='sr-only'>{isEditing ? 'Save limit' : 'Edit limit'}</span>
           </Button>

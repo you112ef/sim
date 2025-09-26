@@ -343,7 +343,7 @@ export function Sidebar({
 
   return (
     <div
-      className={`fixed top-[148px] right-4 bottom-4 transform rounded-[14px] border bg-card shadow-xs ${
+      className={`fixed top-[148px] right-4 bottom-4 transform rounded-[14px] border bg-card shadow-2xs ${
         isOpen ? 'translate-x-0' : 'translate-x-[calc(100%+1rem)]'
       } ${isDragging ? '' : 'transition-all duration-300 ease-in-out'} z-50 flex flex-col`}
       style={{ width: `${width}px`, minWidth: `${MIN_WIDTH}px` }}

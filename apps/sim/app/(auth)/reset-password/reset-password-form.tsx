@@ -76,7 +76,7 @@ export function RequestResetForm({
             type='email'
             disabled={isSubmitting}
             required
-            className='rounded-[10px] shadow-sm transition-colors focus:border-gray-400 focus:ring-2 focus:ring-gray-100'
+            className='rounded-[10px] shadow-xs transition-colors focus:border-gray-400 focus:ring-2 focus:ring-gray-100'
           />
           <p className='text-muted-foreground text-sm'>
             We'll send a password reset link to this email address.
@@ -192,7 +192,7 @@ export function SetNewPasswordForm({
               required
               placeholder='Enter new password'
               className={cn(
-                'rounded-[10px] pr-10 shadow-sm transition-colors focus:border-gray-400 focus:ring-2 focus:ring-gray-100',
+                'rounded-[10px] pr-10 shadow-xs transition-colors focus:border-gray-400 focus:ring-2 focus:ring-gray-100',
                 validationMessage &&
                   'border-red-500 focus:border-red-500 focus:ring-red-100 focus-visible:ring-red-500'
               )}
@@ -224,7 +224,7 @@ export function SetNewPasswordForm({
               required
               placeholder='Confirm new password'
               className={cn(
-                'rounded-[10px] pr-10 shadow-sm transition-colors focus:border-gray-400 focus:ring-2 focus:ring-gray-100',
+                'rounded-[10px] pr-10 shadow-xs transition-colors focus:border-gray-400 focus:ring-2 focus:ring-gray-100',
                 validationMessage &&
                   'border-red-500 focus:border-red-500 focus:ring-red-100 focus-visible:ring-red-500'
               )}

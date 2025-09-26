@@ -170,7 +170,7 @@ export default function PasswordAuth({
                       onChange={handlePasswordChange}
                       onKeyDown={handleKeyDown}
                       className={cn(
-                        'rounded-[10px] pr-10 shadow-sm transition-colors focus:border-gray-400 focus:ring-2 focus:ring-gray-100',
+                        'rounded-[10px] pr-10 shadow-xs transition-colors focus:border-gray-400 focus:ring-2 focus:ring-gray-100',
                         showValidationError &&
                           passwordErrors.length > 0 &&
                           'border-red-500 focus:border-red-500 focus:ring-red-100 focus-visible:ring-red-500'

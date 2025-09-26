@@ -869,7 +869,7 @@ export function Sidebar() {
           style={{ gap: `${SIDEBAR_GAP}px` }}
         >
           {/* 1. Workspace Header */}
-          <div className='pointer-events-auto flex-shrink-0'>
+          <div className='pointer-events-auto shrink-0'>
             <WorkspaceHeader
               onCreateWorkflow={handleCreateWorkflow}
               isWorkspaceSelectorVisible={isWorkspaceSelectorVisible}
@@ -882,7 +882,7 @@ export function Sidebar() {
 
           {/* 2. Workspace Selector */}
           <div
-            className={`pointer-events-auto flex-shrink-0 ${!isWorkspaceSelectorVisible ? 'hidden' : ''}`}
+            className={`pointer-events-auto shrink-0 ${!isWorkspaceSelectorVisible ? 'hidden' : ''}`}
           >
             <WorkspaceSelector
               workspaces={workspaces}
@@ -901,12 +901,10 @@ export function Sidebar() {
           </div>
 
           {/* 3. Search */}
-          <div
-            className={`pointer-events-auto flex-shrink-0 ${isSidebarCollapsed ? 'hidden' : ''}`}
-          >
+          <div className={`pointer-events-auto shrink-0 ${isSidebarCollapsed ? 'hidden' : ''}`}>
             <button
               onClick={() => setShowSearchModal(true)}
-              className='flex h-12 w-full cursor-pointer items-center gap-2 rounded-[10px] border bg-background pr-[10px] pl-3 shadow-xs transition-colors hover:bg-muted/50'
+              className='flex h-12 w-full cursor-pointer items-center gap-2 rounded-[10px] border bg-background pr-[10px] pl-3 shadow-2xs transition-colors hover:bg-muted/50'
             >
               <Search className='h-4 w-4 text-muted-foreground' strokeWidth={2} />
               <span className='flex h-8 flex-1 items-center px-0 text-muted-foreground text-sm leading-none'>
@@ -918,7 +916,7 @@ export function Sidebar() {
 
           {/* 4. Workflow Selector */}
           <div
-            className={`pointer-events-auto relative h-[212px] flex-shrink-0 rounded-[10px] border bg-background shadow-xs ${
+            className={`pointer-events-auto relative h-[212px] shrink-0 rounded-[10px] border bg-background shadow-2xs ${
               isSidebarCollapsed ? 'hidden' : ''
             }`}
           >
@@ -948,7 +946,7 @@ export function Sidebar() {
 
       {/* Floating Toolbar - Only on workflow pages */}
       <div
-        className={`pointer-events-auto fixed left-4 z-50 w-56 rounded-[10px] border bg-background shadow-xs ${
+        className={`pointer-events-auto fixed left-4 z-50 w-56 rounded-[10px] border bg-background shadow-2xs ${
           !isOnWorkflowPage || isSidebarCollapsed ? 'hidden' : ''
         }`}
         style={{
@@ -964,7 +962,7 @@ export function Sidebar() {
 
       {/* Floating Logs Filters - Only on logs page */}
       <div
-        className={`pointer-events-auto fixed left-4 z-50 w-56 rounded-[10px] border bg-background shadow-xs ${
+        className={`pointer-events-auto fixed left-4 z-50 w-56 rounded-[10px] border bg-background shadow-2xs ${
           !isOnLogsPage || isSidebarCollapsed ? 'hidden' : ''
         }`}
         style={{
@@ -977,7 +975,7 @@ export function Sidebar() {
 
       {/* Floating Knowledge Tags - Only on knowledge pages */}
       <div
-        className={`pointer-events-auto fixed left-4 z-50 w-56 rounded-[10px] border bg-background shadow-xs ${
+        className={`pointer-events-auto fixed left-4 z-50 w-56 rounded-[10px] border bg-background shadow-2xs ${
           !isOnKnowledgePage || isSidebarCollapsed || !knowledgeBaseId ? 'hidden' : ''
         }`}
         style={{

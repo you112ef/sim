@@ -33,7 +33,7 @@ const CONSTANTS = {
 
 const STYLES = {
   GRADIENT_BADGE:
-    'gradient-text h-[1.125rem] rounded-[6px] border-gradient-primary/20 bg-gradient-to-b from-gradient-primary via-gradient-secondary to-gradient-primary px-2 py-0 font-medium text-xs cursor-pointer',
+    'gradient-text h-4.5 rounded-[6px] border-gradient-primary/20 bg-linear-to-b from-gradient-primary via-gradient-secondary to-gradient-primary px-2 py-0 font-medium text-xs cursor-pointer',
 } as const
 
 type TargetPlan = 'pro' | 'team'
@@ -51,12 +51,12 @@ function SubscriptionSkeleton() {
       <div className='flex flex-col gap-2'>
         {/* Current Plan skeleton - matches usage indicator style */}
         <div className='mb-2'>
-          <div className='rounded-[8px] border bg-background p-3 shadow-xs'>
+          <div className='rounded-[8px] border bg-background p-3 shadow-2xs'>
             <div className='space-y-2'>
               <div className='flex items-center justify-between'>
                 <div className='flex items-center gap-2'>
                   <Skeleton className='h-5 w-16' />
-                  <Skeleton className='h-[1.125rem] w-14 rounded-[6px]' />
+                  <Skeleton className='h-4.5 w-14 rounded-[6px]' />
                 </div>
                 <div className='flex items-center gap-1 text-xs tabular-nums'>
                   <Skeleton className='h-4 w-8' />

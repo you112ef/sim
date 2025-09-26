@@ -304,7 +304,7 @@ export function DocumentTagEntry({
             <div className='whitespace-pre'>{formatDisplayText(cellValue)}</div>
           </div>
           {showDropdown && availableTagDefinitions.length > 0 && (
-            <div className='absolute top-full left-0 z-[100] mt-1 w-full'>
+            <div className='absolute top-full left-0 z-100 mt-1 w-full'>
               <div className='allow-scroll fade-in-0 zoom-in-95 animate-in rounded-md border bg-popover text-popover-foreground shadow-lg'>
                 <div
                   className='allow-scroll max-h-48 overflow-y-auto p-1'
@@ -317,7 +317,7 @@ export function DocumentTagEntry({
                     .map((tagDef) => (
                       <div
                         key={tagDef.id}
-                        className='relative flex cursor-pointer select-none items-center rounded-sm px-2 py-1.5 text-sm outline-none hover:bg-accent hover:text-accent-foreground'
+                        className='relative flex cursor-pointer select-none items-center rounded-sm px-2 py-1.5 text-sm outline-hidden hover:bg-accent hover:text-accent-foreground'
                         onMouseDown={(e) => {
                           e.preventDefault()
                           handleCellChange(rowIndex, 'tagName', tagDef.displayName)
@@ -393,7 +393,7 @@ export function DocumentTagEntry({
             </div>
           </div>
           {showTypeDropdown && !isReadOnly && (
-            <div className='absolute top-full left-0 z-[100] mt-1 w-full'>
+            <div className='absolute top-full left-0 z-100 mt-1 w-full'>
               <div className='allow-scroll fade-in-0 zoom-in-95 animate-in rounded-md border bg-popover text-popover-foreground shadow-lg'>
                 <div
                   className='allow-scroll max-h-48 overflow-y-auto p-1'
@@ -402,7 +402,7 @@ export function DocumentTagEntry({
                   {typeOptions.map((option) => (
                     <div
                       key={option.value}
-                      className='relative flex cursor-pointer select-none items-center rounded-sm px-2 py-1.5 text-sm outline-none hover:bg-accent hover:text-accent-foreground'
+                      className='relative flex cursor-pointer select-none items-center rounded-sm px-2 py-1.5 text-sm outline-hidden hover:bg-accent hover:text-accent-foreground'
                       onMouseDown={(e) => {
                         e.preventDefault()
                         handleCellChange(rowIndex, 'type', option.value)
@@ -544,7 +544,7 @@ export function DocumentTagEntry({
           onClose={() => {
             setActiveTagDropdown((prev) => (prev ? { ...prev, showTags: false } : null))
           }}
-          className='absolute z-[9999] mt-0'
+          className='absolute z-9999 mt-0'
         />
       )}
 

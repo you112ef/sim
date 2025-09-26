@@ -107,7 +107,7 @@ export default function FolderFilter() {
         <Button
           variant='outline'
           size='sm'
-          className='w-full justify-between rounded-[10px] border-[#E5E5E5] bg-[#FFFFFF] font-normal text-sm dark:border-[#414141] dark:bg-[var(--surface-elevated)]'
+          className='w-full justify-between rounded-[10px] border-[#E5E5E5] bg-[#FFFFFF] font-normal text-sm dark:border-[#414141] dark:bg-surface-elevated'
         >
           {loading ? 'Loading folders...' : getSelectedFoldersText()}
           <ChevronDown className='ml-2 h-4 w-4 text-muted-foreground' />
@@ -115,7 +115,7 @@ export default function FolderFilter() {
       </DropdownMenuTrigger>
       <DropdownMenuContent
         align='start'
-        className='w-[200px] rounded-lg border-[#E5E5E5] bg-[#FFFFFF] p-0 shadow-xs dark:border-[#414141] dark:bg-[var(--surface-elevated)]'
+        className='w-[200px] rounded-lg border-[#E5E5E5] bg-[#FFFFFF] p-0 shadow-2xs dark:border-[#414141] dark:bg-surface-elevated'
       >
         <Command>
           <CommandInput placeholder='Search folders...' onValueChange={(v) => setSearch(v)} />

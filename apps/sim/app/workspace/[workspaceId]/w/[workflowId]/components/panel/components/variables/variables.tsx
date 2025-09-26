@@ -226,7 +226,7 @@ export function Variables() {
         <div className='flex h-full items-center justify-center'>
           <Button
             onClick={handleAddVariable}
-            className='h-9 rounded-lg border border-[#E5E5E5] bg-[#FFFFFF] px-3 py-1.5 font-normal text-muted-foreground text-sm shadow-xs transition-colors hover:text-muted-foreground dark:border-[#414141] dark:bg-[var(--surface-elevated)] dark:hover:text-muted-foreground'
+            className='h-9 rounded-lg border border-[#E5E5E5] bg-[#FFFFFF] px-3 py-1.5 font-normal text-muted-foreground text-sm shadow-2xs transition-colors hover:text-muted-foreground dark:border-[#414141] dark:bg-surface-elevated dark:hover:text-muted-foreground'
             variant='outline'
           >
             <Plus className='h-4 w-4' />
@@ -257,7 +257,7 @@ export function Variables() {
                     </DropdownMenuTrigger>
                     <DropdownMenuContent
                       align='end'
-                      className='min-w-32 rounded-lg border-[#E5E5E5] bg-[#FFFFFF] shadow-xs dark:border-[#414141] dark:bg-[var(--surface-elevated)]'
+                      className='min-w-32 rounded-lg border-[#E5E5E5] bg-[#FFFFFF] shadow-2xs dark:border-[#414141] dark:bg-surface-elevated'
                     >
                       <DropdownMenuItem
                         onClick={() => collaborativeUpdateVariable(variable.id, 'type', 'plain')}
@@ -310,7 +310,7 @@ export function Variables() {
                     </DropdownMenuTrigger>
                     <DropdownMenuContent
                       align='end'
-                      className='min-w-32 rounded-lg border-[#E5E5E5] bg-[#FFFFFF] shadow-xs dark:border-[#414141] dark:bg-[var(--surface-elevated)]'
+                      className='min-w-32 rounded-lg border-[#E5E5E5] bg-[#FFFFFF] shadow-2xs dark:border-[#414141] dark:bg-surface-elevated'
                     >
                       <DropdownMenuItem
                         onClick={() => toggleCollapsed(variable.id)}
@@ -404,8 +404,8 @@ export function Variables() {
                             minHeight: '20px',
                             overflow: 'hidden',
                           }}
-                          className='[&>pre]:!max-w-full [&>pre]:!overflow-hidden [&>pre]:!whitespace-pre-wrap [&>pre]:!break-all [&>pre]:!overflow-wrap-break-word [&>textarea]:!max-w-full [&>textarea]:!overflow-hidden [&>textarea]:!whitespace-pre-wrap [&>textarea]:!break-all [&>textarea]:!overflow-wrap-break-word font-[380] text-foreground text-sm leading-normal focus:outline-none'
-                          textareaClassName='focus:outline-none focus:ring-0 bg-transparent resize-none w-full max-w-full whitespace-pre-wrap break-all overflow-wrap-break-word overflow-hidden font-[380] text-foreground'
+                          className='[&>pre]:overflow-hidden! [&>pre]:whitespace-pre-wrap! [&>pre]:break-all! [&>pre]:!overflow-wrap-break-word [&>textarea]:overflow-hidden! [&>textarea]:whitespace-pre-wrap! [&>textarea]:break-all! [&>textarea]:!overflow-wrap-break-word font-[380] text-foreground text-sm leading-normal focus:outline-hidden [&>pre]:max-w-full! [&>textarea]:max-w-full!'
+                          textareaClassName='focus:outline-hidden focus:ring-0 bg-transparent resize-none w-full max-w-full whitespace-pre-wrap break-all overflow-wrap-break-word overflow-hidden font-[380] text-foreground'
                         />
                       </div>
                     </div>
@@ -417,7 +417,7 @@ export function Variables() {
             {/* Add Variable Button */}
             <Button
               onClick={handleAddVariable}
-              className='mt-2 h-9 w-full rounded-lg border border-[#E5E5E5] bg-[#FFFFFF] px-3 py-1.5 font-[380] text-muted-foreground text-sm shadow-xs transition-colors hover:text-muted-foreground dark:border-[#414141] dark:bg-[var(--surface-elevated)] dark:hover:text-muted-foreground'
+              className='mt-2 h-9 w-full rounded-lg border border-[#E5E5E5] bg-[#FFFFFF] px-3 py-1.5 font-[380] text-muted-foreground text-sm shadow-2xs transition-colors hover:text-muted-foreground dark:border-[#414141] dark:bg-surface-elevated dark:hover:text-muted-foreground'
               variant='outline'
             >
               <Plus className='h-4 w-4' />

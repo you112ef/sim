@@ -317,10 +317,10 @@ export function Panel() {
   return (
     <>
       {/* Tab Selector - Always visible */}
-      <div className='fixed top-[76px] right-4 z-20 flex h-9 w-[308px] items-center gap-1 rounded-[14px] border bg-card px-[2.5px] py-1 shadow-xs'>
+      <div className='fixed top-[76px] right-4 z-20 flex h-9 w-[308px] items-center gap-1 rounded-[14px] border bg-card px-[2.5px] py-1 shadow-2xs'>
         <button
           onClick={() => handleTabClick('copilot')}
-          className={`panel-tab-base inline-flex flex-1 cursor-pointer items-center justify-center rounded-[10px] border border-transparent py-1 font-[450] text-sm outline-none transition-colors duration-200 ${
+          className={`panel-tab-base inline-flex flex-1 cursor-pointer items-center justify-center rounded-[10px] border border-transparent py-1 font-[450] text-sm outline-hidden transition-colors duration-200 ${
             isOpen && activeTab === 'copilot' ? 'panel-tab-active' : 'panel-tab-inactive'
           }`}
         >
@@ -328,7 +328,7 @@ export function Panel() {
         </button>
         <button
           onClick={() => handleTabClick('console')}
-          className={`panel-tab-base inline-flex flex-1 cursor-pointer items-center justify-center rounded-[10px] border border-transparent py-1 font-[450] text-sm outline-none transition-colors duration-200 ${
+          className={`panel-tab-base inline-flex flex-1 cursor-pointer items-center justify-center rounded-[10px] border border-transparent py-1 font-[450] text-sm outline-hidden transition-colors duration-200 ${
             isOpen && activeTab === 'console' ? 'panel-tab-active' : 'panel-tab-inactive'
           }`}
         >
@@ -336,7 +336,7 @@ export function Panel() {
         </button>
         <button
           onClick={() => handleTabClick('chat')}
-          className={`panel-tab-base inline-flex flex-1 cursor-pointer items-center justify-center rounded-[10px] border border-transparent py-1 font-[450] text-sm outline-none transition-colors duration-200 ${
+          className={`panel-tab-base inline-flex flex-1 cursor-pointer items-center justify-center rounded-[10px] border border-transparent py-1 font-[450] text-sm outline-hidden transition-colors duration-200 ${
             isOpen && activeTab === 'chat' ? 'panel-tab-active' : 'panel-tab-inactive'
           }`}
         >
@@ -344,7 +344,7 @@ export function Panel() {
         </button>
         <button
           onClick={() => handleTabClick('variables')}
-          className={`panel-tab-base inline-flex flex-1 cursor-pointer items-center justify-center rounded-[10px] border border-transparent py-1 font-[450] text-sm outline-none transition-colors duration-200 ${
+          className={`panel-tab-base inline-flex flex-1 cursor-pointer items-center justify-center rounded-[10px] border border-transparent py-1 font-[450] text-sm outline-hidden transition-colors duration-200 ${
             isOpen && activeTab === 'variables' ? 'panel-tab-active' : 'panel-tab-inactive'
           }`}
         >
@@ -355,7 +355,7 @@ export function Panel() {
       {/* Panel Content - Only visible when isOpen is true */}
       {isOpen && (
         <div
-          className='fixed top-[124px] right-4 bottom-4 z-10 flex flex-col rounded-[14px] border bg-card shadow-xs'
+          className='fixed top-[124px] right-4 bottom-4 z-10 flex flex-col rounded-[14px] border bg-card shadow-2xs'
           style={{ width: `${panelWidth}px` }}
         >
           {/* Invisible resize handle */}
@@ -373,7 +373,7 @@ export function Panel() {
                   <TooltipTrigger asChild>
                     <button
                       onClick={() => activeWorkflowId && exportConsoleCSV(activeWorkflowId)}
-                      className='font-medium text-md leading-normal transition-[filter] hover:brightness-75 focus:outline-none focus-visible:outline-none active:outline-none dark:hover:brightness-125'
+                      className='font-medium text-md leading-normal transition-[filter] hover:brightness-75 focus:outline-hidden focus-visible:outline-hidden active:outline-hidden dark:hover:brightness-125'
                       style={{ color: 'var(--base-muted-foreground)' }}
                     >
                       <ArrowDownToLine className='h-4 w-4' strokeWidth={2} />
@@ -387,7 +387,7 @@ export function Panel() {
                   <TooltipTrigger asChild>
                     <button
                       onClick={() => activeWorkflowId && exportChatCSV(activeWorkflowId)}
-                      className='font-medium text-md leading-normal transition-[filter] hover:brightness-75 focus:outline-none focus-visible:outline-none active:outline-none dark:hover:brightness-125'
+                      className='font-medium text-md leading-normal transition-[filter] hover:brightness-75 focus:outline-hidden focus-visible:outline-hidden active:outline-hidden dark:hover:brightness-125'
                       style={{ color: 'var(--base-muted-foreground)' }}
                     >
                       <ArrowDownToLine className='h-4 w-4' strokeWidth={2} />
@@ -403,7 +403,7 @@ export function Panel() {
                     <TooltipTrigger asChild>
                       <button
                         onClick={handleNewChat}
-                        className='font-medium text-md leading-normal transition-[filter] hover:brightness-75 focus:outline-none focus-visible:outline-none active:outline-none dark:hover:brightness-125'
+                        className='font-medium text-md leading-normal transition-[filter] hover:brightness-75 focus:outline-hidden focus-visible:outline-hidden active:outline-hidden dark:hover:brightness-125'
                         style={{ color: 'var(--base-muted-foreground)' }}
                       >
                         <Plus className='h-4 w-4' strokeWidth={2} />
@@ -421,7 +421,7 @@ export function Panel() {
                       <DropdownMenuTrigger asChild>
                         <TooltipTrigger asChild>
                           <button
-                            className='font-medium text-md leading-normal transition-[filter] hover:brightness-75 focus:outline-none focus-visible:outline-none active:outline-none dark:hover:brightness-125'
+                            className='font-medium text-md leading-normal transition-[filter] hover:brightness-75 focus:outline-hidden focus-visible:outline-hidden active:outline-hidden dark:hover:brightness-125'
                             style={{ color: 'var(--base-muted-foreground)' }}
                           >
                             <History className='h-4 w-4' strokeWidth={2} />
@@ -432,7 +432,7 @@ export function Panel() {
                     </Tooltip>
                     <DropdownMenuContent
                       align='end'
-                      className='z-[200] w-48 rounded-lg border-[#E5E5E5] bg-[#FFFFFF] shadow-xs dark:border-[#414141] dark:bg-[var(--surface-elevated)]'
+                      className='z-200 w-48 rounded-lg border-[#E5E5E5] bg-[#FFFFFF] shadow-2xs dark:border-[#414141] dark:bg-surface-elevated'
                       sideOffset={8}
                       side='bottom'
                       avoidCollisions={true}
@@ -503,7 +503,7 @@ export function Panel() {
                           clearChat(activeWorkflowId)
                         }
                       }}
-                      className='font-medium text-md leading-normal transition-[filter] hover:brightness-75 focus:outline-none focus-visible:outline-none active:outline-none dark:hover:brightness-125'
+                      className='font-medium text-md leading-normal transition-[filter] hover:brightness-75 focus:outline-hidden focus-visible:outline-hidden active:outline-hidden dark:hover:brightness-125'
                       style={{ color: 'var(--base-muted-foreground)' }}
                     >
                       <CircleSlash className='h-4 w-4' strokeWidth={2} />
@@ -516,7 +516,7 @@ export function Panel() {
                 <TooltipTrigger asChild>
                   <button
                     onClick={handleClosePanel}
-                    className='font-medium text-md leading-normal transition-[filter] hover:brightness-75 focus:outline-none focus-visible:outline-none active:outline-none dark:hover:brightness-125'
+                    className='font-medium text-md leading-normal transition-[filter] hover:brightness-75 focus:outline-hidden focus-visible:outline-hidden active:outline-hidden dark:hover:brightness-125'
                     style={{ color: 'var(--base-muted-foreground)' }}
                   >
                     <X className='h-4 w-4' strokeWidth={2} />

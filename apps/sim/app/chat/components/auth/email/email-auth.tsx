@@ -277,7 +277,7 @@ export default function EmailAuth({
                         onChange={handleEmailChange}
                         onKeyDown={handleEmailKeyDown}
                         className={cn(
-                          'rounded-[10px] shadow-sm transition-colors focus:border-gray-400 focus:ring-2 focus:ring-gray-100',
+                          'rounded-[10px] shadow-xs transition-colors focus:border-gray-400 focus:ring-2 focus:ring-gray-100',
                           showEmailValidationError &&
                             emailErrors.length > 0 &&
                             'border-red-500 focus:border-red-500 focus:ring-red-100 focus-visible:ring-red-500'
@@ -330,15 +330,15 @@ export default function EmailAuth({
                         disabled={isVerifyingOtp}
                         className={cn('gap-2', authError && 'otp-error')}
                       >
-                        <InputOTPGroup className='[&>div]:!rounded-[10px] gap-2'>
+                        <InputOTPGroup className='gap-2 [&>div]:rounded-[10px]!'>
                           {[0, 1, 2, 3, 4, 5].map((index) => (
                             <InputOTPSlot
                               key={index}
                               index={index}
                               className={cn(
-                                '!rounded-[10px] h-12 w-12 border bg-white text-center font-medium text-lg shadow-sm transition-all duration-200',
+                                'h-12 w-12 rounded-[10px]! border bg-white text-center font-medium text-lg shadow-xs transition-all duration-200',
                                 'border-gray-300 hover:border-gray-400',
-                                'focus:border-gray-400 focus:outline-none focus:ring-2 focus:ring-gray-100',
+                                'focus:border-gray-400 focus:outline-hidden focus:ring-2 focus:ring-gray-100',
                                 authError &&
                                   'border-red-500 focus:border-red-500 focus:ring-red-100'
                               )}
@@ -374,7 +374,7 @@ export default function EmailAuth({
                         </span>
                       ) : (
                         <button
-                          className='font-medium text-[var(--brand-accent-hex)] underline-offset-4 transition hover:text-[var(--brand-accent-hover-hex)] hover:underline'
+                          className='font-medium text-(--brand-accent-hex) underline-offset-4 transition hover:text-(--brand-accent-hover-hex) hover:underline'
                           onClick={handleResendOtp}
                           disabled={isVerifyingOtp || isResendDisabled}
                         >
@@ -391,7 +391,7 @@ export default function EmailAuth({
                         setOtpValue('')
                         setAuthError(null)
                       }}
-                      className='font-medium text-[var(--brand-accent-hex)] underline-offset-4 transition hover:text-[var(--brand-accent-hover-hex)] hover:underline'
+                      className='font-medium text-(--brand-accent-hex) underline-offset-4 transition hover:text-(--brand-accent-hover-hex) hover:underline'
                     >
                       Change email
                     </button>

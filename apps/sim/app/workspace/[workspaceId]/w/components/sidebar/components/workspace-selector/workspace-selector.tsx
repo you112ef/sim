@@ -348,7 +348,7 @@ export function WorkspaceSelector({
                     onKeyDown={handleKeyDown}
                     onBlur={handleInputBlur}
                     className={cn(
-                      'min-w-0 flex-1 border-0 bg-transparent p-0 font-medium text-sm outline-none focus:outline-none focus:ring-0 focus-visible:outline-none focus-visible:ring-0 focus-visible:ring-offset-0',
+                      'min-w-0 flex-1 border-0 bg-transparent p-0 font-medium text-sm outline-hidden focus:outline-hidden focus:ring-0 focus-visible:outline-hidden focus-visible:ring-0 focus-visible:ring-offset-0',
                       activeWorkspace?.id === workspace.id
                         ? 'text-foreground'
                         : 'text-muted-foreground group-hover:text-foreground'
@@ -376,7 +376,7 @@ export function WorkspaceSelector({
               </div>
 
               <div
-                className='flex h-full flex-shrink-0 items-center justify-center gap-1'
+                className='flex h-full shrink-0 items-center justify-center gap-1'
                 onClick={(e) => e.stopPropagation()}
               >
                 {/* Edit button - show on hover for admin users */}
@@ -387,7 +387,7 @@ export function WorkspaceSelector({
                     onClick={(e) => handleStartEdit(workspace, e)}
                     className='h-4 w-4 p-0 text-muted-foreground transition-colors hover:bg-transparent hover:text-foreground'
                   >
-                    <Pencil className='!h-3.5 !w-3.5' />
+                    <Pencil className='h-3.5! w-3.5!' />
                   </Button>
                 )}
 
@@ -404,7 +404,7 @@ export function WorkspaceSelector({
                           !isEditing && isHovered ? 'opacity-100' : 'pointer-events-none opacity-0'
                         )}
                       >
-                        <LogOut className='!h-3.5 !w-3.5' />
+                        <LogOut className='h-3.5! w-3.5!' />
                       </Button>
                     </AlertDialogTrigger>
 
@@ -469,7 +469,7 @@ export function WorkspaceSelector({
                       !isEditing && isHovered ? 'opacity-100' : 'pointer-events-none opacity-0'
                     )}
                   >
-                    <Trash2 className='!h-3.5 !w-3.5' />
+                    <Trash2 className='h-3.5! w-3.5!' />
                   </Button>
                 )}
               </div>
@@ -482,7 +482,7 @@ export function WorkspaceSelector({
 
   return (
     <>
-      <div className='rounded-[10px] border bg-background shadow-xs'>
+      <div className='rounded-[10px] border bg-background shadow-2xs'>
         <div className='flex h-full flex-col p-2'>
           {/* Workspace List */}
           <div className='min-h-0 flex-1'>

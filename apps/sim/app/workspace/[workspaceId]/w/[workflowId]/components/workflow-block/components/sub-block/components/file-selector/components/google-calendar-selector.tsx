@@ -218,7 +218,7 @@ export function GoogleCalendarSelector({
               {selectedCalendar ? (
                 <>
                   <div
-                    className='h-3 w-3 flex-shrink-0 rounded-full'
+                    className='h-3 w-3 shrink-0 rounded-full'
                     style={{
                       backgroundColor: selectedCalendar.backgroundColor || '#4285f4',
                     }}
@@ -279,7 +279,7 @@ export function GoogleCalendarSelector({
                     >
                       <div className='flex items-center gap-2 overflow-hidden'>
                         <div
-                          className='h-3 w-3 flex-shrink-0 rounded-full'
+                          className='h-3 w-3 shrink-0 rounded-full'
                           style={{
                             backgroundColor: calendar.backgroundColor || '#4285f4',
                           }}
@@ -312,7 +312,7 @@ export function GoogleCalendarSelector({
             </Button>
           </div>
           <div className='flex items-center gap-3 pr-4'>
-            <div className='flex h-6 w-6 flex-shrink-0 items-center justify-center rounded bg-muted/20'>
+            <div className='flex h-6 w-6 shrink-0 items-center justify-center rounded bg-muted/20'>
               <div
                 className='h-3 w-3 rounded-full'
                 style={{

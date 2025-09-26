@@ -202,7 +202,7 @@ export function WorkflowTextEditor({
   return (
     <div className={cn('flex h-full flex-col bg-background', className)}>
       {/* Header with controls */}
-      <div className='flex-shrink-0 border-b bg-background px-6 py-4'>
+      <div className='shrink-0 border-b bg-background px-6 py-4'>
         <div className='mb-3 flex items-center justify-between'>
           <div className='flex items-center gap-2'>
             <FileCode className='h-5 w-5' />
@@ -267,7 +267,7 @@ export function WorkflowTextEditor({
 
       {/* Alerts section - fixed height, scrollable if needed */}
       {(validationErrors.length > 0 || saveResult) && (
-        <div className='scrollbar-thin scrollbar-thumb-muted-foreground/20 scrollbar-track-transparent max-h-32 flex-shrink-0 overflow-y-auto border-b bg-muted/20'>
+        <div className='scrollbar-thin scrollbar-thumb-muted-foreground/20 scrollbar-track-transparent max-h-32 shrink-0 overflow-y-auto border-b bg-muted/20'>
           <div className='space-y-2 p-4'>
             {/* Validation errors */}
             {validationErrors.length > 0 && (

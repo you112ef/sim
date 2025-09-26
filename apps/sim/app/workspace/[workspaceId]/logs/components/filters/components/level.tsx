@@ -13,8 +13,8 @@ import type { LogLevel } from '@/stores/logs/filters/types'
 export default function Level() {
   const { level, setLevel } = useFilterStore()
   const specificLevels: { value: LogLevel; label: string; color: string }[] = [
-    { value: 'error', label: 'Error', color: 'bg-destructive/100' },
-    { value: 'info', label: 'Info', color: 'bg-muted-foreground/100' },
+    { value: 'error', label: 'Error', color: 'bg-destructive' },
+    { value: 'info', label: 'Info', color: 'bg-muted-foreground' },
   ]
 
   const getDisplayLabel = () => {
@@ -29,7 +29,7 @@ export default function Level() {
         <Button
           variant='outline'
           size='sm'
-          className='w-full justify-between rounded-[10px] border-[#E5E5E5] bg-[#FFFFFF] font-normal text-sm dark:border-[#414141] dark:bg-[var(--surface-elevated)]'
+          className='w-full justify-between rounded-[10px] border-[#E5E5E5] bg-[#FFFFFF] font-normal text-sm dark:border-[#414141] dark:bg-surface-elevated'
         >
           {getDisplayLabel()}
           <ChevronDown className='ml-2 h-4 w-4 text-muted-foreground' />
@@ -37,7 +37,7 @@ export default function Level() {
       </DropdownMenuTrigger>
       <DropdownMenuContent
         align='start'
-        className='w-[180px] rounded-lg border-[#E5E5E5] bg-[#FFFFFF] shadow-xs dark:border-[#414141] dark:bg-[var(--surface-elevated)]'
+        className='w-[180px] rounded-lg border-[#E5E5E5] bg-[#FFFFFF] shadow-2xs dark:border-[#414141] dark:bg-surface-elevated'
       >
         <DropdownMenuItem
           key='all'

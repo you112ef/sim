@@ -269,7 +269,7 @@ export function FolderItem({
           onMouseEnter={() => setIsHovered(true)}
           onMouseLeave={() => setIsHovered(false)}
         >
-          <div className='mr-2 flex h-[14px] w-[14px] flex-shrink-0 items-center justify-center'>
+          <div className='mr-2 flex h-[14px] w-[14px] shrink-0 items-center justify-center'>
             {isExpanded ? (
               <FolderOpen className='h-[14px] w-[14px] text-foreground/70 group-hover:text-foreground dark:text-foreground/60' />
             ) : (
@@ -285,7 +285,7 @@ export function FolderItem({
               onKeyDown={handleKeyDown}
               onBlur={handleInputBlur}
               className={clsx(
-                'min-w-0 flex-1 border-0 bg-transparent p-0 font-medium text-sm outline-none focus:outline-none focus:ring-0 focus-visible:outline-none focus-visible:ring-0 focus-visible:ring-offset-0',
+                'min-w-0 flex-1 border-0 bg-transparent p-0 font-medium text-sm outline-hidden focus:outline-hidden focus:ring-0 focus-visible:outline-hidden focus-visible:ring-0 focus-visible:ring-offset-0',
                 'text-muted-foreground group-hover:text-foreground'
               )}
               maxLength={50}
@@ -321,7 +321,7 @@ export function FolderItem({
                   handleStartEdit()
                 }}
               >
-                <Pencil className='!h-3.5 !w-3.5' />
+                <Pencil className='h-3.5! w-3.5!' />
                 <span className='sr-only'>Rename folder</span>
               </Button>
               <Button
@@ -333,7 +333,7 @@ export function FolderItem({
                   handleDelete()
                 }}
               >
-                <Trash2 className='!h-3.5 !w-3.5' />
+                <Trash2 className='h-3.5! w-3.5!' />
                 <span className='sr-only'>Delete folder</span>
               </Button>
             </div>

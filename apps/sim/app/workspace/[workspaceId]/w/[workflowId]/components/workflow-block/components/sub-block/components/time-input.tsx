@@ -107,7 +107,7 @@ export function TimeInput({
       <PopoverContent className='w-auto p-4'>
         <div className='flex items-center space-x-2'>
           <Input
-            className='w-[4rem]'
+            className='w-16'
             value={hour}
             onChange={(e) => {
               const val = e.target.value.replace(/[^0-9]/g, '')
@@ -131,7 +131,7 @@ export function TimeInput({
           />
           <span>:</span>
           <Input
-            className='w-[4rem]'
+            className='w-16'
             value={minute}
             onChange={(e) => {
               const val = e.target.value.replace(/[^0-9]/g, '')
@@ -155,7 +155,7 @@ export function TimeInput({
           />
           <Button
             variant='outline'
-            className='w-[4rem]'
+            className='w-16'
             onClick={() => {
               const newAmpm = ampm === 'AM' ? 'PM' : 'AM'
               setAmpm(newAmpm)

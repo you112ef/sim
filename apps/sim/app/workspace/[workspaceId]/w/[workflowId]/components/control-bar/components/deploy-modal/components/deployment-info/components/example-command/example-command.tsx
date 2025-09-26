@@ -152,7 +152,7 @@ export function ExampleCommand({
                   disabled={mode === 'sync'}
                 >
                   <span className='truncate'>{getExampleTitle()}</span>
-                  <ChevronDown className='ml-1 h-3 w-3 flex-shrink-0' />
+                  <ChevronDown className='ml-1 h-3 w-3 shrink-0' />
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align='end'>

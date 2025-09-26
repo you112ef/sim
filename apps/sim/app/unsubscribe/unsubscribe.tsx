@@ -122,7 +122,7 @@ function UnsubscribeContent() {
   if (loading) {
     return (
       <div className='flex min-h-screen items-center justify-center bg-background'>
-        <Card className='w-full max-w-md border shadow-sm'>
+        <Card className='w-full max-w-md border shadow-xs'>
           <CardContent className='flex items-center justify-center p-8'>
             <Loader2 className='h-8 w-8 animate-spin text-muted-foreground' />
           </CardContent>
@@ -134,7 +134,7 @@ function UnsubscribeContent() {
   if (error) {
     return (
       <div className='flex min-h-screen items-center justify-center bg-background p-4'>
-        <Card className='w-full max-w-md border shadow-sm'>
+        <Card className='w-full max-w-md border shadow-xs'>
           <CardHeader className='text-center'>
             <XCircle className='mx-auto mb-2 h-12 w-12 text-red-500' />
             <CardTitle className='text-foreground'>Invalid Unsubscribe Link</CardTitle>
@@ -166,7 +166,7 @@ function UnsubscribeContent() {
                     '_blank'
                   )
                 }
-                className='w-full bg-[var(--brand-primary-hex)] font-medium text-white shadow-sm transition-colors duration-200 hover:bg-[var(--brand-primary-hover-hex)]'
+                className='w-full bg-brand-primary font-medium text-white shadow-xs transition-colors duration-200 hover:bg-brand-primary-hover'
               >
                 Contact Support
               </Button>
@@ -196,7 +196,7 @@ function UnsubscribeContent() {
   if (data?.isTransactional) {
     return (
       <div className='flex min-h-screen items-center justify-center bg-background p-4'>
-        <Card className='w-full max-w-md border shadow-sm'>
+        <Card className='w-full max-w-md border shadow-xs'>
           <CardHeader className='text-center'>
             <Info className='mx-auto mb-2 h-12 w-12 text-blue-500' />
             <CardTitle className='text-foreground'>Important Account Emails</CardTitle>
@@ -248,7 +248,7 @@ function UnsubscribeContent() {
   if (unsubscribed) {
     return (
       <div className='flex min-h-screen items-center justify-center bg-background'>
-        <Card className='w-full max-w-md border shadow-sm'>
+        <Card className='w-full max-w-md border shadow-xs'>
           <CardHeader className='text-center'>
             <CheckCircle className='mx-auto mb-2 h-12 w-12 text-green-500' />
             <CardTitle className='text-foreground'>Successfully Unsubscribed</CardTitle>
@@ -276,7 +276,7 @@ function UnsubscribeContent() {
 
   return (
     <div className='flex min-h-screen items-center justify-center bg-background p-4'>
-      <Card className='w-full max-w-md border shadow-sm'>
+      <Card className='w-full max-w-md border shadow-xs'>
         <CardHeader className='text-center'>
           <Heart className='mx-auto mb-2 h-12 w-12 text-red-500' />
           <CardTitle className='text-foreground'>We&apos;re sorry to see you go!</CardTitle>
@@ -396,7 +396,7 @@ export default function Unsubscribe() {
     <Suspense
       fallback={
         <div className='flex min-h-screen items-center justify-center bg-background'>
-          <Card className='w-full max-w-md border shadow-sm'>
+          <Card className='w-full max-w-md border shadow-xs'>
             <CardContent className='flex items-center justify-center p-8'>
               <Loader2 className='h-8 w-8 animate-spin text-muted-foreground' />
             </CardContent>

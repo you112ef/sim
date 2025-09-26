@@ -43,7 +43,7 @@ export function ActionBar({ blockId, blockType, disabled = false }: ActionBarPro
       className={cn(
         '-right-20 absolute top-0',
         'flex flex-col items-center gap-2 p-2',
-        'rounded-md border border-gray-200 bg-background shadow-sm dark:border-gray-800',
+        'rounded-md border border-gray-200 bg-background shadow-xs dark:border-gray-800',
         'opacity-0 transition-opacity duration-200 group-hover:opacity-100'
       )}
     >
@@ -52,13 +52,13 @@ export function ActionBar({ blockId, blockType, disabled = false }: ActionBarPro
           <Button
             className={cn(
               isEnabled
-                ? 'bg-[var(--brand-primary-hover-hex)] hover:bg-[var(--brand-primary-hover-hex)]/90'
+                ? 'bg-brand-primary-hover hover:bg-(--brand-primary-hover-hex)/90'
                 : 'bg-gray-400 hover:bg-gray-400 cursor-not-allowed'
             )}
             size="sm"
             disabled={!isEnabled}
           >
-            <Play fill="currentColor" className="!h-3.5 !w-3.5" />
+            <Play fill="currentColor" className="h-3.5! w-3.5!" />
           </Button>
         </TooltipTrigger>
         <TooltipContent side="right">Run Block</TooltipContent>

@@ -446,7 +446,7 @@ export function TriggerModal({
         <div className='flex-1 overflow-y-auto px-6 py-6'>
           <div className='space-y-6'>
             {triggerDef.requiresCredentials && triggerDef.credentialProvider && (
-              <div className='space-y-2 rounded-md border border-border bg-card p-4 shadow-sm'>
+              <div className='space-y-2 rounded-md border border-border bg-card p-4 shadow-xs'>
                 <h3 className='font-medium text-sm'>Credentials</h3>
                 <p className='text-muted-foreground text-sm'>
                   This trigger requires {triggerDef.credentialProvider.replace('-', ' ')}{' '}
@@ -475,7 +475,7 @@ export function TriggerModal({
             />
 
             {triggerDef.webhook && (
-              <div className='space-y-4 rounded-md border border-border bg-card p-4 shadow-sm'>
+              <div className='space-y-4 rounded-md border border-border bg-card p-4 shadow-xs'>
                 <TooltipProvider delayDuration={0}>
                   <div className='space-y-1'>
                     <div className='flex items-center gap-2'>
@@ -494,7 +494,7 @@ export function TriggerModal({
                         <TooltipContent
                           side='right'
                           align='center'
-                          className='z-[100] max-w-[300px] p-3'
+                          className='z-100 max-w-[300px] p-3'
                           role='tooltip'
                         >
                           <p className='text-sm'>

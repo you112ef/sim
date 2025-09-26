@@ -35,7 +35,7 @@ export function ApiKey({ apiKey, showLabel = true }: ApiKeyProps) {
         <div className='flex items-center justify-between p-3'>
           <pre className='flex-1 overflow-x-auto whitespace-pre-wrap font-mono text-xs'>{name}</pre>
           {type && (
-            <div className='ml-2 flex-shrink-0'>
+            <div className='ml-2 shrink-0'>
               <span className='inline-flex items-center rounded-md bg-muted px-2 py-1 font-medium text-muted-foreground text-xs capitalize'>
                 {type}
               </span>

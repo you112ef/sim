@@ -113,11 +113,11 @@ export function Toolbar({ userPermissions, isWorkspaceSelectorVisible = false }:
     <div className='flex h-full flex-col'>
       {/* Tabs */}
       <Tabs value={activeTab} onValueChange={setActiveTab} className='flex h-full flex-col'>
-        <div className='flex-shrink-0 px-2 pt-2'>
-          <div className='flex h-9 w-full items-center gap-1 rounded-[10px] border bg-card px-[2.5px] py-1 shadow-xs'>
+        <div className='shrink-0 px-2 pt-2'>
+          <div className='flex h-9 w-full items-center gap-1 rounded-[10px] border bg-card px-[2.5px] py-1 shadow-2xs'>
             <button
               onClick={() => setActiveTab('blocks')}
-              className={`panel-tab-base inline-flex flex-1 cursor-pointer items-center justify-center rounded-[8px] border border-transparent py-1 font-[450] text-sm outline-none transition-colors duration-200 ${
+              className={`panel-tab-base inline-flex flex-1 cursor-pointer items-center justify-center rounded-[8px] border border-transparent py-1 font-[450] text-sm outline-hidden transition-colors duration-200 ${
                 activeTab === 'blocks' ? 'panel-tab-active' : 'panel-tab-inactive'
               }`}
             >
@@ -125,7 +125,7 @@ export function Toolbar({ userPermissions, isWorkspaceSelectorVisible = false }:
             </button>
             <button
               onClick={() => setActiveTab('triggers')}
-              className={`panel-tab-base inline-flex flex-1 cursor-pointer items-center justify-center rounded-[8px] border border-transparent py-1 font-[450] text-sm outline-none transition-colors duration-200 ${
+              className={`panel-tab-base inline-flex flex-1 cursor-pointer items-center justify-center rounded-[8px] border border-transparent py-1 font-[450] text-sm outline-hidden transition-colors duration-200 ${
                 activeTab === 'triggers' ? 'panel-tab-active' : 'panel-tab-inactive'
               }`}
             >
@@ -135,7 +135,7 @@ export function Toolbar({ userPermissions, isWorkspaceSelectorVisible = false }:
         </div>
 
         {/* Search */}
-        <div className='flex-shrink-0 p-2'>
+        <div className='shrink-0 p-2'>
           <div className='flex h-9 items-center gap-2 rounded-[8px] border bg-background pr-2 pl-3'>
             <Search className='h-4 w-4 text-muted-foreground' strokeWidth={2} />
             <Input

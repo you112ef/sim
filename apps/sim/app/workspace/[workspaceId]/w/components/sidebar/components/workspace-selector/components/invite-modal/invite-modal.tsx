@@ -98,7 +98,7 @@ const EmailTag = React.memo<EmailTagProps>(({ email, onRemove, disabled, isInval
         type='button'
         onClick={onRemove}
         className={cn(
-          'flex-shrink-0 transition-colors focus:outline-none',
+          'shrink-0 transition-colors focus:outline-hidden',
           isInvalid
             ? 'text-red-400 hover:text-red-600 dark:text-red-400 dark:hover:text-red-300'
             : 'text-muted-foreground hover:text-foreground'
@@ -142,7 +142,7 @@ const PermissionSelector = React.memo<PermissionSelectorProps>(
             onClick={() => !disabled && onChange(option.value)}
             disabled={disabled}
             className={cn(
-              'px-2.5 py-1.5 font-medium text-xs transition-colors focus:outline-none',
+              'px-2.5 py-1.5 font-medium text-xs transition-colors focus:outline-hidden',
               'first:rounded-l-[11px] last:rounded-r-[11px]',
               disabled && 'cursor-not-allowed opacity-50',
               value === option.value
@@ -167,7 +167,7 @@ const PermissionsTableSkeleton = React.memo(() => (
       <div key={idx} className='flex items-center justify-between gap-2 py-2'>
         <Skeleton className='h-5 w-40' />
         <div className='flex items-center gap-2'>
-          <Skeleton className='h-[30px] w-32 flex-shrink-0 rounded-[12px]' />
+          <Skeleton className='h-[30px] w-32 shrink-0 rounded-[12px]' />
           <div className='flex w-10 items-center gap-1 sm:w-12'>
             <Skeleton className='h-4 w-4 rounded' />
             <Skeleton className='h-4 w-4 rounded' />
@@ -273,7 +273,7 @@ const PermissionsTable = ({
             </div>
           </div>
         </div>
-        <p className='flex min-h-[2rem] items-start text-muted-foreground text-xs'>
+        <p className='flex min-h-8 items-start text-muted-foreground text-xs'>
           Please wait while we update the permissions.
         </p>
       </div>
@@ -348,7 +348,7 @@ const PermissionsTable = ({
                 </div>
 
                 {/* Permission selector and fixed-width action area to keep rows aligned */}
-                <div className='flex flex-shrink-0 items-center gap-2'>
+                <div className='flex shrink-0 items-center gap-2'>
                   <PermissionSelector
                     value={user.permissionType}
                     onChange={(newPermission) => onPermissionChange(userIdentifier, newPermission)}
@@ -1069,7 +1069,7 @@ export function InviteModal({ open, onOpenChange, workspaceName }: InviteModalPr
               <label htmlFor='emails' className='font-medium text-sm'>
                 Email Addresses
               </label>
-              <div className='scrollbar-hide flex max-h-32 min-h-9 flex-wrap items-center gap-x-2 gap-y-1 overflow-y-auto rounded-[8px] border px-2 py-1 focus-within:outline-none focus-within:ring-2 focus-within:ring-ring focus-within:ring-offset-2 focus-within:ring-offset-background'>
+              <div className='scrollbar-hide flex max-h-32 min-h-9 flex-wrap items-center gap-x-2 gap-y-1 overflow-y-auto rounded-[8px] border px-2 py-1 focus-within:outline-hidden focus-within:ring-2 focus-within:ring-ring focus-within:ring-offset-2 focus-within:ring-offset-background'>
                 {invalidEmails.map((email, index) => (
                   <EmailTag
                     key={`invalid-${index}`}
@@ -1171,7 +1171,7 @@ export function InviteModal({ open, onOpenChange, workspaceName }: InviteModalPr
               }
               className={cn(
                 'ml-auto flex h-9 items-center justify-center gap-2 rounded-[8px] px-4 py-2 font-medium transition-all duration-200',
-                'bg-[var(--brand-primary-hex)] text-white shadow-[0_0_0_0_var(--brand-primary-hex)] hover:bg-[var(--brand-primary-hover-hex)] hover:shadow-[0_0_0_4px_rgba(112,31,252,0.15)] disabled:opacity-50 disabled:hover:bg-[var(--brand-primary-hex)] disabled:hover:shadow-none'
+                'bg-brand-primary text-white shadow-[0_0_0_0_var(--brand-primary-hex)] hover:bg-brand-primary-hover hover:shadow-[0_0_0_4px_rgba(112,31,252,0.15)] disabled:opacity-50 disabled:hover:bg-brand-primary disabled:hover:shadow-none'
               )}
             >
               {isSubmitting && <Loader2 className='h-4 w-4 animate-spin' />}

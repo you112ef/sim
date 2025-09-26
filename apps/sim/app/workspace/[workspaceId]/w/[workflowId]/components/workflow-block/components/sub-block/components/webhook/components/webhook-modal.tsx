@@ -848,7 +848,7 @@ export function WebhookModal({
             </div>
           </DialogHeader>
 
-          <div className='flex-grow overflow-y-auto px-6 pt-4 pb-6'>
+          <div className='grow overflow-y-auto px-6 pt-4 pb-6'>
             {webhookProvider !== 'slack' && webhookProvider !== 'airtable' && (
               <WebhookUrlField
                 webhookUrl={webhookUrl}

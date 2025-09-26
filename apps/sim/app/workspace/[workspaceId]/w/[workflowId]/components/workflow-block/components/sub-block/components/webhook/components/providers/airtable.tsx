@@ -99,7 +99,7 @@ export function AirtableConfig({
           )}
         </ConfigField>
 
-        <div className='flex items-center justify-between rounded-lg border border-border bg-background p-3 shadow-sm'>
+        <div className='flex items-center justify-between rounded-lg border border-border bg-background p-3 shadow-xs'>
           <div className='flex items-center gap-2'>
             <Label htmlFor='include-cell-values' className='font-normal'>
               Include Full Record Data
@@ -118,7 +118,7 @@ export function AirtableConfig({
               <TooltipContent
                 side='right'
                 align='center'
-                className='z-[100] max-w-[300px] p-3'
+                className='z-100 max-w-[300px] p-3'
                 role='tooltip'
               >
                 <p className='text-sm'>

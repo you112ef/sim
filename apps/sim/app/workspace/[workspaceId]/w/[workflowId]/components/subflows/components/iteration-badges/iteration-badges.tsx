@@ -209,7 +209,7 @@ export function IterationBadges({ nodeId, data, iterationType }: IterationBadges
           <Badge
             variant='outline'
             className={cn(
-              'border-border bg-background/80 py-0.5 pr-1.5 pl-2.5 font-medium text-foreground text-sm backdrop-blur-sm',
+              'border-border bg-background/80 py-0.5 pr-1.5 pl-2.5 font-medium text-foreground text-sm backdrop-blur-xs',
               !isPreview && 'cursor-pointer transition-colors duration-150 hover:bg-accent/50',
               'flex items-center gap-1'
             )}
@@ -253,7 +253,7 @@ export function IterationBadges({ nodeId, data, iterationType }: IterationBadges
           <Badge
             variant='outline'
             className={cn(
-              'border-border bg-background/80 py-0.5 pr-1.5 pl-2.5 font-medium text-foreground text-sm backdrop-blur-sm',
+              'border-border bg-background/80 py-0.5 pr-1.5 pl-2.5 font-medium text-foreground text-sm backdrop-blur-xs',
               !isPreview && 'cursor-pointer transition-colors duration-150 hover:bg-accent/50',
               'flex items-center gap-1'
             )}
@@ -307,8 +307,8 @@ export function IterationBadges({ nodeId, data, iterationType }: IterationBadges
                         fontFamily: 'monospace',
                         lineHeight: '21px',
                       }}
-                      className='w-full focus:outline-none'
-                      textareaClassName='focus:outline-none focus:ring-0 bg-transparent resize-none w-full overflow-hidden whitespace-pre-wrap'
+                      className='w-full focus:outline-hidden'
+                      textareaClassName='focus:outline-hidden focus:ring-0 bg-transparent resize-none w-full overflow-hidden whitespace-pre-wrap'
                     />
                   </div>
                   <div className='mt-2 text-[10px] text-muted-foreground'>

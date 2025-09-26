@@ -127,7 +127,7 @@ export const SubflowNodeComponent = memo(({ data, id }: NodeProps<SubflowNodeDat
           className={cn(
             'relative cursor-default select-none',
             'transition-block-bg transition-ring',
-            'z-[20]',
+            'z-20',
             nestingLevel > 0 &&
               `border border-[0.5px] ${nestingLevel % 2 === 0 ? 'border-slate-300/60' : 'border-slate-400/60'}`,
             data?.hasNestedError && 'border-2 border-red-500 bg-red-50/50',
@@ -199,7 +199,7 @@ export const SubflowNodeComponent = memo(({ data, id }: NodeProps<SubflowNodeDat
                 type='source'
                 position={Position.Right}
                 id={startHandleId}
-                className='!w-[6px] !h-4 !bg-slate-300 dark:!bg-slate-500 !rounded-[2px] !border-none !z-[30] hover:!w-[10px] hover:!right-[-10px] hover:!rounded-r-full hover:!rounded-l-none !cursor-crosshair transition-[colors] duration-150'
+                className='z-30! h-4! w-[6px]! cursor-crosshair! rounded-[2px]! border-none! bg-slate-300! transition-[colors] duration-150 hover:right-[-10px]! hover:w-[10px]! hover:rounded-r-full! hover:rounded-l-none! dark:bg-slate-500!'
                 style={{
                   right: '-6px',
                   top: '50%',
@@ -215,7 +215,7 @@ export const SubflowNodeComponent = memo(({ data, id }: NodeProps<SubflowNodeDat
           <Handle
             type='target'
             position={Position.Left}
-            className='!w-[7px] !h-5 !bg-slate-300 dark:!bg-slate-500 !rounded-[2px] !border-none !z-[30] hover:!w-[10px] hover:!left-[-10px] hover:!rounded-l-full hover:!rounded-r-none !cursor-crosshair transition-[colors] duration-150'
+            className='z-30! h-5! w-[7px]! cursor-crosshair! rounded-[2px]! border-none! bg-slate-300! transition-[colors] duration-150 hover:left-[-10px]! hover:w-[10px]! hover:rounded-r-none! hover:rounded-l-full! dark:bg-slate-500!'
             style={{
               left: '-7px',
               top: '50%',
@@ -228,7 +228,7 @@ export const SubflowNodeComponent = memo(({ data, id }: NodeProps<SubflowNodeDat
           <Handle
             type='source'
             position={Position.Right}
-            className='!w-[7px] !h-5 !bg-slate-300 dark:!bg-slate-500 !rounded-[2px] !border-none !z-[30] hover:!w-[10px] hover:!right-[-10px] hover:!rounded-r-full hover:!rounded-l-none !cursor-crosshair transition-[colors] duration-150'
+            className='z-30! h-5! w-[7px]! cursor-crosshair! rounded-[2px]! border-none! bg-slate-300! transition-[colors] duration-150 hover:right-[-10px]! hover:w-[10px]! hover:rounded-r-full! hover:rounded-l-none! dark:bg-slate-500!'
             style={{
               right: '-7px',
               top: '50%',

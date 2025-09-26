@@ -148,7 +148,7 @@ export function SettingsNavigation({
             >
               <item.icon
                 className={cn(
-                  'mr-2 h-[14px] w-[14px] flex-shrink-0 transition-colors',
+                  'mr-2 h-[14px] w-[14px] shrink-0 transition-colors',
                   activeSection === item.id
                     ? 'text-foreground'
                     : 'text-muted-foreground group-hover:text-foreground'
@@ -176,7 +176,7 @@ export function SettingsNavigation({
             onClick={handleHomepageClick}
             className='group flex h-9 w-full cursor-pointer items-center rounded-[8px] px-2 py-2 font-medium font-sans text-sm transition-colors hover:bg-muted'
           >
-            <Home className='mr-2 h-[14px] w-[14px] flex-shrink-0 text-muted-foreground transition-colors group-hover:text-foreground' />
+            <Home className='mr-2 h-[14px] w-[14px] shrink-0 text-muted-foreground transition-colors group-hover:text-foreground' />
             <span className='min-w-0 flex-1 select-none truncate pr-1 text-left text-muted-foreground transition-colors group-hover:text-foreground'>
               Homepage
             </span>

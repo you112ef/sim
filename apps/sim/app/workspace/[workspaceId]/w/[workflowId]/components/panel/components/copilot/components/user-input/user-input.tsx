@@ -1799,7 +1799,7 @@ const UserInput = forwardRef<UserInputRef, UserInputProps>(
 
     const getModelIcon = () => {
       const colorClass = !agentPrefetch
-        ? 'text-[var(--brand-primary-hover-hex)]'
+        ? 'text-(--brand-primary-hover-hex)'
         : 'text-muted-foreground'
 
       // Match the dropdown icon logic exactly
@@ -2007,9 +2007,9 @@ const UserInput = forwardRef<UserInputRef, UserInputProps>(
       <div className={cn('relative flex-none pb-4', className)}>
         <div
           className={cn(
-            'rounded-[8px] border border-[#E5E5E5] bg-[#FFFFFF] p-2 shadow-xs transition-all duration-200 dark:border-[#414141] dark:bg-[var(--surface-elevated)]',
+            'rounded-[8px] border border-[#E5E5E5] bg-[#FFFFFF] p-2 shadow-2xs transition-all duration-200 dark:border-[#414141] dark:bg-surface-elevated',
             isDragging &&
-              'border-[var(--brand-primary-hover-hex)] bg-purple-50/50 dark:border-[var(--brand-primary-hover-hex)] dark:bg-purple-950/20'
+              'border-(--brand-primary-hover-hex) bg-purple-50/50 dark:border-(--brand-primary-hover-hex) dark:bg-purple-950/20'
           )}
           onDragEnter={handleDragEnter}
           onDragLeave={handleDragLeave}
@@ -2129,9 +2129,9 @@ const UserInput = forwardRef<UserInputRef, UserInputProps>(
             {/* Highlight overlay */}
             <div
               ref={overlayRef}
-              className='pointer-events-none absolute inset-0 z-[1] max-h-[120px] overflow-y-auto overflow-x-hidden px-[2px] py-1 [&::-webkit-scrollbar]:hidden'
+              className='pointer-events-none absolute inset-0 z-1 max-h-[120px] overflow-y-auto overflow-x-hidden px-[2px] py-1 [&::-webkit-scrollbar]:hidden'
             >
-              <pre className='whitespace-pre-wrap break-words font-sans text-foreground text-sm leading-[1.25rem]'>
+              <pre className='whitespace-pre-wrap break-words font-sans text-foreground text-sm leading-5'>
                 {(() => {
                   const elements: React.ReactNode[] = []
                   const remaining = message
@@ -2177,7 +2177,7 @@ const UserInput = forwardRef<UserInputRef, UserInputProps>(
               placeholder={isDragging ? 'Drop files here...' : effectivePlaceholder}
               disabled={disabled}
               rows={1}
-              className='relative z-[2] mb-2 min-h-[32px] w-full resize-none overflow-y-auto overflow-x-hidden break-words border-0 bg-transparent px-[2px] py-1 font-sans text-sm text-transparent leading-[1.25rem] caret-foreground focus-visible:ring-0 focus-visible:ring-offset-0'
+              className='relative z-2 mb-2 min-h-[32px] w-full resize-none overflow-y-auto overflow-x-hidden break-words border-0 bg-transparent px-[2px] py-1 font-sans text-sm text-transparent leading-5 caret-foreground focus-visible:ring-0 focus-visible:ring-offset-0'
               style={{ height: 'auto', wordBreak: 'break-word' }}
             />
 
@@ -2247,7 +2247,7 @@ const UserInput = forwardRef<UserInputRef, UserInputProps>(
                                       setSubmenuQueryStart(null)
                                     }}
                                   >
-                                    <div className='flex h-4 w-4 flex-shrink-0 items-center justify-center'>
+                                    <div className='flex h-4 w-4 shrink-0 items-center justify-center'>
                                       <Bot
                                         className='h-3.5 w-3.5 text-muted-foreground'
                                         strokeWidth={1.5}
@@ -2295,7 +2295,7 @@ const UserInput = forwardRef<UserInputRef, UserInputProps>(
                                     }}
                                   >
                                     <div
-                                      className='h-3.5 w-3.5 flex-shrink-0 rounded'
+                                      className='h-3.5 w-3.5 shrink-0 rounded'
                                       style={{ backgroundColor: wf.color || '#3972F6' }}
                                     />
                                     <span className='truncate'>
@@ -2384,7 +2384,7 @@ const UserInput = forwardRef<UserInputRef, UserInputProps>(
                                       style={{ backgroundColor: blk.bgColor || '#6B7280' }}
                                     >
                                       {blk.iconComponent && (
-                                        <blk.iconComponent className='!h-3 !w-3 text-white' />
+                                        <blk.iconComponent className='h-3! w-3! text-white' />
                                       )}
                                     </div>
                                     <span className='truncate'>{blk.name || blk.id}</span>
@@ -2431,7 +2431,7 @@ const UserInput = forwardRef<UserInputRef, UserInputProps>(
                                       style={{ backgroundColor: blk.bgColor || '#6B7280' }}
                                     >
                                       {blk.iconComponent && (
-                                        <blk.iconComponent className='!h-3 !w-3 text-white' />
+                                        <blk.iconComponent className='h-3! w-3! text-white' />
                                       )}
                                     </div>
                                     <span className='truncate'>{blk.name || blk.id}</span>
@@ -2640,7 +2640,7 @@ const UserInput = forwardRef<UserInputRef, UserInputProps>(
                                   >
                                     {item.type === 'Chats' ? (
                                       <>
-                                        <div className='flex h-4 w-4 flex-shrink-0 items-center justify-center'>
+                                        <div className='flex h-4 w-4 shrink-0 items-center justify-center'>
                                           <Bot
                                             className='h-3.5 w-3.5 text-muted-foreground'
                                             strokeWidth={1.5}
@@ -2653,7 +2653,7 @@ const UserInput = forwardRef<UserInputRef, UserInputProps>(
                                     ) : item.type === 'Workflows' ? (
                                       <>
                                         <div
-                                          className='h-3.5 w-3.5 flex-shrink-0 rounded'
+                                          className='h-3.5 w-3.5 shrink-0 rounded'
                                           style={{
                                             backgroundColor: (item.value as any).color || '#3972F6',
                                           }}
@@ -2681,7 +2681,7 @@ const UserInput = forwardRef<UserInputRef, UserInputProps>(
                                           {(() => {
                                             const Icon = (item.value as any).iconComponent
                                             return Icon ? (
-                                              <Icon className='!h-3 !w-3 text-white' />
+                                              <Icon className='h-3! w-3! text-white' />
                                             ) : null
                                           })()}
                                         </div>
@@ -2701,7 +2701,7 @@ const UserInput = forwardRef<UserInputRef, UserInputProps>(
                                           {(() => {
                                             const Icon = (item.value as any).iconComponent
                                             return Icon ? (
-                                              <Icon className='!h-3 !w-3 text-white' />
+                                              <Icon className='h-3! w-3! text-white' />
                                             ) : null
                                           })()}
                                         </div>
@@ -2931,7 +2931,7 @@ const UserInput = forwardRef<UserInputRef, UserInputProps>(
                                     >
                                       {item.type === 'Chats' ? (
                                         <>
-                                          <div className='flex h-4 w-4 flex-shrink-0 items-center justify-center'>
+                                          <div className='flex h-4 w-4 shrink-0 items-center justify-center'>
                                             <Bot
                                               className='h-3.5 w-3.5 text-muted-foreground'
                                               strokeWidth={1.5}
@@ -2944,7 +2944,7 @@ const UserInput = forwardRef<UserInputRef, UserInputProps>(
                                       ) : item.type === 'Workflows' ? (
                                         <>
                                           <div
-                                            className='h-3.5 w-3.5 flex-shrink-0 rounded'
+                                            className='h-3.5 w-3.5 shrink-0 rounded'
                                             style={{
                                               backgroundColor:
                                                 (item.value as any).color || '#3972F6',
@@ -2973,7 +2973,7 @@ const UserInput = forwardRef<UserInputRef, UserInputProps>(
                                             {(() => {
                                               const Icon = (item.value as any).iconComponent
                                               return Icon ? (
-                                                <Icon className='!h-3 !w-3 text-white' />
+                                                <Icon className='h-3! w-3! text-white' />
                                               ) : null
                                             })()}
                                           </div>
@@ -2993,7 +2993,7 @@ const UserInput = forwardRef<UserInputRef, UserInputProps>(
                                             {(() => {
                                               const Icon = (item.value as any).iconComponent
                                               return Icon ? (
-                                                <Icon className='!h-3 !w-3 text-white' />
+                                                <Icon className='h-3! w-3! text-white' />
                                               ) : null
                                             })()}
                                           </div>
@@ -3140,7 +3140,7 @@ const UserInput = forwardRef<UserInputRef, UserInputProps>(
                       className={cn(
                         'flex h-6 items-center gap-1.5 rounded-full border px-2 py-1 font-medium text-xs',
                         !agentPrefetch
-                          ? 'border-[var(--brand-primary-hover-hex)] text-[var(--brand-primary-hover-hex)] hover:bg-[color-mix(in_srgb,var(--brand-primary-hover-hex)_8%,transparent)] hover:text-[var(--brand-primary-hover-hex)]'
+                          ? 'border-(--brand-primary-hover-hex) text-(--brand-primary-hover-hex) hover:bg-[color-mix(in_srgb,var(--brand-primary-hover-hex)_8%,transparent)] hover:text-(--brand-primary-hover-hex)'
                           : 'border-border text-foreground'
                       )}
                       title='Choose mode'
@@ -3202,7 +3202,7 @@ const UserInput = forwardRef<UserInputRef, UserInputProps>(
                             />
                           </div>
                           <div className='my-1.5 flex justify-center'>
-                            <div className='h-px w-[100%] bg-border' />
+                            <div className='h-px w-full bg-border' />
                           </div>
                         </div>
                         <div className='max-h-[280px] overflow-y-auto px-2 pb-2'>
@@ -3357,7 +3357,7 @@ const UserInput = forwardRef<UserInputRef, UserInputProps>(
                   onClick={handleSubmit}
                   disabled={!canSubmit}
                   size='icon'
-                  className='h-6 w-6 rounded-full bg-[var(--brand-primary-hover-hex)] text-white shadow-[0_0_0_0_var(--brand-primary-hover-hex)] transition-all duration-200 hover:bg-[var(--brand-primary-hover-hex)] hover:shadow-[0_0_0_4px_rgba(127,47,255,0.15)]'
+                  className='h-6 w-6 rounded-full bg-brand-primary-hover text-white shadow-[0_0_0_0_var(--brand-primary-hover-hex)] transition-all duration-200 hover:bg-brand-primary-hover hover:shadow-[0_0_0_4px_rgba(127,47,255,0.15)]'
                 >
                   {isLoading ? (
                     <Loader2 className='h-3 w-3 animate-spin' />

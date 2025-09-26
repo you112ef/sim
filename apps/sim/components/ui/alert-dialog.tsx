@@ -103,7 +103,7 @@ const AlertDialogContent = React.forwardRef<
           {children}
           {!hideCloseButton && (
             <AlertDialogPrimitive.Cancel
-              className='absolute top-4 right-4 h-4 w-4 border-0 bg-transparent p-0 text-muted-foreground transition-colors hover:bg-transparent hover:bg-transparent hover:text-foreground focus:outline-none disabled:pointer-events-none'
+              className='absolute top-4 right-4 h-4 w-4 border-0 bg-transparent p-0 text-muted-foreground transition-colors hover:bg-transparent hover:bg-transparent hover:text-foreground focus:outline-hidden disabled:pointer-events-none'
               disabled={!isInteractionReady}
               tabIndex={-1}
             >

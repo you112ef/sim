@@ -218,7 +218,7 @@ export function OutlookConfig({
             <TooltipContent
               side='right'
               align='center'
-              className='z-[100] max-w-[300px] p-3'
+              className='z-100 max-w-[300px] p-3'
               role='tooltip'
             >
               <p className='text-sm'>{TOOLTIPS.folders}</p>
@@ -234,7 +234,7 @@ export function OutlookConfig({
         ) : folderError ? (
           <Notice variant='warning' className='mb-4'>
             <div className='flex items-start gap-2'>
-              <Info className='mt-0.5 h-4 w-4 flex-shrink-0' />
+              <Info className='mt-0.5 h-4 w-4 shrink-0' />
               <div>
                 <p className='font-medium text-sm'>Unable to load Outlook folders</p>
                 <p className='text-sm'>{folderError}</p>
@@ -289,7 +289,7 @@ export function OutlookConfig({
                     <Info className='h-4 w-4' />
                   </Button>
                 </TooltipTrigger>
-                <TooltipContent side='top' align='center' className='z-[100] max-w-[300px] p-3'>
+                <TooltipContent side='top' align='center' className='z-100 max-w-[300px] p-3'>
                   <p className='text-sm'>{TOOLTIPS.folderFilterBehavior}</p>
                 </TooltipContent>
               </Tooltip>
@@ -334,7 +334,7 @@ export function OutlookConfig({
                     <Info className='h-4 w-4' />
                   </Button>
                 </TooltipTrigger>
-                <TooltipContent side='top' align='center' className='z-[100] max-w-[300px] p-3'>
+                <TooltipContent side='top' align='center' className='z-100 max-w-[300px] p-3'>
                   <p className='text-sm'>{TOOLTIPS.markAsRead}</p>
                 </TooltipContent>
               </Tooltip>
@@ -362,7 +362,7 @@ export function OutlookConfig({
                     <Info className='h-4 w-4' />
                   </Button>
                 </TooltipTrigger>
-                <TooltipContent side='top' align='center' className='z-[100] max-w-[300px] p-3'>
+                <TooltipContent side='top' align='center' className='z-100 max-w-[300px] p-3'>
                   <p className='text-sm'>{TOOLTIPS.includeRawEmail}</p>
                 </TooltipContent>
               </Tooltip>

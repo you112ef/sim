@@ -66,7 +66,7 @@ export function ToolbarBlock({
           className={cn(
             'text-white transition-transform duration-200',
             !disabled && 'group-hover:scale-110',
-            '!h-4 !w-4'
+            'h-4! w-4!'
           )}
         />
       </div>

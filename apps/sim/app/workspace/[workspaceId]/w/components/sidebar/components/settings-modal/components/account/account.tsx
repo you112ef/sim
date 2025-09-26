@@ -293,7 +293,7 @@ export function Account(_props: AccountProps) {
               {/* Profile Picture Upload */}
               <div className='relative'>
                 <div
-                  className='group relative flex h-12 w-12 flex-shrink-0 cursor-pointer items-center justify-center overflow-hidden rounded-full bg-[#802FFF] transition-all hover:opacity-80'
+                  className='group relative flex h-12 w-12 shrink-0 cursor-pointer items-center justify-center overflow-hidden rounded-full bg-[#802FFF] transition-all hover:opacity-80'
                   onClick={handleProfilePictureClick}
                 >
                   {(() => {
@@ -352,7 +352,7 @@ export function Account(_props: AccountProps) {
                   onChange={(e) => setName(e.target.value)}
                   onKeyDown={handleKeyDown}
                   onBlur={handleInputBlur}
-                  className='min-w-0 flex-1 border-0 bg-transparent p-0 text-base outline-none focus:outline-none focus:ring-0 focus-visible:outline-none focus-visible:ring-0 focus-visible:ring-offset-0'
+                  className='min-w-0 flex-1 border-0 bg-transparent p-0 text-base outline-hidden focus:outline-hidden focus:ring-0 focus-visible:outline-hidden focus-visible:ring-0 focus-visible:ring-offset-0'
                   maxLength={100}
                   disabled={isUpdatingName}
                   autoComplete='off'

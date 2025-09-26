@@ -29,7 +29,7 @@ export default function LandingTemplatePreview({
       <div className='mt-4 flex items-center gap-3'>
         {/* Avatar */}
         <div
-          className='h-[32px] w-[32px] flex-shrink-0 rounded-full bg-center bg-cover bg-no-repeat'
+          className='h-[32px] w-[32px] shrink-0 rounded-full bg-center bg-cover bg-no-repeat'
           style={{
             backgroundImage: `url(${avatarImage}), linear-gradient(to right, #F5F5F5, #F5F5F5)`,
           }}

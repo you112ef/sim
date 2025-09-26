@@ -42,7 +42,7 @@ export function BaseOverview({ id, title, docCount, description }: BaseOverviewP
     <Link href={href} prefetch={true}>
       <div className='group flex cursor-pointer flex-col gap-3 rounded-md border bg-background p-4 transition-colors hover:bg-accent/50'>
         <div className='flex items-center gap-2'>
-          <LibraryBig className='h-4 w-4 flex-shrink-0 text-muted-foreground' />
+          <LibraryBig className='h-4 w-4 shrink-0 text-muted-foreground' />
           <h3 className='truncate font-medium text-sm leading-tight'>{title}</h3>
         </div>
 

@@ -612,14 +612,14 @@ export function ConditionInput({
               id={`condition-${block.id}`}
               key={`${block.id}-${index}`}
               className={cn(
-                '!w-[7px] !h-5',
-                '!bg-slate-300 dark:!bg-slate-500 !rounded-[2px] !border-none',
-                '!z-[30]',
-                'group-hover:!shadow-[0_0_0_3px_rgba(156,163,175,0.15)]',
-                'hover:!w-[10px] hover:!right-[-28px] hover:!rounded-r-full hover:!rounded-l-none',
-                '!cursor-crosshair',
+                'h-5! w-[7px]!',
+                'rounded-[2px]! border-none! bg-slate-300! dark:bg-slate-500!',
+                'z-30!',
+                'group-hover:shadow-[0_0_0_3px_rgba(156,163,175,0.15)]!',
+                'hover:right-[-28px]! hover:w-[10px]! hover:rounded-r-full! hover:rounded-l-none!',
+                'cursor-crosshair!',
                 'transition-all duration-150',
-                '!right-[-25px]'
+                'right-[-25px]!'
               )}
               data-nodeid={`${blockId}-${subBlockId}`}
               data-handleid={`condition-${block.id}`}
@@ -785,9 +785,12 @@ export function ConditionInput({
                     minHeight: '46px',
                     lineHeight: '21px',
                   }}
-                  className={cn('focus:outline-none', isPreview && 'cursor-not-allowed opacity-50')}
+                  className={cn(
+                    'focus:outline-hidden',
+                    isPreview && 'cursor-not-allowed opacity-50'
+                  )}
                   textareaClassName={cn(
-                    'focus:outline-none focus:ring-0 bg-transparent',
+                    'focus:outline-hidden focus:ring-0 bg-transparent',
                     isPreview && 'pointer-events-none'
                   )}
                 />

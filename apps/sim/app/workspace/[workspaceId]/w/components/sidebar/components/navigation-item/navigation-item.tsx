@@ -27,11 +27,10 @@ export const NavigationItem = ({ item }: NavigationItemProps) => {
       variant='outline'
       onClick={item.onClick}
       className={cn(
-        'h-[42px] w-[42px] rounded-[10px] border bg-background text-foreground shadow-xs transition-all duration-200',
+        'h-[42px] w-[42px] rounded-[10px] border bg-background text-foreground shadow-2xs transition-all duration-200',
         isGrayHover && 'hover:bg-secondary',
-        !isGrayHover &&
-          'hover:border-[var(--brand-primary-hex)] hover:bg-[var(--brand-primary-hex)] hover:text-white',
-        item.active && 'border-[var(--brand-primary-hex)] bg-[var(--brand-primary-hex)] text-white'
+        !isGrayHover && 'hover:border-brand-gradient hover:bg-brand-primary hover:text-white',
+        item.active && 'border-brand-gradient bg-brand-primary text-white'
       )}
     >
       <item.icon className='h-4 w-4' />

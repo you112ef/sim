@@ -337,7 +337,7 @@ export function CreateModal({ open, onOpenChange, onKnowledgeBaseCreated }: Crea
         className='flex h-[74vh] flex-col gap-0 overflow-hidden p-0 sm:max-w-[600px]'
         hideCloseButton
       >
-        <DialogHeader className='flex-shrink-0 border-b px-6 py-4'>
+        <DialogHeader className='shrink-0 border-b px-6 py-4'>
           <div className='flex items-center justify-between'>
             <DialogTitle className='font-medium text-lg'>Create Knowledge Base</DialogTitle>
             <Button
@@ -369,7 +369,7 @@ export function CreateModal({ open, onOpenChange, onKnowledgeBaseCreated }: Crea
                 )}
 
                 {/* Form Fields Section - Fixed at top */}
-                <div className='flex-shrink-0 space-y-4'>
+                <div className='shrink-0 space-y-4'>
                   <div className='space-y-2'>
                     <Label htmlFor='name'>Name *</Label>
                     <Input
@@ -477,7 +477,7 @@ export function CreateModal({ open, onOpenChange, onKnowledgeBaseCreated }: Crea
                         onClick={() => fileInputRef.current?.click()}
                         className={`relative flex flex-1 cursor-pointer items-center justify-center rounded-lg border-[1.5px] border-dashed py-8 text-center transition-all duration-200 ${
                           isDragging
-                            ? 'border-purple-300 bg-purple-50 shadow-sm'
+                            ? 'border-purple-300 bg-purple-50 shadow-xs'
                             : 'border-muted-foreground/25 hover:border-muted-foreground/40 hover:bg-muted/10'
                         }`}
                       >
@@ -567,7 +567,7 @@ export function CreateModal({ open, onOpenChange, onKnowledgeBaseCreated }: Crea
                                 <div className='min-w-0 flex-1'>
                                   <div className='flex items-center gap-2'>
                                     {isCurrentlyUploading && (
-                                      <Loader2 className='h-4 w-4 animate-spin text-[var(--brand-primary-hex)]' />
+                                      <Loader2 className='h-4 w-4 animate-spin text-(--brand-primary-hex)' />
                                     )}
                                     {isCompleted && <Check className='h-4 w-4 text-green-500' />}
                                     {isFailed && <X className='h-4 w-4 text-red-500' />}
@@ -627,7 +627,7 @@ export function CreateModal({ open, onOpenChange, onKnowledgeBaseCreated }: Crea
                 <Button
                   type='submit'
                   disabled={isSubmitting || !nameValue?.trim()}
-                  className='bg-[var(--brand-primary-hex)] font-[480] text-primary-foreground shadow-[0_0_0_0_var(--brand-primary-hex)] transition-all duration-200 hover:bg-[var(--brand-primary-hover-hex)] hover:shadow-[0_0_0_4px_rgba(127,47,255,0.15)] disabled:opacity-50 disabled:hover:shadow-none'
+                  className='bg-brand-primary font-[480] text-primary-foreground shadow-[0_0_0_0_var(--brand-primary-hex)] transition-all duration-200 hover:bg-brand-primary-hover hover:shadow-[0_0_0_4px_rgba(127,47,255,0.15)] disabled:opacity-50 disabled:hover:shadow-none'
                 >
                   {isSubmitting
                     ? isUploading

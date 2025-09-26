@@ -318,13 +318,13 @@ export function KnowledgeBaseTags({ knowledgeBaseId }: KnowledgeBaseTagsProps) {
                                 </DropdownMenuTrigger>
                                 <DropdownMenuContent
                                   align='end'
-                                  className='w-[180px] rounded-lg border bg-card shadow-xs'
+                                  className='w-[180px] rounded-lg border bg-card shadow-2xs'
                                 >
                                   <DropdownMenuItem
                                     onClick={() => handleViewDocuments(tag)}
                                     className='cursor-pointer rounded-md px-3 py-2 text-sm hover:bg-secondary/50'
                                   >
-                                    <Eye className='mr-2 h-3 w-3 flex-shrink-0' />
+                                    <Eye className='mr-2 h-3 w-3 shrink-0' />
                                     <span className='whitespace-nowrap'>View Docs</span>
                                   </DropdownMenuItem>
                                   <DropdownMenuItem

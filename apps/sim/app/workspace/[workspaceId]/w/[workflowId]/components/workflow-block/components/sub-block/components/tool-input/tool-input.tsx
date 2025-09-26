@@ -1380,7 +1380,7 @@ export function ToolInput({
           </PopoverContent>
         </Popover>
       ) : (
-        <div className='flex min-h-[2.5rem] w-full flex-wrap gap-2 rounded-md border border-input bg-transparent px-3 py-2 text-sm ring-offset-background'>
+        <div className='flex min-h-10 w-full flex-wrap gap-2 rounded-md border border-input bg-transparent px-3 py-2 text-sm ring-offset-background'>
           {selectedTools.map((tool, toolIndex) => {
             // Handle custom tools and MCP tools differently
             const isCustomTool = tool.type === 'custom-tool'
@@ -1493,7 +1493,7 @@ export function ToolInput({
                   >
                     <div className='flex min-w-0 flex-shrink-1 items-center gap-2 overflow-hidden'>
                       <div
-                        className='flex h-5 w-5 flex-shrink-0 items-center justify-center rounded'
+                        className='flex h-5 w-5 shrink-0 items-center justify-center rounded'
                         style={{
                           backgroundColor: isCustomTool
                             ? '#3B82F6' // blue-500 for custom tools
@@ -1512,7 +1512,7 @@ export function ToolInput({
                       </div>
                       <span className='truncate font-medium text-sm'>{tool.title}</span>
                     </div>
-                    <div className='ml-2 flex flex-shrink-0 items-center gap-1'>
+                    <div className='ml-2 flex shrink-0 items-center gap-1'>
                       {/* Only render the tool usage control if the provider supports it */}
                       {supportsToolControl && (
                         <Tooltip>

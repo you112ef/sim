@@ -66,7 +66,7 @@ function ExpandableDataSection({ title, data }: { title: string; data: any }) {
 
       {/* Modal for large data */}
       {isModalOpen && (
-        <div className='fixed inset-0 z-[200] flex items-center justify-center bg-black/50'>
+        <div className='fixed inset-0 z-200 flex items-center justify-center bg-black/50'>
           <div className='mx-4 h-[80vh] w-full max-w-4xl rounded-lg border bg-background shadow-lg'>
             <div className='flex items-center justify-between border-b p-4'>
               <h3 className='font-medium text-foreground text-lg'>{title}</h3>
@@ -184,7 +184,7 @@ function PinnedLogs({
     }
 
     return (
-      <Card className='fixed top-4 right-4 z-[100] max-h-[calc(100vh-8rem)] w-96 overflow-y-auto border-border bg-background shadow-lg'>
+      <Card className='fixed top-4 right-4 z-100 max-h-[calc(100vh-8rem)] w-96 overflow-y-auto border-border bg-background shadow-lg'>
         <CardHeader className='pb-3'>
           <div className='flex items-center justify-between'>
             <CardTitle className='flex items-center gap-2 text-foreground text-lg'>
@@ -236,7 +236,7 @@ function PinnedLogs({
   }
 
   return (
-    <Card className='fixed top-4 right-4 z-[100] max-h-[calc(100vh-8rem)] w-96 overflow-y-auto border-border bg-background shadow-lg'>
+    <Card className='fixed top-4 right-4 z-100 max-h-[calc(100vh-8rem)] w-96 overflow-y-auto border-border bg-background shadow-lg'>
       <CardHeader className='pb-3'>
         <div className='flex items-center justify-between'>
           <CardTitle className='flex items-center gap-2 text-foreground text-lg'>

@@ -393,7 +393,7 @@ export default function LoginPage({
               value={email}
               onChange={handleEmailChange}
               className={cn(
-                'rounded-[10px] shadow-sm transition-colors focus:border-gray-400 focus:ring-2 focus:ring-gray-100',
+                'rounded-[10px] shadow-xs transition-colors focus:border-gray-400 focus:ring-2 focus:ring-gray-100',
                 showEmailValidationError &&
                   emailErrors.length > 0 &&
                   'border-red-500 focus:border-red-500 focus:ring-red-100 focus-visible:ring-red-500'
@@ -431,7 +431,7 @@ export default function LoginPage({
                 value={password}
                 onChange={handlePasswordChange}
                 className={cn(
-                  'rounded-[10px] pr-10 shadow-sm transition-colors focus:border-gray-400 focus:ring-2 focus:ring-gray-100',
+                  'rounded-[10px] pr-10 shadow-xs transition-colors focus:border-gray-400 focus:ring-2 focus:ring-gray-100',
                   showValidationError &&
                     passwordErrors.length > 0 &&
                     'border-red-500 focus:border-red-500 focus:ring-red-100 focus-visible:ring-red-500'
@@ -487,7 +487,7 @@ export default function LoginPage({
         <span className='font-normal'>Don't have an account? </span>
         <Link
           href={isInviteFlow ? `/signup?invite_flow=true&callbackUrl=${callbackUrl}` : '/signup'}
-          className='font-medium text-[var(--brand-accent-hex)] underline-offset-4 transition hover:text-[var(--brand-accent-hover-hex)] hover:underline'
+          className='font-medium text-(--brand-accent-hex) underline-offset-4 transition hover:text-(--brand-accent-hover-hex) hover:underline'
         >
           Sign up
         </Link>
@@ -517,7 +517,7 @@ export default function LoginPage({
       </div>
 
       <Dialog open={forgotPasswordOpen} onOpenChange={setForgotPasswordOpen}>
-        <DialogContent className='auth-card auth-card-shadow max-w-[540px] rounded-[10px] border backdrop-blur-sm'>
+        <DialogContent className='auth-card auth-card-shadow max-w-[540px] rounded-[10px] border backdrop-blur-xs'>
           <DialogHeader>
             <DialogTitle className='auth-text-primary font-semibold text-xl tracking-tight'>
               Reset Password
@@ -540,7 +540,7 @@ export default function LoginPage({
                 required
                 type='email'
                 className={cn(
-                  'rounded-[10px] shadow-sm transition-colors focus:border-gray-400 focus:ring-2 focus:ring-gray-100',
+                  'rounded-[10px] shadow-xs transition-colors focus:border-gray-400 focus:ring-2 focus:ring-gray-100',
                   resetStatus.type === 'error' &&
                     'border-red-500 focus:border-red-500 focus:ring-red-100 focus-visible:ring-red-500'
                 )}

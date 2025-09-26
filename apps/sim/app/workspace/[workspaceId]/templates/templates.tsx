@@ -206,7 +206,7 @@ export default function Templates({ initialTemplates, currentUserId }: Templates
   ]
 
   return (
-    <div className='flex h-[100vh] flex-col pl-64'>
+    <div className='flex h-screen flex-col pl-64'>
       <div className='flex flex-1 overflow-hidden'>
         <div className='flex flex-1 flex-col overflow-auto p-6'>
           {/* Header */}
@@ -214,7 +214,7 @@ export default function Templates({ initialTemplates, currentUserId }: Templates
             <h1 className='mb-2 font-sans font-semibold text-3xl text-foreground tracking-[0.01em]'>
               Templates
             </h1>
-            <p className='font-[350] font-sans text-muted-foreground text-sm leading-[1.5] tracking-[0.01em]'>
+            <p className='font-[350] font-sans text-muted-foreground text-sm leading-normal tracking-[0.01em]'>
               Grab a template and start building, or make
               <br />
               one from scratch.
@@ -234,7 +234,7 @@ export default function Templates({ initialTemplates, currentUserId }: Templates
             </div>
             {/* <Button
               onClick={handleCreateNew}
-              className='flex h-9 items-center gap-2 rounded-lg bg-[var(--brand-primary-hex)] px-4 py-2 font-normal font-sans text-sm text-white hover:bg-[#601EE0]'
+              className='flex h-9 items-center gap-2 rounded-lg bg-brand-primary px-4 py-2 font-normal font-sans text-sm text-white hover:bg-[#601EE0]'
             >
               <Plus className='h-4 w-4' />
               Create New

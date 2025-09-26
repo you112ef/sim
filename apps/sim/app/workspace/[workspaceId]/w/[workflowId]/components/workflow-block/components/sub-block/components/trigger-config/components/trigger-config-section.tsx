@@ -149,13 +149,13 @@ export function TriggerConfigSection({
                 </Button>
               </PopoverTrigger>
               <PopoverContent className='w-[400px] p-0' align='start'>
-                <Command className='outline-none focus:outline-none'>
+                <Command className='outline-hidden focus:outline-hidden'>
                   <CommandInput
                     placeholder={`Search ${fieldDef.label.toLowerCase()}...`}
                     className='text-foreground placeholder:text-muted-foreground'
                   />
                   <CommandList
-                    className='max-h-[200px] overflow-y-auto outline-none focus:outline-none'
+                    className='max-h-[200px] overflow-y-auto outline-hidden focus:outline-hidden'
                     onWheel={(e) => e.stopPropagation()}
                   >
                     <CommandEmpty>
@@ -240,7 +240,7 @@ export function TriggerConfigSection({
                   <TooltipContent
                     side='right'
                     align='center'
-                    className='z-[100] max-w-[300px] p-3'
+                    className='z-100 max-w-[300px] p-3'
                     role='tooltip'
                   >
                     <p className='text-sm'>{fieldDef.description}</p>
@@ -311,7 +311,7 @@ export function TriggerConfigSection({
   }
 
   return (
-    <div className='space-y-4 rounded-md border border-border bg-card p-4 shadow-sm'>
+    <div className='space-y-4 rounded-md border border-border bg-card p-4 shadow-xs'>
       {webhookUrl && (
         <div className='mb-4 space-y-1'>
           <div className='flex items-center gap-2'>
@@ -331,7 +331,7 @@ export function TriggerConfigSection({
                 <TooltipContent
                   side='right'
                   align='center'
-                  className='z-[100] max-w-[300px] p-3'
+                  className='z-100 max-w-[300px] p-3'
                   role='tooltip'
                 >
                   <p className='text-sm'>This is the URL that will receive webhook requests</p>

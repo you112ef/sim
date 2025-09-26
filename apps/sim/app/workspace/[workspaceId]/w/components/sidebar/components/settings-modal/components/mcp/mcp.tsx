@@ -299,7 +299,7 @@ export function MCP() {
           <Skeleton className='h-9 w-56 rounded-lg' />
         ) : (
           <div className='flex h-9 w-56 items-center gap-2 rounded-lg border bg-transparent pr-2 pl-3'>
-            <Search className='h-4 w-4 flex-shrink-0 text-muted-foreground' strokeWidth={2} />
+            <Search className='h-4 w-4 shrink-0 text-muted-foreground' strokeWidth={2} />
             <Input
               placeholder='Search servers...'
               value={searchTerm}
@@ -330,7 +330,7 @@ export function MCP() {
             </div>
           ) : !servers || servers.length === 0 ? (
             showAddForm ? (
-              <div className='rounded-[8px] border bg-background p-4 shadow-xs'>
+              <div className='rounded-[8px] border bg-background p-4 shadow-2xs'>
                 <div className='space-y-3'>
                   <div className='flex items-center justify-between'>
                     <div className='flex items-center gap-2'>
@@ -709,7 +709,7 @@ export function MCP() {
 
               {/* Add Server Form for when servers exist */}
               {showAddForm && (
-                <div className='mt-4 rounded-[8px] border bg-background p-4 shadow-xs'>
+                <div className='mt-4 rounded-[8px] border bg-background p-4 shadow-2xs'>
                   <div className='space-y-3'>
                     <div className='flex items-center justify-between'>
                       <div className='flex items-center gap-2'>
@@ -1041,7 +1041,7 @@ export function MCP() {
               <Button
                 onClick={() => setShowAddForm(!showAddForm)}
                 variant='ghost'
-                className='h-9 rounded-[8px] border bg-background px-3 shadow-xs hover:bg-muted focus:outline-none focus-visible:ring-0 focus-visible:ring-offset-0'
+                className='h-9 rounded-[8px] border bg-background px-3 shadow-2xs hover:bg-muted focus:outline-hidden focus-visible:ring-0 focus-visible:ring-offset-0'
                 disabled={serversLoading}
               >
                 <Plus className='h-4 w-4 stroke-[2px]' />

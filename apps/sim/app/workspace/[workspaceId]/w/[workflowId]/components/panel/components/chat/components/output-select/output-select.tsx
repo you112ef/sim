@@ -325,17 +325,17 @@ export function OutputSelect({
       <button
         type='button'
         onClick={() => setIsOutputDropdownOpen(!isOutputDropdownOpen)}
-        className={`flex h-9 w-full items-center justify-between rounded-[8px] border px-3 py-1.5 font-normal text-sm shadow-xs transition-colors ${
+        className={`flex h-9 w-full items-center justify-between rounded-[8px] border px-3 py-1.5 font-normal text-sm shadow-2xs transition-colors ${
           isOutputDropdownOpen
-            ? 'border-[#E5E5E5] bg-[#FFFFFF] text-muted-foreground dark:border-[#414141] dark:bg-[var(--surface-elevated)]'
-            : 'border-[#E5E5E5] bg-[#FFFFFF] text-muted-foreground hover:text-muted-foreground dark:border-[#414141] dark:bg-[var(--surface-elevated)]'
+            ? 'border-[#E5E5E5] bg-[#FFFFFF] text-muted-foreground dark:border-[#414141] dark:bg-surface-elevated'
+            : 'border-[#E5E5E5] bg-[#FFFFFF] text-muted-foreground hover:text-muted-foreground dark:border-[#414141] dark:bg-surface-elevated'
         }`}
         disabled={workflowOutputs.length === 0 || disabled}
       >
         {selectedOutputInfo ? (
           <div className='flex w-[calc(100%-24px)] items-center gap-2 overflow-hidden text-left'>
             <div
-              className='flex h-5 w-5 flex-shrink-0 items-center justify-center rounded'
+              className='flex h-5 w-5 shrink-0 items-center justify-center rounded'
               style={{
                 backgroundColor: getOutputColor(
                   selectedOutputInfo.blockId,
@@ -355,12 +355,12 @@ export function OutputSelect({
           </span>
         )}
         <ChevronDown
-          className={`ml-1 h-4 w-4 flex-shrink-0 transition-transform ${isOutputDropdownOpen ? 'rotate-180' : ''}`}
+          className={`ml-1 h-4 w-4 shrink-0 transition-transform ${isOutputDropdownOpen ? 'rotate-180' : ''}`}
         />
       </button>
 
       {isOutputDropdownOpen && workflowOutputs.length > 0 && (
-        <div className='absolute left-0 z-50 mt-1 w-full overflow-hidden rounded-[8px] border border-[#E5E5E5] bg-[#FFFFFF] pt-1 shadow-xs dark:border-[#414141] dark:bg-[var(--surface-elevated)]'>
+        <div className='absolute left-0 z-50 mt-1 w-full overflow-hidden rounded-[8px] border border-[#E5E5E5] bg-[#FFFFFF] pt-1 shadow-2xs dark:border-[#414141] dark:bg-surface-elevated'>
           <div className='max-h-[230px] overflow-y-auto'>
             {Object.entries(groupedOutputs).map(([blockName, outputs]) => (
               <div key={blockName}>
@@ -376,11 +376,11 @@ export function OutputSelect({
                       className={cn(
                         'flex w-full items-center gap-2 px-3 py-1.5 text-left font-normal text-sm',
                         'hover:bg-accent hover:text-accent-foreground',
-                        'focus:bg-accent focus:text-accent-foreground focus:outline-none'
+                        'focus:bg-accent focus:text-accent-foreground focus:outline-hidden'
                       )}
                     >
                       <div
-                        className='flex h-5 w-5 flex-shrink-0 items-center justify-center rounded'
+                        className='flex h-5 w-5 shrink-0 items-center justify-center rounded'
                         style={{
                           backgroundColor: getOutputColor(output.blockId, output.blockType),
                         }}
@@ -391,7 +391,7 @@ export function OutputSelect({
                       </div>
                       <span className='flex-1 truncate'>{output.path}</span>
                       {selectedOutputs.includes(output.id) && (
-                        <Check className='h-4 w-4 flex-shrink-0 text-muted-foreground' />
+                        <Check className='h-4 w-4 shrink-0 text-muted-foreground' />
                       )}
                     </button>
                   ))}

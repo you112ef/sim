@@ -179,9 +179,9 @@ export function TeamMembers({
                   <span className='truncate font-medium text-sm'>{item.name}</span>
                   {item.type === 'member' && (
                     <span
-                      className={`inline-flex h-[1.125rem] items-center rounded-[6px] px-2 py-0 font-medium text-xs ${
+                      className={`inline-flex h-4.5 items-center rounded-[6px] px-2 py-0 font-medium text-xs ${
                         item.role === 'owner'
-                          ? 'gradient-text border-gradient-primary/20 bg-gradient-to-b from-gradient-primary via-gradient-secondary to-gradient-primary'
+                          ? 'gradient-text border-gradient-primary/20 bg-linear-to-b from-gradient-primary via-gradient-secondary to-gradient-primary'
                           : 'bg-primary/10 text-muted-foreground'
                       } `}
                     >
@@ -189,7 +189,7 @@ export function TeamMembers({
                     </span>
                   )}
                   {item.type === 'invitation' && (
-                    <span className='inline-flex h-[1.125rem] items-center rounded-[6px] bg-muted px-2 py-0 font-medium text-muted-foreground text-xs'>
+                    <span className='inline-flex h-4.5 items-center rounded-[6px] bg-muted px-2 py-0 font-medium text-muted-foreground text-xs'>
                       Pending
                     </span>
                   )}

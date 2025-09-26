@@ -59,7 +59,7 @@ interface KnowledgeBaseProps {
 
 function getFileIcon(mimeType: string, filename: string) {
   const IconComponent = getDocumentIcon(mimeType, filename)
-  return <IconComponent className='h-6 w-5 flex-shrink-0' />
+  return <IconComponent className='h-6 w-5 shrink-0' />
 }
 
 function formatFileSize(bytes: number): string {
@@ -88,7 +88,7 @@ const getStatusDisplay = (doc: DocumentData) => {
           </>
         ),
         className:
-          'inline-flex items-center rounded-md bg-purple-100 px-2 py-1 text-xs font-medium text-[var(--brand-primary-hex)] dark:bg-purple-900/30 dark:text-[var(--brand-primary-hex)]',
+          'inline-flex items-center rounded-md bg-purple-100 px-2 py-1 text-xs font-medium text-(--brand-primary-hex) dark:bg-purple-900/30 dark:text-(--brand-primary-hex)',
       }
     case 'failed':
       return {
@@ -673,7 +673,7 @@ export function KnowledgeBase({
     ]
 
     return (
-      <div className='flex h-[100vh] flex-col pl-64'>
+      <div className='flex h-screen flex-col pl-64'>
         <KnowledgeHeader breadcrumbs={errorBreadcrumbs} />
         <div className='flex flex-1 items-center justify-center'>
           <div className='text-center'>
@@ -691,7 +691,7 @@ export function KnowledgeBase({
   }
 
   return (
-    <div className='flex h-[100vh] flex-col pl-64'>
+    <div className='flex h-screen flex-col pl-64'>
       {/* Fixed Header with Breadcrumbs */}
       <KnowledgeHeader
         breadcrumbs={breadcrumbs}
@@ -771,7 +771,7 @@ export function KnowledgeBase({
                             onCheckedChange={handleSelectAll}
                             disabled={!userPermissions.canEdit}
                             aria-label='Select all documents'
-                            className='h-3.5 w-3.5 border-gray-300 focus-visible:ring-[var(--brand-primary-hex)]/20 data-[state=checked]:border-[var(--brand-primary-hex)] data-[state=checked]:bg-[var(--brand-primary-hex)] [&>*]:h-3 [&>*]:w-3'
+                            className='h-3.5 w-3.5 border-gray-300 *:h-3 *:w-3 focus-visible:ring-(--brand-primary-hex)/20 data-[state=checked]:border-brand-gradient data-[state=checked]:bg-brand-primary'
                           />
                         </th>
                         {renderSortableHeader('filename', 'Name')}
@@ -910,7 +910,7 @@ export function KnowledgeBase({
                                   disabled={!userPermissions.canEdit}
                                   onClick={(e) => e.stopPropagation()}
                                   aria-label={`Select ${doc.filename}`}
-                                  className='h-3.5 w-3.5 border-gray-300 focus-visible:ring-[var(--brand-primary-hex)]/20 data-[state=checked]:border-[var(--brand-primary-hex)] data-[state=checked]:bg-[var(--brand-primary-hex)] [&>*]:h-3 [&>*]:w-3'
+                                  className='h-3.5 w-3.5 border-gray-300 *:h-3 *:w-3 focus-visible:ring-(--brand-primary-hex)/20 data-[state=checked]:border-brand-gradient data-[state=checked]:bg-brand-primary'
                                 />
                               </td>
 

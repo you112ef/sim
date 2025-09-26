@@ -69,10 +69,10 @@ export function CopilotWelcome({ onQuestionClick, mode = 'ask' }: CopilotWelcome
               key={idx}
               type='button'
               onClick={() => handleQuestionClick(question)}
-              className='w-full rounded-[10px] border bg-background/60 p-3 text-left transition-colors hover:bg-muted focus:outline-none focus:ring-2 focus:ring-[var(--brand-primary-hover-hex)]/30'
+              className='w-full rounded-[10px] border bg-background/60 p-3 text-left transition-colors hover:bg-muted focus:outline-hidden focus:ring-(--brand-primary-hover-hex)/30 focus:ring-2'
             >
               <div className='flex items-start gap-2'>
-                <div className='mt-0.5 flex h-6 w-6 items-center justify-center rounded bg-[color-mix(in_srgb,var(--brand-primary-hover-hex)_16%,transparent)] text-[var(--brand-primary-hover-hex)]'>
+                <div className='mt-0.5 flex h-6 w-6 items-center justify-center rounded bg-[color-mix(in_srgb,var(--brand-primary-hover-hex)_16%,transparent)] text-(--brand-primary-hover-hex)'>
                   <Icon className='h-3.5 w-3.5' />
                 </div>
                 <div>

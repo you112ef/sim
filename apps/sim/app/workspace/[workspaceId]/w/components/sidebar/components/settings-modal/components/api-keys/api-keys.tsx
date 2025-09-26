@@ -301,7 +301,7 @@ export function ApiKeys({ onOpenChange, registerCloseHandler }: ApiKeysProps) {
           <Skeleton className='h-9 w-56 rounded-lg' />
         ) : (
           <div className='flex h-9 w-56 items-center gap-2 rounded-lg border bg-transparent pr-2 pl-3'>
-            <Search className='h-4 w-4 flex-shrink-0 text-muted-foreground' strokeWidth={2} />
+            <Search className='h-4 w-4 shrink-0 text-muted-foreground' strokeWidth={2} />
             <Input
               placeholder='Search API keys...'
               value={searchTerm}
@@ -475,7 +475,7 @@ export function ApiKeys({ onOpenChange, registerCloseHandler }: ApiKeysProps) {
                   setCreateError(null)
                 }}
                 variant='ghost'
-                className='h-9 rounded-[8px] border bg-background px-3 shadow-xs hover:bg-muted focus:outline-none focus-visible:ring-0 focus-visible:ring-offset-0'
+                className='h-9 rounded-[8px] border bg-background px-3 shadow-2xs hover:bg-muted focus:outline-hidden focus-visible:ring-0 focus-visible:ring-offset-0'
               >
                 <Plus className='h-4 w-4 stroke-[2px]' />
                 Create Key

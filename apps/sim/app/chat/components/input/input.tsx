@@ -130,11 +130,11 @@ export const ChatInput: React.FC<{
 
   return (
     <>
-      <div className='fixed right-0 bottom-0 left-0 flex w-full items-center justify-center bg-gradient-to-t from-white to-transparent px-4 pb-4 text-black md:px-0 md:pb-4'>
+      <div className='fixed right-0 bottom-0 left-0 flex w-full items-center justify-center bg-linear-to-t from-white to-transparent px-4 pb-4 text-black md:px-0 md:pb-4'>
         <div ref={wrapperRef} className='w-full max-w-3xl md:max-w-[748px]'>
           {/* Text Input Area with Controls */}
           <motion.div
-            className='rounded-2xl border border-gray-200 bg-white shadow-sm md:rounded-3xl'
+            className='rounded-2xl border border-gray-200 bg-white shadow-xs md:rounded-3xl'
             onClick={handleActivate}
             initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
@@ -168,7 +168,7 @@ export const ChatInput: React.FC<{
                   ref={textareaRef}
                   value={inputValue}
                   onChange={handleInputChange}
-                  className='flex w-full resize-none items-center overflow-hidden bg-transparent text-base outline-none placeholder:text-gray-400 md:font-[330]'
+                  className='flex w-full resize-none items-center overflow-hidden bg-transparent text-base outline-hidden placeholder:text-gray-400 md:font-[330]'
                   placeholder={isActive ? '' : ''}
                   rows={1}
                   style={{

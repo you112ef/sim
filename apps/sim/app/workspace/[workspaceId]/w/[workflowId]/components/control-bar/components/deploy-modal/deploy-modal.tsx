@@ -497,7 +497,7 @@ export function DeployModal({
         className='flex max-h-[78vh] flex-col gap-0 overflow-hidden p-0 sm:max-w-[600px]'
         hideCloseButton
       >
-        <DialogHeader className='flex-shrink-0 border-b px-6 py-4'>
+        <DialogHeader className='shrink-0 border-b px-6 py-4'>
           <div className='flex items-center justify-between'>
             <DialogTitle className='font-medium text-lg'>Deploy Workflow</DialogTitle>
             <Button variant='ghost' size='icon' className='h-8 w-8 p-0' onClick={handleCloseModal}>
@@ -777,7 +777,7 @@ export function DeployModal({
         </div>
 
         {activeTab === 'general' && !isDeployed && (
-          <div className='flex flex-shrink-0 justify-between border-t px-6 py-4'>
+          <div className='flex shrink-0 justify-between border-t px-6 py-4'>
             <Button variant='outline' onClick={handleCloseModal}>
               Cancel
             </Button>
@@ -788,10 +788,10 @@ export function DeployModal({
               disabled={isSubmitting || (!keysLoaded && !apiKeys.length)}
               className={cn(
                 'gap-2 font-medium',
-                'bg-[var(--brand-primary-hover-hex)] hover:bg-[var(--brand-primary-hover-hex)]',
+                'bg-brand-primary-hover hover:bg-brand-primary-hover',
                 'shadow-[0_0_0_0_var(--brand-primary-hover-hex)] hover:shadow-[0_0_0_4px_rgba(127,47,255,0.15)]',
                 'text-white transition-all duration-200',
-                'disabled:opacity-50 disabled:hover:bg-[var(--brand-primary-hover-hex)] disabled:hover:shadow-none'
+                'disabled:opacity-50 disabled:hover:bg-brand-primary-hover disabled:hover:shadow-none'
               )}
             >
               {isSubmitting ? (
@@ -807,7 +807,7 @@ export function DeployModal({
         )}
 
         {activeTab === 'api' && !isDeployed && (
-          <div className='flex flex-shrink-0 justify-between border-t px-6 py-4'>
+          <div className='flex shrink-0 justify-between border-t px-6 py-4'>
             <Button variant='outline' onClick={handleCloseModal}>
               Cancel
             </Button>
@@ -818,10 +818,10 @@ export function DeployModal({
               disabled={isSubmitting || (!keysLoaded && !apiKeys.length)}
               className={cn(
                 'gap-2 font-medium',
-                'bg-[var(--brand-primary-hover-hex)] hover:bg-[var(--brand-primary-hover-hex)]',
+                'bg-brand-primary-hover hover:bg-brand-primary-hover',
                 'shadow-[0_0_0_0_var(--brand-primary-hover-hex)] hover:shadow-[0_0_0_4px_rgba(127,47,255,0.15)]',
                 'text-white transition-all duration-200',
-                'disabled:opacity-50 disabled:hover:bg-[var(--brand-primary-hover-hex)] disabled:hover:shadow-none'
+                'disabled:opacity-50 disabled:hover:bg-brand-primary-hover disabled:hover:shadow-none'
               )}
             >
               {isSubmitting ? (
@@ -837,7 +837,7 @@ export function DeployModal({
         )}
 
         {activeTab === 'chat' && (
-          <div className='flex flex-shrink-0 justify-between border-t px-6 py-4'>
+          <div className='flex shrink-0 justify-between border-t px-6 py-4'>
             <Button variant='outline' onClick={handleCloseModal}>
               Cancel
             </Button>
@@ -875,10 +875,10 @@ export function DeployModal({
                 disabled={chatSubmitting || !isChatFormValid}
                 className={cn(
                   'gap-2 font-medium',
-                  'bg-[var(--brand-primary-hover-hex)] hover:bg-[var(--brand-primary-hover-hex)]',
+                  'bg-brand-primary-hover hover:bg-brand-primary-hover',
                   'shadow-[0_0_0_0_var(--brand-primary-hover-hex)] hover:shadow-[0_0_0_4px_rgba(127,47,255,0.15)]',
                   'text-white transition-all duration-200',
-                  'disabled:opacity-50 disabled:hover:bg-[var(--brand-primary-hover-hex)] disabled:hover:shadow-none'
+                  'disabled:opacity-50 disabled:hover:bg-brand-primary-hover disabled:hover:shadow-none'
                 )}
               >
                 {chatSubmitting ? (

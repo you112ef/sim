@@ -32,7 +32,7 @@ export function ConfigField({ id, label, description, children, className }: Con
             <TooltipContent
               side='right'
               align='center'
-              className='z-[100] max-w-[300px] p-3'
+              className='z-100 max-w-[300px] p-3'
               role='tooltip'
             >
               <p className='text-sm'>{description}</p>

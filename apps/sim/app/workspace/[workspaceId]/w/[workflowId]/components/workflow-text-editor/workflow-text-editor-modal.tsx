@@ -157,7 +157,7 @@ export function WorkflowTextEditorModal({
       </Tooltip>
 
       <DialogContent className='flex h-[85vh] w-[90vw] max-w-6xl flex-col p-0'>
-        <DialogHeader className='flex-shrink-0 border-b px-6 py-4'>
+        <DialogHeader className='shrink-0 border-b px-6 py-4'>
           <DialogTitle>Workflow Text Editor</DialogTitle>
           <DialogDescription>
             Edit your workflow as YAML or JSON. Changes will completely replace the current workflow

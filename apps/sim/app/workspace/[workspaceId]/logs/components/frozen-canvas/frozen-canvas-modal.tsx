@@ -37,7 +37,7 @@ export function FrozenCanvasModal({
         className={cn(
           'flex flex-col gap-0 p-0',
           isFullscreen
-            ? 'h-[100vh] max-h-[100vh] w-[100vw] max-w-[100vw] rounded-none'
+            ? 'h-screen max-h-screen w-screen max-w-screen rounded-none'
             : 'h-[90vh] max-h-[90vh] overflow-hidden sm:max-w-[1100px]'
         )}
         hideCloseButton={true}

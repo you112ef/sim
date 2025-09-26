@@ -49,7 +49,7 @@ export function TeamUsage({ hasAdminAccess }: TeamUsageProps) {
 
   if (isLoadingOrgBilling) {
     return (
-      <div className='rounded-[8px] border bg-background p-3 shadow-xs'>
+      <div className='rounded-[8px] border bg-background p-3 shadow-2xs'>
         <div className='space-y-2'>
           <div className='flex items-center justify-between'>
             <div className='flex items-center gap-2'>

@@ -361,7 +361,7 @@ export function HelpModal({ open, onOpenChange }: HelpModalProps) {
     <AlertDialog open={open} onOpenChange={onOpenChange}>
       <AlertDialogContent className='flex h-[75vh] max-h-[75vh] flex-col gap-0 p-0 sm:max-w-[700px]'>
         {/* Modal Header */}
-        <AlertDialogHeader className='flex-shrink-0 px-6 py-5'>
+        <AlertDialogHeader className='shrink-0 px-6 py-5'>
           <AlertDialogTitle className='font-medium text-lg'>Help & Support</AlertDialogTitle>
         </AlertDialogHeader>
 
@@ -517,7 +517,7 @@ export function HelpModal({ open, onOpenChange }: HelpModalProps) {
                       ? 'border border-red-500 bg-transparent text-red-500 hover:bg-red-500 hover:text-white dark:border-red-500 dark:text-red-500 dark:hover:bg-red-500'
                       : submitStatus === 'success'
                         ? 'border border-green-500 bg-transparent text-green-500 hover:bg-green-500 hover:text-white dark:border-green-500 dark:text-green-500 dark:hover:bg-green-500'
-                        : 'bg-[var(--brand-primary-hex)] text-muted-foreground shadow-[0_0_0_0_var(--brand-primary-hex)] hover:bg-[var(--brand-primary-hover-hex)] hover:shadow-[0_0_0_4px_rgba(127,47,255,0.15)] disabled:opacity-50 disabled:hover:shadow-none'
+                        : 'bg-brand-primary text-muted-foreground shadow-[0_0_0_0_var(--brand-primary-hex)] hover:bg-brand-primary-hover hover:shadow-[0_0_0_4px_rgba(127,47,255,0.15)] disabled:opacity-50 disabled:hover:shadow-none'
                   )}
                 >
                   {isSubmitting

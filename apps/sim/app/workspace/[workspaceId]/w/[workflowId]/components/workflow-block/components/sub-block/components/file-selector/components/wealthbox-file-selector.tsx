@@ -345,7 +345,7 @@ export function WealthboxFileSelector({
                   placeholder={`Search ${itemType}s...`}
                   value={searchQuery}
                   onChange={(e) => handleSearchChange(e.target.value)}
-                  className='flex h-11 w-full rounded-md bg-transparent py-3 text-sm outline-none placeholder:text-muted-foreground disabled:cursor-not-allowed disabled:opacity-50'
+                  className='flex h-11 w-full rounded-md bg-transparent py-3 text-sm outline-hidden placeholder:text-muted-foreground disabled:cursor-not-allowed disabled:opacity-50'
                 />
               </div>
               <CommandList>
@@ -430,7 +430,7 @@ export function WealthboxFileSelector({
               </Button>
             </div>
             <div className='flex items-center gap-3 pr-4'>
-              <div className='flex h-6 w-6 flex-shrink-0 items-center justify-center rounded bg-muted/20'>
+              <div className='flex h-6 w-6 shrink-0 items-center justify-center rounded bg-muted/20'>
                 <WealthboxIcon className='h-4 w-4' />
               </div>
               <div className='min-w-0 flex-1 overflow-hidden'>

@@ -42,7 +42,7 @@ export function ActionBar({
       transition={{ duration: 0.2 }}
       className={cn('-translate-x-1/2 fixed bottom-6 left-1/2 z-50 transform', className)}
     >
-      <div className='flex items-center gap-3 rounded-lg border border-gray-200 bg-background px-4 py-2 shadow-sm dark:border-gray-800'>
+      <div className='flex items-center gap-3 rounded-lg border border-gray-200 bg-background px-4 py-2 shadow-xs dark:border-gray-800'>
         <span className='text-gray-500 text-sm'>{selectedCount} selected</span>
 
         <div className='h-4 w-px bg-gray-200 dark:bg-gray-800' />

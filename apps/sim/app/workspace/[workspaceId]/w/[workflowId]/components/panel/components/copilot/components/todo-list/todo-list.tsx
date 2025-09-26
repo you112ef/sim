@@ -99,13 +99,13 @@ export const TodoList = memo(function TodoList({
               )}
             >
               {todo.executing ? (
-                <div className='mt-0.5 flex h-4 w-4 flex-shrink-0 items-center justify-center'>
+                <div className='mt-0.5 flex h-4 w-4 shrink-0 items-center justify-center'>
                   <Loader2 className='h-3 w-3 animate-spin text-blue-500' />
                 </div>
               ) : (
                 <div
                   className={cn(
-                    'mt-0.5 flex h-4 w-4 flex-shrink-0 items-center justify-center rounded border transition-all',
+                    'mt-0.5 flex h-4 w-4 shrink-0 items-center justify-center rounded border transition-all',
                     todo.completed
                       ? 'border-blue-500 bg-blue-500'
                       : 'border-gray-300 dark:border-gray-600'

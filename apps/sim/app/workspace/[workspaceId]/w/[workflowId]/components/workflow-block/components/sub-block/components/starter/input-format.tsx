@@ -295,7 +295,7 @@ export function FieldFormat({
               key={field.id}
               data-field-id={field.id}
               className={cn(
-                'rounded-md border shadow-sm',
+                'rounded-md border shadow-xs',
                 isUnconfigured ? 'border-input/50' : 'border-input',
                 field.collapsed ? 'overflow-hidden' : 'overflow-visible'
               )}

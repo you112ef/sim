@@ -19,7 +19,7 @@ export function Console({ panelWidth }: ConsoleProps) {
   }, [entries, activeWorkflowId])
 
   return (
-    <div className='h-full pt-2 pl-[1px]'>
+    <div className='h-full pt-2 pl-px'>
       {filteredEntries.length === 0 ? (
         <div className='flex h-full items-center justify-center text-muted-foreground text-sm'>
           No console entries

@@ -453,7 +453,7 @@ export function ComboBox({
       {open && (
         <div
           className={cn(
-            'absolute top-full left-0 z-[100] mt-1 w-full overflow-visible',
+            'absolute top-full left-0 z-100 mt-1 w-full overflow-visible',
             isWide ? 'min-w-[350px]' : 'min-w-[286px]'
           )}
         >
@@ -489,13 +489,13 @@ export function ComboBox({
                       }}
                       onMouseEnter={() => setHighlightedIndex(index)}
                       className={cn(
-                        'relative flex cursor-pointer select-none items-center rounded-sm px-2 py-1.5 text-sm outline-none hover:bg-accent hover:text-accent-foreground',
+                        'relative flex cursor-pointer select-none items-center rounded-sm px-2 py-1.5 text-sm outline-hidden hover:bg-accent hover:text-accent-foreground',
                         isHighlighted && 'bg-accent text-accent-foreground'
                       )}
                     >
                       {OptionIcon && <OptionIcon className='mr-2 h-3 w-3 opacity-60' />}
                       <span className='flex-1 truncate'>{optionLabel}</span>
-                      {isSelected && <Check className='ml-2 h-4 w-4 flex-shrink-0' />}
+                      {isSelected && <Check className='ml-2 h-4 w-4 shrink-0' />}
                     </div>
                   )
                 })

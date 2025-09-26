@@ -27,7 +27,7 @@ function WorkflowItem({ workflow, active, isMarketplace }: WorkflowItemProps) {
       )}
     >
       <div
-        className='mr-2 h-[14px] w-[14px] flex-shrink-0 rounded'
+        className='mr-2 h-[14px] w-[14px] shrink-0 rounded'
         style={{ backgroundColor: workflow.color }}
       />
       <span className='truncate'>

@@ -417,7 +417,7 @@ IMPORTANT FORMATTING RULES:
               onClick={isPromptVisible ? hidePromptInline : showPromptInline}
               disabled={isAiLoading || isAiStreaming}
               aria-label='Generate code with AI'
-              className='h-8 w-8 rounded-full border border-transparent bg-muted/80 text-muted-foreground shadow-sm transition-all duration-200 hover:border-primary/20 hover:bg-muted hover:text-foreground hover:shadow'
+              className='h-8 w-8 rounded-full border border-transparent bg-muted/80 text-muted-foreground shadow-xs transition-all duration-200 hover:border-primary/20 hover:bg-muted hover:text-foreground hover:shadow-sm'
             >
               <Wand2 className='h-4 w-4' />
             </Button>
@@ -507,11 +507,11 @@ IMPORTANT FORMATTING RULES:
             }}
             className={cn(
               'code-editor-area caret-primary dark:caret-white',
-              'bg-transparent focus:outline-none',
+              'bg-transparent focus:outline-hidden',
               (isCollapsed || isAiStreaming) && 'cursor-not-allowed opacity-50'
             )}
             textareaClassName={cn(
-              'focus:outline-none focus:ring-0 border-none bg-transparent resize-none',
+              'focus:outline-hidden focus:ring-0 border-none bg-transparent resize-none',
               (isCollapsed || isAiStreaming) && 'pointer-events-none'
             )}
           />

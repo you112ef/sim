@@ -83,7 +83,7 @@ export function TriggerList({ onSelect, className }: TriggerListProps) {
     return (
       <div
         className={cn(
-          'flex h-10 w-[200px] flex-shrink-0 cursor-pointer items-center gap-[10px] rounded-[8px] border px-1.5 transition-all duration-200',
+          'flex h-10 w-[200px] shrink-0 cursor-pointer items-center gap-[10px] rounded-[8px] border px-1.5 transition-all duration-200',
           'border-border/40 bg-background/60 hover:border-border hover:bg-secondary/80'
         )}
       >
@@ -96,7 +96,7 @@ export function TriggerList({ onSelect, className }: TriggerListProps) {
             style={{ backgroundColor: trigger.color }}
           >
             {Icon ? (
-              <Icon className='!h-4 !w-4 text-white' />
+              <Icon className='h-4! w-4! text-white' />
             ) : (
               <div className='h-4 w-4 rounded bg-white/20' />
             )}
@@ -117,7 +117,7 @@ export function TriggerList({ onSelect, className }: TriggerListProps) {
           <TooltipContent
             side='top'
             sideOffset={5}
-            className='z-[9999] max-w-[200px]'
+            className='z-9999 max-w-[200px]'
             align='center'
             avoidCollisions={false}
           >
@@ -147,7 +147,7 @@ export function TriggerList({ onSelect, className }: TriggerListProps) {
             'flex items-center gap-2',
             'px-4 py-2',
             'rounded-lg border border-muted-foreground/50 border-dashed',
-            'bg-background/95 backdrop-blur-sm',
+            'bg-background/95 backdrop-blur-xs',
             'hover:border-muted-foreground hover:bg-muted',
             'transition-all duration-200',
             'font-medium text-muted-foreground text-sm'
@@ -164,7 +164,7 @@ export function TriggerList({ onSelect, className }: TriggerListProps) {
             'pointer-events-auto',
             'max-h-[400px] w-[650px]',
             'rounded-xl border border-border',
-            'bg-background/95 backdrop-blur-sm',
+            'bg-background/95 backdrop-blur-xs',
             'shadow-lg',
             'flex flex-col',
             'relative'
@@ -177,7 +177,7 @@ export function TriggerList({ onSelect, className }: TriggerListProps) {
               placeholder='Search triggers'
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className='!font-[350] border-0 bg-transparent font-sans text-muted-foreground leading-10 tracking-normal placeholder:text-muted-foreground focus:outline-none focus-visible:ring-0 focus-visible:ring-offset-0'
+              className='border-0 bg-transparent font-[350]! font-sans text-muted-foreground leading-10 tracking-normal placeholder:text-muted-foreground focus:outline-hidden focus-visible:ring-0 focus-visible:ring-offset-0'
               autoFocus
             />
           </div>
@@ -185,7 +185,7 @@ export function TriggerList({ onSelect, className }: TriggerListProps) {
           {/* Close button */}
           <button
             onClick={handleClose}
-            className='absolute top-4 right-4 h-4 w-4 p-0 text-muted-foreground transition-colors hover:bg-transparent hover:text-foreground focus:outline-none disabled:pointer-events-none'
+            className='absolute top-4 right-4 h-4 w-4 p-0 text-muted-foreground transition-colors hover:bg-transparent hover:text-foreground focus:outline-hidden disabled:pointer-events-none'
             tabIndex={-1}
           >
             <X className='h-4 w-4' />

@@ -105,7 +105,7 @@ export function ImageUpload({
       className={cn(
         hideHeader
           ? 'w-full space-y-4'
-          : 'w-full max-w-md space-y-6 rounded-xl border border-border bg-card p-6 shadow-sm',
+          : 'w-full max-w-md space-y-6 rounded-xl border border-border bg-card p-6 shadow-xs',
         className
       )}
     >
@@ -148,7 +148,7 @@ export function ImageUpload({
             isDisabled && 'cursor-not-allowed opacity-50'
           )}
         >
-          <div className='rounded-full bg-background p-3 shadow-sm'>
+          <div className='rounded-full bg-background p-3 shadow-xs'>
             {isUploading ? (
               <Loader2 className='h-6 w-6 animate-spin text-muted-foreground' />
             ) : (

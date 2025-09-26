@@ -527,14 +527,14 @@ export function KnowledgeTags({ knowledgeBaseId, documentId }: KnowledgeTagsProp
                                       <Button
                                         variant='outline'
                                         size='sm'
-                                        className='h-8 w-7 flex-shrink-0 p-0'
+                                        className='h-8 w-7 shrink-0 p-0'
                                       >
                                         <ChevronDown className='h-3 w-3' />
                                       </Button>
                                     </DropdownMenuTrigger>
                                     <DropdownMenuContent
                                       align='end'
-                                      className='w-[160px] rounded-lg border bg-card shadow-xs'
+                                      className='w-[160px] rounded-lg border bg-card shadow-2xs'
                                     >
                                       {availableDefinitions.map((def) => (
                                         <DropdownMenuItem
@@ -679,17 +679,13 @@ export function KnowledgeTags({ knowledgeBaseId, documentId }: KnowledgeTagsProp
                       {availableDefinitions.length > 0 && (
                         <DropdownMenu>
                           <DropdownMenuTrigger asChild>
-                            <Button
-                              variant='outline'
-                              size='sm'
-                              className='h-8 w-7 flex-shrink-0 p-0'
-                            >
+                            <Button variant='outline' size='sm' className='h-8 w-7 shrink-0 p-0'>
                               <ChevronDown className='h-3 w-3' />
                             </Button>
                           </DropdownMenuTrigger>
                           <DropdownMenuContent
                             align='end'
-                            className='w-[160px] rounded-lg border bg-card shadow-xs'
+                            className='w-[160px] rounded-lg border bg-card shadow-2xs'
                           >
                             {availableDefinitions.map((def) => (
                               <DropdownMenuItem

@@ -326,7 +326,7 @@ export function TemplateModal({ open, onOpenChange, workflowId }: TemplateModalP
         className='flex h-[70vh] flex-col gap-0 overflow-hidden p-0 sm:max-w-[600px]'
         hideCloseButton
       >
-        <DialogHeader className='flex-shrink-0 border-b px-6 py-4'>
+        <DialogHeader className='shrink-0 border-b px-6 py-4'>
           <div className='flex items-center justify-between'>
             <div className='flex items-center gap-3'>
               <DialogTitle className='font-medium text-lg'>
@@ -426,7 +426,7 @@ export function TemplateModal({ open, onOpenChange, workflowId }: TemplateModalP
                       name='icon'
                       render={({ field }) => (
                         <FormItem className='w-20'>
-                          <FormLabel className='!text-foreground font-medium text-sm'>
+                          <FormLabel className='font-medium text-foreground! text-sm'>
                             Icon
                           </FormLabel>
                           <Popover open={iconPopoverOpen} onOpenChange={setIconPopoverOpen}>
@@ -477,7 +477,7 @@ export function TemplateModal({ open, onOpenChange, workflowId }: TemplateModalP
                       name='color'
                       render={({ field }) => (
                         <FormItem className='w-20'>
-                          <FormLabel className='!text-foreground font-medium text-sm'>
+                          <FormLabel className='font-medium text-foreground! text-sm'>
                             Color
                           </FormLabel>
                           <FormControl>
@@ -499,7 +499,7 @@ export function TemplateModal({ open, onOpenChange, workflowId }: TemplateModalP
                     name='name'
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel className='!text-foreground font-medium text-sm'>Name</FormLabel>
+                        <FormLabel className='font-medium text-foreground! text-sm'>Name</FormLabel>
                         <FormControl>
                           <Input
                             placeholder='Enter template name'
@@ -518,7 +518,7 @@ export function TemplateModal({ open, onOpenChange, workflowId }: TemplateModalP
                       name='author'
                       render={({ field }) => (
                         <FormItem>
-                          <FormLabel className='!text-foreground font-medium text-sm'>
+                          <FormLabel className='font-medium text-foreground! text-sm'>
                             Author
                           </FormLabel>
                           <FormControl>
@@ -538,7 +538,7 @@ export function TemplateModal({ open, onOpenChange, workflowId }: TemplateModalP
                       name='category'
                       render={({ field }) => (
                         <FormItem>
-                          <FormLabel className='!text-foreground font-medium text-sm'>
+                          <FormLabel className='font-medium text-foreground! text-sm'>
                             Category
                           </FormLabel>
                           <Select onValueChange={field.onChange} defaultValue={field.value}>
@@ -566,7 +566,7 @@ export function TemplateModal({ open, onOpenChange, workflowId }: TemplateModalP
                     name='description'
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel className='!text-foreground font-medium text-sm'>
+                        <FormLabel className='font-medium text-foreground! text-sm'>
                           Description
                         </FormLabel>
                         <FormControl>
@@ -604,10 +604,10 @@ export function TemplateModal({ open, onOpenChange, workflowId }: TemplateModalP
                   disabled={isSubmitting || !isFormValid || isLoadingTemplate}
                   className={cn(
                     'ml-auto h-9 rounded-[8px] px-4 font-[480]',
-                    'bg-[var(--brand-primary-hex)] hover:bg-[var(--brand-primary-hover-hex)]',
+                    'bg-brand-primary hover:bg-brand-primary-hover',
                     'shadow-[0_0_0_0_var(--brand-primary-hex)] hover:shadow-[0_0_0_4px_rgba(127,47,255,0.15)]',
                     'text-white transition-all duration-200',
-                    'disabled:opacity-50 disabled:hover:bg-[var(--brand-primary-hex)] disabled:hover:shadow-none'
+                    'disabled:opacity-50 disabled:hover:bg-brand-primary disabled:hover:shadow-none'
                   )}
                 >
                   {isSubmitting ? (

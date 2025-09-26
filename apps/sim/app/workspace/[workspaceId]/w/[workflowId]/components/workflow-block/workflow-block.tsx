@@ -706,7 +706,7 @@ export function WorkflowBlock({ id, data }: NodeProps<WorkflowBlockProps>) {
           'relative cursor-default select-none shadow-md',
           'transition-block-bg transition-ring',
           displayIsWide ? 'w-[480px]' : 'w-[320px]',
-          !isEnabled && 'shadow-sm',
+          !isEnabled && 'shadow-xs',
           isActive && 'animate-pulse-ring ring-2 ring-blue-500',
           isPending && 'ring-2 ring-amber-500',
           // Diff highlighting
@@ -714,7 +714,7 @@ export function WorkflowBlock({ id, data }: NodeProps<WorkflowBlockProps>) {
           diffStatus === 'edited' && 'bg-orange-50/50 ring-2 ring-orange-500 dark:bg-orange-900/10',
           // Deleted block highlighting (in original workflow)
           isDeletedBlock && 'bg-red-50/50 ring-2 ring-red-500 dark:bg-red-900/10',
-          'z-[20]'
+          'z-20'
         )}
       >
         {/* Show debug indicator for pending blocks */}
@@ -742,16 +742,16 @@ export function WorkflowBlock({ id, data }: NodeProps<WorkflowBlockProps>) {
             position={horizontalHandles ? Position.Left : Position.Top}
             id='target'
             className={cn(
-              horizontalHandles ? '!w-[7px] !h-5' : '!w-5 !h-[7px]',
-              '!bg-slate-300 dark:!bg-slate-500 !rounded-[2px] !border-none',
-              '!z-[30]',
-              'group-hover:!shadow-[0_0_0_3px_rgba(156,163,175,0.15)]',
+              horizontalHandles ? 'h-5! w-[7px]!' : 'h-[7px]! w-5!',
+              'rounded-[2px]! border-none! bg-slate-300! dark:bg-slate-500!',
+              'z-30!',
+              'group-hover:shadow-[0_0_0_3px_rgba(156,163,175,0.15)]!',
               horizontalHandles
-                ? 'hover:!w-[10px] hover:!left-[-10px] hover:!rounded-l-full hover:!rounded-r-none'
-                : 'hover:!h-[10px] hover:!top-[-10px] hover:!rounded-t-full hover:!rounded-b-none',
-              '!cursor-crosshair',
+                ? 'hover:left-[-10px]! hover:w-[10px]! hover:rounded-r-none! hover:rounded-l-full!'
+                : 'hover:top-[-10px]! hover:h-[10px]! hover:rounded-t-full! hover:rounded-b-none!',
+              'cursor-crosshair!',
               'transition-[colors] duration-150',
-              horizontalHandles ? '!left-[-7px]' : '!top-[-7px]'
+              horizontalHandles ? 'left-[-7px]!' : 'top-[-7px]!'
             )}
             style={{
               ...(horizontalHandles
@@ -769,7 +769,7 @@ export function WorkflowBlock({ id, data }: NodeProps<WorkflowBlockProps>) {
         {/* Block Header */}
         <div
           className={cn(
-            'workflow-drag-handle flex cursor-grab items-center justify-between p-3 [&:active]:cursor-grabbing',
+            'workflow-drag-handle flex cursor-grab items-center justify-between p-3 active:cursor-grabbing',
             subBlockRows.length > 0 && 'border-b'
           )}
           onMouseDown={(e) => {
@@ -778,7 +778,7 @@ export function WorkflowBlock({ id, data }: NodeProps<WorkflowBlockProps>) {
         >
           <div className='flex min-w-0 flex-1 items-center gap-3'>
             <div
-              className='flex h-7 w-7 flex-shrink-0 items-center justify-center rounded'
+              className='flex h-7 w-7 shrink-0 items-center justify-center rounded'
               style={{ backgroundColor: isEnabled ? config.bgColor : 'gray' }}
             >
               <config.icon className='h-5 w-5 text-white' />
@@ -792,7 +792,7 @@ export function WorkflowBlock({ id, data }: NodeProps<WorkflowBlockProps>) {
                   onChange={(e) => handleNodeNameChange(e.target.value)}
                   onBlur={handleNameSubmit}
                   onKeyDown={handleNameKeyDown}
-                  className='border-none bg-transparent p-0 font-medium text-md outline-none'
+                  className='border-none bg-transparent p-0 font-medium text-md outline-hidden'
                   maxLength={18}
                 />
               ) : (
@@ -812,7 +812,7 @@ export function WorkflowBlock({ id, data }: NodeProps<WorkflowBlockProps>) {
               )}
             </div>
           </div>
-          <div className='flex flex-shrink-0 items-center gap-2'>
+          <div className='flex shrink-0 items-center gap-2'>
             {isWorkflowSelector && childWorkflowId && (
               <Tooltip>
                 <TooltipTrigger asChild>
@@ -937,7 +937,7 @@ export function WorkflowBlock({ id, data }: NodeProps<WorkflowBlockProps>) {
                     }}
                     className={cn(
                       'h-7 p-1 text-gray-500',
-                      displayAdvancedMode && 'text-[var(--brand-primary-hex)]',
+                      displayAdvancedMode && 'text-(--brand-primary-hex)',
                       !userPermissions.canEdit &&
                         !currentWorkflow.isDiffMode &&
                         'cursor-not-allowed opacity-50'
@@ -1160,16 +1160,16 @@ export function WorkflowBlock({ id, data }: NodeProps<WorkflowBlockProps>) {
               position={horizontalHandles ? Position.Right : Position.Bottom}
               id='source'
               className={cn(
-                horizontalHandles ? '!w-[7px] !h-5' : '!w-5 !h-[7px]',
-                '!bg-slate-300 dark:!bg-slate-500 !rounded-[2px] !border-none',
-                '!z-[30]',
-                'group-hover:!shadow-[0_0_0_3px_rgba(156,163,175,0.15)]',
+                horizontalHandles ? 'h-5! w-[7px]!' : 'h-[7px]! w-5!',
+                'rounded-[2px]! border-none! bg-slate-300! dark:bg-slate-500!',
+                'z-30!',
+                'group-hover:shadow-[0_0_0_3px_rgba(156,163,175,0.15)]!',
                 horizontalHandles
-                  ? 'hover:!w-[10px] hover:!right-[-10px] hover:!rounded-r-full hover:!rounded-l-none'
-                  : 'hover:!h-[10px] hover:!bottom-[-10px] hover:!rounded-b-full hover:!rounded-t-none',
-                '!cursor-crosshair',
+                  ? 'hover:right-[-10px]! hover:w-[10px]! hover:rounded-r-full! hover:rounded-l-none!'
+                  : 'hover:bottom-[-10px]! hover:h-[10px]! hover:rounded-t-none! hover:rounded-b-full!',
+                'cursor-crosshair!',
                 'transition-[colors] duration-150',
-                horizontalHandles ? '!right-[-7px]' : '!bottom-[-7px]'
+                horizontalHandles ? 'right-[-7px]!' : 'bottom-[-7px]!'
               )}
               style={{
                 ...(horizontalHandles
@@ -1190,14 +1190,14 @@ export function WorkflowBlock({ id, data }: NodeProps<WorkflowBlockProps>) {
                 position={horizontalHandles ? Position.Right : Position.Bottom}
                 id='error'
                 className={cn(
-                  horizontalHandles ? '!w-[7px] !h-5' : '!w-5 !h-[7px]',
-                  '!bg-red-400 dark:!bg-red-500 !rounded-[2px] !border-none',
-                  '!z-[30]',
-                  'group-hover:!shadow-[0_0_0_3px_rgba(248,113,113,0.15)]',
+                  horizontalHandles ? 'h-5! w-[7px]!' : 'h-[7px]! w-5!',
+                  'rounded-[2px]! border-none! bg-red-400! dark:bg-red-500!',
+                  'z-30!',
+                  'group-hover:shadow-[0_0_0_3px_rgba(248,113,113,0.15)]!',
                   horizontalHandles
-                    ? 'hover:!w-[10px] hover:!right-[-10px] hover:!rounded-r-full hover:!rounded-l-none'
-                    : 'hover:!h-[10px] hover:!bottom-[-10px] hover:!rounded-b-full hover:!rounded-t-none',
-                  '!cursor-crosshair',
+                    ? 'hover:right-[-10px]! hover:w-[10px]! hover:rounded-r-full! hover:rounded-l-none!'
+                    : 'hover:bottom-[-10px]! hover:h-[10px]! hover:rounded-t-none! hover:rounded-b-full!',
+                  'cursor-crosshair!',
                   'transition-[colors] duration-150'
                 )}
                 style={{

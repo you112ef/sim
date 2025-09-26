@@ -58,7 +58,7 @@ export function ConnectionStatus({ isConnected, hasOperationError }: ConnectionS
             <RefreshCw className='h-4 w-4' />
           </Button>
         </TooltipTrigger>
-        <TooltipContent className='z-[9999]'>Refresh page to continue editing</TooltipContent>
+        <TooltipContent className='z-9999'>Refresh page to continue editing</TooltipContent>
       </Tooltip>
     </div>
   )

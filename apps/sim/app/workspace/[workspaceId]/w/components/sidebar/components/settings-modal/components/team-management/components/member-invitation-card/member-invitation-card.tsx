@@ -41,7 +41,7 @@ const PermissionSelector = React.memo<PermissionSelectorProps>(
             disabled={disabled}
             title={option.description}
             className={cn(
-              'px-2.5 py-1.5 font-medium text-xs transition-colors focus:outline-none',
+              'px-2.5 py-1.5 font-medium text-xs transition-colors focus:outline-hidden',
               'first:rounded-l-[11px] last:rounded-r-[11px]',
               disabled && 'cursor-not-allowed opacity-50',
               value === option.value
@@ -195,7 +195,7 @@ export function MemberInvitationCard({
           <div className='flex items-center justify-between'>
             <div className='flex items-center gap-2'>
               <h5 className='font-medium text-xs'>Workspace Access</h5>
-              <Badge variant='outline' className='h-[1.125rem] rounded-[6px] px-2 py-0 text-xs'>
+              <Badge variant='outline' className='h-4.5 rounded-[6px] px-2 py-0 text-xs'>
                 Optional
               </Badge>
             </div>
@@ -247,7 +247,7 @@ export function MemberInvitationCard({
                         {workspace.isOwner && (
                           <Badge
                             variant='outline'
-                            className='h-[1.125rem] rounded-[6px] px-2 py-0 text-xs'
+                            className='h-4.5 rounded-[6px] px-2 py-0 text-xs'
                           >
                             Owner
                           </Badge>
@@ -256,7 +256,7 @@ export function MemberInvitationCard({
                     </div>
 
                     {/* Always reserve space for permission selector to maintain consistent layout */}
-                    <div className='flex h-[30px] w-32 flex-shrink-0 items-center justify-end gap-2'>
+                    <div className='flex h-[30px] w-32 shrink-0 items-center justify-end gap-2'>
                       {isSelected && (
                         <PermissionSelector
                           value={

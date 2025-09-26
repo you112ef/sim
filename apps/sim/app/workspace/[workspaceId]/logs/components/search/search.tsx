@@ -137,9 +137,9 @@ export function AutocompleteSearch({
         )}
       >
         {showSpinner ? (
-          <Loader2 className='h-4 w-4 flex-shrink-0 animate-spin text-muted-foreground' />
+          <Loader2 className='h-4 w-4 shrink-0 animate-spin text-muted-foreground' />
         ) : (
-          <Search className='h-4 w-4 flex-shrink-0 text-muted-foreground' strokeWidth={2} />
+          <Search className='h-4 w-4 shrink-0 text-muted-foreground' strokeWidth={2} />
         )}
 
         {/* Text display with ghost text */}
@@ -206,7 +206,7 @@ export function AutocompleteSearch({
       {state.isOpen && state.suggestions.length > 0 && (
         <div
           ref={dropdownRef}
-          className='min-w[500px] absolute z-[9999] mt-1 w-full overflow-hidden rounded-md border bg-popover shadow-md'
+          className='min-w[500px] absolute z-9999 mt-1 w-full overflow-hidden rounded-md border bg-popover shadow-md'
           id={listboxId}
           role='listbox'
           aria-labelledby={inputId}
@@ -228,7 +228,7 @@ export function AutocompleteSearch({
                 key={suggestion.id}
                 className={cn(
                   'w-full px-3 py-2 text-left text-sm',
-                  'focus:bg-accent focus:text-accent-foreground focus:outline-none',
+                  'focus:bg-accent focus:text-accent-foreground focus:outline-hidden',
                   'transition-colors hover:bg-accent hover:text-accent-foreground',
                   index === state.highlightedIndex && 'bg-accent text-accent-foreground'
                 )}

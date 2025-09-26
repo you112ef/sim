@@ -38,7 +38,7 @@ export function WebhookUrlField({
           <TooltipContent
             side='right'
             align='center'
-            className='z-[100] max-w-[300px] p-3'
+            className='z-100 max-w-[300px] p-3'
             role='tooltip'
           >
             <p className='text-sm'>URL that will receive webhook requests</p>

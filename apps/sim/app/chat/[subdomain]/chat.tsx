@@ -479,7 +479,7 @@ export default function ChatClient({ subdomain }: { subdomain: string }) {
 
   // Standard text-based chat interface
   return (
-    <div className='fixed inset-0 z-[100] flex flex-col bg-background text-foreground'>
+    <div className='fixed inset-0 z-100 flex flex-col bg-background text-foreground'>
       {/* Header component */}
       <ChatHeader chatConfig={chatConfig} starCount={starCount} />
 

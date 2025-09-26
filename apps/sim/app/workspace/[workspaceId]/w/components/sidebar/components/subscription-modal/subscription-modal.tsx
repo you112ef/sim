@@ -131,8 +131,8 @@ export function SubscriptionModal({ open, onOpenChange }: SubscriptionModalProps
 
   return (
     <AlertDialog open={open} onOpenChange={onOpenChange}>
-      <AlertDialogContent className='!fixed !inset-0 !m-0 data-[state=open]:!translate-x-0 data-[state=open]:!translate-y-0 flex h-full max-h-full w-full max-w-full flex-col gap-0 rounded-none border-0 p-0'>
-        <AlertDialogHeader className='flex-shrink-0 px-6 py-5'>
+      <AlertDialogContent className='!fixed inset-0! m-0! flex h-full max-h-full w-full max-w-full flex-col gap-0 rounded-none border-0 p-0 data-[state=open]:translate-x-0! data-[state=open]:translate-y-0!'>
+        <AlertDialogHeader className='shrink-0 px-6 py-5'>
           <AlertDialogTitle className='font-medium text-lg'>Upgrade your plan</AlertDialogTitle>
         </AlertDialogHeader>
 
@@ -163,9 +163,9 @@ export function SubscriptionModal({ open, onOpenChange }: SubscriptionModalProps
                     {plan.features.map((feature, index) => (
                       <li key={index} className='flex items-start gap-2 text-sm'>
                         {feature.icon ? (
-                          <feature.icon className='mt-0.5 h-4 w-4 flex-shrink-0 text-muted-foreground' />
+                          <feature.icon className='mt-0.5 h-4 w-4 shrink-0 text-muted-foreground' />
                         ) : (
-                          <Check className='mt-0.5 h-4 w-4 flex-shrink-0 text-green-500' />
+                          <Check className='mt-0.5 h-4 w-4 shrink-0 text-green-500' />
                         )}
                         <span className='text-muted-foreground'>{feature.text}</span>
                       </li>
@@ -214,9 +214,9 @@ export function SubscriptionModal({ open, onOpenChange }: SubscriptionModalProps
                     <div key={index} className='flex items-center gap-4'>
                       <div className='flex items-center gap-2 text-sm'>
                         {feature.icon ? (
-                          <feature.icon className='h-4 w-4 flex-shrink-0 text-muted-foreground' />
+                          <feature.icon className='h-4 w-4 shrink-0 text-muted-foreground' />
                         ) : (
-                          <Check className='h-4 w-4 flex-shrink-0 text-green-500' />
+                          <Check className='h-4 w-4 shrink-0 text-green-500' />
                         )}
                         <span className='text-muted-foreground'>{feature.text}</span>
                       </div>

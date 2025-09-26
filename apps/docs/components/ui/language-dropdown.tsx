@@ -95,11 +95,11 @@ export function LanguageDropdown() {
 
       {isOpen && (
         <>
-          <div className='fixed inset-0 z-[1000]' aria-hidden onClick={() => setIsOpen(false)} />
+          <div className='fixed inset-0 z-1000' aria-hidden onClick={() => setIsOpen(false)} />
           <div
             id='language-menu'
             role='listbox'
-            className='absolute top-full left-0 z-[1001] mt-1 max-h-[75vh] w-56 overflow-auto rounded-xl border border-border/50 bg-white shadow-2xl md:w-44 md:bg-background/95 md:backdrop-blur-md dark:bg-neutral-950 md:dark:bg-background/95'
+            className='absolute top-full left-0 z-1001 mt-1 max-h-[75vh] w-56 overflow-auto rounded-xl border border-border/50 bg-white shadow-2xl md:w-44 md:bg-background/95 md:backdrop-blur-md dark:bg-neutral-950 md:dark:bg-background/95'
           >
             {Object.entries(languages).map(([code, lang]) => (
               <button

@@ -5,7 +5,7 @@ import { Badge, Progress } from '@/components/ui'
 import { cn } from '@/lib/utils'
 
 const GRADIENT_BADGE_STYLES =
-  'gradient-text h-[1.125rem] rounded-[6px] border-gradient-primary/20 bg-gradient-to-b from-gradient-primary via-gradient-secondary to-gradient-primary px-2 py-0 font-medium text-xs cursor-pointer'
+  'gradient-text h-4.5 rounded-[6px] border-gradient-primary/20 bg-linear-to-b from-gradient-primary via-gradient-secondary to-gradient-primary px-2 py-0 font-medium text-xs cursor-pointer'
 
 interface UsageHeaderProps {
   title: string
@@ -43,7 +43,7 @@ export function UsageHeader({
   const progress = progressValue ?? (limit > 0 ? Math.min((current / limit) * 100, 100) : 0)
 
   return (
-    <div className='rounded-[8px] border bg-background p-3 shadow-xs'>
+    <div className='rounded-[8px] border bg-background p-3 shadow-2xs'>
       <div className='space-y-2'>
         <div className='flex items-center justify-between'>
           <div className='flex items-center gap-2'>
@@ -51,7 +51,7 @@ export function UsageHeader({
               className={cn(
                 'font-medium text-sm',
                 gradientTitle
-                  ? 'gradient-text bg-gradient-to-b from-gradient-primary via-gradient-secondary to-gradient-primary'
+                  ? 'gradient-text bg-linear-to-b from-gradient-primary via-gradient-secondary to-gradient-primary'
                   : 'text-foreground'
               )}
             >

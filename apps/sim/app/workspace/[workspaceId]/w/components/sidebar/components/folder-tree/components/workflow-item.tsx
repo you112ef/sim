@@ -195,7 +195,7 @@ export function WorkflowItem({
           onClick={handleClick}
         >
           <div
-            className='mr-2 flex h-[14px] w-[14px] flex-shrink-0 items-center justify-center overflow-hidden'
+            className='mr-2 flex h-[14px] w-[14px] shrink-0 items-center justify-center overflow-hidden'
             style={{
               backgroundColor: lightenColor(workflow.color, 60),
               borderRadius: '4px',
@@ -217,7 +217,7 @@ export function WorkflowItem({
               onKeyDown={handleKeyDown}
               onBlur={handleInputBlur}
               className={clsx(
-                'min-w-0 flex-1 border-0 bg-transparent p-0 font-medium font-sans text-sm outline-none focus:outline-none focus:ring-0 focus-visible:outline-none focus-visible:ring-0 focus-visible:ring-offset-0',
+                'min-w-0 flex-1 border-0 bg-transparent p-0 font-medium font-sans text-sm outline-hidden focus:outline-hidden focus:ring-0 focus-visible:outline-hidden focus-visible:ring-0 focus-visible:ring-offset-0',
                 active && !isDragOver
                   ? 'text-foreground'
                   : 'text-muted-foreground group-hover:text-foreground'
@@ -278,7 +278,7 @@ export function WorkflowItem({
                 handleStartEdit()
               }}
             >
-              <Pencil className='!h-3.5 !w-3.5' />
+              <Pencil className='h-3.5! w-3.5!' />
               <span className='sr-only'>Rename workflow</span>
             </Button>
           </div>

@@ -434,7 +434,7 @@ export function InlineToolCall({
       } else if (state === (ClientToolCallState as any).success || state === 'success') {
         const isBuildOrEdit =
           toolCall.name === 'build_workflow' || toolCall.name === 'edit_workflow'
-        colorClass = isBuildOrEdit ? 'text-[var(--brand-primary-hover-hex)]' : 'text-green-600'
+        colorClass = isBuildOrEdit ? 'text-(--brand-primary-hover-hex)' : 'text-green-600'
       }
 
       // Only Loader2 should spin
@@ -455,7 +455,7 @@ export function InlineToolCall({
         }}
       >
         <div className='flex items-center gap-2 text-muted-foreground'>
-          <div className='flex-shrink-0'>{renderDisplayIcon()}</div>
+          <div className='shrink-0'>{renderDisplayIcon()}</div>
           <span className='text-base'>{displayName}</span>
         </div>
         {showButtons ? (

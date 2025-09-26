@@ -25,7 +25,7 @@ export const LoopBlock = React.memo(function LoopBlock({
 }: LoopBlockProps) {
   return (
     <div
-      className={`flex flex-shrink-0 ${className ?? ''}`}
+      className={`flex shrink-0 ${className ?? ''}`}
       style={{
         width: '1198px',
         height: '528px',

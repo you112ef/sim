@@ -310,7 +310,7 @@ export default function PrivacyPolicy() {
           Terms web page:{' '}
           <Link
             href='https://policies.google.com/privacy?hl=en'
-            className='text-[var(--brand-primary-hex)] underline hover:text-[var(--brand-primary-hover-hex)]'
+            className='text-(--brand-primary-hex) underline hover:text-(--brand-primary-hover-hex)'
             target='_blank'
             rel='noopener noreferrer'
           >
@@ -474,7 +474,7 @@ export default function PrivacyPolicy() {
           Please note that we may ask you to verify your identity before responding to such
           requests.
         </p>
-        <p className='mb-4 border-[var(--brand-primary-hex)] border-l-4 bg-[var(--brand-primary-hex)]/10 p-3'>
+        <p className='mb-4 border-brand-gradient border-l-4 bg-(--brand-primary-hex)/10 p-3'>
           You have the right to complain to a Data Protection Authority about our collection and use
           of your Personal Information. For more information, please contact your local data
           protection authority in the European Economic Area (EEA).
@@ -560,7 +560,7 @@ export default function PrivacyPolicy() {
           inquiry, email us at{' '}
           <Link
             href='mailto:security@sim.ai'
-            className='text-[var(--brand-primary-hex)] underline hover:text-[var(--brand-primary-hover-hex)]'
+            className='text-(--brand-primary-hex) underline hover:text-(--brand-primary-hover-hex)'
           >
             security@sim.ai
           </Link>{' '}
@@ -582,7 +582,7 @@ export default function PrivacyPolicy() {
           To report any security flaws, send an email to{' '}
           <Link
             href='mailto:security@sim.ai'
-            className='text-[var(--brand-primary-hex)] underline hover:text-[var(--brand-primary-hover-hex)]'
+            className='text-(--brand-primary-hex) underline hover:text-(--brand-primary-hover-hex)'
           >
             security@sim.ai
           </Link>
@@ -622,7 +622,7 @@ export default function PrivacyPolicy() {
           If you have any questions about this Privacy Policy, please contact us at:{' '}
           <Link
             href='mailto:privacy@sim.ai'
-            className='text-[var(--brand-primary-hex)] underline hover:text-[var(--brand-primary-hover-hex)]'
+            className='text-(--brand-primary-hex) underline hover:text-(--brand-primary-hover-hex)'
           >
             privacy@sim.ai
           </Link>

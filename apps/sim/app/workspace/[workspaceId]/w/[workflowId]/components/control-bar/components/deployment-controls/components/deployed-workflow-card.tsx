@@ -50,7 +50,7 @@ export function DeployedWorkflowCard({
           'sticky top-0 z-10 space-y-4 p-4',
           'bg-background/70 dark:bg-background/50',
           'border-border/30 border-b dark:border-border/20',
-          'shadow-sm'
+          'shadow-xs'
         )}
       >
         <div className='flex items-center justify-between'>
@@ -96,7 +96,7 @@ export function DeployedWorkflowCard({
         </div>
       </CardHeader>
 
-      <div className='h-px w-full bg-border shadow-sm' />
+      <div className='h-px w-full bg-border shadow-xs' />
 
       <CardContent className='p-0'>
         {/* Workflow preview with fixed height */}

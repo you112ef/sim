@@ -44,9 +44,9 @@ export function TriggerInstructions({
 
   return (
     <div className='space-y-4'>
-      <div className={cn('mt-4 rounded-md border border-border bg-card/50 p-4 shadow-sm')}>
+      <div className={cn('mt-4 rounded-md border border-border bg-card/50 p-4 shadow-xs')}>
         <h4 className='mb-3 font-medium text-base'>Setup Instructions</h4>
-        <div className='space-y-1 text-muted-foreground text-sm [&_a]:text-muted-foreground [&_a]:underline [&_a]:hover:text-muted-foreground/80 [&_code]:rounded [&_code]:bg-muted [&_code]:px-1 [&_code]:py-0.5 [&_code]:font-mono [&_code]:text-xs'>
+        <div className='space-y-1 text-muted-foreground text-sm [&_a]:text-muted-foreground [&_a]:underline hover:[&_a]:text-muted-foreground/80 [&_code]:rounded [&_code]:bg-muted [&_code]:px-1 [&_code]:py-0.5 [&_code]:font-mono [&_code]:text-xs'>
           <ol className='list-inside list-decimal space-y-2'>
             {instructions.map((instruction, index) => (
               <li key={index} dangerouslySetInnerHTML={{ __html: instruction }} />
@@ -56,7 +56,7 @@ export function TriggerInstructions({
 
         {triggerDef.provider === 'google_forms' && (
           <div className='mt-4'>
-            <div className='relative overflow-hidden rounded-lg border border-border bg-card shadow-sm'>
+            <div className='relative overflow-hidden rounded-lg border border-border bg-card shadow-xs'>
               <div
                 className='relative flex cursor-pointer items-center border-border/60 border-b bg-muted/30 px-4 py-3 transition-colors hover:bg-muted/40'
                 onClick={() => setIsExpanded(!isExpanded)}
@@ -113,7 +113,7 @@ export function TriggerInstructions({
         className='border-slate-200 bg-white dark:border-border dark:bg-background'
         icon={
           triggerDef.icon ? (
-            <triggerDef.icon className='mt-0.5 mr-3.5 h-5 w-5 flex-shrink-0 text-[#611f69] dark:text-[#e01e5a]' />
+            <triggerDef.icon className='mt-0.5 mr-3.5 h-5 w-5 shrink-0 text-[#611f69] dark:text-[#e01e5a]' />
           ) : null
         }
         title={`${triggerDef.provider.charAt(0).toUpperCase() + triggerDef.provider.slice(1).replace(/_/g, ' ')} Event Payload Example`}

@@ -662,7 +662,7 @@ export default function Logs() {
   }, [logs, selectedLogIndex, isSidebarOpen, selectedLog, handleNavigateNext, handleNavigatePrev])
 
   return (
-    <div className='flex h-[100vh] min-w-0 flex-col pl-64'>
+    <div className='flex h-screen min-w-0 flex-col pl-64'>
       {/* Add the animation styles */}
       <style jsx global>
         {selectedRowAnimation}
@@ -690,7 +690,7 @@ export default function Logs() {
               }}
             />
 
-            <div className='ml-auto flex flex-shrink-0 items-center gap-3'>
+            <div className='ml-auto flex shrink-0 items-center gap-3'>
               <Tooltip>
                 <TooltipTrigger asChild>
                   <Button
@@ -740,17 +740,15 @@ export default function Logs() {
               </Tooltip>
 
               <Button
-                className={`group h-9 gap-2 rounded-[11px] border bg-card text-card-foreground shadow-xs transition-all duration-200 hover:border-[var(--brand-primary-hex)] hover:bg-[var(--brand-primary-hex)] hover:text-white ${
-                  isLive
-                    ? 'border-[var(--brand-primary-hex)] bg-[var(--brand-primary-hex)] text-white'
-                    : 'border-border'
+                className={`group h-9 gap-2 rounded-[11px] border bg-card text-card-foreground shadow-2xs transition-all duration-200 hover:border-brand-gradient hover:bg-brand-primary hover:text-white ${
+                  isLive ? 'border-brand-gradient bg-brand-primary text-white' : 'border-border'
                 }`}
                 onClick={toggleLive}
               >
                 {isLive ? (
-                  <Square className='!h-3.5 !w-3.5 fill-current' />
+                  <Square className='h-3.5! w-3.5! fill-current' />
                 ) : (
-                  <Play className='!h-3.5 !w-3.5 group-hover:fill-current' />
+                  <Play className='h-3.5! w-3.5! group-hover:fill-current' />
                 )}
                 <span>Live</span>
               </Button>

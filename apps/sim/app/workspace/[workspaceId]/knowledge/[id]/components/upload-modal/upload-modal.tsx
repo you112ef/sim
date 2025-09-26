@@ -238,7 +238,7 @@ export function UploadModal({
                           <div className='min-w-0 flex-1'>
                             <div className='flex items-center gap-2'>
                               {isCurrentlyUploading && (
-                                <Loader2 className='h-4 w-4 animate-spin text-[var(--brand-primary-hex)]' />
+                                <Loader2 className='h-4 w-4 animate-spin text-(--brand-primary-hex)' />
                               )}
                               {isCompleted && <Check className='h-4 w-4 text-green-500' />}
                               {isFailed && <X className='h-4 w-4 text-red-500' />}
@@ -290,7 +290,7 @@ export function UploadModal({
             <Button
               onClick={handleUpload}
               disabled={files.length === 0 || isUploading}
-              className='bg-[var(--brand-primary-hex)] font-[480] text-primary-foreground shadow-[0_0_0_0_var(--brand-primary-hex)] transition-all duration-200 hover:bg-[var(--brand-primary-hover-hex)] hover:shadow-[0_0_0_4px_rgba(127,47,255,0.15)]'
+              className='bg-brand-primary font-[480] text-primary-foreground shadow-[0_0_0_0_var(--brand-primary-hex)] transition-all duration-200 hover:bg-brand-primary-hover hover:shadow-[0_0_0_4px_rgba(127,47,255,0.15)]'
             >
               {isUploading
                 ? uploadProgress.stage === 'uploading'

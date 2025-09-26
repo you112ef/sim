@@ -87,7 +87,7 @@ export default function Workflow() {
         <Button
           variant='outline'
           size='sm'
-          className='w-full justify-between rounded-[10px] border-[#E5E5E5] bg-[#FFFFFF] font-normal text-sm dark:border-[#414141] dark:bg-[var(--surface-elevated)]'
+          className='w-full justify-between rounded-[10px] border-[#E5E5E5] bg-[#FFFFFF] font-normal text-sm dark:border-[#414141] dark:bg-surface-elevated'
         >
           {loading ? 'Loading workflows...' : getSelectedWorkflowsText()}
           <ChevronDown className='ml-2 h-4 w-4 text-muted-foreground' />
@@ -95,7 +95,7 @@ export default function Workflow() {
       </DropdownMenuTrigger>
       <DropdownMenuContent
         align='start'
-        className='w-[180px] rounded-lg border-[#E5E5E5] bg-[#FFFFFF] p-0 shadow-xs dark:border-[#414141] dark:bg-[var(--surface-elevated)]'
+        className='w-[180px] rounded-lg border-[#E5E5E5] bg-[#FFFFFF] p-0 shadow-2xs dark:border-[#414141] dark:bg-surface-elevated'
       >
         <Command>
           <CommandInput placeholder='Search workflows...' onValueChange={(v) => setSearch(v)} />

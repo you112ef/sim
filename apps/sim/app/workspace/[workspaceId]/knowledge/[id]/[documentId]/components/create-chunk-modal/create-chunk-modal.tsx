@@ -128,7 +128,7 @@ export function CreateChunkModal({
           className='flex h-[74vh] flex-col gap-0 overflow-hidden p-0 sm:max-w-[600px]'
           hideCloseButton
         >
-          <DialogHeader className='flex-shrink-0 border-b px-6 py-4'>
+          <DialogHeader className='shrink-0 border-b px-6 py-4'>
             <div className='flex items-center justify-between'>
               <DialogTitle className='font-medium text-lg'>Create Chunk</DialogTitle>
               <Button
@@ -147,7 +147,7 @@ export function CreateChunkModal({
             <div className='scrollbar-thin scrollbar-thumb-muted-foreground/20 hover:scrollbar-thumb-muted-foreground/25 scrollbar-track-transparent min-h-0 flex-1 overflow-y-auto px-6'>
               <div className='flex min-h-full flex-col py-4'>
                 {/* Document Info Section - Fixed at top */}
-                <div className='flex-shrink-0 space-y-4'>
+                <div className='shrink-0 space-y-4'>
                   <div className='flex items-center gap-3 rounded-lg border bg-muted/30 p-4'>
                     <div className='min-w-0 flex-1'>
                       <p className='font-medium text-sm'>
@@ -192,7 +192,7 @@ export function CreateChunkModal({
                 <Button
                   onClick={handleCreateChunk}
                   disabled={!isFormValid || isCreating}
-                  className='bg-[var(--brand-primary-hex)] font-[480] text-primary-foreground shadow-[0_0_0_0_var(--brand-primary-hex)] transition-all duration-200 hover:bg-[var(--brand-primary-hover-hex)] hover:shadow-[0_0_0_4px_rgba(127,47,255,0.15)]'
+                  className='bg-brand-primary font-[480] text-primary-foreground shadow-[0_0_0_0_var(--brand-primary-hex)] transition-all duration-200 hover:bg-brand-primary-hover hover:shadow-[0_0_0_4px_rgba(127,47,255,0.15)]'
                 >
                   {isCreating ? (
                     <>

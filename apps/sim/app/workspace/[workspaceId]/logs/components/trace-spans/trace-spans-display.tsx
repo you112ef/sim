@@ -190,7 +190,7 @@ function BlockDataDisplay({
           <div className='ml-2 space-y-0.5'>
             {value.map((item, index) => (
               <div key={index} className='flex min-w-0 gap-1.5'>
-                <span className='flex-shrink-0 font-mono text-slate-600 text-xs dark:text-slate-400'>
+                <span className='shrink-0 font-mono text-slate-600 text-xs dark:text-slate-400'>
                   {index}:
                 </span>
                 <div className='min-w-0 flex-1 overflow-hidden'>{renderValue(item)}</div>
@@ -210,7 +210,7 @@ function BlockDataDisplay({
         <div className='space-y-0.5'>
           {entries.map(([objKey, objValue]) => (
             <div key={objKey} className='flex min-w-0 gap-1.5'>
-              <span className='flex-shrink-0 font-medium text-indigo-700 dark:text-indigo-400'>
+              <span className='shrink-0 font-medium text-indigo-700 dark:text-indigo-400'>
                 {objKey}:
               </span>
               <div className='min-w-0 flex-1 overflow-hidden'>{renderValue(objValue, objKey)}</div>
@@ -308,7 +308,7 @@ export function TraceSpansDisplay({
       <div className='mb-2 flex items-center justify-between'>
         <div className='font-medium text-muted-foreground text-xs'>Workflow Execution</div>
       </div>
-      <div className='w-full overflow-hidden rounded-md border shadow-sm'>
+      <div className='w-full overflow-hidden rounded-md border shadow-xs'>
         {traceSpans.map((span, index) => {
           const hasSubItems = Boolean(
             (span.children && span.children.length > 0) ||
@@ -404,7 +404,7 @@ function TraceSpanItem({
 
     // Block type specific icons
     if (type === 'agent') {
-      return <AgentIcon className='h-3 w-3 text-[var(--brand-primary-hover-hex)]' />
+      return <AgentIcon className='h-3 w-3 text-(--brand-primary-hover-hex)' />
     }
 
     if (type === 'evaluator') {
@@ -538,12 +538,10 @@ function TraceSpanItem({
         onClick={handleSpanClick}
         style={{ paddingLeft: `${depth * 16 + 8}px` }}
       >
-        <div className='mr-2 flex w-5 flex-shrink-0 items-center justify-center'>
-          {getSpanIcon()}
-        </div>
+        <div className='mr-2 flex w-5 shrink-0 items-center justify-center'>{getSpanIcon()}</div>
 
         <div className='flex min-w-0 flex-1 items-center gap-2 overflow-hidden'>
-          <div className='min-w-0 flex-shrink overflow-hidden'>
+          <div className='min-w-0 shrink overflow-hidden'>
             <div className='mb-0.5 flex items-center space-x-2'>
               <span
                 className={cn(
@@ -554,7 +552,7 @@ function TraceSpanItem({
                 {formatSpanName(span)}
               </span>
               {depth > 0 && (
-                <span className='flex-shrink-0 whitespace-nowrap text-muted-foreground text-xs'>
+                <span className='shrink-0 whitespace-nowrap text-muted-foreground text-xs'>
                   {span.relativeStartMs !== undefined
                     ? `+${span.relativeStartMs}ms`
                     : formatRelativeTime(startOffset)}
@@ -562,7 +560,7 @@ function TraceSpanItem({
               )}
               {depth === 0 && (
                 <span
-                  className='flex-shrink-0 whitespace-nowrap text-muted-foreground text-xs'
+                  className='shrink-0 whitespace-nowrap text-muted-foreground text-xs'
                   title={`Start time: ${new Date(span.startTime).toLocaleTimeString()}`}
                 >
                   {new Date(span.startTime).toLocaleTimeString([], {
@@ -577,9 +575,9 @@ function TraceSpanItem({
             <span className='block text-muted-foreground text-xs'>{formatDuration(duration)}</span>
           </div>
 
-          <div className='ml-auto flex w-[40%] flex-shrink-0 items-center gap-2'>
+          <div className='ml-auto flex w-[40%] shrink-0 items-center gap-2'>
             {/* Timeline visualization - responsive width based on container size */}
-            <div className='relative hidden h-2 min-w-[15%] flex-1 flex-shrink-0 overflow-hidden rounded-full bg-accent/40 sm:block'>
+            <div className='relative hidden h-2 min-w-[15%] flex-1 shrink-0 overflow-hidden rounded-full bg-accent/40 sm:block'>
               <div
                 className='absolute h-full rounded-full'
                 style={{
@@ -592,7 +590,7 @@ function TraceSpanItem({
             </div>
 
             {/* Duration text - always show in ms */}
-            <span className='w-[65px] flex-shrink-0 text-right font-mono text-muted-foreground text-xs tabular-nums'>
+            <span className='w-[65px] shrink-0 text-right font-mono text-muted-foreground text-xs tabular-nums'>
               {`${duration}ms`}
             </span>
           </div>

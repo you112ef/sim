@@ -190,7 +190,7 @@ export const EnvVarDropdown: React.FC<EnvVarDropdownProps> = ({
   return (
     <div
       className={cn(
-        'absolute z-[9999] mt-1 w-full overflow-hidden rounded-md border bg-popover shadow-md',
+        'absolute z-9999 mt-1 w-full overflow-hidden rounded-md border bg-popover shadow-md',
         className
       )}
       style={style}
@@ -221,7 +221,7 @@ export const EnvVarDropdown: React.FC<EnvVarDropdownProps> = ({
                     data-env-var-index={globalIndex}
                     className={cn(
                       'w-full px-3 py-1.5 text-left text-sm',
-                      'focus:bg-accent focus:text-accent-foreground focus:outline-none',
+                      'focus:bg-accent focus:text-accent-foreground focus:outline-hidden',
                       globalIndex === selectedIndex && 'bg-accent text-accent-foreground'
                     )}
                     onMouseEnter={() => setSelectedIndex(globalIndex)}

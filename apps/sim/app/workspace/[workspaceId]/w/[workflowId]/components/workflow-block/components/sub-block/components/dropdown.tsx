@@ -283,7 +283,7 @@ export function Dropdown({
 
       {/* Dropdown */}
       {open && (
-        <div className='absolute top-full left-0 z-[100] mt-1 w-full'>
+        <div className='absolute top-full left-0 z-100 mt-1 w-full'>
           <div className='allow-scroll fade-in-0 zoom-in-95 animate-in rounded-md border bg-popover text-popover-foreground shadow-lg'>
             <div
               ref={dropdownRef}
@@ -316,13 +316,13 @@ export function Dropdown({
                       }}
                       onMouseEnter={() => setHighlightedIndex(index)}
                       className={cn(
-                        'relative flex cursor-pointer select-none items-center rounded-sm px-2 py-1.5 text-sm outline-none hover:bg-accent hover:text-accent-foreground',
+                        'relative flex cursor-pointer select-none items-center rounded-sm px-2 py-1.5 text-sm outline-hidden hover:bg-accent hover:text-accent-foreground',
                         isHighlighted && 'bg-accent text-accent-foreground'
                       )}
                     >
                       {OptionIcon && <OptionIcon className='mr-2 h-3 w-3' />}
                       <span className='flex-1 truncate'>{optionLabel}</span>
-                      {isSelected && <Check className='ml-2 h-4 w-4 flex-shrink-0' />}
+                      {isSelected && <Check className='ml-2 h-4 w-4 shrink-0' />}
                     </div>
                   )
                 })

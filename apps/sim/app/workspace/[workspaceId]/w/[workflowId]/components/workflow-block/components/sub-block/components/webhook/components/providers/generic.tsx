@@ -49,7 +49,7 @@ export function GenericConfig({
             id='require-auth'
             checked={requireAuth}
             onCheckedChange={(checked) => setRequireAuth(checked as boolean)}
-            className='translate-y-[1px]' // Align checkbox better with label
+            className='translate-y-px' // Align checkbox better with label
           />
           <Label htmlFor='require-auth' className='cursor-pointer font-medium text-sm'>
             Require Authentication

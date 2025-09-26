@@ -23,7 +23,7 @@ import type { EnvironmentVariable as StoreEnvironmentVariable } from '@/stores/s
 
 const logger = createLogger('EnvironmentVariables')
 
-const GRID_COLS = 'grid grid-cols-[minmax(0,1fr),minmax(0,1fr),88px] gap-4'
+const GRID_COLS = 'grid grid-cols-[minmax(0,1fr)_minmax(0,1fr)_88px] gap-4'
 const INITIAL_ENV_VAR: UIEnvironmentVariable = { key: '', value: '' }
 
 interface UIEnvironmentVariable extends StoreEnvironmentVariable {
@@ -372,7 +372,7 @@ export function EnvironmentVariables({
             autoCapitalize='off'
             spellCheck='false'
             name={`env-var-key-${envVar.id || originalIndex}-${Math.random()}`}
-            className={`h-9 rounded-[8px] border-none px-3 font-normal text-sm ring-0 ring-offset-0 placeholder:text-muted-foreground focus:ring-0 focus:ring-offset-0 focus-visible:ring-0 focus-visible:ring-offset-0 ${isConflict ? 'border border-red-500 bg-[#F6D2D2] outline-none ring-0 disabled:bg-[#F6D2D2] disabled:opacity-100 dark:bg-[#442929] disabled:dark:bg-[#442929]' : 'bg-muted'}`}
+            className={`h-9 rounded-[8px] border-none px-3 font-normal text-sm ring-0 ring-offset-0 placeholder:text-muted-foreground focus:ring-0 focus:ring-offset-0 focus-visible:ring-0 focus-visible:ring-offset-0 ${isConflict ? 'border border-red-500 bg-[#F6D2D2] outline-hidden ring-0 disabled:bg-[#F6D2D2] disabled:opacity-100 dark:bg-[#442929] dark:disabled:bg-[#442929]' : 'bg-muted'}`}
           />
           <Input
             data-input-type='value'
@@ -386,7 +386,7 @@ export function EnvironmentVariables({
             placeholder={isConflict ? 'Workspace override active' : 'Enter value'}
             disabled={isConflict}
             aria-disabled={isConflict}
-            className={`allow-scroll h-9 rounded-[8px] border-none px-3 font-normal text-sm ring-0 ring-offset-0 placeholder:text-muted-foreground focus:ring-0 focus:ring-offset-0 focus-visible:ring-0 focus-visible:ring-offset-0 ${isConflict ? 'cursor-not-allowed border border-red-500 bg-[#F6D2D2] outline-none ring-0 disabled:bg-[#F6D2D2] disabled:opacity-100 dark:bg-[#442929] disabled:dark:bg-[#442929]' : 'bg-muted'}`}
+            className={`allow-scroll h-9 rounded-[8px] border-none px-3 font-normal text-sm ring-0 ring-offset-0 placeholder:text-muted-foreground focus:ring-0 focus:ring-offset-0 focus-visible:ring-0 focus-visible:ring-offset-0 ${isConflict ? 'cursor-not-allowed border border-red-500 bg-[#F6D2D2] outline-hidden ring-0 disabled:bg-[#F6D2D2] disabled:opacity-100 dark:bg-[#442929] dark:disabled:bg-[#442929]' : 'bg-muted'}`}
             autoComplete='off'
             autoCorrect='off'
             autoCapitalize='off'
@@ -449,7 +449,7 @@ export function EnvironmentVariables({
           <Skeleton className='h-9 w-56 rounded-[8px]' />
         ) : (
           <div className='flex h-9 w-56 items-center gap-2 rounded-[8px] border bg-transparent pr-2 pl-3'>
-            <Search className='h-4 w-4 flex-shrink-0 text-muted-foreground' strokeWidth={2} />
+            <Search className='h-4 w-4 shrink-0 text-muted-foreground' strokeWidth={2} />
             <Input
               placeholder='Search variables...'
               value={searchTerm}
@@ -611,7 +611,7 @@ export function EnvironmentVariables({
               <Button
                 onClick={addEnvVar}
                 variant='ghost'
-                className='h-9 rounded-[8px] border bg-background px-3 shadow-xs hover:bg-muted focus:outline-none focus-visible:ring-0 focus-visible:ring-offset-0'
+                className='h-9 rounded-[8px] border bg-background px-3 shadow-2xs hover:bg-muted focus:outline-hidden focus-visible:ring-0 focus-visible:ring-offset-0'
               >
                 <Plus className='h-4 w-4 stroke-[2px]' />
                 Add Variable

@@ -150,7 +150,7 @@ export default function Testimonials() {
 
               return (
                 /* Card unit wrapper - exactly 25% width including separator */
-                <div key={`${absoluteIndex}`} className='flex h-full w-1/4 flex-shrink-0'>
+                <div key={`${absoluteIndex}`} className='flex h-full w-1/4 shrink-0'>
                   {/* Tweet container */}
                   <div
                     className='group flex h-full w-full cursor-pointer flex-col px-[12px] py-[12px] transition-all duration-100 hover:bg-[#0A0A0A] sm:px-[14px]'
@@ -171,7 +171,7 @@ export default function Testimonials() {
                         />
                         {/* Name and username stacked */}
                         <div className='flex flex-col'>
-                          <span className='font-[500] text-gray-900 text-sm transition-colors duration-300 group-hover:text-white'>
+                          <span className='font-medium text-gray-900 text-sm transition-colors duration-300 group-hover:text-white'>
                             {tweet.name}
                           </span>
                           <span className='text-gray-500 text-xs transition-colors duration-300 group-hover:text-white/80'>
@@ -195,7 +195,7 @@ export default function Testimonials() {
 
                   {/* Full height vertical separator line */}
                   {showSeparator && (
-                    <div className='relative h-full flex-shrink-0'>
+                    <div className='relative h-full shrink-0'>
                       <svg
                         width='2'
                         height='100%'
