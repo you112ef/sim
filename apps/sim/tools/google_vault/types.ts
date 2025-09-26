@@ -9,7 +9,7 @@ export interface GoogleVaultCommonParams {
 export interface GoogleVaultCreateMattersExportParams extends GoogleVaultCommonParams {
   exportName: string
   corpus: GoogleVaultCorpus
-  accountEmails?: string | string[]
+  accountEmails?: string // Comma-separated list or array handled in the tool
   orgUnitId?: string
   terms?: string
   startTime?: string
@@ -37,7 +37,7 @@ export type GoogleVaultCorpus = 'MAIL' | 'DRIVE' | 'GROUPS' | 'HANGOUTS_CHAT' | 
 export interface GoogleVaultCreateMattersHoldsParams extends GoogleVaultCommonParams {
   holdName: string
   corpus: GoogleVaultCorpus
-  accountEmails?: string | string[]
+  accountEmails?: string // Comma-separated list or array handled in the tool
   orgUnitId?: string
 }
 

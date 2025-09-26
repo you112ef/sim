@@ -53,15 +53,18 @@ export const createMattersHoldsTool: ToolConfig<GoogleVaultCreateMattersHoldsPar
         corpus: params.corpus,
       }
 
-      const emailsRaw = (params as any).accountEmails
-      const emails = Array.isArray(emailsRaw)
-        ? emailsRaw
-        : typeof emailsRaw === 'string'
-          ? emailsRaw
-              .split(',')
-              .map((e) => e.trim())
-              .filter(Boolean)
-          : []
+      // Handle accountEmails - can be string (comma-separated) or array
+      let emails: string[] = []
+      if (params.accountEmails) {
+        if (Array.isArray(params.accountEmails)) {
+          emails = params.accountEmails
+        } else if (typeof params.accountEmails === 'string') {
+          emails = params.accountEmails
+            .split(',')
+            .map((e) => e.trim())
+            .filter(Boolean)
+        }
+      }
 
       if (emails.length > 0) {
         // Google Vault expects HeldAccount objects with 'email' or 'accountId'. Use 'email' here.

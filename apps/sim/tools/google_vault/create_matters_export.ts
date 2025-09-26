@@ -47,15 +47,18 @@ export const createMattersExportTool: ToolConfig<GoogleVaultCreateMattersExportP
       'Content-Type': 'application/json',
     }),
     body: (params) => {
-      const emailsRaw = (params as any).accountEmails
-      const emails = Array.isArray(emailsRaw)
-        ? emailsRaw
-        : typeof emailsRaw === 'string'
-          ? emailsRaw
-              .split(',')
-              .map((e) => e.trim())
-              .filter(Boolean)
-          : []
+      // Handle accountEmails - can be string (comma-separated) or array
+      let emails: string[] = []
+      if (params.accountEmails) {
+        if (Array.isArray(params.accountEmails)) {
+          emails = params.accountEmails
+        } else if (typeof params.accountEmails === 'string') {
+          emails = params.accountEmails
+            .split(',')
+            .map((e) => e.trim())
+            .filter(Boolean)
+        }
+      }
 
       const scope =
         emails.length > 0

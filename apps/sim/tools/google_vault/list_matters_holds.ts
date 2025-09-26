@@ -27,10 +27,13 @@ export const listMattersHoldsTool: ToolConfig<GoogleVaultListMattersHoldsParams>
         return `https://vault.googleapis.com/v1/matters/${params.matterId}/holds/${params.holdId}`
       }
       const url = new URL(`https://vault.googleapis.com/v1/matters/${params.matterId}/holds`)
-      // Coerce numeric-like strings and only set when a finite number
-      const raw = (params as any).pageSize
-      const pageSize = typeof raw === 'string' ? Number(raw.trim()) : raw
-      if (Number.isFinite(pageSize)) url.searchParams.set('pageSize', String(pageSize))
+      // Handle pageSize - convert to number if needed
+      if (params.pageSize !== undefined && params.pageSize !== null) {
+        const pageSize = Number(params.pageSize)
+        if (Number.isFinite(pageSize) && pageSize > 0) {
+          url.searchParams.set('pageSize', String(pageSize))
+        }
+      }
       if (params.pageToken) url.searchParams.set('pageToken', params.pageToken)
       // Default BASIC_HOLD implicitly by omitting 'view'
       return url.toString()
