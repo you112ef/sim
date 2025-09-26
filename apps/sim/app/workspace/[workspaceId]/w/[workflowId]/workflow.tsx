@@ -1867,12 +1867,6 @@ const WorkflowContent = React.memo(() => {
   return (
     <div className='flex h-screen w-full flex-col overflow-hidden'>
       <div className='relative h-full w-full flex-1 transition-all duration-200'>
-        <style jsx global>{`
-          /* Ensure edge labels (e.g., delete X) render above group/subflow nodes */
-          .react-flow__edge-labels {
-            z-index: 60 !important;
-          }
-        `}</style>
         <div className='fixed top-0 right-0 z-10'>
           <Panel />
         </div>
