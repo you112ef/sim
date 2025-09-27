@@ -6,19 +6,19 @@ import { Button } from '@/components/ui/button'
 import { client } from '@/lib/auth-client'
 import { inter } from '@/app/fonts/inter'
 
-interface SocialLoginButtonsProps {
+interface OauthButtonsProps {
   githubAvailable: boolean
   googleAvailable: boolean
   callbackURL?: string
   isProduction: boolean
 }
 
-export function SocialLoginButtons({
+export default function OauthButtons({
   githubAvailable,
   googleAvailable,
   callbackURL = '/workspace',
   isProduction,
-}: SocialLoginButtonsProps) {
+}: OauthButtonsProps) {
   const [isGithubLoading, setIsGithubLoading] = useState(false)
   const [isGoogleLoading, setIsGoogleLoading] = useState(false)
   const [mounted, setMounted] = useState(false)

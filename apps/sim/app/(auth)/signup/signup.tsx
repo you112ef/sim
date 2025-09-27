@@ -9,9 +9,11 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { client, useSession } from '@/lib/auth-client'
 import { quickValidateEmail } from '@/lib/email/validation'
+import { env, isTruthy } from '@/lib/env'
 import { createLogger } from '@/lib/logs/console/logger'
 import { cn } from '@/lib/utils'
-import { SocialLoginButtons } from '@/app/(auth)/components/social-login-buttons'
+import { OauthButtons } from '@/app/(auth)/components'
+import { getOAuthProviderStatus } from '@/app/(auth)/utils'
 import { inter } from '@/app/fonts/inter'
 import { soehne } from '@/app/fonts/soehne/soehne'
 
@@ -503,7 +505,7 @@ function SignupFormContent({
         </div>
       )}
 
-      <SocialLoginButtons
+      <OauthButtons
         githubAvailable={githubAvailable}
         googleAvailable={googleAvailable}
         callbackURL={redirectUrl || '/workspace'}
@@ -546,23 +548,29 @@ function SignupFormContent({
   )
 }
 
-export default function SignupPage({
-  githubAvailable,
-  googleAvailable,
-  isProduction,
-}: {
-  githubAvailable: boolean
-  googleAvailable: boolean
-  isProduction: boolean
-}) {
+export default function SignupForm() {
+  const [oauthStatus, setOauthStatus] = useState({
+    githubAvailable: false,
+    googleAvailable: false,
+    isProduction: false,
+  })
+
+  useEffect(() => {
+    getOAuthProviderStatus().then(setOauthStatus)
+  }, [])
+
+  if (isTruthy(env.DISABLE_REGISTRATION)) {
+    return <div>Registration is disabled, please contact your admin.</div>
+  }
+
   return (
     <Suspense
       fallback={<div className='flex h-screen items-center justify-center'>Loading...</div>}
     >
       <SignupFormContent
-        githubAvailable={githubAvailable}
-        googleAvailable={googleAvailable}
-        isProduction={isProduction}
+        githubAvailable={oauthStatus.githubAvailable}
+        googleAvailable={oauthStatus.googleAvailable}
+        isProduction={oauthStatus.isProduction}
       />
     </Suspense>
   )
