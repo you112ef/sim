@@ -19,7 +19,6 @@ import { quickValidateEmail } from '@/lib/email/validation'
 import { createLogger } from '@/lib/logs/console/logger'
 import { cn } from '@/lib/utils'
 import { OauthButtons } from '@/app/(auth)/components'
-import { getOAuthProviderStatus } from '@/app/(auth)/utils'
 import { inter } from '@/app/fonts/inter'
 import { soehne } from '@/app/fonts/soehne/soehne'
 
@@ -572,22 +571,22 @@ function LoginFormContent({
   )
 }
 
-export default function LoginForm() {
-  const [oauthStatus, setOauthStatus] = useState({
-    githubAvailable: false,
-    googleAvailable: false,
-    isProduction: false,
-  })
+interface LoginFormProps {
+  githubAvailable: boolean
+  googleAvailable: boolean
+  isProduction: boolean
+}
 
-  useEffect(() => {
-    getOAuthProviderStatus().then(setOauthStatus)
-  }, [])
-
+export default function LoginForm({
+  githubAvailable,
+  googleAvailable,
+  isProduction,
+}: LoginFormProps) {
   return (
     <LoginFormContent
-      githubAvailable={oauthStatus.githubAvailable}
-      googleAvailable={oauthStatus.googleAvailable}
-      isProduction={oauthStatus.isProduction}
+      githubAvailable={githubAvailable}
+      googleAvailable={googleAvailable}
+      isProduction={isProduction}
     />
   )
 }

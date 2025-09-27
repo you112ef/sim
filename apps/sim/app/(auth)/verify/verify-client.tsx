@@ -4,8 +4,6 @@ import { Suspense, useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { Button } from '@/components/ui/button'
 import { InputOTP, InputOTPGroup, InputOTPSlot } from '@/components/ui/input-otp'
-import { hasEmailService } from '@/lib/email/mailer'
-import { isEmailVerificationEnabled, isProd } from '@/lib/environment'
 import { cn } from '@/lib/utils'
 import { useVerification } from '@/app/(auth)/verify/use-verification'
 import { inter } from '@/app/fonts/inter'
@@ -246,14 +244,22 @@ function VerificationFormFallback() {
   )
 }
 
-export default function VerifyContent() {
-  const emailServiceConfigured = hasEmailService()
+interface VerifyContentProps {
+  hasEmailService: boolean
+  isProduction: boolean
+  isEmailVerificationEnabled: boolean
+}
 
+export default function VerifyContent({
+  hasEmailService,
+  isProduction,
+  isEmailVerificationEnabled,
+}: VerifyContentProps) {
   return (
     <Suspense fallback={<VerificationFormFallback />}>
       <VerificationForm
-        hasEmailService={emailServiceConfigured}
-        isProduction={isProd}
+        hasEmailService={hasEmailService}
+        isProduction={isProduction}
         isEmailVerificationEnabled={isEmailVerificationEnabled}
       />
     </Suspense>

@@ -252,13 +252,8 @@ export function SetNewPasswordForm({
           </div>
         )}
 
-        {statusType && statusMessage && (
-          <div
-            className={cn(
-              'mt-1 space-y-1 text-xs',
-              statusType === 'success' ? 'text-[#4CAF50]' : 'text-red-400'
-            )}
-          >
+        {statusType === 'error' && statusMessage && (
+          <div className='mt-1 space-y-1 text-red-400 text-xs'>
             <p>{statusMessage}</p>
           </div>
         )}
@@ -269,7 +264,7 @@ export function SetNewPasswordForm({
         type='submit'
         className={`${buttonClass} flex w-full items-center justify-center gap-2 rounded-[10px] border font-medium text-[15px] text-white transition-all duration-200`}
       >
-        {isSubmitting ? 'Resetting...' : 'Reset Password'}
+        {isSubmitting ? 'Resetting...' : statusType === 'success' ? 'Success!' : 'Reset Password'}
       </Button>
     </form>
   )
@@ -321,7 +316,7 @@ function ResetPasswordPageContent() {
 
       setStatusMessage({
         type: 'success',
-        text: 'Password reset successful! Redirecting to login...',
+        text: '',
       })
 
       setTimeout(() => {
