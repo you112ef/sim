@@ -216,6 +216,7 @@ export function InputMapping({
             blockId={blockId}
             subBlockId={subBlockId}
             disabled={isPreview || disabled}
+            accessiblePrefixes={accessiblePrefixes}
           />
         )
       })}
@@ -232,6 +233,7 @@ function InputMappingField({
   blockId,
   subBlockId,
   disabled,
+  accessiblePrefixes,
 }: {
   fieldName: string
   fieldType?: string
@@ -240,6 +242,7 @@ function InputMappingField({
   blockId: string
   subBlockId: string
   disabled: boolean
+  accessiblePrefixes: Set<string> | undefined
 }) {
   const [showTags, setShowTags] = useState(false)
   const [cursorPosition, setCursorPosition] = useState(0)
