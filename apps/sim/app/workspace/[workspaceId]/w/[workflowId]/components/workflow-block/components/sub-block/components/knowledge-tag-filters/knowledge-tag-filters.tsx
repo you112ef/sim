@@ -1,7 +1,7 @@
 'use client'
 
 import { useState } from 'react'
-import { Plus, Trash2 } from 'lucide-react'
+import { Calendar, Hash, Plus, ToggleLeft, Trash2, Type as TypeIcon } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { formatDisplayText } from '@/components/ui/formatted-text'
 import { Input } from '@/components/ui/input'
@@ -192,6 +192,7 @@ export function KnowledgeTagFilters({
     <thead>
       <tr className='border-b'>
         <th className='w-2/5 border-r px-4 py-2 text-center font-medium text-sm'>Tag Name</th>
+        <th className='w-1/5 border-r px-4 py-2 text-center font-medium text-sm'>Type</th>
         <th className='px-4 py-2 text-center font-medium text-sm'>Value</th>
       </tr>
     </thead>
@@ -264,6 +265,42 @@ export function KnowledgeTagFilters({
                 </div>
               </div>
             </div>
+          )}
+        </div>
+      </td>
+    )
+  }
+
+  const FIELD_TYPE_LABELS: Record<string, string> = {
+    text: 'Text',
+    number: 'Number',
+    date: 'Date',
+    boolean: 'Boolean',
+  }
+
+  const FIELD_TYPE_ICONS: Record<string, React.ReactNode> = {
+    text: <TypeIcon className='h-4 w-4 text-muted-foreground' />,
+    number: <Hash className='h-4 w-4 text-muted-foreground' />,
+    date: <Calendar className='h-4 w-4 text-muted-foreground' />,
+    boolean: <ToggleLeft className='h-4 w-4 text-muted-foreground' />,
+  }
+
+  const renderTypeCell = (row: TagFilterRow) => {
+    const tagName = row.cells.tagName || ''
+    const def = tagDefinitions.find((d) => d.displayName.toLowerCase() === tagName.toLowerCase())
+    const typeKey = def?.fieldType
+    const label = typeKey ? FIELD_TYPE_LABELS[typeKey] || typeKey : ''
+
+    return (
+      <td className='border-r p-1'>
+        <div className='flex h-8 w-full items-center justify-center'>
+          {typeKey ? (
+            <div className='flex items-center justify-center rounded-md bg-secondary/60 px-2 py-1'>
+              {FIELD_TYPE_ICONS[typeKey]}
+              <span className='sr-only'>{label}</span>
+            </div>
+          ) : (
+            <div className='text-muted-foreground text-xs'>—</div>
           )}
         </div>
       </td>
@@ -360,6 +397,7 @@ export function KnowledgeTagFilters({
             {rows.map((row, rowIndex) => (
               <tr key={row.id} className='group relative border-t'>
                 {renderTagNameCell(row, rowIndex)}
+                {renderTypeCell(row)}
                 {renderValueCell(row, rowIndex)}
                 {renderDeleteButton(rowIndex)}
               </tr>

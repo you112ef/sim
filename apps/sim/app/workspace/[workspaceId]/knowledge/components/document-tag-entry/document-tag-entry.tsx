@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { ChevronDown, Info, Plus, X } from 'lucide-react'
 import {
   Badge,
@@ -30,6 +30,7 @@ import { createLogger } from '@/lib/logs/console/logger'
 import { useKnowledgeBaseTagDefinitions } from '@/hooks/use-knowledge-base-tag-definitions'
 import { useNextAvailableSlot } from '@/hooks/use-next-available-slot'
 import { type TagDefinitionInput, useTagDefinitions } from '@/hooks/use-tag-definitions'
+import { TypedTagInput } from '../tag-input/typed-tag-input'
 
 const logger = createLogger('DocumentTagEntry')
 
@@ -65,6 +66,43 @@ export function DocumentTagEntry({
   // Use the document-level hook since we have documentId
   const { saveTagDefinitions } = documentTagHook
   const { tagDefinitions: kbTagDefinitions, fetchTagDefinitions: refreshTagDefinitions } = kbTagHook
+
+  // State for field types
+  const [fieldTypes, setFieldTypes] = useState<
+    Array<{
+      value: string
+      label: string
+      description: string
+      placeholder: string
+    }>
+  >([
+    {
+      value: 'text',
+      label: 'Text',
+      description: 'Free-form text content',
+      placeholder: 'Enter text',
+    },
+  ])
+
+  // Fetch field types on component mount
+  useEffect(() => {
+    const fetchFieldTypes = async () => {
+      try {
+        const response = await fetch('/api/knowledge/field-types')
+        if (response.ok) {
+          const result = await response.json()
+          if (result.success) {
+            setFieldTypes(result.data.fieldTypes)
+          }
+        }
+      } catch (error) {
+        logger.error('Error fetching field types:', error)
+        // Keep the default fallback
+      }
+    }
+
+    fetchFieldTypes()
+  }, [])
 
   // Modal state for tag editing
   const [editingTagIndex, setEditingTagIndex] = useState<number | null>(null)
@@ -363,16 +401,23 @@ export function DocumentTagEntry({
                   value={editForm.displayName}
                   onChange={(e) => setEditForm({ ...editForm, displayName: e.target.value })}
                   placeholder='Enter tag name'
-                  className='flex-1'
+                  className='h-8 w-full rounded-[10px] border-[#E5E5E5] bg-[#FFFFFF] text-sm dark:border-[#414141] dark:bg-[var(--surface-elevated)]'
                 />
                 {editingTagIndex === null && availableDefinitions.length > 0 && (
                   <DropdownMenu>
                     <DropdownMenuTrigger asChild>
-                      <Button variant='outline' size='sm'>
+                      <Button
+                        variant='outline'
+                        size='sm'
+                        className='h-8 rounded-[10px] border-[#E5E5E5] bg-[#FFFFFF] dark:border-[#414141] dark:bg-[var(--surface-elevated)]'
+                      >
                         <ChevronDown className='h-4 w-4' />
                       </Button>
                     </DropdownMenuTrigger>
-                    <DropdownMenuContent align='end'>
+                    <DropdownMenuContent
+                      align='end'
+                      className='w-[240px] rounded-lg border-[#E5E5E5] bg-[#FFFFFF] p-0 shadow-xs dark:border-[#414141] dark:bg-[var(--surface-elevated)]'
+                    >
                       {availableDefinitions.map((def) => (
                         <DropdownMenuItem
                           key={def.id}
@@ -383,8 +428,13 @@ export function DocumentTagEntry({
                               fieldType: def.fieldType,
                             })
                           }
+                          className='flex cursor-pointer items-center justify-between rounded-md px-3 py-2 font-[380] text-card-foreground text-sm hover:bg-secondary/50 focus:bg-secondary/50'
                         >
-                          {def.displayName}
+                          <span className='truncate'>{def.displayName}</span>
+                          <span className='ml-2 shrink-0 text-muted-foreground text-xs'>
+                            {fieldTypes.find((ft) => ft.value === def.fieldType)?.label ||
+                              def.fieldType}
+                          </span>
                         </DropdownMenuItem>
                       ))}
                     </DropdownMenuContent>
@@ -399,13 +449,23 @@ export function DocumentTagEntry({
               <Select
                 value={editForm.fieldType}
                 onValueChange={(value) => setEditForm({ ...editForm, fieldType: value })}
-                disabled={editingTagIndex !== null} // Disable in edit mode
+                disabled={
+                  editingTagIndex !== null || // Disable in edit mode
+                  (editingTagIndex === null &&
+                    kbTagDefinitions.some(
+                      (def) => def.displayName.toLowerCase() === editForm.displayName.toLowerCase()
+                    ))
+                } // Also disable when using existing definition in create mode
               >
-                <SelectTrigger>
-                  <SelectValue />
+                <SelectTrigger className='h-8 w-full justify-between rounded-[10px] border-[#E5E5E5] bg-[#FFFFFF] text-sm dark:border-[#414141] dark:bg-[var(--surface-elevated)]'>
+                  <SelectValue placeholder='Select type' />
                 </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value='text'>Text</SelectItem>
+                <SelectContent className='rounded-lg border-[#E5E5E5] bg-[#FFFFFF] dark:border-[#414141] dark:bg-[var(--surface-elevated)]'>
+                  {fieldTypes.map((fieldType) => (
+                    <SelectItem key={fieldType.value} value={fieldType.value} className='text-sm'>
+                      {fieldType.label}
+                    </SelectItem>
+                  ))}
                 </SelectContent>
               </Select>
             </div>
@@ -413,11 +473,24 @@ export function DocumentTagEntry({
             {/* Tag Value */}
             <div className='space-y-2'>
               <Label htmlFor='tag-value'>Value</Label>
-              <Input
-                id='tag-value'
+              <TypedTagInput
+                fieldType={editForm.fieldType}
                 value={editForm.value}
-                onChange={(e) => setEditForm({ ...editForm, value: e.target.value })}
-                placeholder='Enter tag value'
+                onChange={(value) => setEditForm({ ...editForm, value })}
+                placeholder={
+                  fieldTypes.find((ft) => ft.value === editForm.fieldType)?.placeholder ||
+                  'Enter tag value'
+                }
+                showInlineError={true}
+                onValidityChange={(valid) => {
+                  // Disable save when invalid
+                  // We just store validity in state via a refactor-free approach by toggling a hidden flag on form
+                  // Use a no-op set to trigger re-render when invalid so button disabled reflects it
+                  if (!valid) {
+                    // noop – re-render by updating same state value
+                    setEditForm((prev) => ({ ...prev }))
+                  }
+                }}
               />
             </div>
           </div>

@@ -3,9 +3,11 @@ import { db } from '@sim/db'
 import { document, embedding, knowledgeBaseTagDefinitions } from '@sim/db/schema'
 import { and, eq, isNotNull, isNull, sql } from 'drizzle-orm'
 import {
+  formatFieldValue,
   getSlotsForFieldType,
   SUPPORTED_FIELD_TYPES,
   type TAG_SLOT_CONFIG,
+  validateFieldValue,
 } from '@/lib/knowledge/consts'
 import type { BulkTagDefinitionsData, DocumentTagDefinition } from '@/lib/knowledge/tags/types'
 import type {
@@ -592,6 +594,57 @@ export async function getTagUsage(
   logger.info(`[${requestId}] Retrieved detailed tag usage for ${usage.length} definitions`)
 
   return usage
+}
+
+/**
+ * Validate and format a tag value based on its field type
+ */
+export async function validateAndFormatTagValue(
+  knowledgeBaseId: string,
+  tagSlot: string,
+  value: string | null,
+  requestId: string
+): Promise<{ isValid: boolean; formattedValue: string | null; error?: string }> {
+  if (value === null || value === '') {
+    return { isValid: true, formattedValue: null }
+  }
+
+  validateTagSlot(tagSlot)
+
+  const tagDefinition = await db
+    .select({
+      fieldType: knowledgeBaseTagDefinitions.fieldType,
+    })
+    .from(knowledgeBaseTagDefinitions)
+    .where(
+      and(
+        eq(knowledgeBaseTagDefinitions.knowledgeBaseId, knowledgeBaseId),
+        eq(knowledgeBaseTagDefinitions.tagSlot, tagSlot)
+      )
+    )
+    .limit(1)
+
+  if (tagDefinition.length === 0) {
+    return {
+      isValid: false,
+      formattedValue: null,
+      error: `No tag definition found for slot ${tagSlot}`,
+    }
+  }
+
+  const fieldType = tagDefinition[0].fieldType
+  const validation = validateFieldValue(fieldType, value)
+
+  if (!validation.isValid) {
+    return { isValid: false, formattedValue: null, error: validation.error }
+  }
+
+  const formattedValue = formatFieldValue(fieldType, value)
+  logger.info(
+    `[${requestId}] Validated and formatted tag value for ${tagSlot}: "${value}" -> "${formattedValue}"`
+  )
+
+  return { isValid: true, formattedValue }
 }
 
 /**

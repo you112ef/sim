@@ -79,12 +79,49 @@ export function KnowledgeBaseTags({ knowledgeBaseId }: KnowledgeBaseTagsProps) {
     displayName: '',
     fieldType: 'text',
   })
+  const [fieldTypes, setFieldTypes] = useState<
+    Array<{
+      value: string
+      label: string
+      description: string
+      placeholder: string
+    }>
+  >([])
+  const [isLoadingFieldTypes, setIsLoadingFieldTypes] = useState(false)
 
   // Get color for a tag based on its slot
   const getTagColor = (slot: string) => {
     const slotMatch = slot.match(/tag(\d+)/)
     const slotNumber = slotMatch ? Number.parseInt(slotMatch[1]) - 1 : 0
     return TAG_SLOT_COLORS[slotNumber % TAG_SLOT_COLORS.length]
+  }
+
+  // Fetch field types data from API
+  const fetchFieldTypes = async () => {
+    setIsLoadingFieldTypes(true)
+    try {
+      const response = await fetch('/api/knowledge/field-types')
+      if (!response.ok) {
+        throw new Error('Failed to fetch field types')
+      }
+      const result = await response.json()
+      if (result.success) {
+        setFieldTypes(result.data.fieldTypes)
+      }
+    } catch (error) {
+      logger.error('Error fetching field types:', error)
+      // Fallback to default field types
+      setFieldTypes([
+        {
+          value: 'text',
+          label: 'Text',
+          description: 'Free-form text content',
+          placeholder: 'Enter text',
+        },
+      ])
+    } finally {
+      setIsLoadingFieldTypes(false)
+    }
   }
 
   // Fetch tag usage data from API
@@ -107,6 +144,11 @@ export function KnowledgeBaseTags({ knowledgeBaseId }: KnowledgeBaseTagsProps) {
       setIsLoadingUsage(false)
     }
   }
+
+  // Load field types when component mounts
+  useEffect(() => {
+    fetchFieldTypes()
+  }, [])
 
   // Load tag usage data when component mounts or knowledge base changes
   useEffect(() => {
@@ -302,40 +344,44 @@ export function KnowledgeBaseTags({ knowledgeBaseId }: KnowledgeBaseTagsProps) {
                                   className='h-2 w-2 rounded-full'
                                   style={{ backgroundColor: getTagColor(tag.tagSlot) }}
                                 />
-                                <div className='min-w-0 flex-1'>
-                                  <div className='truncate font-medium'>{tag.displayName}</div>
-                                </div>
+                                <div className='truncate font-medium'>{tag.displayName}</div>
                               </div>
-                              <DropdownMenu>
-                                <DropdownMenuTrigger asChild>
-                                  <Button
-                                    variant='ghost'
-                                    size='sm'
-                                    className='h-6 w-6 p-0 text-muted-foreground hover:text-foreground'
+                              <div className='ml-2 flex items-center gap-2'>
+                                <span className='rounded-md bg-secondary/60 px-2 py-0.5 text-[11px] text-muted-foreground'>
+                                  {fieldTypes.find((ft) => ft.value === tag.fieldType)?.label ||
+                                    tag.fieldType}
+                                </span>
+                                <DropdownMenu>
+                                  <DropdownMenuTrigger asChild>
+                                    <Button
+                                      variant='ghost'
+                                      size='sm'
+                                      className='h-6 w-6 p-0 text-muted-foreground hover:text-foreground'
+                                    >
+                                      <MoreHorizontal className='h-3 w-3' />
+                                    </Button>
+                                  </DropdownMenuTrigger>
+                                  <DropdownMenuContent
+                                    align='end'
+                                    className='w-[180px] rounded-lg border bg-card shadow-xs'
                                   >
-                                    <MoreHorizontal className='h-3 w-3' />
-                                  </Button>
-                                </DropdownMenuTrigger>
-                                <DropdownMenuContent
-                                  align='end'
-                                  className='w-[180px] rounded-lg border bg-card shadow-xs'
-                                >
-                                  <DropdownMenuItem
-                                    onClick={() => handleViewDocuments(tag)}
-                                    className='cursor-pointer rounded-md px-3 py-2 text-sm hover:bg-secondary/50'
-                                  >
-                                    <Eye className='mr-2 h-3 w-3 flex-shrink-0' />
-                                    <span className='whitespace-nowrap'>View Docs</span>
-                                  </DropdownMenuItem>
-                                  <DropdownMenuItem
-                                    onClick={() => handleDeleteTag(tag)}
-                                    className='cursor-pointer rounded-md px-3 py-2 text-red-600 text-sm hover:bg-red-50 hover:text-red-600 dark:hover:bg-red-950'
-                                  >
-                                    <Trash2 className='mr-2 h-3 w-3' />
-                                    Delete Tag
-                                  </DropdownMenuItem>
-                                </DropdownMenuContent>
-                              </DropdownMenu>
+                                    <DropdownMenuItem
+                                      onClick={() => handleViewDocuments(tag)}
+                                      className='cursor-pointer rounded-md px-3 py-2 text-sm hover:bg-secondary/50'
+                                    >
+                                      <Eye className='mr-2 h-3 w-3 flex-shrink-0' />
+                                      <span className='whitespace-nowrap'>View Docs</span>
+                                    </DropdownMenuItem>
+                                    <DropdownMenuItem
+                                      onClick={() => handleDeleteTag(tag)}
+                                      className='cursor-pointer rounded-md px-3 py-2 text-red-600 text-sm hover:bg-red-50 hover:text-red-600 dark:hover:bg-red-950'
+                                    >
+                                      <Trash2 className='mr-2 h-3 w-3' />
+                                      Delete Tag
+                                    </DropdownMenuItem>
+                                  </DropdownMenuContent>
+                                </DropdownMenu>
+                              </div>
                             </div>
                           </div>
                         </div>
@@ -381,7 +427,7 @@ export function KnowledgeBaseTags({ knowledgeBaseId }: KnowledgeBaseTagsProps) {
                           setCreateForm({ ...createForm, displayName: e.target.value })
                         }
                         placeholder='Enter tag name'
-                        className='h-8 w-full rounded-md text-sm'
+                        className='h-8 w-full rounded-[10px] border-[#E5E5E5] bg-[#FFFFFF] text-sm dark:border-[#414141] dark:bg-[var(--surface-elevated)]'
                         onKeyDown={(e) => {
                           if (e.key === 'Enter' && canSave()) {
                             e.preventDefault()
@@ -408,11 +454,19 @@ export function KnowledgeBaseTags({ knowledgeBaseId }: KnowledgeBaseTagsProps) {
                           setCreateForm({ ...createForm, fieldType: value })
                         }
                       >
-                        <SelectTrigger className='h-8 w-full text-sm'>
-                          <SelectValue />
+                        <SelectTrigger className='h-8 w-full justify-between rounded-[10px] border-[#E5E5E5] bg-[#FFFFFF] text-sm dark:border-[#414141] dark:bg-[var(--surface-elevated)]'>
+                          <SelectValue placeholder='Select type' />
                         </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value='text'>Text</SelectItem>
+                        <SelectContent className='rounded-lg border-[#E5E5E5] bg-[#FFFFFF] dark:border-[#414141] dark:bg-[var(--surface-elevated)]'>
+                          {fieldTypes.map((fieldType) => (
+                            <SelectItem
+                              key={fieldType.value}
+                              value={fieldType.value}
+                              className='text-sm'
+                            >
+                              {fieldType.label}
+                            </SelectItem>
+                          ))}
                         </SelectContent>
                       </Select>
                     </div>
