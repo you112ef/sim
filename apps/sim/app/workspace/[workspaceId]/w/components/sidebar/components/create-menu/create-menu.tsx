@@ -18,7 +18,7 @@ const logger = createLogger('CreateMenu')
 
 const TIMERS = {
   LONG_PRESS_DELAY: 500,
-  CLOSE_DELAY: 300,
+  CLOSE_DELAY: 600,
 } as const
 
 interface CreateMenuProps {
@@ -251,9 +251,9 @@ export function CreateMenu({ onCreateWorkflow, isCreatingWorkflow = false }: Cre
       e.preventDefault()
       e.stopPropagation()
       clearAllTimers()
-      handleCreateWorkflow()
+      setIsOpen(true)
     },
-    [clearAllTimers, handleCreateWorkflow]
+    [clearAllTimers]
   )
 
   const handleContextMenu = useCallback((e: React.MouseEvent) => {

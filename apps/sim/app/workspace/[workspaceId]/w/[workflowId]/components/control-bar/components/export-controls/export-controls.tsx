@@ -76,18 +76,15 @@ export function ExportControls({ disabled = false }: ExportControlsProps) {
       <TooltipTrigger asChild>
         <Button
           variant='outline'
-          size='sm'
           onClick={handleExportJson}
           disabled={isDisabled}
-          className='gap-2'
+          className='h-12 w-12 rounded-[11px] border bg-card text-card-foreground shadow-xs hover:bg-secondary'
         >
-          <ArrowDownToLine className='h-4 w-4' />
-          <span className='hidden md:inline'>Export</span>
+          <ArrowDownToLine className='h-5 w-5' />
+          <span className='sr-only'>Export</span>
         </Button>
       </TooltipTrigger>
-      <TooltipContent>
-        <p>{getTooltipText()}</p>
-      </TooltipContent>
+      <TooltipContent>{getTooltipText()}</TooltipContent>
     </Tooltip>
   )
 }
