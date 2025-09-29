@@ -83,7 +83,7 @@ export default async function ChangelogContent() {
                 Documentation
               </Link>
               <Link
-                href='/changelog.xml'
+                href='/changelog/feed.xml'
                 className='inline-flex items-center gap-2 rounded-md border border-border px-3 py-1.5 hover:bg-muted'
               >
                 <Rss className='h-4 w-4' />
