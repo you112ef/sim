@@ -6,7 +6,7 @@ import { generateThemeCSS } from '@/lib/branding/inject-theme'
 import { generateBrandedMetadata, generateStructuredData } from '@/lib/branding/metadata'
 import { isHosted } from '@/lib/environment'
 import { createLogger } from '@/lib/logs/console/logger'
-import '@/app/globals.css'
+import './styles/globals.css'
 
 import { SessionProvider } from '@/lib/session/session-context'
 import { ThemeProvider } from '@/components/theme-provider/theme-provider'

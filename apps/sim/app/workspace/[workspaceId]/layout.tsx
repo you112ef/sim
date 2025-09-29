@@ -1,9 +1,9 @@
 'use client'
 
 import { useSession } from '@/lib/auth-client'
+import { SocketProvider } from '@/lib/contexts/socket-context'
 import Providers from '@/app/workspace/[workspaceId]/providers/providers'
 import { Sidebar } from '@/app/workspace/[workspaceId]/w/components/sidebar/sidebar'
-import { SocketProvider } from '@/contexts/socket-context'
 
 interface WorkspaceLayoutProps {
   children: React.ReactNode
