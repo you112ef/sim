@@ -11,8 +11,8 @@ import { cn } from '@/lib/utils'
 import { useUserPermissionsContext } from '@/app/workspace/[workspaceId]/providers/workspace-permissions-provider'
 import { useFolderStore } from '@/stores/folders/store'
 import { useWorkflowDiffStore } from '@/stores/workflow-diff/store'
-import { useWorkflowRegistry } from '@/stores/workflows/registry/store'
 import { parseWorkflowJson } from '@/stores/workflows/json/importer'
+import { useWorkflowRegistry } from '@/stores/workflows/registry/store'
 
 const logger = createLogger('CreateMenu')
 
@@ -158,10 +158,10 @@ export function CreateMenu({ onCreateWorkflow, isCreatingWorkflow = false }: Cre
         // Load the imported workflow state into stores immediately (optimistic update)
         const { useWorkflowStore } = await import('@/stores/workflows/workflow/store')
         const { useSubBlockStore } = await import('@/stores/workflows/subblock/store')
-        
+
         // Set the workflow as active in the registry to prevent reload
         useWorkflowRegistry.setState({ activeWorkflowId: newWorkflowId })
-        
+
         // Set the workflow state immediately
         useWorkflowStore.setState({
           blocks: workflowData.blocks || {},
@@ -170,10 +170,10 @@ export function CreateMenu({ onCreateWorkflow, isCreatingWorkflow = false }: Cre
           parallels: workflowData.parallels || {},
           lastSaved: Date.now(),
         })
-        
+
         // Initialize subblock store with the imported blocks
         useSubBlockStore.getState().initializeFromWorkflow(newWorkflowId, workflowData.blocks || {})
-        
+
         // Also set subblock values if they exist in the imported data
         const subBlockStore = useSubBlockStore.getState()
         Object.entries(workflowData.blocks).forEach(([blockId, block]: [string, any]) => {
@@ -198,15 +198,17 @@ export function CreateMenu({ onCreateWorkflow, isCreatingWorkflow = false }: Cre
             'Content-Type': 'application/json',
           },
           body: JSON.stringify(workflowData),
-        }).then(response => {
-          if (!response.ok) {
-            logger.error('Failed to persist imported workflow to database')
-          } else {
-            logger.info('Imported workflow persisted to database')
-          }
-        }).catch(error => {
-          logger.error('Failed to persist imported workflow:', error)
         })
+          .then((response) => {
+            if (!response.ok) {
+              logger.error('Failed to persist imported workflow to database')
+            } else {
+              logger.info('Imported workflow persisted to database')
+            }
+          })
+          .catch((error) => {
+            logger.error('Failed to persist imported workflow:', error)
+          })
       } catch (error) {
         logger.error('Failed to import workflow:', { error })
       } finally {

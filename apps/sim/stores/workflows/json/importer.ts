@@ -1,6 +1,6 @@
-import { WorkflowState } from '../workflow/types'
-import { createLogger } from '@/lib/logs/console/logger'
 import { v4 as uuidv4 } from 'uuid'
+import { createLogger } from '@/lib/logs/console/logger'
+import type { WorkflowState } from '../workflow/types'
 
 const logger = createLogger('WorkflowJsonImporter')
 
@@ -10,7 +10,7 @@ const logger = createLogger('WorkflowJsonImporter')
 function regenerateIds(workflowState: WorkflowState): WorkflowState {
   const blockIdMap = new Map<string, string>()
   const newBlocks: WorkflowState['blocks'] = {}
-  
+
   // First pass: create new IDs for all blocks
   Object.entries(workflowState.blocks).forEach(([oldId, block]) => {
     const newId = uuidv4()
@@ -20,41 +20,45 @@ function regenerateIds(workflowState: WorkflowState): WorkflowState {
       id: newId,
     }
   })
-  
+
   // Second pass: update edges with new block IDs
-  const newEdges = workflowState.edges.map(edge => ({
+  const newEdges = workflowState.edges.map((edge) => ({
     ...edge,
     id: uuidv4(), // Generate new edge ID
     source: blockIdMap.get(edge.source) || edge.source,
     target: blockIdMap.get(edge.target) || edge.target,
   }))
-  
+
   // Third pass: update loops with new block IDs
+  // CRITICAL: Loop IDs must match their block IDs (loops are keyed by their block ID)
   const newLoops: WorkflowState['loops'] = {}
   if (workflowState.loops) {
-    Object.entries(workflowState.loops).forEach(([loopId, loop]) => {
-      const newLoopId = uuidv4()
+    Object.entries(workflowState.loops).forEach(([oldLoopId, loop]) => {
+      // Map the loop ID using the block ID mapping (loop ID = block ID)
+      const newLoopId = blockIdMap.get(oldLoopId) || oldLoopId
       newLoops[newLoopId] = {
         ...loop,
         id: newLoopId,
-        nodes: loop.nodes.map(nodeId => blockIdMap.get(nodeId) || nodeId),
+        nodes: loop.nodes.map((nodeId) => blockIdMap.get(nodeId) || nodeId),
       }
     })
   }
-  
+
   // Fourth pass: update parallels with new block IDs
+  // CRITICAL: Parallel IDs must match their block IDs (parallels are keyed by their block ID)
   const newParallels: WorkflowState['parallels'] = {}
   if (workflowState.parallels) {
-    Object.entries(workflowState.parallels).forEach(([parallelId, parallel]) => {
-      const newParallelId = uuidv4()
+    Object.entries(workflowState.parallels).forEach(([oldParallelId, parallel]) => {
+      // Map the parallel ID using the block ID mapping (parallel ID = block ID)
+      const newParallelId = blockIdMap.get(oldParallelId) || oldParallelId
       newParallels[newParallelId] = {
         ...parallel,
         id: newParallelId,
-        nodes: parallel.nodes.map(nodeId => blockIdMap.get(nodeId) || nodeId),
+        nodes: parallel.nodes.map((nodeId) => blockIdMap.get(nodeId) || nodeId),
       }
     })
   }
-  
+
   // Fifth pass: update any block references in subblock values
   Object.entries(newBlocks).forEach(([blockId, block]) => {
     if (block.subBlocks) {
@@ -74,8 +78,22 @@ function regenerateIds(workflowState: WorkflowState): WorkflowState {
         }
       })
     }
+
+    // Update parentId references in block.data
+    if (block.data?.parentId) {
+      const newParentId = blockIdMap.get(block.data.parentId)
+      if (newParentId) {
+        block.data.parentId = newParentId
+      } else {
+        // Parent ID not in mapping - this shouldn't happen but log it
+        logger.warn(`Block ${blockId} references unmapped parent ${block.data.parentId}`)
+        // Remove invalid parent reference
+        block.data.parentId = undefined
+        block.data.extent = undefined
+      }
+    }
   })
-  
+
   return {
     blocks: newBlocks,
     edges: newEdges,
@@ -84,7 +102,10 @@ function regenerateIds(workflowState: WorkflowState): WorkflowState {
   }
 }
 
-export function parseWorkflowJson(jsonContent: string, regenerateIdsFlag = true): {
+export function parseWorkflowJson(
+  jsonContent: string,
+  regenerateIdsFlag = true
+): {
   data: WorkflowState | null
   errors: string[]
 } {
@@ -96,7 +117,9 @@ export function parseWorkflowJson(jsonContent: string, regenerateIdsFlag = true)
     try {
       data = JSON.parse(jsonContent)
     } catch (parseError) {
-      errors.push(`Invalid JSON: ${parseError instanceof Error ? parseError.message : 'Parse error'}`)
+      errors.push(
+        `Invalid JSON: ${parseError instanceof Error ? parseError.message : 'Parse error'}`
+      )
       return { data: null, errors }
     }
 
@@ -106,19 +129,34 @@ export function parseWorkflowJson(jsonContent: string, regenerateIdsFlag = true)
       return { data: null, errors }
     }
 
+    // Handle new export format (version/exportedAt/state) or old format (blocks/edges at root)
+    let workflowData: any
+    if (data.version && data.state) {
+      // New format with versioning
+      logger.info('Parsing workflow JSON with version', {
+        version: data.version,
+        exportedAt: data.exportedAt,
+      })
+      workflowData = data.state
+    } else {
+      // Old format - blocks/edges at root level
+      logger.info('Parsing legacy workflow JSON format')
+      workflowData = data
+    }
+
     // Validate required fields
-    if (!data.blocks || typeof data.blocks !== 'object') {
+    if (!workflowData.blocks || typeof workflowData.blocks !== 'object') {
       errors.push('Missing or invalid field: blocks')
       return { data: null, errors }
     }
 
-    if (!Array.isArray(data.edges)) {
+    if (!Array.isArray(workflowData.edges)) {
       errors.push('Missing or invalid field: edges (must be an array)')
       return { data: null, errors }
     }
 
     // Validate blocks have required fields
-    Object.entries(data.blocks).forEach(([blockId, block]: [string, any]) => {
+    Object.entries(workflowData.blocks).forEach(([blockId, block]: [string, any]) => {
       if (!block || typeof block !== 'object') {
         errors.push(`Invalid block ${blockId}: must be an object`)
         return
@@ -130,13 +168,17 @@ export function parseWorkflowJson(jsonContent: string, regenerateIdsFlag = true)
       if (!block.type) {
         errors.push(`Block ${blockId} missing required field: type`)
       }
-      if (!block.position || typeof block.position.x !== 'number' || typeof block.position.y !== 'number') {
+      if (
+        !block.position ||
+        typeof block.position.x !== 'number' ||
+        typeof block.position.y !== 'number'
+      ) {
         errors.push(`Block ${blockId} missing or invalid position`)
       }
     })
 
     // Validate edges have required fields
-    data.edges.forEach((edge: any, index: number) => {
+    workflowData.edges.forEach((edge: any, index: number) => {
       if (!edge || typeof edge !== 'object') {
         errors.push(`Invalid edge at index ${index}: must be an object`)
         return
@@ -160,12 +202,12 @@ export function parseWorkflowJson(jsonContent: string, regenerateIdsFlag = true)
 
     // Construct the workflow state with defaults
     let workflowState: WorkflowState = {
-      blocks: data.blocks || {},
-      edges: data.edges || [],
-      loops: data.loops || {},
-      parallels: data.parallels || {},
+      blocks: workflowData.blocks || {},
+      edges: workflowData.edges || [],
+      loops: workflowData.loops || {},
+      parallels: workflowData.parallels || {},
     }
-    
+
     // Regenerate IDs if requested (default: true)
     if (regenerateIdsFlag) {
       workflowState = regenerateIds(workflowState)
@@ -185,4 +227,4 @@ export function parseWorkflowJson(jsonContent: string, regenerateIdsFlag = true)
     errors.push(`Unexpected error: ${error instanceof Error ? error.message : 'Unknown error'}`)
     return { data: null, errors }
   }
-} 
+}
