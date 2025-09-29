@@ -265,6 +265,10 @@
               "type": "string",
               "description": "Privacy policy URL"
             },
+            "NEXT_PUBLIC_SENTRY_DSN": {
+              "type": "string",
+              "description": "Sentry DSN for error tracking"
+            },
             "ALLOWED_LOGIN_EMAILS": {
               "type": "string",
               "description": "Comma-separated list of allowed email addresses for login"

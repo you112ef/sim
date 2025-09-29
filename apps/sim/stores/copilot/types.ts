@@ -68,18 +68,8 @@ export type CopilotMode = 'ask' | 'agent'
 
 export interface CopilotState {
   mode: CopilotMode
-  selectedModel:
-    | 'gpt-5-fast'
-    | 'gpt-5'
-    | 'gpt-5-medium'
-    | 'gpt-5-high'
-    | 'gpt-4o'
-    | 'gpt-4.1'
-    | 'o3'
-    | 'claude-4-sonnet'
-    | 'claude-4.1-opus'
+  agentDepth: 0 | 1 | 2 | 3
   agentPrefetch: boolean
-  isCollapsed: boolean
 
   currentChat: CopilotChat | null
   chats: CopilotChat[]
@@ -122,11 +112,12 @@ export interface CopilotState {
   currentUserMessageId?: string | null
 
   // Per-message metadata captured at send-time for reliable stats
+  messageMetaById?: Record<string, { depth: 0 | 1 | 2 | 3; maxEnabled: boolean }>
 }
 
 export interface CopilotActions {
   setMode: (mode: CopilotMode) => void
-  setSelectedModel: (model: CopilotStore['selectedModel']) => void
+  setAgentDepth: (depth: 0 | 1 | 2 | 3) => void
   setAgentPrefetch: (prefetch: boolean) => void
 
   setWorkflowId: (workflowId: string | null) => Promise<void>

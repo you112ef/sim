@@ -2,11 +2,10 @@ import { db } from '@sim/db'
 import { account, user } from '@sim/db/schema'
 import { eq } from 'drizzle-orm'
 import { jwtDecode } from 'jwt-decode'
-import { createPermissionError, verifyWorkflowAccess } from '@/lib/copilot/auth/permissions'
 import type { BaseServerTool } from '@/lib/copilot/tools/server/base-tool'
 import { createLogger } from '@/lib/logs/console/logger'
 import { generateRequestId } from '@/lib/utils'
-import { refreshTokenIfNeeded } from '@/app/api/auth/oauth/utils'
+import { getUserId, refreshTokenIfNeeded } from '@/app/api/auth/oauth/utils'
 
 interface GetOAuthCredentialsParams {
   userId?: string
@@ -15,35 +14,18 @@ interface GetOAuthCredentialsParams {
 
 export const getOAuthCredentialsServerTool: BaseServerTool<GetOAuthCredentialsParams, any> = {
   name: 'get_oauth_credentials',
-  async execute(params: GetOAuthCredentialsParams, context?: { userId: string }): Promise<any> {
+  async execute(params: GetOAuthCredentialsParams): Promise<any> {
     const logger = createLogger('GetOAuthCredentialsServerTool')
-
-    if (!context?.userId) {
-      logger.error(
-        'Unauthorized attempt to access OAuth credentials - no authenticated user context'
-      )
-      throw new Error('Authentication required')
+    const directUserId = params?.userId
+    let userId = directUserId
+    if (!userId && params?.workflowId) {
+      userId = await getUserId('copilot-oauth-creds', params.workflowId)
     }
-
-    const authenticatedUserId = context.userId
-
-    if (params?.workflowId) {
-      const { hasAccess } = await verifyWorkflowAccess(authenticatedUserId, params.workflowId)
-
-      if (!hasAccess) {
-        const errorMessage = createPermissionError('access credentials in')
-        logger.error('Unauthorized attempt to access OAuth credentials', {
-          workflowId: params.workflowId,
-          authenticatedUserId,
-        })
-        throw new Error(errorMessage)
-      }
+    if (!userId || typeof userId !== 'string' || userId.trim().length === 0) {
+      throw new Error('userId is required')
     }
-
-    const userId = authenticatedUserId
-
-    logger.info('Fetching OAuth credentials for authenticated user', {
-      userId,
+    logger.info('Fetching OAuth credentials for user', {
+      hasDirectUserId: !!directUserId,
       hasWorkflowId: !!params?.workflowId,
     })
     const accounts = await db.select().from(account).where(eq(account.userId, userId))

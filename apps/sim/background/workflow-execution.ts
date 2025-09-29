@@ -127,7 +127,6 @@ export async function executeWorkflowJob(payload: WorkflowExecutionPayload) {
       contextExtensions: {
         executionId,
         workspaceId: workspaceId || '',
-        isDeployedContext: true,
       },
     })
 

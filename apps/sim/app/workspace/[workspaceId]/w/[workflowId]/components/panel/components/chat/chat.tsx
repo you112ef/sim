@@ -330,25 +330,6 @@ export function Chat({ chatMessage, setChatMessage }: ChatProps) {
 
                 if (event === 'final' && data) {
                   const result = data as ExecutionResult
-
-                  // If final result is a failure, surface error and stop
-                  if ('success' in result && !result.success) {
-                    addMessage({
-                      content: `Error: ${result.error || 'Workflow execution failed'}`,
-                      workflowId: activeWorkflowId,
-                      type: 'workflow',
-                    })
-
-                    // Clear any existing message streams
-                    for (const msgId of messageIdMap.values()) {
-                      finalizeMessageStream(msgId)
-                    }
-                    messageIdMap.clear()
-
-                    // Stop processing
-                    return
-                  }
-
                   const nonStreamingLogs =
                     result.logs?.filter((log) => !messageIdMap.has(log.blockId)) || []
 
@@ -362,25 +343,34 @@ export function Chat({ chatMessage, setChatMessage }: ChatProps) {
                       const blockIdForOutput = extractBlockIdFromOutputId(outputId)
                       const path = extractPathFromOutputId(outputId, blockIdForOutput)
                       const log = nonStreamingLogs.find((l) => l.blockId === blockIdForOutput)
+
                       if (log) {
-                        let output = log.output
+                        let outputValue: any = log.output
+
                         if (path) {
-                          output = parseOutputContentSafely(output)
+                          // Parse JSON content safely
+                          outputValue = parseOutputContentSafely(outputValue)
+
                           const pathParts = path.split('.')
-                          let current = output
                           for (const part of pathParts) {
-                            if (current && typeof current === 'object' && part in current) {
-                              current = current[part]
+                            if (
+                              outputValue &&
+                              typeof outputValue === 'object' &&
+                              part in outputValue
+                            ) {
+                              outputValue = outputValue[part]
                             } else {
-                              current = undefined
+                              outputValue = undefined
                               break
                             }
                           }
-                          output = current
                         }
-                        if (output !== undefined) {
+                        if (outputValue !== undefined) {
                           addMessage({
-                            content: typeof output === 'string' ? output : JSON.stringify(output),
+                            content:
+                              typeof outputValue === 'string'
+                                ? outputValue
+                                : `\`\`\`json\n${JSON.stringify(outputValue, null, 2)}\n\`\`\``,
                             workflowId: activeWorkflowId,
                             type: 'workflow',
                           })

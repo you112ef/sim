@@ -1,13 +1,12 @@
 import { ParallelIcon } from '@/components/icons'
-import { AuthMode, type BlockConfig } from '@/blocks/types'
+import type { BlockConfig } from '@/blocks/types'
 import type { ToolResponse } from '@/tools/types'
 
 export const ParallelBlock: BlockConfig<ToolResponse> = {
   type: 'parallel_ai',
   name: 'Parallel AI',
   description: 'Search with Parallel AI',
-  authMode: AuthMode.ApiKey,
-  longDescription: 'Integrate Parallel AI into the workflow. Can search the web.',
+  longDescription: 'Integrate Parallel AI into the workflow. Can search the web. Requires API Key.',
   docsLink: 'https://docs.parallel.ai/search-api/search-quickstart',
   category: 'tools',
   bgColor: '#E0E0E0',

@@ -24,7 +24,7 @@ import {
 import { createLogger } from '@/lib/logs/console/logger'
 import { getEmailDomain } from '@/lib/urls/utils'
 import { AuthSelector } from '@/app/workspace/[workspaceId]/w/[workflowId]/components/control-bar/components/deploy-modal/components/chat-deploy/components/auth-selector'
-import { IdentifierInput } from '@/app/workspace/[workspaceId]/w/[workflowId]/components/control-bar/components/deploy-modal/components/chat-deploy/components/identifier-input'
+import { SubdomainInput } from '@/app/workspace/[workspaceId]/w/[workflowId]/components/control-bar/components/deploy-modal/components/chat-deploy/components/subdomain-input'
 import { SuccessView } from '@/app/workspace/[workspaceId]/w/[workflowId]/components/control-bar/components/deploy-modal/components/chat-deploy/components/success-view'
 import { useChatDeployment } from '@/app/workspace/[workspaceId]/w/[workflowId]/components/control-bar/components/deploy-modal/components/chat-deploy/hooks/use-chat-deployment'
 import { useChatForm } from '@/app/workspace/[workspaceId]/w/[workflowId]/components/control-bar/components/deploy-modal/components/chat-deploy/hooks/use-chat-form'
@@ -45,12 +45,11 @@ interface ChatDeployProps {
   showDeleteConfirmation?: boolean
   setShowDeleteConfirmation?: (show: boolean) => void
   onDeploymentComplete?: () => void
-  onDeployed?: () => void
 }
 
 interface ExistingChat {
   id: string
-  identifier: string
+  subdomain: string
   title: string
   description: string
   authType: 'public' | 'password' | 'email'
@@ -73,7 +72,6 @@ export function ChatDeploy({
   showDeleteConfirmation: externalShowDeleteConfirmation,
   setShowDeleteConfirmation: externalSetShowDeleteConfirmation,
   onDeploymentComplete,
-  onDeployed,
 }: ChatDeployProps) {
   const [isLoading, setIsLoading] = useState(false)
   const [existingChat, setExistingChat] = useState<ExistingChat | null>(null)
@@ -96,9 +94,9 @@ export function ChatDeploy({
   const { formData, errors, updateField, setError, validateForm, setFormData } = useChatForm()
   const { deployedUrl, deployChat } = useChatDeployment()
   const formRef = useRef<HTMLFormElement>(null)
-  const [isIdentifierValid, setIsIdentifierValid] = useState(false)
+  const [isSubdomainValid, setIsSubdomainValid] = useState(false)
   const isFormValid =
-    isIdentifierValid &&
+    isSubdomainValid &&
     Boolean(formData.title.trim()) &&
     formData.selectedOutputBlocks.length > 0 &&
     (formData.authType !== 'password' ||
@@ -125,14 +123,14 @@ export function ChatDeploy({
         const data = await response.json()
 
         if (data.isDeployed && data.deployment) {
-          const detailResponse = await fetch(`/api/chat/manage/${data.deployment.id}`)
+          const detailResponse = await fetch(`/api/chat/edit/${data.deployment.id}`)
 
           if (detailResponse.ok) {
             const chatDetail = await detailResponse.json()
             setExistingChat(chatDetail)
 
             setFormData({
-              identifier: chatDetail.identifier || '',
+              subdomain: chatDetail.subdomain || '',
               title: chatDetail.title || '',
               description: chatDetail.description || '',
               authType: chatDetail.authType || 'public',
@@ -185,8 +183,8 @@ export function ChatDeploy({
         return
       }
 
-      if (!isIdentifierValid && formData.identifier !== existingChat?.identifier) {
-        setError('identifier', 'Please wait for identifier validation to complete')
+      if (!isSubdomainValid && formData.subdomain !== existingChat?.subdomain) {
+        setError('subdomain', 'Please wait for subdomain validation to complete')
         setChatSubmitting(false)
         return
       }
@@ -195,14 +193,13 @@ export function ChatDeploy({
 
       onChatExistsChange?.(true)
       setShowSuccessView(true)
-      onDeployed?.()
 
       // Fetch the updated chat data immediately after deployment
       // This ensures existingChat is available when switching back to edit mode
       await fetchExistingChat()
     } catch (error: any) {
-      if (error.message?.includes('identifier')) {
-        setError('identifier', error.message)
+      if (error.message?.includes('subdomain')) {
+        setError('subdomain', error.message)
       } else {
         setError('general', error.message)
       }
@@ -217,7 +214,7 @@ export function ChatDeploy({
     try {
       setIsDeleting(true)
 
-      const response = await fetch(`/api/chat/manage/${existingChat.id}`, {
+      const response = await fetch(`/api/chat/edit/${existingChat.id}`, {
         method: 'DELETE',
       })
 
@@ -267,7 +264,7 @@ export function ChatDeploy({
               <AlertDialogDescription>
                 This will permanently delete your chat deployment at{' '}
                 <span className='font-mono text-destructive'>
-                  {getEmailDomain()}/chat/{existingChat?.identifier}
+                  {existingChat?.subdomain}.{getEmailDomain()}
                 </span>
                 .
                 <span className='mt-2 block'>
@@ -316,12 +313,12 @@ export function ChatDeploy({
         )}
 
         <div className='space-y-4'>
-          <IdentifierInput
-            value={formData.identifier}
-            onChange={(value) => updateField('identifier', value)}
-            originalIdentifier={existingChat?.identifier || undefined}
+          <SubdomainInput
+            value={formData.subdomain}
+            onChange={(value) => updateField('subdomain', value)}
+            originalSubdomain={existingChat?.subdomain || undefined}
             disabled={chatSubmitting}
-            onValidationChange={setIsIdentifierValid}
+            onValidationChange={setIsSubdomainValid}
             isEditingExisting={!!existingChat}
           />
           <div className='space-y-2'>
@@ -445,7 +442,7 @@ export function ChatDeploy({
             <AlertDialogDescription>
               This will permanently delete your chat deployment at{' '}
               <span className='font-mono text-destructive'>
-                {getEmailDomain()}/chat/{existingChat?.identifier}
+                {existingChat?.subdomain}.{getEmailDomain()}
               </span>
               .
               <span className='mt-2 block'>

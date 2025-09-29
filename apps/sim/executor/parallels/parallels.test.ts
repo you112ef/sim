@@ -111,24 +111,11 @@ describe('ParallelManager', () => {
         distributionItems: ['a', 'b', 'c'],
       })
 
-      const context = {
-        workflow: {
-          blocks: [],
-          connections: [],
-        },
-        decisions: {
-          condition: new Map(),
-          router: new Map(),
-        },
-        executedBlocks: new Set(),
-      } as any
-
       const result = manager.areAllVirtualBlocksExecuted(
         'parallel-1',
         parallel,
         executedBlocks,
-        state,
-        context
+        state
       )
 
       expect(result).toBe(true)
@@ -151,32 +138,11 @@ describe('ParallelManager', () => {
         distributionItems: ['a', 'b', 'c'],
       })
 
-      // Create context with external connection to make func-1 a legitimate entry point
-      const context = {
-        workflow: {
-          blocks: [{ id: 'func-1', metadata: { id: 'function' } }],
-          connections: [
-            {
-              source: 'external-block',
-              target: 'func-1',
-              sourceHandle: 'output',
-              targetHandle: 'input',
-            },
-          ],
-        },
-        decisions: {
-          condition: new Map(),
-          router: new Map(),
-        },
-        executedBlocks: new Set(),
-      } as any
-
       const result = manager.areAllVirtualBlocksExecuted(
         'parallel-1',
         parallel,
         executedBlocks,
-        state,
-        context
+        state
       )
 
       expect(result).toBe(false)

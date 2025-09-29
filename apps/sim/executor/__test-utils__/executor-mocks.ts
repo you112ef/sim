@@ -604,8 +604,7 @@ export const createParallelManagerMock = (options?: {
       getIterationItem: vi.fn(),
       areAllVirtualBlocksExecuted: vi
         .fn()
-        .mockImplementation((parallelId, parallel, executedBlocks, state, context) => {
-          // Simple mock implementation - check all blocks (ignoring conditional routing for tests)
+        .mockImplementation((parallelId, parallel, executedBlocks, state) => {
           for (const nodeId of parallel.nodes) {
             for (let i = 0; i < state.parallelCount; i++) {
               const virtualBlockId = `${nodeId}_parallel_${parallelId}_iteration_${i}`

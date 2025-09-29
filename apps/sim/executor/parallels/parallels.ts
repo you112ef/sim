@@ -1,5 +1,4 @@
 import { createLogger } from '@/lib/logs/console/logger'
-import { ParallelRoutingUtils } from '@/executor/parallels/utils'
 import type { ExecutionContext, NormalizedBlockOutput } from '@/executor/types'
 import type { SerializedBlock, SerializedParallel, SerializedWorkflow } from '@/serializer/types'
 
@@ -57,30 +56,23 @@ export class ParallelManager {
   }
 
   /**
-   * Checks if all virtual blocks that SHOULD execute for a parallel have been executed.
-   * This now respects conditional routing - only checks blocks that should execute.
+   * Checks if all virtual blocks for a parallel have been executed.
    */
   areAllVirtualBlocksExecuted(
     parallelId: string,
     parallel: SerializedParallel,
     executedBlocks: Set<string>,
-    parallelState: ParallelState,
-    context: ExecutionContext
+    parallelState: ParallelState
   ): boolean {
-    const result = ParallelRoutingUtils.areAllRequiredVirtualBlocksExecuted(
-      parallel,
-      parallelState.parallelCount,
-      executedBlocks,
-      context
-    )
-
-    if (result) {
-      logger.info(`All required virtual blocks completed for parallel ${parallelId}`)
-    } else {
-      logger.info(`Parallel ${parallelId} not complete - some blocks still need to execute`)
+    for (const nodeId of parallel.nodes) {
+      for (let i = 0; i < parallelState.parallelCount; i++) {
+        const virtualBlockId = `${nodeId}_parallel_${parallelId}_iteration_${i}`
+        if (!executedBlocks.has(virtualBlockId)) {
+          return false
+        }
+      }
     }
-
-    return result
+    return true
   }
 
   /**
@@ -114,8 +106,7 @@ export class ParallelManager {
         parallelId,
         parallel,
         context.executedBlocks,
-        parallelState,
-        context
+        parallelState
       )
 
       if (allVirtualBlocksExecuted && !context.completedLoops.has(parallelId)) {
@@ -223,18 +214,7 @@ export class ParallelManager {
   ): void {
     const parallelState = context.parallelExecutions?.get(parallelId)
     if (parallelState) {
-      const iterationKey = `iteration_${iterationIndex}`
-      const existingResult = parallelState.executionResults.get(iterationKey)
-
-      if (existingResult) {
-        if (Array.isArray(existingResult)) {
-          existingResult.push(output)
-        } else {
-          parallelState.executionResults.set(iterationKey, [existingResult, output])
-        }
-      } else {
-        parallelState.executionResults.set(iterationKey, output)
-      }
+      parallelState.executionResults.set(`iteration_${iterationIndex}`, output)
     }
   }
 }

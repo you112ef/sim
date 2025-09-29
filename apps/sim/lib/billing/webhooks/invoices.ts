@@ -2,13 +2,13 @@ import { db } from '@sim/db'
 import { member, subscription as subscriptionTable, userStats } from '@sim/db/schema'
 import { eq } from 'drizzle-orm'
 import type Stripe from 'stripe'
-import { calculateSubscriptionOverage } from '@/lib/billing/core/billing'
+import { getUserUsageData } from '@/lib/billing/core/usage'
 import { requireStripeClient } from '@/lib/billing/stripe-client'
 import { createLogger } from '@/lib/logs/console/logger'
 
 const logger = createLogger('StripeInvoiceWebhooks')
 
-export async function resetUsageForSubscription(sub: { plan: string | null; referenceId: string }) {
+async function resetUsageForSubscription(sub: { plan: string | null; referenceId: string }) {
   if (sub.plan === 'team' || sub.plan === 'enterprise') {
     const membersRows = await db
       .select({ userId: member.userId })
@@ -31,26 +31,15 @@ export async function resetUsageForSubscription(sub: { plan: string | null; refe
     }
   } else {
     const currentStats = await db
-      .select({
-        current: userStats.currentPeriodCost,
-        snapshot: userStats.proPeriodCostSnapshot,
-      })
+      .select({ current: userStats.currentPeriodCost })
       .from(userStats)
       .where(eq(userStats.userId, sub.referenceId))
       .limit(1)
     if (currentStats.length > 0) {
-      // For Pro plans, combine current + snapshot for lastPeriodCost, then clear both
-      const current = Number.parseFloat(currentStats[0].current?.toString() || '0')
-      const snapshot = Number.parseFloat(currentStats[0].snapshot?.toString() || '0')
-      const totalLastPeriod = (current + snapshot).toString()
-
+      const current = currentStats[0].current || '0'
       await db
         .update(userStats)
-        .set({
-          lastPeriodCost: totalLastPeriod,
-          currentPeriodCost: '0',
-          proPeriodCostSnapshot: '0', // Clear snapshot at period end
-        })
+        .set({ lastPeriodCost: current, currentPeriodCost: '0' })
         .where(eq(userStats.userId, sub.referenceId))
     }
   }
@@ -253,7 +242,29 @@ export async function handleInvoiceFinalized(event: Stripe.Event) {
     const billingPeriod = new Date(periodEnd * 1000).toISOString().slice(0, 7)
 
     // Compute overage (only for team and pro plans), before resetting usage
-    const totalOverage = await calculateSubscriptionOverage(sub)
+    let totalOverage = 0
+    if (sub.plan === 'team') {
+      const members = await db
+        .select({ userId: member.userId })
+        .from(member)
+        .where(eq(member.organizationId, sub.referenceId))
+
+      let totalTeamUsage = 0
+      for (const m of members) {
+        const usage = await getUserUsageData(m.userId)
+        totalTeamUsage += usage.currentUsage
+      }
+
+      const { getPlanPricing } = await import('@/lib/billing/core/billing')
+      const { basePrice } = getPlanPricing(sub.plan)
+      const baseSubscriptionAmount = (sub.seats || 1) * basePrice
+      totalOverage = Math.max(0, totalTeamUsage - baseSubscriptionAmount)
+    } else {
+      const usage = await getUserUsageData(sub.referenceId)
+      const { getPlanPricing } = await import('@/lib/billing/core/billing')
+      const { basePrice } = getPlanPricing(sub.plan)
+      totalOverage = Math.max(0, usage.currentUsage - basePrice)
+    }
 
     if (totalOverage > 0) {
       const customerId = String(invoice.customer)

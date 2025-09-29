@@ -1,14 +1,13 @@
 import { GoogleDriveIcon } from '@/components/icons'
 import type { BlockConfig } from '@/blocks/types'
-import { AuthMode } from '@/blocks/types'
 import type { GoogleDriveResponse } from '@/tools/google_drive/types'
 
 export const GoogleDriveBlock: BlockConfig<GoogleDriveResponse> = {
   type: 'google_drive',
   name: 'Google Drive',
   description: 'Create, upload, and list files',
-  authMode: AuthMode.OAuth,
-  longDescription: 'Integrate Google Drive into the workflow. Can create, upload, and list files.',
+  longDescription:
+    'Integrate Google Drive into the workflow. Can create, upload, and list files. Requires OAuth.',
   docsLink: 'https://docs.sim.ai/tools/google_drive',
   category: 'tools',
   bgColor: '#E0E0E0',

@@ -2,6 +2,8 @@
 
 import { useMemo, useState } from 'react'
 import { Card, CardContent, CardHeader } from '@/components/ui/card'
+import { Label } from '@/components/ui/label'
+import { Switch } from '@/components/ui/switch'
 import { createLogger } from '@/lib/logs/console/logger'
 import { cn } from '@/lib/utils'
 import { WorkflowPreview } from '@/app/workspace/[workspaceId]/w/components/workflow-preview/workflow-preview'
@@ -12,36 +14,22 @@ const logger = createLogger('DeployedWorkflowCard')
 
 interface DeployedWorkflowCardProps {
   currentWorkflowState?: WorkflowState
-  activeDeployedWorkflowState?: WorkflowState
-  selectedDeployedWorkflowState?: WorkflowState
-  selectedVersionLabel?: string
+  deployedWorkflowState: WorkflowState
   className?: string
 }
 
 export function DeployedWorkflowCard({
   currentWorkflowState,
-  activeDeployedWorkflowState,
-  selectedDeployedWorkflowState,
-  selectedVersionLabel,
+  deployedWorkflowState,
   className,
 }: DeployedWorkflowCardProps) {
-  type View = 'current' | 'active' | 'selected'
-  const hasCurrent = !!currentWorkflowState
-  const hasActive = !!activeDeployedWorkflowState
-  const hasSelected = !!selectedDeployedWorkflowState
-
-  const [view, setView] = useState<View>(hasSelected ? 'selected' : 'active')
-  const workflowToShow =
-    view === 'current'
-      ? currentWorkflowState
-      : view === 'active'
-        ? activeDeployedWorkflowState
-        : selectedDeployedWorkflowState
+  const [showingDeployed, setShowingDeployed] = useState(true)
+  const workflowToShow = showingDeployed ? deployedWorkflowState : currentWorkflowState
   const activeWorkflowId = useWorkflowRegistry((state) => state.activeWorkflowId)
 
   const previewKey = useMemo(() => {
-    return `${view}-preview-${activeWorkflowId}`
-  }, [view, activeWorkflowId])
+    return `${showingDeployed ? 'deployed' : 'current'}-preview-${activeWorkflowId}}`
+  }, [showingDeployed, activeWorkflowId])
 
   return (
     <Card className={cn('relative overflow-hidden', className)}>
@@ -54,43 +42,26 @@ export function DeployedWorkflowCard({
         )}
       >
         <div className='flex items-center justify-between'>
-          <h3 className='font-medium'>Workflow Preview</h3>
+          <h3 className='font-medium'>
+            {showingDeployed ? 'Deployed Workflow' : 'Current Workflow'}
+          </h3>
+          {/* Controls */}
           <div className='flex items-center gap-2'>
-            {hasCurrent && (
-              <button
-                type='button'
-                className={cn(
-                  'rounded px-2 py-1 text-xs',
-                  view === 'current' ? 'bg-accent text-foreground' : 'text-muted-foreground'
-                )}
-                onClick={() => setView('current')}
-              >
-                Current
-              </button>
-            )}
-            {hasActive && (
-              <button
-                type='button'
-                className={cn(
-                  'rounded px-2 py-1 text-xs',
-                  view === 'active' ? 'bg-accent text-foreground' : 'text-muted-foreground'
-                )}
-                onClick={() => setView('active')}
-              >
-                Active Deployed
-              </button>
-            )}
-            {hasSelected && (
-              <button
-                type='button'
-                className={cn(
-                  'rounded px-2 py-1 text-xs',
-                  view === 'selected' ? 'bg-accent text-foreground' : 'text-muted-foreground'
-                )}
-                onClick={() => setView('selected')}
-              >
-                {selectedVersionLabel || 'Selected Version'}
-              </button>
+            {/* Version toggle - only show if there's a current version */}
+            {currentWorkflowState && (
+              <div className='flex items-center space-x-2'>
+                <Label htmlFor='workflow-version-toggle' className='text-muted-foreground text-sm'>
+                  Current
+                </Label>
+                <Switch
+                  id='workflow-version-toggle'
+                  checked={showingDeployed}
+                  onCheckedChange={setShowingDeployed}
+                />
+                <Label htmlFor='workflow-version-toggle' className='text-muted-foreground text-sm'>
+                  Deployed
+                </Label>
+              </div>
             )}
           </div>
         </div>

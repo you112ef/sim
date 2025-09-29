@@ -34,7 +34,7 @@ export async function POST(req: NextRequest) {
     const { toolName, payload } = ExecuteSchema.parse(body)
 
     logger.info(`[${tracker.requestId}] Executing server tool`, { toolName })
-    const result = await routeExecution(toolName, payload, { userId })
+    const result = await routeExecution(toolName, payload)
 
     try {
       const resultPreview = JSON.stringify(result).slice(0, 300)
@@ -48,7 +48,6 @@ export async function POST(req: NextRequest) {
       return createBadRequestResponse('Invalid request body for execute-copilot-server-tool')
     }
     logger.error(`[${tracker.requestId}] Failed to execute server tool:`, error)
-    const errorMessage = error instanceof Error ? error.message : 'Failed to execute server tool'
-    return createInternalServerErrorResponse(errorMessage)
+    return createInternalServerErrorResponse('Failed to execute server tool')
   }
 }

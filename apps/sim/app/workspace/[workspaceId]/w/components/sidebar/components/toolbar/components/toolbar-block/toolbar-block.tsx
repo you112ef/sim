@@ -7,14 +7,9 @@ import type { BlockConfig } from '@/blocks/types'
 export type ToolbarBlockProps = {
   config: BlockConfig
   disabled?: boolean
-  enableTriggerMode?: boolean
 }
 
-export function ToolbarBlock({
-  config,
-  disabled = false,
-  enableTriggerMode = false,
-}: ToolbarBlockProps) {
+export function ToolbarBlock({ config, disabled = false }: ToolbarBlockProps) {
   const userPermissions = useUserPermissionsContext()
 
   const handleDragStart = (e: React.DragEvent) => {
@@ -22,13 +17,7 @@ export function ToolbarBlock({
       e.preventDefault()
       return
     }
-    e.dataTransfer.setData(
-      'application/json',
-      JSON.stringify({
-        type: config.type,
-        enableTriggerMode,
-      })
-    )
+    e.dataTransfer.setData('application/json', JSON.stringify({ type: config.type }))
     e.dataTransfer.effectAllowed = 'move'
   }
 
@@ -40,11 +29,10 @@ export function ToolbarBlock({
     const event = new CustomEvent('add-block-from-toolbar', {
       detail: {
         type: config.type,
-        enableTriggerMode,
       },
     })
     window.dispatchEvent(event)
-  }, [config.type, disabled, enableTriggerMode])
+  }, [config.type, disabled])
 
   const blockContent = (
     <div
