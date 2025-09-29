@@ -134,16 +134,27 @@ function applyOperationsToWorkflowState(
             )
             
             // Add new edges based on connections
-            Object.entries(params.connections).forEach(([sourceHandle, targets]) => {
+            Object.entries(params.connections).forEach(([connectionType, targets]) => {
               if (targets === null) return
+              
+              // Map semantic connection names to actual React Flow handle IDs
+              // 'success' in YAML/connections maps to 'source' handle in React Flow
+              const mapConnectionTypeToHandle = (type: string): string => {
+                if (type === 'success') return 'source'
+                if (type === 'error') return 'error'
+                // Conditions and other types pass through as-is
+                return type
+              }
+              
+              const actualSourceHandle = mapConnectionTypeToHandle(connectionType)
               
               const addEdge = (targetBlock: string, targetHandle?: string) => {
                 modifiedState.edges.push({
                   id: crypto.randomUUID(),
                   source: block_id,
-                  sourceHandle: sourceHandle,
+                  sourceHandle: actualSourceHandle,
                   target: targetBlock,
-                  targetHandle: targetHandle || 'default',
+                  targetHandle: targetHandle || 'target',
                   type: 'default'
                 })
               }
@@ -166,7 +177,7 @@ function applyOperationsToWorkflowState(
           
           // Handle edge removal
           if (params?.removeEdges && Array.isArray(params.removeEdges)) {
-            params.removeEdges.forEach(({ targetBlockId, sourceHandle = 'default' }) => {
+            params.removeEdges.forEach(({ targetBlockId, sourceHandle = 'source' }) => {
               modifiedState.edges = modifiedState.edges.filter((edge: any) => 
                 !(edge.source === block_id && 
                   edge.target === targetBlockId && 
@@ -235,7 +246,7 @@ function applyOperationsToWorkflowState(
                   source: block_id,
                   sourceHandle: sourceHandle,
                   target: targetBlock,
-                  targetHandle: targetHandle || 'default',
+                  targetHandle: targetHandle || 'target',
                   type: 'default'
                 })
               }
