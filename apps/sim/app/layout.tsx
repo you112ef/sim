@@ -1,7 +1,7 @@
 import { Analytics } from '@vercel/analytics/next'
 import type { Metadata, Viewport } from 'next'
 import { PublicEnvScript } from 'next-runtime-env'
-import { BrandedLayout } from '@/components/branded-layout'
+import { BrandedLayout } from '@/components/branded-layout/branded-layout'
 import { generateThemeCSS } from '@/lib/branding/inject-theme'
 import { generateBrandedMetadata, generateStructuredData } from '@/lib/branding/metadata'
 import { isHosted } from '@/lib/environment'
@@ -9,8 +9,8 @@ import { createLogger } from '@/lib/logs/console/logger'
 import '@/app/globals.css'
 
 import { SessionProvider } from '@/lib/session/session-context'
-import { ThemeProvider } from '@/app/theme-provider'
-import { ZoomPrevention } from '@/app/zoom-prevention'
+import { ThemeProvider } from '@/components/theme-provider/theme-provider'
+import { ZoomPrevention } from '@/components/zoom-prevention/zoom-prevention'
 
 const logger = createLogger('RootLayout')
 

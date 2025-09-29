@@ -1,10 +1,10 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { GithubIcon, GoogleIcon } from '@/components/icons'
+import { GithubIcon, GoogleIcon } from '@/components/icons/icons'
 import { Button } from '@/components/ui/button'
 import { client } from '@/lib/auth-client'
-import { inter } from '@/app/fonts/inter'
+import { inter } from '@/app/styles/fonts/inter'
 
 interface OauthButtonsProps {
   githubAvailable: boolean

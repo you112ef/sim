@@ -5,8 +5,8 @@ import { useRouter } from 'next/navigation'
 import { Button } from '@/components/ui/button'
 import AuthBackground from '@/app/(auth)/components/auth-background/auth-background'
 import Nav from '@/app/(landing)/components/nav/nav'
-import { inter } from '@/app/fonts/inter'
-import { soehne } from '@/app/fonts/soehne/soehne'
+import { inter } from '@/app/styles/fonts/inter'
+import { soehne } from '@/app/styles/fonts/soehne/soehne'
 
 export default function NotFound() {
   const [buttonClass, setButtonClass] = useState('auth-button-gradient')

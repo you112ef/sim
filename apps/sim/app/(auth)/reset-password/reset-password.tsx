@@ -9,8 +9,8 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { createLogger } from '@/lib/logs/console/logger'
 import { cn } from '@/lib/utils'
-import { inter } from '@/app/fonts/inter'
-import { soehne } from '@/app/fonts/soehne/soehne'
+import { inter } from '@/app/styles/fonts/inter'
+import { soehne } from '@/app/styles/fonts/soehne/soehne'
 
 const logger = createLogger('ResetPasswordPage')
 

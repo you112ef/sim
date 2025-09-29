@@ -6,8 +6,8 @@ import { Button } from '@/components/ui/button'
 import { InputOTP, InputOTPGroup, InputOTPSlot } from '@/components/ui/input-otp'
 import { cn } from '@/lib/utils'
 import { useVerification } from '@/app/(auth)/verify/use-verification'
-import { inter } from '@/app/fonts/inter'
-import { soehne } from '@/app/fonts/soehne/soehne'
+import { inter } from '@/app/styles/fonts/inter'
+import { soehne } from '@/app/styles/fonts/soehne/soehne'
 
 function VerificationForm({
   hasEmailService,
