@@ -8,9 +8,9 @@ import { isHosted } from '@/lib/environment'
 import { createLogger } from '@/lib/logs/console/logger'
 import './styles/globals.css'
 
-import { SessionProvider } from '@/lib/session/session-context'
 import { ThemeProvider } from '@/components/theme-provider/theme-provider'
 import { ZoomPrevention } from '@/components/zoom-prevention/zoom-prevention'
+import { SessionProvider } from '@/lib/session/session-context'
 
 const logger = createLogger('RootLayout')
 
