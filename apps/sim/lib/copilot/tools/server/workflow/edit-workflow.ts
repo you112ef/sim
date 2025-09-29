@@ -35,6 +35,17 @@ function applyOperationsToWorkflowState(
   // Deep clone the workflow state to avoid mutations
   const modifiedState = JSON.parse(JSON.stringify(workflowState))
   
+  // Log initial state
+  const logger = createLogger('EditWorkflowServerTool')
+  logger.debug('Initial blocks before operations:', {
+    blockCount: Object.keys(modifiedState.blocks || {}).length,
+    blockTypes: Object.entries(modifiedState.blocks || {}).map(([id, block]: [string, any]) => ({
+      id,
+      type: block.type,
+      hasType: block.type !== undefined
+    }))
+  })
+  
   // Reorder operations: delete -> add -> edit to ensure consistent application semantics
   const deletes = operations.filter((op) => op.operation_type === 'delete')
   const adds = operations.filter((op) => op.operation_type === 'add')
@@ -74,6 +85,15 @@ function applyOperationsToWorkflowState(
         if (modifiedState.blocks[block_id]) {
           const block = modifiedState.blocks[block_id]
           
+          // Ensure block has essential properties
+          if (!block.type) {
+            logger.warn(`Block ${block_id} missing type property, skipping edit`, {
+              blockKeys: Object.keys(block),
+              blockData: JSON.stringify(block)
+            })
+            break
+          }
+          
           // Update inputs (convert to subBlocks format)
           if (params?.inputs) {
             if (!block.subBlocks) block.subBlocks = {}
@@ -91,8 +111,8 @@ function applyOperationsToWorkflowState(
           }
           
           // Update basic properties
-          if (params?.type) block.type = params.type
-          if (params?.name) block.name = params.name
+          if (params?.type !== undefined) block.type = params.type
+          if (params?.name !== undefined) block.name = params.name
           
           // Handle trigger mode toggle
           if (typeof params?.triggerMode === 'boolean') {
@@ -245,12 +265,40 @@ function applyOperationsToWorkflowState(
   modifiedState.loops = generateLoopBlocks(modifiedState.blocks)
   modifiedState.parallels = generateParallelBlocks(modifiedState.blocks)
   
+  // Validate all blocks have types before returning
+  const blocksWithoutType = Object.entries(modifiedState.blocks)
+    .filter(([_, block]: [string, any]) => !block.type || block.type === undefined)
+    .map(([id, block]: [string, any]) => ({ id, block }))
+  
+  if (blocksWithoutType.length > 0) {
+    logger.error('Blocks without type after operations:', {
+      blocksWithoutType: blocksWithoutType.map(({ id, block }) => ({
+        id,
+        type: block.type,
+        name: block.name,
+        keys: Object.keys(block)
+      }))
+    })
+    
+    // Attempt to fix by removing type-less blocks
+    blocksWithoutType.forEach(({ id }) => {
+      delete modifiedState.blocks[id]
+    })
+    
+    // Remove edges connected to removed blocks
+    const removedIds = new Set(blocksWithoutType.map(({ id }) => id))
+    modifiedState.edges = modifiedState.edges.filter((edge: any) => 
+      !removedIds.has(edge.source) && !removedIds.has(edge.target)
+    )
+  }
+  
   return modifiedState
 }
 
 async function getCurrentWorkflowStateFromDb(
   workflowId: string
 ): Promise<{ workflowState: any; subBlockValues: Record<string, Record<string, any>> }> {
+  const logger = createLogger('EditWorkflowServerTool')
   const [workflowRecord] = await db
     .select()
     .from(workflowTable)
@@ -259,11 +307,34 @@ async function getCurrentWorkflowStateFromDb(
   if (!workflowRecord) throw new Error(`Workflow ${workflowId} not found in database`)
   const normalized = await loadWorkflowFromNormalizedTables(workflowId)
   if (!normalized) throw new Error('Workflow has no normalized data')
+  
+  // Validate and fix blocks without types
+  const blocks = { ...normalized.blocks }
+  const invalidBlocks: string[] = []
+  
+  Object.entries(blocks).forEach(([id, block]: [string, any]) => {
+    if (!block.type) {
+      logger.warn(`Block ${id} loaded without type from database`, {
+        blockKeys: Object.keys(block),
+        blockName: block.name
+      })
+      invalidBlocks.push(id)
+    }
+  })
+  
+  // Remove invalid blocks
+  invalidBlocks.forEach(id => delete blocks[id])
+  
+  // Remove edges connected to invalid blocks
+  const edges = normalized.edges.filter((edge: any) => 
+    !invalidBlocks.includes(edge.source) && !invalidBlocks.includes(edge.target)
+  )
+  
   const workflowState: any = {
-    blocks: normalized.blocks,
-    edges: normalized.edges,
-    loops: normalized.loops,
-    parallels: normalized.parallels,
+    blocks,
+    edges,
+    loops: normalized.loops || {},
+    parallels: normalized.parallels || {},
   }
   const subBlockValues: Record<string, Record<string, any>> = {}
   Object.entries(normalized.blocks).forEach(([blockId, block]) => {

@@ -349,20 +349,32 @@ export class WorkflowDiffEngine {
       }
 
       // Map edges with new IDs and standardized handles
-      const finalEdges: Edge[] = proposedState.edges.map((edge) => {
+      const edgeMap = new Map<string, Edge>()
+      
+      proposedState.edges.forEach((edge) => {
         const source = idMap[edge.source] || edge.source
         const target = idMap[edge.target] || edge.target
+        const sourceHandle = edge.sourceHandle || 'source'
+        const targetHandle = edge.targetHandle || 'target'
         
-        return {
-          ...edge,
-          id: `${source}-source-${target}-target`,
-          source,
-          target,
-          sourceHandle: edge.sourceHandle || 'source',
-          targetHandle: edge.targetHandle || 'target',
-          type: edge.type || 'workflowEdge',
+        // Create a unique key for deduplication
+        const edgeKey = `${source}-${sourceHandle}-${target}-${targetHandle}`
+        
+        // Only add if we haven't seen this edge combination before
+        if (!edgeMap.has(edgeKey)) {
+          edgeMap.set(edgeKey, {
+            ...edge,
+            id: uuidv4(), // Use UUID for unique edge IDs
+            source,
+            target,
+            sourceHandle,
+            targetHandle,
+            type: edge.type || 'workflowEdge',
+          })
         }
       })
+      
+      const finalEdges: Edge[] = Array.from(edgeMap.values())
 
       // Build final proposed state
       const finalProposedState: WorkflowState = {
@@ -381,6 +393,63 @@ export class WorkflowDiffEngine {
       if (Object.keys(finalProposedState.parallels).length === 0) {
         const { generateParallelBlocks } = await import('@/stores/workflows/workflow/utils')
         finalProposedState.parallels = generateParallelBlocks(finalProposedState.blocks)
+      }
+
+      // Apply autolayout to the proposed state
+      logger.info('Applying autolayout to proposed workflow state')
+      try {
+        const autoLayoutOptions = {
+          strategy: 'smart',
+          direction: 'auto',
+          spacing: {
+            horizontal: 500,
+            vertical: 400,
+            layer: 700,
+          },
+          alignment: 'center',
+          padding: {
+            x: 250,
+            y: 250,
+          },
+        }
+
+        const autoLayoutResponse = await fetch('/api/yaml/autolayout', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            workflowState: finalProposedState,
+            options: autoLayoutOptions,
+          }),
+        })
+
+        if (autoLayoutResponse.ok) {
+          const autoLayoutResult = await autoLayoutResponse.json()
+          if (autoLayoutResult.success && autoLayoutResult.workflowState) {
+            // Update block positions with autolayout results
+            Object.entries(autoLayoutResult.workflowState.blocks).forEach(([id, layoutBlock]: [string, any]) => {
+              if (finalBlocks[id] && layoutBlock.position) {
+                finalBlocks[id].position = layoutBlock.position
+              }
+            })
+            logger.info('Successfully applied autolayout to proposed state', {
+              blocksLayouted: Object.keys(autoLayoutResult.workflowState.blocks).length,
+            })
+          } else {
+            logger.warn('Autolayout failed, using default positions', {
+              error: autoLayoutResult.error,
+            })
+          }
+        } else {
+          logger.warn('Autolayout request failed, using default positions', {
+            status: autoLayoutResponse.status,
+          })
+        }
+      } catch (layoutError) {
+        logger.warn('Error applying autolayout, using default positions', {
+          error: layoutError instanceof Error ? layoutError.message : String(layoutError),
+        })
       }
 
       // Compute diff analysis if not provided
@@ -428,11 +497,53 @@ export class WorkflowDiffEngine {
           }
         }
 
+        // Compute edge diffs
+        const currentEdgeSet = new Set<string>()
+        const proposedEdgeSet = new Set<string>()
+        
+        // Create edge identifiers for current state (using sim-agent format)
+        mergedBaseline.edges.forEach((edge: any) => {
+          const edgeId = `${edge.source}-${edge.sourceHandle || 'source'}-${edge.target}-${edge.targetHandle || 'target'}`
+          currentEdgeSet.add(edgeId)
+        })
+        
+        // Create edge identifiers for proposed state
+        finalEdges.forEach((edge) => {
+          const edgeId = `${edge.source}-${edge.sourceHandle || 'source'}-${edge.target}-${edge.targetHandle || 'target'}`
+          proposedEdgeSet.add(edgeId)
+        })
+        
+        // Classify edges
+        const newEdges: string[] = []
+        const deletedEdges: string[] = []
+        const unchangedEdges: string[] = []
+        
+        // Find new edges (in proposed but not current)
+        proposedEdgeSet.forEach(edgeId => {
+          if (!currentEdgeSet.has(edgeId)) {
+            newEdges.push(edgeId)
+          } else {
+            unchangedEdges.push(edgeId)
+          }
+        })
+        
+        // Find deleted edges (in current but not proposed)
+        currentEdgeSet.forEach(edgeId => {
+          if (!proposedEdgeSet.has(edgeId)) {
+            deletedEdges.push(edgeId)
+          }
+        })
+
         computed = {
           new_blocks: newBlocks,
           edited_blocks: editedBlocks,
           deleted_blocks: deletedBlocks,
           field_diffs: Object.keys(fieldDiffs).length > 0 ? fieldDiffs : undefined,
+          edge_diff: {
+            new_edges: newEdges,
+            deleted_edges: deletedEdges,
+            unchanged_edges: unchangedEdges,
+          },
         }
       }
 
@@ -483,7 +594,16 @@ export class WorkflowDiffEngine {
         newBlocks: computed?.new_blocks?.length || 0,
         editedBlocks: computed?.edited_blocks?.length || 0,
         deletedBlocks: computed?.deleted_blocks?.length || 0,
+        newEdges: computed?.edge_diff?.new_edges?.length || 0,
+        deletedEdges: computed?.edge_diff?.deleted_edges?.length || 0,
+        unchangedEdges: computed?.edge_diff?.unchanged_edges?.length || 0,
       })
+
+      if (computed?.edge_diff?.deleted_edges && computed.edge_diff.deleted_edges.length > 0) {
+        logger.info('Deleted edges detected:', {
+          deletedEdges: computed.edge_diff.deleted_edges,
+        })
+      }
 
       return {
         success: true,
