@@ -61,7 +61,6 @@ export class GetBlocksMetadataClientTool extends BaseClientTool {
       this.setState(ClientToolCallState.success)
     } catch (error: any) {
       const message = error instanceof Error ? error.message : String(error)
-      logger.error('Execute failed', { message })
       await this.markToolComplete(500, message)
       this.setState(ClientToolCallState.error)
     }

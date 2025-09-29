@@ -43,6 +43,8 @@ vi.mock('@/lib/utils', () => ({
 
 describe('Chat API Utils', () => {
   beforeEach(() => {
+    vi.resetModules()
+
     vi.doMock('@/lib/logs/console/logger', () => ({
       createLogger: vi.fn().mockReturnValue({
         info: vi.fn(),
@@ -59,11 +61,6 @@ describe('Chat API Utils', () => {
         NODE_ENV: 'development',
       },
     })
-
-    vi.doMock('@/lib/environment', () => ({
-      isDev: true,
-      isHosted: false,
-    }))
   })
 
   afterEach(() => {
@@ -71,39 +68,39 @@ describe('Chat API Utils', () => {
   })
 
   describe('Auth token utils', () => {
-    it('should encrypt and validate auth tokens', async () => {
+    it.concurrent('should encrypt and validate auth tokens', async () => {
       const { encryptAuthToken, validateAuthToken } = await import('@/app/api/chat/utils')
 
-      const chatId = 'test-chat-id'
+      const subdomainId = 'test-subdomain-id'
       const type = 'password'
 
-      const token = encryptAuthToken(chatId, type)
+      const token = encryptAuthToken(subdomainId, type)
       expect(typeof token).toBe('string')
       expect(token.length).toBeGreaterThan(0)
 
-      const isValid = validateAuthToken(token, chatId)
+      const isValid = validateAuthToken(token, subdomainId)
       expect(isValid).toBe(true)
 
-      const isInvalidChat = validateAuthToken(token, 'wrong-chat-id')
-      expect(isInvalidChat).toBe(false)
+      const isInvalidSubdomain = validateAuthToken(token, 'wrong-subdomain-id')
+      expect(isInvalidSubdomain).toBe(false)
     })
 
-    it('should reject expired tokens', async () => {
+    it.concurrent('should reject expired tokens', async () => {
       const { validateAuthToken } = await import('@/app/api/chat/utils')
 
-      const chatId = 'test-chat-id'
+      const subdomainId = 'test-subdomain-id'
       // Create an expired token by directly constructing it with an old timestamp
       const expiredToken = Buffer.from(
-        `${chatId}:password:${Date.now() - 25 * 60 * 60 * 1000}`
+        `${subdomainId}:password:${Date.now() - 25 * 60 * 60 * 1000}`
       ).toString('base64')
 
-      const isValid = validateAuthToken(expiredToken, chatId)
+      const isValid = validateAuthToken(expiredToken, subdomainId)
       expect(isValid).toBe(false)
     })
   })
 
   describe('Cookie handling', () => {
-    it('should set auth cookie correctly', async () => {
+    it.concurrent('should set auth cookie correctly', async () => {
       const { setChatAuthCookie } = await import('@/app/api/chat/utils')
 
       const mockSet = vi.fn()
@@ -113,13 +110,13 @@ describe('Chat API Utils', () => {
         },
       } as unknown as NextResponse
 
-      const chatId = 'test-chat-id'
+      const subdomainId = 'test-subdomain-id'
       const type = 'password'
 
-      setChatAuthCookie(mockResponse, chatId, type)
+      setChatAuthCookie(mockResponse, subdomainId, type)
 
       expect(mockSet).toHaveBeenCalledWith({
-        name: `chat_auth_${chatId}`,
+        name: `chat_auth_${subdomainId}`,
         value: expect.any(String),
         httpOnly: true,
         secure: false, // Development mode
@@ -132,12 +129,12 @@ describe('Chat API Utils', () => {
   })
 
   describe('CORS handling', () => {
-    it('should add CORS headers for localhost in development', async () => {
+    it.concurrent('should add CORS headers for localhost in development', async () => {
       const { addCorsHeaders } = await import('@/app/api/chat/utils')
 
       const mockRequest = {
         headers: {
-          get: vi.fn().mockReturnValue('http://localhost:3000'),
+          get: vi.fn().mockReturnValue('http://test.localhost:3000'),
         },
       } as any
 
@@ -151,7 +148,7 @@ describe('Chat API Utils', () => {
 
       expect(mockResponse.headers.set).toHaveBeenCalledWith(
         'Access-Control-Allow-Origin',
-        'http://localhost:3000'
+        'http://test.localhost:3000'
       )
       expect(mockResponse.headers.set).toHaveBeenCalledWith(
         'Access-Control-Allow-Credentials',
@@ -167,12 +164,12 @@ describe('Chat API Utils', () => {
       )
     })
 
-    it('should handle OPTIONS request', async () => {
+    it.concurrent('should handle OPTIONS request', async () => {
       const { OPTIONS } = await import('@/app/api/chat/utils')
 
       const mockRequest = {
         headers: {
-          get: vi.fn().mockReturnValue('http://localhost:3000'),
+          get: vi.fn().mockReturnValue('http://test.localhost:3000'),
         },
       } as any
 
@@ -201,7 +198,7 @@ describe('Chat API Utils', () => {
       })
     })
 
-    it('should allow access to public chats', async () => {
+    it.concurrent('should allow access to public chats', async () => {
       const utils = await import('@/app/api/chat/utils')
       const { validateChatAuth } = utils
 
@@ -221,7 +218,7 @@ describe('Chat API Utils', () => {
       expect(result.authorized).toBe(true)
     })
 
-    it('should request password auth for GET requests', async () => {
+    it.concurrent('should request password auth for GET requests', async () => {
       const { validateChatAuth } = await import('@/app/api/chat/utils')
 
       const deployment = {
@@ -269,7 +266,7 @@ describe('Chat API Utils', () => {
       expect(result.authorized).toBe(true)
     })
 
-    it('should reject incorrect password', async () => {
+    it.concurrent('should reject incorrect password', async () => {
       const { validateChatAuth } = await import('@/app/api/chat/utils')
 
       const deployment = {
@@ -295,7 +292,7 @@ describe('Chat API Utils', () => {
       expect(result.error).toBe('Invalid password')
     })
 
-    it('should request email auth for email-protected chats', async () => {
+    it.concurrent('should request email auth for email-protected chats', async () => {
       const { validateChatAuth } = await import('@/app/api/chat/utils')
 
       const deployment = {
@@ -317,7 +314,7 @@ describe('Chat API Utils', () => {
       expect(result.error).toBe('auth_required_email')
     })
 
-    it('should check allowed emails for email auth', async () => {
+    it.concurrent('should check allowed emails for email auth', async () => {
       const { validateChatAuth } = await import('@/app/api/chat/utils')
 
       const deployment = {

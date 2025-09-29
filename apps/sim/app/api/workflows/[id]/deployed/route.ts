@@ -1,9 +1,10 @@
-import { db, workflowDeploymentVersion } from '@sim/db'
-import { and, desc, eq } from 'drizzle-orm'
+import { db } from '@sim/db'
+import { workflow } from '@sim/db/schema'
+import { eq } from 'drizzle-orm'
 import type { NextRequest, NextResponse } from 'next/server'
 import { createLogger } from '@/lib/logs/console/logger'
 import { generateRequestId } from '@/lib/utils'
-import { validateWorkflowPermissions } from '@/lib/workflows/utils'
+import { validateWorkflowAccess } from '@/app/api/workflows/middleware'
 import { createErrorResponse, createSuccessResponse } from '@/app/api/workflows/utils'
 
 const logger = createLogger('WorkflowDeployedStateAPI')
@@ -11,6 +12,7 @@ const logger = createLogger('WorkflowDeployedStateAPI')
 export const dynamic = 'force-dynamic'
 export const runtime = 'nodejs'
 
+// Helper function to add Cache-Control headers to NextResponse
 function addNoCacheHeaders(response: NextResponse): NextResponse {
   response.headers.set('Cache-Control', 'no-store, no-cache, must-revalidate, max-age=0')
   return response
@@ -22,27 +24,43 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
 
   try {
     logger.debug(`[${requestId}] Fetching deployed state for workflow: ${id}`)
+    const validation = await validateWorkflowAccess(request, id, false)
 
-    const { error } = await validateWorkflowPermissions(id, requestId, 'read')
-    if (error) {
-      const response = createErrorResponse(error.message, error.status)
+    if (validation.error) {
+      logger.warn(`[${requestId}] Failed to fetch deployed state: ${validation.error.message}`)
+      const response = createErrorResponse(validation.error.message, validation.error.status)
       return addNoCacheHeaders(response)
     }
 
-    const [active] = await db
-      .select({ state: workflowDeploymentVersion.state })
-      .from(workflowDeploymentVersion)
-      .where(
-        and(
-          eq(workflowDeploymentVersion.workflowId, id),
-          eq(workflowDeploymentVersion.isActive, true)
-        )
-      )
-      .orderBy(desc(workflowDeploymentVersion.createdAt))
+    // Fetch the workflow's deployed state
+    const result = await db
+      .select({
+        deployedState: workflow.deployedState,
+        isDeployed: workflow.isDeployed,
+      })
+      .from(workflow)
+      .where(eq(workflow.id, id))
       .limit(1)
 
+    if (result.length === 0) {
+      logger.warn(`[${requestId}] Workflow not found: ${id}`)
+      const response = createErrorResponse('Workflow not found', 404)
+      return addNoCacheHeaders(response)
+    }
+
+    const workflowData = result[0]
+
+    // If the workflow is not deployed, return appropriate response
+    if (!workflowData.isDeployed || !workflowData.deployedState) {
+      const response = createSuccessResponse({
+        deployedState: null,
+        message: 'Workflow is not deployed or has no deployed state',
+      })
+      return addNoCacheHeaders(response)
+    }
+
     const response = createSuccessResponse({
-      deployedState: active?.state || null,
+      deployedState: workflowData.deployedState,
     })
     return addNoCacheHeaders(response)
   } catch (error: any) {

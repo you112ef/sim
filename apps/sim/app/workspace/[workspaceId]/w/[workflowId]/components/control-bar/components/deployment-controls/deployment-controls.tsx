@@ -77,7 +77,7 @@ export function DeploymentControls({
     if (isDeployed) {
       return 'Deployment Settings'
     }
-    return 'Deploy Workflow'
+    return 'Deploy as API'
   }
 
   return (

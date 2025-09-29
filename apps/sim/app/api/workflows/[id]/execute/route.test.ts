@@ -292,7 +292,7 @@ describe('Workflow Execution API Route', () => {
     const Executor = (await import('@/executor')).Executor
     expect(Executor).toHaveBeenCalled()
 
-    expect(executeMock).toHaveBeenCalledWith('workflow-id', 'starter-id')
+    expect(executeMock).toHaveBeenCalledWith('workflow-id')
   })
 
   /**
@@ -337,7 +337,7 @@ describe('Workflow Execution API Route', () => {
     const Executor = (await import('@/executor')).Executor
     expect(Executor).toHaveBeenCalled()
 
-    expect(executeMock).toHaveBeenCalledWith('workflow-id', 'starter-id')
+    expect(executeMock).toHaveBeenCalledWith('workflow-id')
 
     expect(Executor).toHaveBeenCalledWith(
       expect.objectContaining({

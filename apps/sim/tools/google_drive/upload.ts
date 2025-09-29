@@ -1,10 +1,6 @@
 import { createLogger } from '@/lib/logs/console/logger'
 import type { GoogleDriveToolParams, GoogleDriveUploadResponse } from '@/tools/google_drive/types'
-import {
-  GOOGLE_WORKSPACE_MIME_TYPES,
-  handleSheetsFormat,
-  SOURCE_MIME_TYPES,
-} from '@/tools/google_drive/utils'
+import { GOOGLE_WORKSPACE_MIME_TYPES, SOURCE_MIME_TYPES } from '@/tools/google_drive/utils'
 import type { ToolConfig } from '@/tools/types'
 
 const logger = createLogger('GoogleDriveUploadTool')
@@ -100,27 +96,13 @@ export const uploadTool: ToolConfig<GoogleDriveToolParams, GoogleDriveUploadResp
         throw new Error(data.error?.message || 'Failed to create file in Google Drive')
       }
 
+      // Now upload content to the created file
       const fileId = data.id
       const requestedMimeType = params?.mimeType || 'text/plain'
       const authHeader =
         response.headers.get('Authorization') || `Bearer ${params?.accessToken || ''}`
 
-      let preparedContent: string | undefined =
-        typeof params?.content === 'string' ? (params?.content as string) : undefined
-
-      if (requestedMimeType === 'application/vnd.google-apps.spreadsheet' && params?.content) {
-        const { csv, rowCount, columnCount } = handleSheetsFormat(params.content as unknown)
-        if (csv !== undefined) {
-          preparedContent = csv
-          logger.info('Prepared CSV content for Google Sheets upload', {
-            fileId,
-            fileName: params?.fileName,
-            rowCount,
-            columnCount,
-          })
-        }
-      }
-
+      // For Google Workspace formats, use the appropriate source MIME type for content upload
       const uploadMimeType = GOOGLE_WORKSPACE_MIME_TYPES.includes(requestedMimeType)
         ? SOURCE_MIME_TYPES[requestedMimeType] || 'text/plain'
         : requestedMimeType
@@ -140,7 +122,7 @@ export const uploadTool: ToolConfig<GoogleDriveToolParams, GoogleDriveUploadResp
             Authorization: authHeader,
             'Content-Type': uploadMimeType,
           },
-          body: preparedContent !== undefined ? preparedContent : params?.content || '',
+          body: params?.content || '',
         }
       )
 
@@ -154,6 +136,7 @@ export const uploadTool: ToolConfig<GoogleDriveToolParams, GoogleDriveUploadResp
         throw new Error(uploadError.error?.message || 'Failed to upload content to file')
       }
 
+      // For Google Workspace documents, update the name again to ensure it sticks after conversion
       if (GOOGLE_WORKSPACE_MIME_TYPES.includes(requestedMimeType)) {
         logger.info('Updating file name to ensure it persists after conversion', {
           fileId,
@@ -182,6 +165,7 @@ export const uploadTool: ToolConfig<GoogleDriveToolParams, GoogleDriveUploadResp
         }
       }
 
+      // Get the final file data
       const finalFileResponse = await fetch(
         `https://www.googleapis.com/drive/v3/files/${fileId}?supportsAllDrives=true&fields=id,name,mimeType,webViewLink,webContentLink,size,createdTime,modifiedTime,parents`,
         {

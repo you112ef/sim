@@ -1,6 +1,5 @@
 import { MicrosoftPlannerIcon } from '@/components/icons'
 import type { BlockConfig } from '@/blocks/types'
-import { AuthMode } from '@/blocks/types'
 import type { MicrosoftPlannerResponse } from '@/tools/microsoft_planner/types'
 
 interface MicrosoftPlannerBlockParams {
@@ -20,8 +19,8 @@ export const MicrosoftPlannerBlock: BlockConfig<MicrosoftPlannerResponse> = {
   type: 'microsoft_planner',
   name: 'Microsoft Planner',
   description: 'Read and create tasks in Microsoft Planner',
-  authMode: AuthMode.OAuth,
-  longDescription: 'Integrate Microsoft Planner into the workflow. Can read and create tasks.',
+  longDescription:
+    'Integrate Microsoft Planner into the workflow. Can read and create tasks. Requires OAuth.',
   docsLink: 'https://docs.sim.ai/tools/microsoft_planner',
   category: 'tools',
   bgColor: '#E0E0E0',

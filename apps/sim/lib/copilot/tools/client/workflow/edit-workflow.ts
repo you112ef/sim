@@ -135,12 +135,7 @@ export class EditWorkflowClientTool extends BaseClientTool {
       })
       if (!res.ok) {
         const errorText = await res.text().catch(() => '')
-        try {
-          const errorJson = JSON.parse(errorText)
-          throw new Error(errorJson.error || errorText || `Server error (${res.status})`)
-        } catch {
-          throw new Error(errorText || `Server error (${res.status})`)
-        }
+        throw new Error(errorText || `Server error (${res.status})`)
       }
 
       const json = await res.json()
@@ -174,7 +169,6 @@ export class EditWorkflowClientTool extends BaseClientTool {
     } catch (error: any) {
       const message = error instanceof Error ? error.message : String(error)
       logger.error('execute error', { message })
-      await this.markToolComplete(500, message)
       this.setState(ClientToolCallState.error)
     }
   }

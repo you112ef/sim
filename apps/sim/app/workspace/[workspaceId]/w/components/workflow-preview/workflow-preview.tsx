@@ -43,8 +43,7 @@ const nodeTypes: NodeTypes = {
 
 // Define edge types
 const edgeTypes: EdgeTypes = {
-  default: WorkflowEdge,
-  workflowEdge: WorkflowEdge, // Keep for backward compatibility
+  workflowEdge: WorkflowEdge,
 }
 
 export function WorkflowPreview({
@@ -244,6 +243,7 @@ export function WorkflowPreview({
       target: edge.target,
       sourceHandle: edge.sourceHandle,
       targetHandle: edge.targetHandle,
+      type: 'workflowEdge',
     }))
   }, [edgesStructure, workflowState.edges, isValidWorkflowState])
 

@@ -1,15 +1,13 @@
 import { ExaAIIcon } from '@/components/icons'
 import type { BlockConfig } from '@/blocks/types'
-import { AuthMode } from '@/blocks/types'
 import type { ExaResponse } from '@/tools/exa/types'
 
 export const ExaBlock: BlockConfig<ExaResponse> = {
   type: 'exa',
   name: 'Exa',
   description: 'Search with Exa AI',
-  authMode: AuthMode.ApiKey,
   longDescription:
-    'Integrate Exa into the workflow. Can search, get contents, find similar links, answer a question, and perform research.',
+    'Integrate Exa into the workflow. Can search, get contents, find similar links, answer a question, and perform research. Requires API Key.',
   docsLink: 'https://docs.sim.ai/tools/exa',
   category: 'tools',
   bgColor: '#1F40ED',

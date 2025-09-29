@@ -7,13 +7,6 @@ export type PrimitiveValueType = 'string' | 'number' | 'boolean' | 'json' | 'arr
 
 export type BlockCategory = 'blocks' | 'tools' | 'triggers'
 
-// Authentication modes for sub-blocks and summaries
-export enum AuthMode {
-  OAuth = 'oauth',
-  ApiKey = 'api_key',
-  BotToken = 'bot_token',
-}
-
 export type GenerationType =
   | 'javascript-function-body'
   | 'typescript-function-body'
@@ -61,7 +54,6 @@ export type SubBlockType =
   | 'input-format' // Input structure format
   | 'response-format' // Response structure format
   | 'file-upload' // File uploader
-  | 'input-mapping' // Map parent variables to child workflow input schema
 
 export type SubBlockLayout = 'full' | 'half'
 
@@ -190,13 +182,10 @@ export interface BlockConfig<T extends ToolResponse = ToolResponse> {
   description: string
   category: BlockCategory
   longDescription?: string
-  bestPractices?: string
   docsLink?: string
   bgColor: string
   icon: BlockIcon
   subBlocks: SubBlockConfig[]
-  triggerAllowed?: boolean
-  authMode?: AuthMode
   tools: {
     access: string[]
     config?: {

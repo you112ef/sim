@@ -11,11 +11,7 @@ import {
 } from '@/stores/workflows/middleware'
 import { useWorkflowRegistry } from '@/stores/workflows/registry/store'
 import { useSubBlockStore } from '@/stores/workflows/subblock/store'
-import {
-  getUniqueBlockName,
-  mergeSubblockState,
-  normalizeBlockName,
-} from '@/stores/workflows/utils'
+import { mergeSubblockState } from '@/stores/workflows/utils'
 import type {
   Position,
   SubBlockState,
@@ -396,14 +392,12 @@ export const useWorkflowStore = create<WorkflowStoreWithHistory>()(
           return
         }
 
-        const newEdge: Edge = {
+        const newEdge = {
           id: edge.id || crypto.randomUUID(),
           source: edge.source,
           target: edge.target,
           sourceHandle: edge.sourceHandle,
           targetHandle: edge.targetHandle,
-          type: edge.type || 'default',
-          data: edge.data || {},
         }
 
         const newEdges = [...get().edges, newEdge]
@@ -527,7 +521,11 @@ export const useWorkflowStore = create<WorkflowStoreWithHistory>()(
           y: block.position.y + 20,
         }
 
-        const newName = getUniqueBlockName(block.name, get().blocks)
+        // More efficient name handling
+        const match = block.name.match(/(.*?)(\d+)?$/)
+        const newName = match?.[2]
+          ? `${match[1]}${Number.parseInt(match[2]) + 1}`
+          : `${block.name} 1`
 
         // Get merged state to capture current subblock values
         const mergedBlock = mergeSubblockState(get().blocks, id)[id]
@@ -603,6 +601,11 @@ export const useWorkflowStore = create<WorkflowStoreWithHistory>()(
       updateBlockName: (id: string, name: string) => {
         const oldBlock = get().blocks[id]
         if (!oldBlock) return false
+
+        // Helper function to normalize block names (same as resolver)
+        const normalizeBlockName = (blockName: string): string => {
+          return blockName.toLowerCase().replace(/\s+/g, '')
+        }
 
         // Check for normalized name collisions
         const normalizedNewName = normalizeBlockName(name)
@@ -960,15 +963,12 @@ export const useWorkflowStore = create<WorkflowStoreWithHistory>()(
 
         // Call API to persist the revert to normalized tables
         try {
-          const response = await fetch(
-            `/api/workflows/${activeWorkflowId}/deployments/active/revert`,
-            {
-              method: 'POST',
-              headers: {
-                'Content-Type': 'application/json',
-              },
-            }
-          )
+          const response = await fetch(`/api/workflows/${activeWorkflowId}/revert-to-deployed`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+          })
 
           if (!response.ok) {
             const errorData = await response.json()
@@ -1172,14 +1172,6 @@ export const useWorkflowStore = create<WorkflowStoreWithHistory>()(
       // Function to convert UI parallel blocks to execution format
       generateParallelBlocks: () => {
         return generateParallelBlocks(get().blocks)
-      },
-
-      setDragStartPosition: (position) => {
-        set({ dragStartPosition: position })
-      },
-
-      getDragStartPosition: () => {
-        return get().dragStartPosition || null
       },
     })),
     { name: 'workflow-store' }

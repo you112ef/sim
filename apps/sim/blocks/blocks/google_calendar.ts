@@ -1,15 +1,13 @@
 import { GoogleCalendarIcon } from '@/components/icons'
 import type { BlockConfig } from '@/blocks/types'
-import { AuthMode } from '@/blocks/types'
 import type { GoogleCalendarResponse } from '@/tools/google_calendar/types'
 
 export const GoogleCalendarBlock: BlockConfig<GoogleCalendarResponse> = {
   type: 'google_calendar',
   name: 'Google Calendar',
   description: 'Manage Google Calendar events',
-  authMode: AuthMode.OAuth,
   longDescription:
-    'Integrate Google Calendar into the workflow. Can create, read, update, and list calendar events.',
+    'Integrate Google Calendar into the workflow. Can create, read, update, and list calendar events. Requires OAuth.',
   docsLink: 'https://docs.sim.ai/tools/google_calendar',
   category: 'tools',
   bgColor: '#E0E0E0',

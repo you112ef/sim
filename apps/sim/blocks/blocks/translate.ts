@@ -1,6 +1,6 @@
 import { TranslateIcon } from '@/components/icons'
 import { isHosted } from '@/lib/environment'
-import { AuthMode, type BlockConfig } from '@/blocks/types'
+import type { BlockConfig } from '@/blocks/types'
 import {
   getAllModelProviders,
   getBaseModelProviders,
@@ -29,7 +29,6 @@ export const TranslateBlock: BlockConfig = {
   type: 'translate',
   name: 'Translate',
   description: 'Translate text to any language',
-  authMode: AuthMode.ApiKey,
   longDescription: 'Integrate Translate into the workflow. Can translate text to any language.',
   docsLink: 'https://docs.sim.ai/tools/translate',
   category: 'tools',

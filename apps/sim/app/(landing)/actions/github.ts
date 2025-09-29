@@ -1,6 +1,6 @@
 import { createLogger } from '@/lib/logs/console/logger'
 
-const DEFAULT_STARS = '15.4k'
+const DEFAULT_STARS = '15k'
 
 const logger = createLogger('GitHubStars')
 

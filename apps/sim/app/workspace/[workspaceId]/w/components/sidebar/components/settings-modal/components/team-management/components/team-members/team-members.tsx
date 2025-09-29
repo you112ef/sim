@@ -1,13 +1,8 @@
-import { useEffect, useState } from 'react'
-import { LogOut, UserX, X } from 'lucide-react'
+import { UserX, X } from 'lucide-react'
 import { Button } from '@/components/ui/button'
-import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
-import { createLogger } from '@/lib/logs/console/logger'
 import type { Invitation, Member, Organization } from '@/stores/organization'
 
-const logger = createLogger('TeamMembers')
-
-interface TeamMembersProps {
+interface ConsolidatedTeamMembersProps {
   organization: Organization
   currentUserEmail: string
   isAdminOrOwner: boolean
@@ -15,26 +10,17 @@ interface TeamMembersProps {
   onCancelInvitation: (invitationId: string) => void
 }
 
-interface BaseItem {
+interface TeamMemberItem {
+  type: 'member' | 'invitation'
   id: string
   name: string
   email: string
-  avatarInitial: string
-  usage: string
-}
-
-interface MemberItem extends BaseItem {
-  type: 'member'
   role: string
-  member: Member
+  usage?: string
+  lastActive?: string
+  member?: Member
+  invitation?: Invitation
 }
-
-interface InvitationItem extends BaseItem {
-  type: 'invitation'
-  invitation: Invitation
-}
-
-type TeamMemberItem = MemberItem | InvitationItem
 
 export function TeamMembers({
   organization,
@@ -42,65 +28,23 @@ export function TeamMembers({
   isAdminOrOwner,
   onRemoveMember,
   onCancelInvitation,
-}: TeamMembersProps) {
-  const [memberUsageData, setMemberUsageData] = useState<Record<string, number>>({})
-  const [isLoadingUsage, setIsLoadingUsage] = useState(false)
-  const [cancellingInvitations, setCancellingInvitations] = useState<Set<string>>(new Set())
-
-  // Fetch member usage data when organization changes and user is admin
-  useEffect(() => {
-    const fetchMemberUsage = async () => {
-      if (!organization?.id || !isAdminOrOwner) return
-
-      setIsLoadingUsage(true)
-      try {
-        const response = await fetch(`/api/organizations/${organization.id}/members?include=usage`)
-        if (response.ok) {
-          const result = await response.json()
-          const usageMap: Record<string, number> = {}
-
-          if (result.data) {
-            result.data.forEach((member: any) => {
-              if (member.currentPeriodCost !== null && member.currentPeriodCost !== undefined) {
-                usageMap[member.userId] = Number.parseFloat(member.currentPeriodCost.toString())
-              }
-            })
-          }
-
-          setMemberUsageData(usageMap)
-        }
-      } catch (error) {
-        logger.error('Failed to fetch member usage data', { error })
-      } finally {
-        setIsLoadingUsage(false)
-      }
-    }
-
-    fetchMemberUsage()
-  }, [organization?.id, isAdminOrOwner])
-
+}: ConsolidatedTeamMembersProps) {
   // Combine members and pending invitations into a single list
   const teamItems: TeamMemberItem[] = []
 
   // Add existing members
   if (organization.members) {
     organization.members.forEach((member: Member) => {
-      const userId = member.user?.id
-      const usageAmount = userId ? (memberUsageData[userId] ?? 0) : 0
-      const name = member.user?.name || 'Unknown'
-
-      const memberItem: MemberItem = {
+      teamItems.push({
         type: 'member',
         id: member.id,
-        name,
+        name: member.user?.name || 'Unknown',
         email: member.user?.email || '',
-        avatarInitial: name.charAt(0).toUpperCase(),
-        usage: `$${usageAmount.toFixed(2)}`,
         role: member.role,
+        usage: '$0.00', // TODO: Get real usage data
+        lastActive: '8/26/2025', // TODO: Get real last active date
         member,
-      }
-
-      teamItems.push(memberItem)
+      })
     })
   }
 
@@ -110,43 +54,21 @@ export function TeamMembers({
   )
   if (pendingInvitations) {
     pendingInvitations.forEach((invitation: Invitation) => {
-      const emailPrefix = invitation.email.split('@')[0]
-
-      const invitationItem: InvitationItem = {
+      teamItems.push({
         type: 'invitation',
         id: invitation.id,
-        name: emailPrefix,
+        name: invitation.email.split('@')[0], // Use email prefix as name
         email: invitation.email,
-        avatarInitial: emailPrefix.charAt(0).toUpperCase(),
+        role: 'pending',
         usage: '-',
+        lastActive: '-',
         invitation,
-      }
-
-      teamItems.push(invitationItem)
+      })
     })
   }
 
   if (teamItems.length === 0) {
     return <div className='text-center text-muted-foreground text-sm'>No team members yet.</div>
-  }
-
-  // Check if current user can leave (is a member but not owner)
-  const currentUserMember = organization.members?.find((m) => m.user?.email === currentUserEmail)
-  const canLeaveOrganization =
-    currentUserMember && currentUserMember.role !== 'owner' && currentUserMember.user?.id
-
-  // Wrap onCancelInvitation to manage loading state
-  const handleCancelInvitation = async (invitationId: string) => {
-    setCancellingInvitations((prev) => new Set([...prev, invitationId]))
-    try {
-      await onCancelInvitation(invitationId)
-    } finally {
-      setCancellingInvitations((prev) => {
-        const next = new Set(prev)
-        next.delete(invitationId)
-        return next
-      })
-    }
   }
 
   return (
@@ -170,7 +92,7 @@ export function TeamMembers({
                     : 'bg-muted text-muted-foreground'
                 }`}
               >
-                {item.avatarInitial}
+                {item.name.charAt(0).toUpperCase()}
               </div>
 
               {/* Name and email */}
@@ -197,95 +119,50 @@ export function TeamMembers({
                 <div className='truncate text-muted-foreground text-xs'>{item.email}</div>
               </div>
 
-              {/* Usage stats - matching subscription layout */}
-              {isAdminOrOwner && (
-                <div className='hidden items-center text-xs tabular-nums sm:flex'>
-                  <div className='text-center'>
-                    <div className='text-muted-foreground'>Usage</div>
-                    <div className='font-medium'>
-                      {isLoadingUsage && item.type === 'member' ? (
-                        <span className='inline-block h-3 w-12 animate-pulse rounded bg-muted' />
-                      ) : (
-                        item.usage
-                      )}
-                    </div>
-                  </div>
+              {/* Usage and stats - matching subscription layout */}
+              <div className='hidden items-center gap-4 text-xs tabular-nums sm:flex'>
+                <div className='text-center'>
+                  <div className='text-muted-foreground'>Usage</div>
+                  <div className='font-medium'>{item.usage}</div>
                 </div>
-              )}
+                <div className='text-center'>
+                  <div className='text-muted-foreground'>Active</div>
+                  <div className='font-medium'>{item.lastActive}</div>
+                </div>
+              </div>
             </div>
 
             {/* Actions */}
-            <div className='ml-4 flex gap-1'>
-              {/* Admin/Owner can remove other members */}
-              {isAdminOrOwner &&
-                item.type === 'member' &&
-                item.role !== 'owner' &&
-                item.email !== currentUserEmail && (
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <Button
-                        variant='outline'
-                        size='sm'
-                        onClick={() => onRemoveMember(item.member)}
-                        className='h-8 w-8 rounded-[8px] p-0'
-                      >
-                        <UserX className='h-4 w-4' />
-                      </Button>
-                    </TooltipTrigger>
-                    <TooltipContent side='left'>Remove Member</TooltipContent>
-                  </Tooltip>
-                )}
-
-              {/* Admin can cancel invitations */}
-              {isAdminOrOwner && item.type === 'invitation' && (
-                <Tooltip>
-                  <TooltipTrigger asChild>
+            {isAdminOrOwner && (
+              <div className='ml-4'>
+                {item.type === 'member' &&
+                  item.member?.role !== 'owner' &&
+                  item.email !== currentUserEmail && (
                     <Button
                       variant='outline'
                       size='sm'
-                      onClick={() => handleCancelInvitation(item.invitation.id)}
-                      disabled={cancellingInvitations.has(item.invitation.id)}
+                      onClick={() => onRemoveMember(item.member!)}
                       className='h-8 w-8 rounded-[8px] p-0'
                     >
-                      {cancellingInvitations.has(item.invitation.id) ? (
-                        <span className='h-4 w-4 animate-spin rounded-full border-2 border-current border-r-transparent' />
-                      ) : (
-                        <X className='h-4 w-4' />
-                      )}
+                      <UserX className='h-4 w-4' />
                     </Button>
-                  </TooltipTrigger>
-                  <TooltipContent side='left'>
-                    {cancellingInvitations.has(item.invitation.id)
-                      ? 'Cancelling...'
-                      : 'Cancel Invitation'}
-                  </TooltipContent>
-                </Tooltip>
-              )}
-            </div>
+                  )}
+
+                {item.type === 'invitation' && (
+                  <Button
+                    variant='outline'
+                    size='sm'
+                    onClick={() => onCancelInvitation(item.invitation!.id)}
+                    className='h-8 w-8 rounded-[8px] p-0'
+                  >
+                    <X className='h-4 w-4' />
+                  </Button>
+                )}
+              </div>
+            )}
           </div>
         ))}
       </div>
-
-      {/* Leave Organization button */}
-      {canLeaveOrganization && (
-        <div className='border-t pt-4'>
-          <Button
-            variant='outline'
-            size='default'
-            onClick={() => {
-              if (!currentUserMember?.user?.id) {
-                logger.error('Cannot leave organization: missing user ID', { currentUserMember })
-                return
-              }
-              onRemoveMember(currentUserMember)
-            }}
-            className='w-full text-red-600 hover:bg-red-50 hover:text-red-700 dark:hover:bg-red-950/20'
-          >
-            <LogOut className='mr-2 h-4 w-4' />
-            Leave Organization
-          </Button>
-        </div>
-      )}
     </div>
   )
 }

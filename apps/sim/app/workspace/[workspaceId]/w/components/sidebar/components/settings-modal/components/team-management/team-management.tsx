@@ -62,7 +62,6 @@ export function TeamManagement() {
     memberId: string
     memberName: string
     shouldReduceSeats: boolean
-    isSelfRemoval?: boolean
   }>({ open: false, memberId: '', memberName: '', shouldReduceSeats: false })
   const [orgName, setOrgName] = useState('')
   const [orgSlug, setOrgSlug] = useState('')
@@ -164,26 +163,14 @@ export function TeamManagement() {
     async (member: any) => {
       if (!session?.user || !activeOrgId) return
 
-      // The member object should have user.id - that's the actual user ID
-      if (!member.user?.id) {
-        logger.error('Member object missing user ID', { member })
-        return
-      }
-
-      const isLeavingSelf = member.user?.email === session.user.email
-      const displayName = isLeavingSelf
-        ? 'yourself'
-        : member.user?.name || member.user?.email || 'this member'
-
       setRemoveMemberDialog({
         open: true,
-        memberId: member.user.id,
-        memberName: displayName,
+        memberId: member.id,
+        memberName: member.user?.name || member.user?.email || 'this member',
         shouldReduceSeats: false,
-        isSelfRemoval: isLeavingSelf,
       })
     },
-    [session?.user, activeOrgId]
+    [session?.user?.id, activeOrgId]
   )
 
   const confirmRemoveMember = useCallback(
@@ -355,16 +342,6 @@ export function TeamManagement() {
           onCancelInvitation={cancelInvitation}
         />
 
-        {/* Single Organization Notice */}
-        {adminOrOwner && (
-          <div className='mt-4 rounded-lg bg-muted/50 p-3'>
-            <p className='text-muted-foreground text-xs'>
-              <span className='font-medium'>Note:</span> Users can only be part of one organization
-              at a time. They must leave their current organization before joining another.
-            </p>
-          </div>
-        )}
-
         {/* Team Information Section - at bottom of modal */}
         <div className='mt-12 border-t pt-6'>
           <div className='space-y-3 text-xs'>
@@ -388,7 +365,6 @@ export function TeamManagement() {
         open={removeMemberDialog.open}
         memberName={removeMemberDialog.memberName}
         shouldReduceSeats={removeMemberDialog.shouldReduceSeats}
-        isSelfRemoval={removeMemberDialog.isSelfRemoval}
         onOpenChange={(open: boolean) => {
           if (!open) setRemoveMemberDialog({ ...removeMemberDialog, open: false })
         }}
@@ -405,7 +381,6 @@ export function TeamManagement() {
             memberId: '',
             memberName: '',
             shouldReduceSeats: false,
-            isSelfRemoval: false,
           })
         }
       />
