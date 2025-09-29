@@ -433,7 +433,7 @@ export const useWorkflowDiffStore = create<WorkflowDiffState & WorkflowDiffActio
                   for (const b of m.contentBlocks as any[]) {
                     if (b?.type === 'tool_call') {
                       const tn = b.toolCall?.name
-                      if (tn === 'build_workflow' || tn === 'edit_workflow') {
+                      if (tn === 'edit_workflow') {
                         toolCallId = b.toolCall?.id
                         break outer
                       }
@@ -443,7 +443,7 @@ export const useWorkflowDiffStore = create<WorkflowDiffState & WorkflowDiffActio
                 // Fallback to toolCallsById map if not found in messages
                 if (!toolCallId) {
                   const candidates = Object.values(toolCallsById).filter(
-                    (t: any) => t.name === 'build_workflow' || t.name === 'edit_workflow'
+                    (t: any) => t.name === 'edit_workflow'
                   ) as any[]
                   toolCallId = candidates.length ? candidates[candidates.length - 1].id : undefined
                 }
@@ -499,7 +499,7 @@ export const useWorkflowDiffStore = create<WorkflowDiffState & WorkflowDiffActio
               for (const b of m.contentBlocks as any[]) {
                 if (b?.type === 'tool_call') {
                   const tn = b.toolCall?.name
-                  if (tn === 'build_workflow' || tn === 'edit_workflow') {
+                  if (tn === 'edit_workflow') {
                     toolCallId = b.toolCall?.id
                     break outer
                   }
@@ -509,7 +509,7 @@ export const useWorkflowDiffStore = create<WorkflowDiffState & WorkflowDiffActio
             // Fallback to toolCallsById map if not found in messages
             if (!toolCallId) {
               const candidates = Object.values(toolCallsById).filter(
-                (t: any) => t.name === 'build_workflow' || t.name === 'edit_workflow'
+                (t: any) => t.name === 'edit_workflow'
               ) as any[]
               toolCallId = candidates.length ? candidates[candidates.length - 1].id : undefined
             }
