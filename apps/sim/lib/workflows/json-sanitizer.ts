@@ -198,18 +198,19 @@ export function validateEdges(
 
 /**
  * Generate position for a new block based on its connections
- * Uses a simple heuristic: place to the right of source blocks or at a default position
+ * Uses compact horizontal spacing and intelligent positioning
  */
 export function generatePositionForNewBlock(
   blockId: string,
   edges: CopilotEdge[],
   existingBlocks: Record<string, BlockState>
 ): Position {
-  // Find edges where this block is the target (incoming edges)
+  const HORIZONTAL_SPACING = 550
+  const VERTICAL_SPACING = 200
+
   const incomingEdges = edges.filter((e) => e.target === blockId)
 
   if (incomingEdges.length > 0) {
-    // Place to the right of the rightmost source block
     const sourceBlocks = incomingEdges
       .map((e) => existingBlocks[e.source])
       .filter((b) => b !== undefined)
@@ -219,17 +220,15 @@ export function generatePositionForNewBlock(
       const avgY = sourceBlocks.reduce((sum, b) => sum + b.position.y, 0) / sourceBlocks.length
 
       return {
-        x: rightmostX + 600, // Standard horizontal spacing
+        x: rightmostX + HORIZONTAL_SPACING,
         y: avgY,
       }
     }
   }
 
-  // Find edges where this block is the source (outgoing edges)
   const outgoingEdges = edges.filter((e) => e.source === blockId)
 
   if (outgoingEdges.length > 0) {
-    // Place to the left of the leftmost target block
     const targetBlocks = outgoingEdges
       .map((e) => existingBlocks[e.target])
       .filter((b) => b !== undefined)
@@ -239,24 +238,21 @@ export function generatePositionForNewBlock(
       const avgY = targetBlocks.reduce((sum, b) => sum + b.position.y, 0) / targetBlocks.length
 
       return {
-        x: Math.max(150, leftmostX - 600), // Don't go negative, use standard spacing
+        x: Math.max(150, leftmostX - HORIZONTAL_SPACING),
         y: avgY,
       }
     }
   }
 
-  // Default position if no connections or connected blocks don't exist yet
   const existingPositions = Object.values(existingBlocks).map((b) => b.position)
   if (existingPositions.length > 0) {
-    // Place below the bottommost block
     const maxY = Math.max(...existingPositions.map((p) => p.y))
     return {
       x: 150,
-      y: maxY + 200,
+      y: maxY + VERTICAL_SPACING,
     }
   }
 
-  // Fallback to default starting position
   return { x: 150, y: 300 }
 }
 

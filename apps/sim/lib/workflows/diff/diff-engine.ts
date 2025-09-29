@@ -1,10 +1,9 @@
+import type { Edge } from 'reactflow'
 import { v4 as uuidv4 } from 'uuid'
 import { createLogger } from '@/lib/logs/console/logger'
 import { mergeSubblockState } from '@/stores/workflows/utils'
 import type { BlockState, WorkflowState } from '@/stores/workflows/workflow/types'
 import type { BlockWithDiff } from './types'
-import { validateWorkflowState } from '@/lib/workflows/validation'
-import type { Edge } from 'reactflow'
 
 const logger = createLogger('WorkflowDiffEngine')
 
@@ -15,13 +14,13 @@ function hasBlockChanged(currentBlock: BlockState, proposedBlock: BlockState): b
   if (currentBlock.name !== proposedBlock.name) return true
   if (currentBlock.enabled !== proposedBlock.enabled) return true
   if (currentBlock.triggerMode !== proposedBlock.triggerMode) return true
-  
+
   // Compare subBlocks
   const currentSubKeys = Object.keys(currentBlock.subBlocks || {})
   const proposedSubKeys = Object.keys(proposedBlock.subBlocks || {})
-  
+
   if (currentSubKeys.length !== proposedSubKeys.length) return true
-  
+
   for (const key of currentSubKeys) {
     if (!proposedSubKeys.includes(key)) return true
     const currentSub = currentBlock.subBlocks[key]
@@ -29,18 +28,21 @@ function hasBlockChanged(currentBlock: BlockState, proposedBlock: BlockState): b
     if (!proposedSub) return true
     if (JSON.stringify(currentSub.value) !== JSON.stringify(proposedSub.value)) return true
   }
-  
+
   return false
 }
 
 // Helper function to compute field differences between blocks
-function computeFieldDiff(currentBlock: BlockState, proposedBlock: BlockState): {
+function computeFieldDiff(
+  currentBlock: BlockState,
+  proposedBlock: BlockState
+): {
   changedFields: string[]
   unchangedFields: string[]
 } {
   const changedFields: string[] = []
   const unchangedFields: string[] = []
-  
+
   // Check basic fields
   const fieldsToCheck = ['type', 'name', 'enabled', 'triggerMode', 'horizontalHandles', 'isWide']
   for (const field of fieldsToCheck) {
@@ -52,16 +54,16 @@ function computeFieldDiff(currentBlock: BlockState, proposedBlock: BlockState): 
       unchangedFields.push(field)
     }
   }
-  
+
   // Check subBlocks - use just the key name for UI compatibility
   const currentSubKeys = Object.keys(currentBlock.subBlocks || {})
   const proposedSubKeys = Object.keys(proposedBlock.subBlocks || {})
   const allSubKeys = new Set([...currentSubKeys, ...proposedSubKeys])
-  
+
   for (const key of allSubKeys) {
     const currentSub = currentBlock.subBlocks?.[key]
     const proposedSub = proposedBlock.subBlocks?.[key]
-    
+
     if (!currentSub && proposedSub) {
       // New subblock
       changedFields.push(key)
@@ -77,7 +79,7 @@ function computeFieldDiff(currentBlock: BlockState, proposedBlock: BlockState): 
       }
     }
   }
-  
+
   return { changedFields, unchangedFields }
 }
 
@@ -271,7 +273,7 @@ export class WorkflowDiffEngine {
    * This follows the same logic as sim-agent's YamlDiffCreate handler
    */
   async createDiffFromWorkflowState(
-    proposedState: WorkflowState, 
+    proposedState: WorkflowState,
     diffAnalysis?: DiffAnalysis
   ): Promise<DiffResult & { diff?: WorkflowDiff }> {
     try {
@@ -315,7 +317,7 @@ export class WorkflowDiffEngine {
       // First pass: build ID mappings
       for (const [proposedId, proposedBlock] of Object.entries(proposedState.blocks)) {
         const key = `${proposedBlock.type}:${proposedBlock.name}`
-        
+
         // Check if this block exists in current state by type:name
         if (existingBlockMap[key]) {
           // Preserve existing ID
@@ -334,32 +336,34 @@ export class WorkflowDiffEngine {
         const existingBlock = existingBlockMap[key]?.block
 
         // Merge with existing block if found, otherwise use proposed
-        const finalBlock: BlockState & BlockWithDiff = existingBlock ? {
-          ...existingBlock,
-          ...proposedBlock,
-          id: finalId,
-          // Preserve position from proposed or fallback to existing
-          position: proposedBlock.position || existingBlock.position,
-        } : {
-          ...proposedBlock,
-          id: finalId,
-        }
+        const finalBlock: BlockState & BlockWithDiff = existingBlock
+          ? {
+              ...existingBlock,
+              ...proposedBlock,
+              id: finalId,
+              // Preserve position from proposed or fallback to existing
+              position: proposedBlock.position || existingBlock.position,
+            }
+          : {
+              ...proposedBlock,
+              id: finalId,
+            }
 
         finalBlocks[finalId] = finalBlock
       }
 
       // Map edges with new IDs and standardized handles
       const edgeMap = new Map<string, Edge>()
-      
+
       proposedState.edges.forEach((edge) => {
         const source = idMap[edge.source] || edge.source
         const target = idMap[edge.target] || edge.target
         const sourceHandle = edge.sourceHandle || 'source'
         const targetHandle = edge.targetHandle || 'target'
-        
+
         // Create a unique key for deduplication
         const edgeKey = `${source}-${sourceHandle}-${target}-${targetHandle}`
-        
+
         // Only add if we haven't seen this edge combination before
         if (!edgeMap.has(edgeKey)) {
           edgeMap.set(edgeKey, {
@@ -373,7 +377,7 @@ export class WorkflowDiffEngine {
           })
         }
       })
-      
+
       const finalEdges: Edge[] = Array.from(edgeMap.values())
 
       // Build final proposed state
@@ -398,52 +402,40 @@ export class WorkflowDiffEngine {
       // Apply autolayout to the proposed state
       logger.info('Applying autolayout to proposed workflow state')
       try {
+        const { applyAutoLayout: applyNativeAutoLayout } = await import(
+          '@/lib/workflows/autolayout'
+        )
+
         const autoLayoutOptions = {
-          strategy: 'smart',
-          direction: 'auto',
-          spacing: {
-            horizontal: 500,
-            vertical: 400,
-            layer: 700,
-          },
-          alignment: 'center',
+          horizontalSpacing: 550,
+          verticalSpacing: 200,
           padding: {
-            x: 250,
-            y: 250,
+            x: 150,
+            y: 150,
           },
+          alignment: 'center' as const,
         }
 
-        const autoLayoutResponse = await fetch('/api/yaml/autolayout', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            workflowState: finalProposedState,
-            options: autoLayoutOptions,
-          }),
-        })
+        const layoutResult = applyNativeAutoLayout(
+          finalBlocks,
+          finalProposedState.edges,
+          finalProposedState.loops || {},
+          finalProposedState.parallels || {},
+          autoLayoutOptions
+        )
 
-        if (autoLayoutResponse.ok) {
-          const autoLayoutResult = await autoLayoutResponse.json()
-          if (autoLayoutResult.success && autoLayoutResult.workflowState) {
-            // Update block positions with autolayout results
-            Object.entries(autoLayoutResult.workflowState.blocks).forEach(([id, layoutBlock]: [string, any]) => {
-              if (finalBlocks[id] && layoutBlock.position) {
-                finalBlocks[id].position = layoutBlock.position
-              }
-            })
-            logger.info('Successfully applied autolayout to proposed state', {
-              blocksLayouted: Object.keys(autoLayoutResult.workflowState.blocks).length,
-            })
-          } else {
-            logger.warn('Autolayout failed, using default positions', {
-              error: autoLayoutResult.error,
-            })
-          }
+        if (layoutResult.success && layoutResult.blocks) {
+          Object.entries(layoutResult.blocks).forEach(([id, layoutBlock]) => {
+            if (finalBlocks[id]) {
+              finalBlocks[id].position = layoutBlock.position
+            }
+          })
+          logger.info('Successfully applied autolayout to proposed state', {
+            blocksLayouted: Object.keys(layoutResult.blocks).length,
+          })
         } else {
-          logger.warn('Autolayout request failed, using default positions', {
-            status: autoLayoutResponse.status,
+          logger.warn('Autolayout failed, using default positions', {
+            error: layoutResult.error,
           })
         }
       } catch (layoutError) {
@@ -458,11 +450,11 @@ export class WorkflowDiffEngine {
         // Generate diff analysis between current and proposed states
         const currentIds = new Set(Object.keys(mergedBaseline.blocks))
         const proposedIds = new Set(Object.keys(finalBlocks))
-        
+
         const newBlocks: string[] = []
         const editedBlocks: string[] = []
         const deletedBlocks: string[] = []
-        
+
         // Find new and edited blocks
         for (const [id, block] of Object.entries(finalBlocks)) {
           if (!currentIds.has(id)) {
@@ -475,7 +467,7 @@ export class WorkflowDiffEngine {
             }
           }
         }
-        
+
         // Find deleted blocks
         for (const id of currentIds) {
           if (!proposedIds.has(id)) {
@@ -484,15 +476,16 @@ export class WorkflowDiffEngine {
         }
 
         // Compute field diffs for edited blocks
-        const fieldDiffs: Record<string, { changed_fields: string[]; unchanged_fields: string[] }> = {}
+        const fieldDiffs: Record<string, { changed_fields: string[]; unchanged_fields: string[] }> =
+          {}
         for (const id of editedBlocks) {
           const currentBlock = mergedBaseline.blocks[id]
           const proposedBlock = finalBlocks[id]
           const { changedFields, unchangedFields } = computeFieldDiff(currentBlock, proposedBlock)
           if (changedFields.length > 0) {
-            fieldDiffs[id] = { 
+            fieldDiffs[id] = {
               changed_fields: changedFields,
-              unchanged_fields: unchangedFields 
+              unchanged_fields: unchangedFields,
             }
           }
         }
@@ -500,35 +493,35 @@ export class WorkflowDiffEngine {
         // Compute edge diffs
         const currentEdgeSet = new Set<string>()
         const proposedEdgeSet = new Set<string>()
-        
+
         // Create edge identifiers for current state (using sim-agent format)
         mergedBaseline.edges.forEach((edge: any) => {
           const edgeId = `${edge.source}-${edge.sourceHandle || 'source'}-${edge.target}-${edge.targetHandle || 'target'}`
           currentEdgeSet.add(edgeId)
         })
-        
+
         // Create edge identifiers for proposed state
         finalEdges.forEach((edge) => {
           const edgeId = `${edge.source}-${edge.sourceHandle || 'source'}-${edge.target}-${edge.targetHandle || 'target'}`
           proposedEdgeSet.add(edgeId)
         })
-        
+
         // Classify edges
         const newEdges: string[] = []
         const deletedEdges: string[] = []
         const unchangedEdges: string[] = []
-        
+
         // Find new edges (in proposed but not current)
-        proposedEdgeSet.forEach(edgeId => {
+        proposedEdgeSet.forEach((edgeId) => {
           if (!currentEdgeSet.has(edgeId)) {
             newEdges.push(edgeId)
           } else {
             unchangedEdges.push(edgeId)
           }
         })
-        
+
         // Find deleted edges (in current but not proposed)
-        currentEdgeSet.forEach(edgeId => {
+        currentEdgeSet.forEach((edgeId) => {
           if (!proposedEdgeSet.has(edgeId)) {
             deletedEdges.push(edgeId)
           }
@@ -557,17 +550,17 @@ export class WorkflowDiffEngine {
         for (const id of computed.edited_blocks || []) {
           if (finalBlocks[id]) {
             finalBlocks[id].is_diff = 'edited'
-            
+
             // Also mark specific subblocks that changed
             if (computed.field_diffs?.[id]) {
               const fieldDiff = computed.field_diffs[id]
               const block = finalBlocks[id]
-              
+
               // Apply diff markers to changed subblocks
               for (const changedField of fieldDiff.changed_fields) {
                 if (block.subBlocks?.[changedField]) {
                   // Add a diff marker to the subblock itself
-                  (block.subBlocks[changedField] as any).is_diff = 'changed'
+                  ;(block.subBlocks[changedField] as any).is_diff = 'changed'
                 }
               }
             }
@@ -613,7 +606,9 @@ export class WorkflowDiffEngine {
       logger.error('Failed to create diff from workflow state:', error)
       return {
         success: false,
-        errors: [error instanceof Error ? error.message : 'Failed to create diff from workflow state'],
+        errors: [
+          error instanceof Error ? error.message : 'Failed to create diff from workflow state',
+        ],
       }
     }
   }
