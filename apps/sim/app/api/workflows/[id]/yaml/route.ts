@@ -409,6 +409,15 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
       workflowState.blocks = normalizeBlockStructure(workflowState.blocks)
     }
 
+    // Generate loop and parallel configurations before validation
+    // This ensures that edges referring to loop/parallel blocks can be validated correctly
+    if (!workflowState.loops) {
+      workflowState.loops = generateLoopBlocks(workflowState.blocks)
+    }
+    if (!workflowState.parallels) {
+      workflowState.parallels = generateParallelBlocks(workflowState.blocks)
+    }
+
     // Validate the workflow state before persisting
     const validation = validateWorkflowState(workflowState, { sanitize: true })
 
@@ -490,12 +499,16 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
       hasActiveWebhook: false,
     }
 
-    // Process blocks with proper configuration setup and assign new IDs
+    // First pass: Create ID mappings for all blocks
     const blockIdMapping = new Map<string, string>()
-
     for (const block of blocks) {
       const newId = crypto.randomUUID()
       blockIdMapping.set(block.id, newId)
+    }
+
+    // Second pass: Process blocks with proper configuration and mapped IDs
+    for (const block of blocks) {
+      const newId = blockIdMapping.get(block.id)!
 
       // Get block configuration for proper setup
       const blockConfig = getBlock(block.type)
@@ -576,8 +589,18 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
         // Preserve parentId if it exists in the imported block
         const blockData = block.data || {}
         if (block.parentId) {
-          blockData.parentId = block.parentId
-          blockData.extent = block.extent || 'parent'
+          // Map the parentId to the new ID if it exists
+          const mappedParentId = blockIdMapping.get(block.parentId)
+          if (mappedParentId) {
+            blockData.parentId = mappedParentId
+            blockData.extent = 'parent'  // Always 'parent' when parentId exists
+            logger.debug(`[${requestId}] Setting parentId for ${block.name}: ${block.parentId} -> ${mappedParentId}`)
+          } else {
+            logger.warn(`[${requestId}] Parent block not yet mapped for ${block.name}, parentId: ${block.parentId}`)
+            // Keep the original parentId for now, it will be mapped later
+            blockData.parentId = block.parentId
+            blockData.extent = 'parent'
+          }
         }
 
         newWorkflowState.blocks[newId] = {
@@ -638,10 +661,8 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
             `[${requestId}] Updating parent reference: ${block.data.parentId} -> ${mappedParentId}`
           )
           block.data.parentId = mappedParentId
-          // Ensure extent is set for child blocks
-          if (!block.data.extent) {
-            block.data.extent = 'parent'
-          }
+          // Always set extent to 'parent' when there's a parentId
+          block.data.extent = 'parent'
         } else {
           logger.error(
             `[${requestId}] ❌ Parent block not found for mapping: ${block.data.parentId}`
@@ -676,9 +697,9 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
       }
     }
 
-    // Generate loop and parallel configurations
-    const loops = generateLoopBlocks(newWorkflowState.blocks)
-    const parallels = generateParallelBlocks(newWorkflowState.blocks)
+    // Generate loop and parallel configurations (if not already generated)
+    const loops = newWorkflowState.loops || generateLoopBlocks(newWorkflowState.blocks)
+    const parallels = newWorkflowState.parallels || generateParallelBlocks(newWorkflowState.blocks)
     newWorkflowState.loops = loops
     newWorkflowState.parallels = parallels
 
@@ -688,6 +709,35 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
       loopsCount: Object.keys(loops).length,
       parallelsCount: Object.keys(parallels).length,
     })
+
+    // Log detailed loop information for debugging
+    Object.entries(loops).forEach(([loopId, loop]: [string, any]) => {
+      const loopBlock = newWorkflowState.blocks[loopId]
+      logger.info(`[${requestId}] Loop ${loopId} configuration:`, {
+        loopName: loopBlock?.name,
+        loopType: loop.loopType,
+        iterations: loop.iterations,
+        nodes: loop.nodes,
+        nodesCount: loop.nodes.length,
+        childBlockNames: loop.nodes.map((nodeId: string) => 
+          newWorkflowState.blocks[nodeId]?.name || nodeId
+        ),
+      })
+    })
+
+    // Log blocks with parentId for debugging
+    const childBlocks = Object.entries(newWorkflowState.blocks)
+      .filter(([_, block]: [string, any]) => block.data?.parentId)
+      .map(([id, block]: [string, any]) => ({
+        id,
+        name: block.name,
+        parentId: block.data.parentId,
+        position: block.position,
+      }))
+    
+    if (childBlocks.length > 0) {
+      logger.info(`[${requestId}] Child blocks found:`, childBlocks)
+    }
 
     // Apply intelligent autolayout if requested
     if (applyAutoLayout) {

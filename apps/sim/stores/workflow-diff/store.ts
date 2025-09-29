@@ -2,7 +2,7 @@ import { create } from 'zustand'
 import { devtools } from 'zustand/middleware'
 import { getClientTool } from '@/lib/copilot/tools/client/manager'
 import { createLogger } from '@/lib/logs/console/logger'
-import { type DiffAnalysis, WorkflowDiffEngine } from '@/lib/workflows/diff'
+import { type DiffAnalysis, WorkflowDiffEngine, type WorkflowDiff } from '@/lib/workflows/diff'
 import { validateWorkflowState } from '@/lib/workflows/validation'
 import { Serializer } from '@/serializer'
 import { useWorkflowRegistry } from '../workflows/registry/store'
@@ -119,14 +119,26 @@ export const useWorkflowDiffStore = create<WorkflowDiffState & WorkflowDiffActio
 
         _batchedStateUpdate: batchedUpdate,
 
-        setProposedChanges: async (yamlContent: string, diffAnalysis?: DiffAnalysis) => {
+        setProposedChanges: async (
+          proposedContent: string | WorkflowState, 
+          diffAnalysis?: DiffAnalysis
+        ) => {
           // PERFORMANCE OPTIMIZATION: Immediate state update to prevent UI flicker
           batchedUpdate({ isDiffReady: false, diffError: null })
 
           // Clear any existing diff state to ensure a fresh start
           diffEngine.clearDiff()
 
-          const result = await diffEngine.createDiffFromYaml(yamlContent, diffAnalysis)
+          let result: { success: boolean; diff?: WorkflowDiff; errors?: string[] }
+          
+          // Handle both YAML string and direct WorkflowState object
+          if (typeof proposedContent === 'string') {
+            // Legacy YAML path (for backward compatibility)
+            result = await diffEngine.createDiffFromYaml(proposedContent, diffAnalysis)
+          } else {
+            // Direct WorkflowState path (new, more efficient)
+            result = await diffEngine.createDiffFromWorkflowState(proposedContent, diffAnalysis)
+          }
 
           if (result.success && result.diff) {
             // Validate proposed workflow using serializer round-trip to catch canvas-breaking issues
