@@ -205,7 +205,10 @@ export const ToolSSESchemas = {
 
   get_trigger_examples: toolCallSSEFor('get_trigger_examples', ToolArgSchemas.get_trigger_examples),
   get_examples_rag: toolCallSSEFor('get_examples_rag', ToolArgSchemas.get_examples_rag),
-  get_operations_examples: toolCallSSEFor('get_operations_examples', ToolArgSchemas.get_operations_examples),
+  get_operations_examples: toolCallSSEFor(
+    'get_operations_examples',
+    ToolArgSchemas.get_operations_examples
+  ),
   search_documentation: toolCallSSEFor('search_documentation', ToolArgSchemas.search_documentation),
   search_online: toolCallSSEFor('search_online', ToolArgSchemas.search_online),
   make_api_request: toolCallSSEFor('make_api_request', ToolArgSchemas.make_api_request),

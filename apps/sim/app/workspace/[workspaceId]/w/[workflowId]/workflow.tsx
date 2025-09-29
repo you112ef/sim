@@ -154,10 +154,10 @@ const WorkflowContent = React.memo(() => {
           // We need to handle cases where IDs contain hyphens
           let sourceEndIndex = -1
           let targetStartIndex = -1
-          
+
           // Look for valid handle names to identify boundaries
           const validHandles = ['source', 'target', 'success', 'error', 'default', 'condition']
-          
+
           for (let i = 1; i < parts.length - 1; i++) {
             if (validHandles.includes(parts[i])) {
               sourceEndIndex = i
@@ -172,7 +172,7 @@ const WorkflowContent = React.memo(() => {
               break
             }
           }
-          
+
           if (sourceEndIndex > 0 && targetStartIndex > 0) {
             const sourceId = parts.slice(0, sourceEndIndex).join('-')
             const sourceHandle = parts[sourceEndIndex]

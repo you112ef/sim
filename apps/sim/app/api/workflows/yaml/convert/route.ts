@@ -33,7 +33,7 @@ export async function POST(request: NextRequest) {
           if (!block.data) {
             block.data = {}
           }
-          
+
           // Apply defaults if not set
           if (!block.data.loopType) {
             block.data.loopType = 'for'
@@ -47,7 +47,7 @@ export async function POST(request: NextRequest) {
           if (!block.data.maxConcurrency) {
             block.data.maxConcurrency = 1
           }
-          
+
           logger.debug(`[${requestId}] Applied defaults to loop block ${blockId}:`, {
             loopType: block.data.loopType,
             count: block.data.count,

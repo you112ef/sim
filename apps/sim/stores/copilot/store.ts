@@ -1815,9 +1815,7 @@ export const useCopilotStore = create<CopilotStore>()(
         }
         // Fallback to map if not found in messages
         if (!id) {
-          const candidates = Object.values(toolCallsById).filter(
-            (t) => t.name === 'edit_workflow'
-          )
+          const candidates = Object.values(toolCallsById).filter((t) => t.name === 'edit_workflow')
           id = candidates.length ? candidates[candidates.length - 1].id : undefined
         }
       }

@@ -149,7 +149,9 @@ export class EditWorkflowClientTool extends BaseClientTool {
       this.lastResult = result
       logger.info('server result parsed', {
         hasWorkflowState: !!result?.workflowState,
-        blocksCount: result?.workflowState ? Object.keys(result.workflowState.blocks || {}).length : 0,
+        blocksCount: result?.workflowState
+          ? Object.keys(result.workflowState.blocks || {}).length
+          : 0,
       })
 
       // Update diff directly with workflow state - no YAML conversion needed!

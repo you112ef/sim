@@ -254,12 +254,12 @@ function calculateBlockPositions(
       // Convert absolute position to relative position within parent
       const parentPos = positions[block.parentId]
       const childPos = positions[blockId]
-      
+
       // Calculate relative position inside the parent container
       // Start child blocks at a reasonable offset inside the parent
       positions[blockId] = {
         x: 50 + (childPos.x - parentPos.x) * 0.3, // Scale down and offset
-        y: 100 + (childPos.y - parentPos.y) * 0.3  // Scale down and offset
+        y: 100 + (childPos.y - parentPos.y) * 0.3, // Scale down and offset
       }
     }
   })
@@ -363,7 +363,7 @@ export function convertYamlToWorkflow(yamlWorkflow: YamlWorkflow): ImportResult 
     if (yamlBlock.type === 'loop' || yamlBlock.type === 'parallel') {
       // For loop/parallel blocks, map the inputs to the data field since they don't use subBlocks
       const inputs = yamlBlock.inputs || {}
-      
+
       // Apply defaults for loop blocks
       if (yamlBlock.type === 'loop') {
         importedBlock.data = {
@@ -386,7 +386,7 @@ export function convertYamlToWorkflow(yamlWorkflow: YamlWorkflow): ImportResult 
           ...inputs,
         }
       }
-      
+
       // Clear inputs since they're now in data
       importedBlock.inputs = {}
     }
@@ -394,13 +394,13 @@ export function convertYamlToWorkflow(yamlWorkflow: YamlWorkflow): ImportResult 
     // Handle parent-child relationships for nested blocks
     if (yamlBlock.parentId) {
       importedBlock.parentId = yamlBlock.parentId
-      importedBlock.extent = 'parent'  // Always 'parent' when parentId exists
+      importedBlock.extent = 'parent' // Always 'parent' when parentId exists
       // Also add to data for consistency with how the system works
       if (!importedBlock.data) {
         importedBlock.data = {}
       }
       importedBlock.data.parentId = yamlBlock.parentId
-      importedBlock.data.extent = 'parent'  // Always 'parent' when parentId exists
+      importedBlock.data.extent = 'parent' // Always 'parent' when parentId exists
     }
 
     blocks.push(importedBlock)
