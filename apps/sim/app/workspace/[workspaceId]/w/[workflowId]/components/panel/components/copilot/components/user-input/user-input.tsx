@@ -1795,7 +1795,7 @@ const UserInput = forwardRef<UserInputRef, UserInputProps>(
 
     const getCollapsedModeLabel = () => {
       const model = modelOptions.find((m) => m.value === selectedModel)
-      return model ? model.label : 'GPT-5 Default'
+      return model ? model.label : 'Claude 4.5 Sonnet'
     }
 
     const getModelIcon = () => {

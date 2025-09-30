@@ -1272,7 +1272,7 @@ async function* parseSSEStream(
 // Initial state (subset required for UI/streaming)
 const initialState = {
   mode: 'agent' as const,
-  selectedModel: 'gpt-5' as CopilotStore['selectedModel'],
+  selectedModel: 'claude-4.5-sonnet' as CopilotStore['selectedModel'],
   agentPrefetch: true,
   isCollapsed: false,
   currentChat: null as CopilotChat | null,
