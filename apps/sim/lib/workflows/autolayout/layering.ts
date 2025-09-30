@@ -1,7 +1,7 @@
 import { createLogger } from '@/lib/logs/console/logger'
 import type { BlockState } from '@/stores/workflows/workflow/types'
 import type { Edge, GraphNode } from './types'
-import { getBlockDimensions, isStarterBlock } from './utils'
+import { getBlockMetrics } from './utils'
 
 const logger = createLogger('AutoLayout:Layering')
 
@@ -15,7 +15,7 @@ export function assignLayers(
     nodes.set(id, {
       id,
       block,
-      dimensions: getBlockDimensions(block),
+      metrics: getBlockMetrics(block),
       incoming: new Set(),
       outgoing: new Set(),
       layer: 0,
@@ -33,9 +33,9 @@ export function assignLayers(
     }
   }
 
-  const starterNodes = Array.from(nodes.values()).filter(
-    (node) => node.incoming.size === 0 || isStarterBlock(node.block)
-  )
+  // Only treat blocks as starters if they have no incoming edges
+  // This prevents triggers that are mid-flow from being forced to layer 0
+  const starterNodes = Array.from(nodes.values()).filter((node) => node.incoming.size === 0)
 
   if (starterNodes.length === 0 && nodes.size > 0) {
     const firstNode = Array.from(nodes.values())[0]

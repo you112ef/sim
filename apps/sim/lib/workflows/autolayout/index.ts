@@ -5,7 +5,7 @@ import { adjustForNewBlock as adjustForNewBlockInternal, compactHorizontally } f
 import { assignLayers, groupByLayer } from './layering'
 import { calculatePositions } from './positioning'
 import type { AdjustmentOptions, Edge, LayoutOptions, LayoutResult, Loop, Parallel } from './types'
-import { getBlocksByParent } from './utils'
+import { getBlocksByParent, prepareBlockMetrics } from './utils'
 
 const logger = createLogger('AutoLayout')
 
@@ -17,12 +17,34 @@ export function applyAutoLayout(
   options: LayoutOptions = {}
 ): LayoutResult {
   try {
+    // Debug: Check if blocks have layout data before processing
+    const blocksWithLayout = Object.entries(blocks).filter(
+      ([_, block]) => block.layout?.measuredHeight || block.layout?.measuredWidth
+    )
+
     logger.info('Starting auto layout', {
       blockCount: Object.keys(blocks).length,
       edgeCount: edges.length,
       loopCount: Object.keys(loops).length,
       parallelCount: Object.keys(parallels).length,
+      blocksWithMeasurements: blocksWithLayout.length,
     })
+
+    if (blocksWithLayout.length > 0) {
+      console.log(
+        '[AutoLayout] Blocks with measurements:',
+        blocksWithLayout.map(([id, block]) => ({
+          id,
+          type: block.type,
+          layout: block.layout,
+          height: block.height,
+        }))
+      )
+    } else {
+      console.warn(
+        '[AutoLayout] No blocks have measured dimensions - ResizeObserver may not be working'
+      )
+    }
 
     const blocksCopy: Record<string, BlockState> = JSON.parse(JSON.stringify(blocks))
 
@@ -39,6 +61,7 @@ export function applyAutoLayout(
 
     if (Object.keys(rootBlocks).length > 0) {
       const nodes = assignLayers(rootBlocks, rootEdges)
+      prepareBlockMetrics(nodes)
       const layers = groupByLayer(nodes)
       calculatePositions(layers, options)
 
@@ -99,4 +122,4 @@ export function adjustForNewBlock(
 }
 
 export type { LayoutOptions, LayoutResult, AdjustmentOptions, Edge, Loop, Parallel }
-export { getBlockDimensions, isContainerType } from './utils'
+export { getBlockMetrics, isContainerType } from './utils'
