@@ -8,7 +8,10 @@ import { createLogger } from '@/lib/logs/console/logger'
 import { getUserEntityPermissions } from '@/lib/permissions/utils'
 import { generateRequestId } from '@/lib/utils'
 import { applyAutoLayout } from '@/lib/workflows/autolayout'
-import { loadWorkflowFromNormalizedTables } from '@/lib/workflows/db-helpers'
+import {
+  loadWorkflowFromNormalizedTables,
+  type NormalizedWorkflowData,
+} from '@/lib/workflows/db-helpers'
 
 export const dynamic = 'force-dynamic'
 
@@ -114,7 +117,7 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
 
     // Use provided blocks/edges if available (with live measurements from UI),
     // otherwise load from database
-    let currentWorkflowData
+    let currentWorkflowData: NormalizedWorkflowData | null
 
     if (layoutOptions.blocks && layoutOptions.edges) {
       logger.info(`[${requestId}] Using provided blocks with live measurements`)
