@@ -1789,6 +1789,7 @@ const UserInput = forwardRef<UserInputRef, UserInputProps>(
       { value: 'gpt-4.1', label: 'gpt-4.1' },
       { value: 'o3', label: 'o3' },
       { value: 'claude-4-sonnet', label: 'claude-4-sonnet' },
+      { value: 'claude-4.5-sonnet', label: 'claude-4.5-sonnet' },
       { value: 'claude-4.1-opus', label: 'claude-4.1-opus' },
     ] as const
 
@@ -1806,7 +1807,7 @@ const UserInput = forwardRef<UserInputRef, UserInputProps>(
       if (['gpt-5-high', 'o3', 'claude-4.1-opus'].includes(selectedModel)) {
         return <BrainCircuit className={`h-3 w-3 ${colorClass}`} />
       }
-      if (['gpt-5', 'gpt-5-medium', 'claude-4-sonnet'].includes(selectedModel)) {
+      if (['gpt-5', 'gpt-5-medium', 'claude-4-sonnet', 'claude-4.5-sonnet'].includes(selectedModel)) {
         return <Brain className={`h-3 w-3 ${colorClass}`} />
       }
       if (['gpt-4o', 'gpt-4.1', 'gpt-5-fast'].includes(selectedModel)) {
@@ -3222,7 +3223,7 @@ const UserInput = forwardRef<UserInputRef, UserInputProps>(
                                     )
                                   }
                                   if (
-                                    ['gpt-5', 'gpt-5-medium', 'claude-4-sonnet'].includes(
+                                    ['gpt-5', 'gpt-5-medium', 'claude-4-sonnet', 'claude-4.5-sonnet'].includes(
                                       modelValue
                                     )
                                   ) {
@@ -3293,7 +3294,7 @@ const UserInput = forwardRef<UserInputRef, UserInputProps>(
                                       <div className='space-y-0.5'>
                                         {modelOptions
                                           .filter((option) =>
-                                            ['claude-4-sonnet', 'claude-4.1-opus'].includes(
+                                            ['claude-4-sonnet', 'claude-4.5-sonnet', 'claude-4.1-opus'].includes(
                                               option.value
                                             )
                                           )
