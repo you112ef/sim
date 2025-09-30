@@ -40,6 +40,8 @@ export function getRedisClient(): Redis | null {
       connectTimeout: 5000,
       // Disable reconnection attempts in serverless
       maxRetriesPerRequest: 3,
+      // Enable TLS for AWS ElastiCache with transit encryption
+      tls: {},
       // Retry strategy with exponential backoff
       retryStrategy: (times) => {
         if (times > 5) {
