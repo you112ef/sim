@@ -36,10 +36,26 @@ export interface NormalizedWorkflowData {
   isFromNormalizedTables: boolean // Flag to indicate source (true = normalized tables, false = deployed state)
 }
 
-/**
- * Load deployed workflow state for execution
- * Returns deployed state if available, otherwise throws error
- */
+export async function hasActiveDeployment(workflowId: string): Promise<boolean> {
+  try {
+    const [result] = await db
+      .select({ id: workflowDeploymentVersion.id })
+      .from(workflowDeploymentVersion)
+      .where(
+        and(
+          eq(workflowDeploymentVersion.workflowId, workflowId),
+          eq(workflowDeploymentVersion.isActive, true)
+        )
+      )
+      .limit(1)
+
+    return !!result
+  } catch (error) {
+    logger.error(`Error checking deployment for workflow ${workflowId}:`, error)
+    return false
+  }
+}
+
 export async function loadDeployedWorkflowState(
   workflowId: string
 ): Promise<NormalizedWorkflowData> {
