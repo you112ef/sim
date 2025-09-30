@@ -30,6 +30,7 @@ import { Textarea } from '@/components/ui/textarea'
 import { cn } from '@/lib/utils'
 import { sanitizeForCopilot } from '@/lib/workflows/json-sanitizer'
 import { formatEditSequence } from '@/lib/workflows/training/compute-edit-sequence'
+import { useCurrentWorkflow } from '@/app/workspace/[workspaceId]/w/[workflowId]/hooks/use-current-workflow'
 import { useCopilotTrainingStore } from '@/stores/copilot-training/store'
 
 /**
@@ -52,6 +53,8 @@ export function TrainingModal() {
     markDatasetSent,
   } = useCopilotTrainingStore()
 
+  const currentWorkflow = useCurrentWorkflow()
+
   const [localPrompt, setLocalPrompt] = useState(currentPrompt)
   const [localTitle, setLocalTitle] = useState(currentTitle)
   const [copiedId, setCopiedId] = useState<string | null>(null)
@@ -63,6 +66,9 @@ export function TrainingModal() {
   const [sendingSelected, setSendingSelected] = useState(false)
   const [sentDatasets, setSentDatasets] = useState<Set<string>>(new Set())
   const [failedDatasets, setFailedDatasets] = useState<Set<string>>(new Set())
+  const [sendingLiveWorkflow, setSendingLiveWorkflow] = useState(false)
+  const [liveWorkflowSent, setLiveWorkflowSent] = useState(false)
+  const [liveWorkflowFailed, setLiveWorkflowFailed] = useState(false)
 
   const handleStart = () => {
     if (localTitle.trim() && localPrompt.trim()) {
@@ -285,6 +291,36 @@ export function TrainingModal() {
     }
   }
 
+  const handleSendLiveWorkflow = async () => {
+    setLiveWorkflowSent(false)
+    setLiveWorkflowFailed(false)
+    setSendingLiveWorkflow(true)
+
+    try {
+      const sanitizedWorkflow = sanitizeForCopilot(currentWorkflow.workflowState)
+
+      const response = await fetch('/api/copilot/training/examples', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(sanitizedWorkflow),
+      })
+
+      if (!response.ok) {
+        const error = await response.json()
+        throw new Error(error.error || 'Failed to send live workflow')
+      }
+
+      setLiveWorkflowSent(true)
+      setTimeout(() => setLiveWorkflowSent(false), 5000)
+    } catch (error) {
+      console.error('Failed to send live workflow:', error)
+      setLiveWorkflowFailed(true)
+      setTimeout(() => setLiveWorkflowFailed(false), 5000)
+    } finally {
+      setSendingLiveWorkflow(false)
+    }
+  }
+
   return (
     <Dialog open={showModal} onOpenChange={toggleModal}>
       <DialogContent className='max-w-3xl'>
@@ -344,15 +380,49 @@ export function TrainingModal() {
 
           {/* New Training Session Tab */}
           <TabsContent value='new' className='space-y-4'>
-            {startSnapshot && (
-              <div className='rounded-lg border bg-muted/50 p-3'>
+            <div className='rounded-lg border bg-muted/50 p-3'>
+              <div className='mb-2 flex items-center justify-between'>
                 <p className='font-medium text-muted-foreground text-sm'>Current Workflow State</p>
-                <p className='text-sm'>
-                  {Object.keys(startSnapshot.blocks).length} blocks, {startSnapshot.edges.length}{' '}
-                  edges
-                </p>
+                <Button
+                  variant={
+                    liveWorkflowSent ? 'outline' : liveWorkflowFailed ? 'destructive' : 'outline'
+                  }
+                  size='sm'
+                  onClick={handleSendLiveWorkflow}
+                  disabled={sendingLiveWorkflow || currentWorkflow.getBlockCount() === 0}
+                  className={
+                    liveWorkflowSent
+                      ? 'border-green-500 text-green-600 hover:bg-green-50 dark:border-green-400 dark:text-green-400 dark:hover:bg-green-950'
+                      : ''
+                  }
+                >
+                  {sendingLiveWorkflow ? (
+                    <>
+                      <div className='mr-2 h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent' />
+                      Sending...
+                    </>
+                  ) : liveWorkflowSent ? (
+                    <>
+                      <CheckCircle2 className='mr-2 h-4 w-4' />
+                      Sent
+                    </>
+                  ) : liveWorkflowFailed ? (
+                    <>
+                      <XCircle className='mr-2 h-4 w-4' />
+                      Failed
+                    </>
+                  ) : (
+                    <>
+                      <Send className='mr-2 h-4 w-4' />
+                      Send Live State
+                    </>
+                  )}
+                </Button>
               </div>
-            )}
+              <p className='text-sm'>
+                {currentWorkflow.getBlockCount()} blocks, {currentWorkflow.getEdgeCount()} edges
+              </p>
+            </div>
 
             <div className='space-y-2'>
               <Label htmlFor='title'>Title</Label>
