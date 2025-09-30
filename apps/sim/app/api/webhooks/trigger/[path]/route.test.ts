@@ -133,7 +133,7 @@ describe('Webhook Trigger API Route', () => {
         parallels: {},
         isFromNormalizedTables: true,
       }),
-      hasActiveDeployment: vi.fn().mockResolvedValue(true),
+      blockExistsInDeployment: vi.fn().mockResolvedValue(true),
     }))
 
     hasProcessedMessageMock.mockResolvedValue(false)

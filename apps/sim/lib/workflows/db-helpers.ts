@@ -36,10 +36,13 @@ export interface NormalizedWorkflowData {
   isFromNormalizedTables: boolean // Flag to indicate source (true = normalized tables, false = deployed state)
 }
 
-export async function hasActiveDeployment(workflowId: string): Promise<boolean> {
+export async function blockExistsInDeployment(
+  workflowId: string,
+  blockId: string
+): Promise<boolean> {
   try {
     const [result] = await db
-      .select({ id: workflowDeploymentVersion.id })
+      .select({ state: workflowDeploymentVersion.state })
       .from(workflowDeploymentVersion)
       .where(
         and(
@@ -49,9 +52,14 @@ export async function hasActiveDeployment(workflowId: string): Promise<boolean> 
       )
       .limit(1)
 
-    return !!result
+    if (!result?.state) {
+      return false
+    }
+
+    const state = result.state as WorkflowState
+    return !!state.blocks?.[blockId]
   } catch (error) {
-    logger.error(`Error checking deployment for workflow ${workflowId}:`, error)
+    logger.error(`Error checking block ${blockId} in deployment for workflow ${workflowId}:`, error)
     return false
   }
 }

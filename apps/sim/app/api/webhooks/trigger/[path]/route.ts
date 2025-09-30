@@ -10,7 +10,7 @@ import {
   queueWebhookExecution,
   verifyProviderAuth,
 } from '@/lib/webhooks/processor'
-import { hasActiveDeployment } from '@/lib/workflows/db-helpers'
+import { blockExistsInDeployment } from '@/lib/workflows/db-helpers'
 
 const logger = createLogger('WebhookTriggerAPI')
 
@@ -63,10 +63,14 @@ export async function POST(
     return usageLimitError
   }
 
-  const isDeployed = await hasActiveDeployment(foundWorkflow.id)
-  if (!isDeployed) {
-    logger.warn(`[${requestId}] Workflow ${foundWorkflow.id} has no active deployment`)
-    return new NextResponse('Workflow not deployed', { status: 404 })
+  if (foundWebhook.blockId) {
+    const blockExists = await blockExistsInDeployment(foundWorkflow.id, foundWebhook.blockId)
+    if (!blockExists) {
+      logger.warn(
+        `[${requestId}] Trigger block ${foundWebhook.blockId} not found in deployment for workflow ${foundWorkflow.id}`
+      )
+      return new NextResponse('Trigger block not deployed', { status: 404 })
+    }
   }
 
   return queueWebhookExecution(foundWebhook, foundWorkflow, body, request, {
