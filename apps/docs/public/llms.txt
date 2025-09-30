@@ -2,52 +2,146 @@
 
 Sim is a visual workflow builder for AI applications that lets you build AI agent workflows visually. Create powerful AI agents, automation workflows, and data processing pipelines by connecting blocks on a canvas—no coding required.
 
-## What is Sim?
+## Getting Started
 
-Sim provides a complete ecosystem for AI workflow automation including:
-- Visual workflow builder with drag-and-drop interface
-- AI agent creation and automation
-- 80+ built-in integrations (OpenAI, Slack, Gmail, GitHub, etc.)
-- Real-time team collaboration
-- Multiple deployment options (cloud-hosted or self-hosted)
-- Custom integrations via MCP protocol
+- [Introduction](/introduction): Sim is a visual workflow builder for AI applications that lets you build AI agent workflows visually. Create powerful AI agents, automation workflows,
+- [Getting Started](/getting-started): } from '@/components/icons'
 
-## Main Documentation Sections
+## Triggers
 
-Here are the key areas covered in our documentation:
+- [API Trigger](/triggers/api): Start a workflow from an authenticated HTTP request
+- [Chat Trigger](/triggers/chat): Start a workflow from a chat deployment
+- [Input Form Trigger](/triggers/input-form): Manual trigger with a structured input schema
+- [Manual Trigger](/triggers/manual): Run a workflow on demand without inputs
+- [Schedule](/triggers/schedule): The Schedule block automatically triggers workflows on a recurring schedule at specified intervals or times.
+- [Starter (Deprecated)](/triggers/starter): The Starter block has been deprecated and replaced with more specialized Core Triggers. Please see the [Core Triggers documentation](/triggers) for th
+- [Webhooks](/triggers/webhook): Webhooks allow external services to trigger workflow execution from external webhooks by sending HTTP requests to your workflow. Sim supports two appr
 
-/introduction - Getting started with Sim visual workflow builder
-/getting-started - Quick start guide for building your first workflow
-/blocks - Understanding workflow blocks (AI agents, APIs, functions)
-/tools - 80+ built-in integrations and tools
-/webhooks - Webhook triggers and handling
-/mcp - Custom integrations via MCP protocol
-/deployment - Cloud-hosted vs self-hosted deployment
-/permissions - Team collaboration and workspace management
-/collaboration - Real-time editing and team features
-/workflows - Building complex automation workflows
+## Blocks
 
-## Technical Information
+- [Agent](/blocks/agent): The Agent block serves as the interface between your workflow and Large Language Models (LLMs). It executes inference requests against various AI prov
+- [API](/blocks/api): The API block enables you to connect your workflow to external services through API endpoints using HTTP requests. It supports various methods like GE
+- [Condition](/blocks/condition): The Condition block allows you to branch your workflow execution path based on boolean expressions, enabling you to create dynamic, responsive workflo
+- [Evaluator](/blocks/evaluator): The Evaluator block uses AI to score and assess content quality using customizable evaluation metrics that you define. Perfect for quality control, A/
+- [Function](/blocks/function): The Function block lets you execute custom JavaScript or TypeScript code in your workflows. Use it to transform data, perform calculations, or impleme
+- [Loop](/blocks/loop): The Loop block is a container block in Sim that allows you to create iterative workflows by executing a group of blocks repeatedly. Loops enable itera
+- [Parallel](/blocks/parallel): The Parallel block is a container block in Sim that allows you to execute multiple instances of blocks concurrently for faster workflow processing.
+- [Response](/blocks/response): The Response block is the final step in your workflow that formats and sends a structured response back to API calls. It's like the "return" statement
+- [Router](/blocks/router): The Router block uses AI to intelligently decide which path your workflow should take next, routing workflow execution based on specific conditions or
+- [Workflow Block](/blocks/workflow): Run another workflow inside the current flow
 
-- Framework: Fumadocs (Next.js-based documentation platform)
-- Content: MDX files with interactive examples
-- Languages: English (primary), French, Chinese
-- Search: AI-powered search and assistance available
+## Tools & Integrations
 
-## Complete Documentation
+- [Airtable](/tools/airtable): Read, create, and update Airtable
+- [ArXiv](/tools/arxiv): Search and retrieve academic papers from ArXiv
+- [Browser Use](/tools/browser_use): Run browser automation tasks
+- [Clay](/tools/clay): Populate Clay workbook
+- [Confluence](/tools/confluence): Interact with Confluence
+- [Discord](/tools/discord): Interact with Discord
+- [ElevenLabs](/tools/elevenlabs): Convert TTS using ElevenLabs
+- [Embeddings](/tools/openai): Generate Open AI embeddings
+- [Exa](/tools/exa): Search with Exa AI
+- [File](/tools/file): Read and parse multiple files
+- [Firecrawl](/tools/firecrawl): Scrape or search the web
+- [GitHub](/tools/github): Interact with GitHub or trigger workflows from GitHub events
+- [Gmail](/tools/gmail): Send Gmail or trigger workflows from Gmail events
+- [Google Calendar](/tools/google_calendar): Manage Google Calendar events
+- [Google Docs](/tools/google_docs): Read, write, and create documents
+- [Google Drive](/tools/google_drive): Create, upload, and list files
+- [Google Forms](/tools/google_forms): Read responses from a Google Form
+- [Google Search](/tools/google_search): Search the web
+- [Google Sheets](/tools/google_sheets): Read, write, and update data
+- [Google Vault](/tools/google_vault): Search, export, and manage holds/exports for Vault matters
+- [Hugging Face](/tools/huggingface): Use Hugging Face Inference API
+- [Hunter io](/tools/hunter): Find and verify professional email addresses
+- [Image Generator](/tools/image_generator): Generate images
+- [Jina](/tools/jina): Convert website content into text
+- [Jira](/tools/jira): Interact with Jira
+- [Knowledge](/tools/knowledge): Use vector search
+- [Linear](/tools/linear): Read and create issues in Linear
+- [Linkup](/tools/linkup): Search the web with Linkup
+- [MCP Tool](/tools/mcp): Execute tools from Model Context Protocol (MCP) servers
+- [Mem0](/tools/mem0): Agent memory management
+- [Memory](/tools/memory): Add memory store
+- [Microsoft Excel](/tools/microsoft_excel): Read, write, and update data
+- [Microsoft Planner](/tools/microsoft_planner): Read and create tasks in Microsoft Planner
+- [Microsoft Teams](/tools/microsoft_teams): Read, write, and create messages
+- [Mistral Parser](/tools/mistral_parse): Extract text from PDF documents
+- [MongoDB](/tools/mongodb): Connect to MongoDB database
+- [MySQL](/tools/mysql): Connect to MySQL database
+- [Notion](/tools/notion): Manage Notion pages
+- [OneDrive](/tools/onedrive): Create, upload, and list files
+- [Outlook](/tools/outlook): Access Outlook
+- [Parallel AI](/tools/parallel_ai): Search with Parallel AI
+- [Perplexity](/tools/perplexity): Use Perplexity AI chat models
+- [Pinecone](/tools/pinecone): Use Pinecone vector database
+- [PostgreSQL](/tools/postgresql): Connect to PostgreSQL database
+- [Qdrant](/tools/qdrant): Use Qdrant vector database
+- [Reddit](/tools/reddit): Access Reddit data and content
+- [Resend](/tools/resend): Send emails with Resend.
+- [S3](/tools/s3): View S3 files
+- [Schedule](/tools/schedule): Trigger workflow execution on a schedule
+- [Serper](/tools/serper): Search the web using Serper
+- [Sharepoint](/tools/sharepoint): Work with pages and lists
+- [Slack](/tools/slack): Send messages to Slack or trigger workflows from Slack events
+- [SMS](/tools/sms): Send SMS messages using the internal SMS service
+- [Stagehand Agent](/tools/stagehand_agent): Autonomous web browsing agent
+- [Stagehand Extract](/tools/stagehand): Extract data from websites
+- [Supabase](/tools/supabase): Use Supabase database
+- [Tavily](/tools/tavily): Search and extract information
+- [Telegram](/tools/telegram): Send messages through Telegram or trigger workflows from Telegram events
+- [Thinking](/tools/thinking): Forces model to outline its thought process.
+- [Translate](/tools/translate): Translate text to any language
+- [Twilio SMS](/tools/twilio_sms): Send SMS messages
+- [Typeform](/tools/typeform): Interact with Typeform
+- [Vision](/tools/vision): Analyze images with vision models
+- [Wealthbox](/tools/wealthbox): Interact with Wealthbox
+- [Webhook](/tools/generic_webhook): Receive webhooks from any service by configuring a custom webhook.
+- [Webhook](/tools/webhook): Trigger workflow execution from external webhooks
+- [WhatsApp](/tools/whatsapp): Send WhatsApp messages
+- [Wikipedia](/tools/wikipedia): Search and retrieve content from Wikipedia
+- [X](/tools/x): Interact with X
+- [YouTube](/tools/youtube): Search for videos on YouTube
 
-For the full documentation with all pages, examples, and interactive features, visit our documentation site. We also provide machine-readable versions at /llms.txt (full content) for AI systems.
+## Connections
 
-## Additional Resources
+- [Connection Basics](/connections/basics): Connections are the pathways that allow data to flow between blocks in your workflow. In Sim, connections define how information passes from one block
+- [Connection Data Structure](/connections/data-structure): When you connect blocks, understanding the data structure of different block outputs is important because the output data structure from the source bl
+- [Connection Tags](/connections/tags): Connection tags are visual representations of the data available from connected blocks, providing an easy way to reference data between blocks and out
 
-- GitHub repository with workflow examples
-- Discord community for support and discussions
-- 80+ built-in integrations with detailed guides
-- MCP protocol documentation for custom integrations
-- Self-hosting guides and Docker deployment
+## Variables
 
-For the complete documentation with interactive examples and visual workflow builder guides, visit https://docs.sim.ai
+- [Workflow Variables](/variables/workflow-variables): Variables in Sim act as a global store for data that can be accessed and modified by any block in your workflow, allowing you to store and share data 
+- [Environment Variables](/variables/environment-variables): Environment variables provide a secure way to manage configuration values and secrets across your workflows, including API keys and other sensitive da
+
+## Execution
+
+- [Cost Calculation](/execution/costs): Sim automatically calculates costs for all workflow executions, providing transparent pricing based on AI model usage and execution charges. Understan
+- [Execution Basics](/execution/basics): Understanding how workflows execute in Sim is key to building efficient and reliable automations. The execution engine automatically handles dependenc
+- [External API](/execution/api): Sim provides a comprehensive external API for querying workflow execution logs and setting up webhooks for real-time notifications when workflows comp
+- [Logging](/execution/logging): Sim provides comprehensive logging for all workflow executions, giving you complete visibility into how your workflows run, what data flows through th
+
+## SDKs
+
+- [Python SDK](/sdks/python): The official Python SDK for Sim allows you to execute workflows programmatically from your Python applications using the official Python SDK.
+- [TypeScript/JavaScript SDK](/sdks/typescript): The official TypeScript/JavaScript SDK for Sim provides full type safety and supports both Node.js and browser environments, allowing you to execute w
+
+## Other Features
+
+- [Blocks](/blocks): The building components of your AI workflows
+- [Tools](/tools): Powerful tools to enhance your agentic workflows
+- [Copilot](/copilot): Copilot is your in-editor assistant that helps you build and edit workflows with Sim Copilot, as well as understand and improve them. It can:
+- [Triggers](/triggers): Core ways to start Sim workflows
+- [Documentation](/index): Welcome to Sim, a visual workflow builder for AI applications. Build powerful AI agents, automation workflows, and data processing pipelines by connec
+- [MCP (Model Context Protocol)](/mcp): The Model Context Protocol ([MCP](https://modelcontextprotocol.com/)) allows you to connect external tools and services using a standardized protocol,
+- ["Roles and Permissions"](/permissions/roles-and-permissions): When you invite team members to your organization or workspace, you'll need to choose what level of access to give them. This guide explains what each
+- [Knowledgebase](/knowledgebase): The knowledgebase allows you to upload, process, and search through your documents with intelligent vector search and chunking. Documents of various t
+- [Tags and Filtering](/knowledgebase/tags): Tags provide a powerful way to organize your documents and create precise filtering for your vector searches. By combining tag-based filtering with se
+- [Connections](/connections): Connect your blocks to one another.
+- [Execution](/execution): Sim's execution engine brings your workflows to life by processing blocks in the correct order, managing data flow, and handling errors gracefully, so
+- [Loop Block YAML Schema](/yaml/blocks/loop): YAML configuration reference for Loop blocks
 
 ---
 
-Last updated: 2025-09-15
+For complete documentation with interactive examples and visual guides, visit https://docs.sim.ai
+For full machine-readable documentation, see /llms-full.txt

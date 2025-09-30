@@ -21,9 +21,24 @@ function isMarkdownPreferred(request: NextRequest): boolean {
 }
 
 export function middleware(request: NextRequest, event: NextFetchEvent) {
+  const pathname = request.nextUrl.pathname
+
   // If markdown is preferred by the client (e.g., AI agents), rewrite to MDX endpoint
-  if (isMarkdownPreferred(request) && request.nextUrl.pathname.startsWith('/docs/')) {
-    const path = request.nextUrl.pathname.replace('/docs/', '')
+  if (isMarkdownPreferred(request)) {
+    if (
+      pathname.startsWith('/api/') ||
+      pathname.startsWith('/_next/') ||
+      pathname.startsWith('/llms.mdx/') ||
+      pathname.startsWith('/llms-full.txt') ||
+      pathname.startsWith('/static/') ||
+      pathname.startsWith('/favicon') ||
+      pathname.startsWith('/robots.txt') ||
+      pathname.startsWith('/sitemap.xml')
+    ) {
+      return i18nMiddleware(request, event)
+    }
+
+    const path = pathname.slice(1)
     const rewriteUrl = new URL(`/llms.mdx/${path}`, request.url)
     return NextResponse.rewrite(rewriteUrl)
   }
@@ -33,6 +48,6 @@ export function middleware(request: NextRequest, event: NextFetchEvent) {
 
 export const config = {
   matcher: [
-    '/((?!api|_next/static|_next/image|favicon|static|robots.txt|sitemap.xml|llms-full.txt|llms.mdx).*)',
+    '/((?!api|_next/static|_next/image|favicon|static|robots.txt|sitemap.xml|llms.txt|llms-full.txt|llms.mdx).*)',
   ],
 }
