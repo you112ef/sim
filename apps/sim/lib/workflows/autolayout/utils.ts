@@ -51,17 +51,6 @@ function getRegularBlockMetrics(block: BlockState): BlockMetrics {
   const width = Math.max(measuredW ?? minWidth, minWidth)
   const height = Math.max(measuredH ?? minHeight, minHeight)
 
-  if (block.layout?.measuredHeight || block.layout?.measuredWidth) {
-    console.log(`[AutoLayout] Block ${block.id} (${block.type}):`, {
-      measuredW: block.layout?.measuredWidth,
-      measuredH: block.layout?.measuredHeight,
-      fallbackH: block.height,
-      finalWidth: width,
-      finalHeight: height,
-      isWide: block.isWide,
-    })
-  }
-
   return {
     width,
     height,

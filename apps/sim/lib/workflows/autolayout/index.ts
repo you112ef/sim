@@ -17,34 +17,12 @@ export function applyAutoLayout(
   options: LayoutOptions = {}
 ): LayoutResult {
   try {
-    // Debug: Check if blocks have layout data before processing
-    const blocksWithLayout = Object.entries(blocks).filter(
-      ([_, block]) => block.layout?.measuredHeight || block.layout?.measuredWidth
-    )
-
     logger.info('Starting auto layout', {
       blockCount: Object.keys(blocks).length,
       edgeCount: edges.length,
       loopCount: Object.keys(loops).length,
       parallelCount: Object.keys(parallels).length,
-      blocksWithMeasurements: blocksWithLayout.length,
     })
-
-    if (blocksWithLayout.length > 0) {
-      console.log(
-        '[AutoLayout] Blocks with measurements:',
-        blocksWithLayout.map(([id, block]) => ({
-          id,
-          type: block.type,
-          layout: block.layout,
-          height: block.height,
-        }))
-      )
-    } else {
-      console.warn(
-        '[AutoLayout] No blocks have measured dimensions - ResizeObserver may not be working'
-      )
-    }
 
     const blocksCopy: Record<string, BlockState> = JSON.parse(JSON.stringify(blocks))
 
