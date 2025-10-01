@@ -16,7 +16,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui'
-import { formatDisplayText } from '@/components/ui/formatted-text'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { MAX_TAG_SLOTS, TAG_SLOTS, type TagSlot } from '@/lib/knowledge/consts'
 import { createLogger } from '@/lib/logs/console/logger'
@@ -583,31 +582,24 @@ export function KnowledgeTags({ knowledgeBaseId, documentId }: KnowledgeTagsProp
 
                             <div className='space-y-1.5'>
                               <Label className='font-medium text-xs'>Value</Label>
-                              <div className='relative'>
-                                <Input
-                                  value={editForm.value}
-                                  onChange={(e) =>
-                                    setEditForm({ ...editForm, value: e.target.value })
+                              <Input
+                                value={editForm.value}
+                                onChange={(e) =>
+                                  setEditForm({ ...editForm, value: e.target.value })
+                                }
+                                placeholder='Enter tag value'
+                                className='h-8 w-full rounded-md text-sm'
+                                onKeyDown={(e) => {
+                                  if (e.key === 'Enter' && canSave) {
+                                    e.preventDefault()
+                                    saveTag()
                                   }
-                                  placeholder='Enter tag value'
-                                  className='h-8 w-full rounded-md text-sm text-transparent caret-foreground'
-                                  onKeyDown={(e) => {
-                                    if (e.key === 'Enter' && canSave) {
-                                      e.preventDefault()
-                                      saveTag()
-                                    }
-                                    if (e.key === 'Escape') {
-                                      e.preventDefault()
-                                      cancelEditing()
-                                    }
-                                  }}
-                                />
-                                <div className='pointer-events-none absolute inset-0 flex items-center overflow-hidden bg-transparent px-3 text-sm'>
-                                  <div className='w-full truncate'>
-                                    {formatDisplayText(editForm.value, { highlightAll: true })}
-                                  </div>
-                                </div>
-                              </div>
+                                  if (e.key === 'Escape') {
+                                    e.preventDefault()
+                                    cancelEditing()
+                                  }
+                                }}
+                              />
                             </div>
 
                             <div className='pt-1'>
@@ -742,29 +734,22 @@ export function KnowledgeTags({ knowledgeBaseId, documentId }: KnowledgeTagsProp
 
                   <div className='space-y-1.5'>
                     <Label className='font-medium text-xs'>Value</Label>
-                    <div className='relative'>
-                      <Input
-                        value={editForm.value}
-                        onChange={(e) => setEditForm({ ...editForm, value: e.target.value })}
-                        placeholder='Enter tag value'
-                        className='h-8 w-full rounded-md text-sm text-transparent caret-foreground'
-                        onKeyDown={(e) => {
-                          if (e.key === 'Enter' && canSave) {
-                            e.preventDefault()
-                            saveTag()
-                          }
-                          if (e.key === 'Escape') {
-                            e.preventDefault()
-                            cancelEditing()
-                          }
-                        }}
-                      />
-                      <div className='pointer-events-none absolute inset-0 flex items-center overflow-hidden bg-transparent px-3 text-sm'>
-                        <div className='w-full truncate'>
-                          {formatDisplayText(editForm.value, { highlightAll: true })}
-                        </div>
-                      </div>
-                    </div>
+                    <Input
+                      value={editForm.value}
+                      onChange={(e) => setEditForm({ ...editForm, value: e.target.value })}
+                      placeholder='Enter tag value'
+                      className='h-8 w-full rounded-md text-sm'
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter' && canSave) {
+                          e.preventDefault()
+                          saveTag()
+                        }
+                        if (e.key === 'Escape') {
+                          e.preventDefault()
+                          cancelEditing()
+                        }
+                      }}
+                    />
                   </div>
 
                   {/* Warning when at max slots */}
