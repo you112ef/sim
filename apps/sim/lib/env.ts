@@ -98,7 +98,6 @@ export const env = createEnv({
 
     // Infrastructure & Deployment
     NEXT_RUNTIME:                          z.string().optional(),                  // Next.js runtime environment
-    VERCEL_ENV:                            z.string().optional(),                  // Vercel deployment environment
     DOCKER_BUILD:                          z.boolean().optional(),                 // Flag indicating Docker build environment
 
     // Background Jobs & Scheduling
