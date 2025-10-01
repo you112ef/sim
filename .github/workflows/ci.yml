@@ -16,20 +16,6 @@ jobs:
     uses: ./.github/workflows/test-build.yml
     secrets: inherit
 
-<<<<<<< HEAD
-  # Deploy Trigger.dev FIRST (right after test-build, before images)
-  trigger-deploy:
-    name: Deploy Trigger.dev
-    needs: test-build
-    if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/staging')
-    uses: ./.github/workflows/trigger-deploy.yml
-    secrets: inherit
-    permissions:
-      id-token: write
-      contents: read
-
-=======
->>>>>>> 27b05ad97 (Revert trigger promotion)
   # Build AMD64 images and push to ECR immediately (+ GHCR for main)
   build-amd64:
     name: Build AMD64
