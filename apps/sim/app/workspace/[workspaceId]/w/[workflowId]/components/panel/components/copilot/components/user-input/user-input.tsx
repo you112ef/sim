@@ -3061,7 +3061,7 @@ const UserInput = forwardRef<UserInputRef, UserInputProps>(
           {/* Bottom Row: Mode Selector + Attach Button + Send Button */}
           <div className='flex items-center justify-between'>
             {/* Left side: Mode Selector and Depth (if Agent) */}
-            <div className='flex items-center gap-1.5'>
+            <div className='flex min-w-0 items-center gap-1.5'>
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
                   <Button
@@ -3141,7 +3141,7 @@ const UserInput = forwardRef<UserInputRef, UserInputProps>(
                       variant='ghost'
                       size='sm'
                       className={cn(
-                        'flex h-6 items-center gap-1.5 rounded-full border px-2 py-1 font-medium text-xs',
+                        'flex h-6 min-w-0 items-center gap-1.5 rounded-full border px-2 py-1 font-medium text-xs',
                         !agentPrefetch
                           ? 'border-[var(--brand-primary-hover-hex)] text-[var(--brand-primary-hover-hex)] hover:bg-[color-mix(in_srgb,var(--brand-primary-hover-hex)_8%,transparent)] hover:text-[var(--brand-primary-hover-hex)]'
                           : 'border-border text-foreground'
@@ -3149,7 +3149,7 @@ const UserInput = forwardRef<UserInputRef, UserInputProps>(
                       title='Choose mode'
                     >
                       {getModelIcon()}
-                      <span>
+                      <span className='inline-block max-w-[120px] truncate align-middle'>
                         {getCollapsedModeLabel()}
                         {!agentPrefetch &&
                           !['gpt-4o', 'gpt-4.1', 'gpt-5-fast'].includes(selectedModel) && (
