@@ -24,8 +24,7 @@ export async function POST(request: NextRequest) {
     const body = await request.json()
 
     logger.info('Sending workflow example to agent indexer', {
-      hasBlocks: !!body?.blocks,
-      blockCount: body?.blocks ? Object.keys(body.blocks).length : 0,
+      hasJsonField: typeof body?.json === 'string',
     })
 
     const upstream = await fetch(`${baseUrl}/examples/add`, {

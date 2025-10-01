@@ -302,7 +302,11 @@ export function TrainingModal() {
       const response = await fetch('/api/copilot/training/examples', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(sanitizedWorkflow),
+        body: JSON.stringify({
+          json: JSON.stringify(sanitizedWorkflow),
+          source_path: 'live_workflow_state',
+          summary: `Live workflow state with ${currentWorkflow.getBlockCount()} blocks and ${currentWorkflow.getEdgeCount()} edges`,
+        }),
       })
 
       if (!response.ok) {
