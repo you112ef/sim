@@ -3151,11 +3151,11 @@ const UserInput = forwardRef<UserInputRef, UserInputProps>(
                       {getModelIcon()}
                       <span className='inline-block max-w-[120px] truncate align-middle'>
                         {getCollapsedModeLabel()}
-                        {!agentPrefetch &&
-                          !['gpt-4o', 'gpt-4.1', 'gpt-5-fast'].includes(selectedModel) && (
-                            <span className='ml-1 font-semibold'>MAX</span>
-                          )}
                       </span>
+                      {!agentPrefetch &&
+                        !['gpt-4o', 'gpt-4.1', 'gpt-5-fast'].includes(selectedModel) && (
+                          <span className='ml-1 font-semibold'>MAX</span>
+                        )}
                     </Button>
                   </DropdownMenuTrigger>
                   <DropdownMenuContent align='start' side='top' className='max-h-[400px] p-0'>
