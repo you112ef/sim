@@ -105,6 +105,23 @@ function applyOperationsToWorkflowState(
                 block.subBlocks[key].value = value
               }
             })
+
+            // Update loop/parallel configuration in block.data
+            if (block.type === 'loop') {
+              block.data = block.data || {}
+              if (params.inputs.loopType !== undefined) block.data.loopType = params.inputs.loopType
+              if (params.inputs.iterations !== undefined)
+                block.data.count = params.inputs.iterations
+              if (params.inputs.collection !== undefined)
+                block.data.collection = params.inputs.collection
+            } else if (block.type === 'parallel') {
+              block.data = block.data || {}
+              if (params.inputs.parallelType !== undefined)
+                block.data.parallelType = params.inputs.parallelType
+              if (params.inputs.count !== undefined) block.data.count = params.inputs.count
+              if (params.inputs.collection !== undefined)
+                block.data.collection = params.inputs.collection
+            }
           }
 
           // Update basic properties
@@ -120,6 +137,108 @@ function applyOperationsToWorkflowState(
               modifiedState.edges = modifiedState.edges.filter(
                 (edge: any) => edge.target !== block_id
               )
+            }
+          }
+
+          // Handle advanced mode toggle
+          if (typeof params?.advancedMode === 'boolean') {
+            block.advancedMode = params.advancedMode
+          }
+
+          // Handle nested nodes update (for loops/parallels)
+          if (params?.nestedNodes) {
+            // Remove all existing child blocks
+            const existingChildren = Object.keys(modifiedState.blocks).filter(
+              (id) => modifiedState.blocks[id].data?.parentId === block_id
+            )
+            existingChildren.forEach((childId) => delete modifiedState.blocks[childId])
+
+            // Remove edges to/from removed children
+            modifiedState.edges = modifiedState.edges.filter(
+              (edge: any) =>
+                !existingChildren.includes(edge.source) && !existingChildren.includes(edge.target)
+            )
+
+            // Add new nested blocks
+            Object.entries(params.nestedNodes).forEach(([childId, childBlock]: [string, any]) => {
+              const childBlockConfig = getAllBlocks().find((b) => b.type === childBlock.type)
+
+              const childBlockState: any = {
+                id: childId,
+                type: childBlock.type,
+                name: childBlock.name,
+                position: { x: 0, y: 0 },
+                enabled: childBlock.enabled !== undefined ? childBlock.enabled : true,
+                horizontalHandles: true,
+                isWide: false,
+                advancedMode: childBlock.advancedMode || false,
+                height: 0,
+                triggerMode: childBlock.triggerMode || false,
+                subBlocks: {},
+                outputs:
+                  childBlock.outputs ||
+                  (childBlockConfig ? resolveOutputType(childBlockConfig.outputs) : {}),
+                data: {
+                  parentId: block_id,
+                  extent: 'parent' as const,
+                },
+              }
+
+              // Add child inputs as subBlocks
+              if (childBlock.inputs) {
+                Object.entries(childBlock.inputs).forEach(([key, value]) => {
+                  childBlockState.subBlocks[key] = {
+                    id: key,
+                    type: 'short-input',
+                    value: value,
+                  }
+                })
+              }
+
+              // Set up child subBlocks from config
+              if (childBlockConfig) {
+                childBlockConfig.subBlocks.forEach((subBlock) => {
+                  if (!childBlockState.subBlocks[subBlock.id]) {
+                    childBlockState.subBlocks[subBlock.id] = {
+                      id: subBlock.id,
+                      type: subBlock.type,
+                      value: null,
+                    }
+                  }
+                })
+              }
+
+              modifiedState.blocks[childId] = childBlockState
+
+              // Add connections for child block
+              if (childBlock.connections) {
+                Object.entries(childBlock.connections).forEach(([sourceHandle, targets]) => {
+                  const targetArray = Array.isArray(targets) ? targets : [targets]
+                  targetArray.forEach((targetId: string) => {
+                    modifiedState.edges.push({
+                      id: crypto.randomUUID(),
+                      source: childId,
+                      sourceHandle,
+                      target: targetId,
+                      targetHandle: 'target',
+                      type: 'default',
+                    })
+                  })
+                })
+              }
+            })
+
+            // Update loop/parallel configuration based on type
+            if (block.type === 'loop') {
+              block.data = block.data || {}
+              if (params.inputs?.loopType) block.data.loopType = params.inputs.loopType
+              if (params.inputs?.iterations) block.data.count = params.inputs.iterations
+              if (params.inputs?.collection) block.data.collection = params.inputs.collection
+            } else if (block.type === 'parallel') {
+              block.data = block.data || {}
+              if (params.inputs?.parallelType) block.data.parallelType = params.inputs.parallelType
+              if (params.inputs?.count) block.data.count = params.inputs.count
+              if (params.inputs?.collection) block.data.collection = params.inputs.collection
             }
           }
 
@@ -203,9 +322,9 @@ function applyOperationsToWorkflowState(
             enabled: true,
             horizontalHandles: true,
             isWide: false,
-            advancedMode: false,
+            advancedMode: params.advancedMode || false,
             height: 0,
-            triggerMode: false,
+            triggerMode: params.triggerMode || false,
             subBlocks: {},
             outputs: blockConfig ? resolveOutputType(blockConfig.outputs) : {},
             data: {},
@@ -233,6 +352,94 @@ function applyOperationsToWorkflowState(
                 }
               }
             })
+          }
+
+          // Handle nested nodes (for loops/parallels)
+          if (params.nestedNodes) {
+            Object.entries(params.nestedNodes).forEach(([childId, childBlock]: [string, any]) => {
+              const childBlockConfig = getAllBlocks().find((b) => b.type === childBlock.type)
+
+              const childBlockState: any = {
+                id: childId,
+                type: childBlock.type,
+                name: childBlock.name,
+                position: { x: 0, y: 0 },
+                enabled: childBlock.enabled !== undefined ? childBlock.enabled : true,
+                horizontalHandles: true,
+                isWide: false,
+                advancedMode: childBlock.advancedMode || false,
+                height: 0,
+                triggerMode: childBlock.triggerMode || false,
+                subBlocks: {},
+                outputs:
+                  childBlock.outputs ||
+                  (childBlockConfig ? resolveOutputType(childBlockConfig.outputs) : {}),
+                data: {
+                  parentId: block_id,
+                  extent: 'parent' as const,
+                },
+              }
+
+              // Add child inputs as subBlocks
+              if (childBlock.inputs) {
+                Object.entries(childBlock.inputs).forEach(([key, value]) => {
+                  childBlockState.subBlocks[key] = {
+                    id: key,
+                    type: 'short-input',
+                    value: value,
+                  }
+                })
+              }
+
+              // Set up child subBlocks from config
+              if (childBlockConfig) {
+                childBlockConfig.subBlocks.forEach((subBlock) => {
+                  if (!childBlockState.subBlocks[subBlock.id]) {
+                    childBlockState.subBlocks[subBlock.id] = {
+                      id: subBlock.id,
+                      type: subBlock.type,
+                      value: null,
+                    }
+                  }
+                })
+              }
+
+              modifiedState.blocks[childId] = childBlockState
+
+              // Add connections for child block
+              if (childBlock.connections) {
+                Object.entries(childBlock.connections).forEach(([sourceHandle, targets]) => {
+                  const targetArray = Array.isArray(targets) ? targets : [targets]
+                  targetArray.forEach((targetId: string) => {
+                    modifiedState.edges.push({
+                      id: crypto.randomUUID(),
+                      source: childId,
+                      sourceHandle,
+                      target: targetId,
+                      targetHandle: 'target',
+                      type: 'default',
+                    })
+                  })
+                })
+              }
+            })
+
+            // Set loop/parallel data on parent block
+            if (params.type === 'loop') {
+              newBlock.data = {
+                ...newBlock.data,
+                loopType: params.inputs?.loopType || 'for',
+                ...(params.inputs?.collection && { collection: params.inputs.collection }),
+                ...(params.inputs?.iterations && { count: params.inputs.iterations }),
+              }
+            } else if (params.type === 'parallel') {
+              newBlock.data = {
+                ...newBlock.data,
+                parallelType: params.inputs?.parallelType || 'count',
+                ...(params.inputs?.collection && { collection: params.inputs.collection }),
+                ...(params.inputs?.count && { count: params.inputs.count }),
+              }
+            }
           }
 
           modifiedState.blocks[block_id] = newBlock

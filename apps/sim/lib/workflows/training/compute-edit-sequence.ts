@@ -7,23 +7,10 @@ export interface EditOperation {
     type?: string
     name?: string
     triggerMode?: boolean
+    advancedMode?: boolean
     inputs?: Record<string, any>
     connections?: Record<string, any>
-    removeEdges?: Array<{ targetBlockId: string; sourceHandle?: string }>
-    loopConfig?: {
-      nodes?: string[]
-      iterations?: number
-      loopType?: 'for' | 'forEach'
-      forEachItems?: any
-    }
-    parallelConfig?: {
-      nodes?: string[]
-      distribution?: any
-      count?: number
-      parallelType?: 'count' | 'collection'
-    }
-    parentId?: string
-    extent?: 'parent'
+    nestedNodes?: Record<string, any>
   }
 }
 
@@ -39,6 +26,41 @@ export interface WorkflowDiff {
 }
 
 /**
+ * Extract all edges from blocks with embedded connections
+ */
+function extractAllEdgesFromBlocks(blocks: Record<string, any>): Array<{
+  source: string
+  target: string
+  sourceHandle?: string | null
+  targetHandle?: string | null
+}> {
+  const edges: Array<{
+    source: string
+    target: string
+    sourceHandle?: string | null
+    targetHandle?: string | null
+  }> = []
+
+  Object.entries(blocks).forEach(([blockId, block]) => {
+    if (block.connections) {
+      Object.entries(block.connections).forEach(([sourceHandle, targets]) => {
+        const targetArray = Array.isArray(targets) ? targets : [targets]
+        targetArray.forEach((target: string) => {
+          edges.push({
+            source: blockId,
+            target,
+            sourceHandle,
+            targetHandle: 'target',
+          })
+        })
+      })
+    }
+  })
+
+  return edges
+}
+
+/**
  * Compute the edit sequence (operations) needed to transform startState into endState
  * This analyzes the differences and generates operations that can recreate the changes
  * Works with sanitized CopilotWorkflowState (no positions, only semantic data)
@@ -51,12 +73,10 @@ export function computeEditSequence(
 
   const startBlocks = startState.blocks || {}
   const endBlocks = endState.blocks || {}
-  const startEdges = startState.edges || []
-  const endEdges = endState.edges || []
-  const startLoops = startState.loops || {}
-  const endLoops = endState.loops || {}
-  const startParallels = startState.parallels || {}
-  const endParallels = endState.parallels || {}
+
+  // Extract edges from connections for tracking
+  const startEdges = extractAllEdgesFromBlocks(startBlocks)
+  const endEdges = extractAllEdgesFromBlocks(endBlocks)
 
   // Track statistics
   let blocksAdded = 0
@@ -83,28 +103,26 @@ export function computeEditSequence(
       const addParams: EditOperation['params'] = {
         type: block.type,
         name: block.name,
-        inputs: extractInputValues(block),
-        connections: extractConnections(blockId, endEdges),
-        triggerMode: Boolean(block?.triggerMode),
+        ...(block?.triggerMode !== undefined && { triggerMode: Boolean(block.triggerMode) }),
+        ...(block?.advancedMode !== undefined && { advancedMode: Boolean(block.advancedMode) }),
       }
 
-      // Add loop/parallel configuration if this block is in a subflow
-      const loopConfig = findLoopConfigForBlock(blockId, endLoops)
-      if (loopConfig) {
-        ;(addParams as any).loopConfig = loopConfig
+      // Add inputs if present
+      const inputs = extractInputValues(block)
+      if (Object.keys(inputs).length > 0) {
+        addParams.inputs = inputs
+      }
+
+      // Add connections if present
+      const connections = extractConnections(blockId, endEdges)
+      if (connections && Object.keys(connections).length > 0) {
+        addParams.connections = connections
+      }
+
+      // Add nested nodes if present (for loops/parallels)
+      if (block.nestedNodes && Object.keys(block.nestedNodes).length > 0) {
+        addParams.nestedNodes = block.nestedNodes
         subflowsChanged++
-      }
-
-      const parallelConfig = findParallelConfigForBlock(blockId, endParallels)
-      if (parallelConfig) {
-        ;(addParams as any).parallelConfig = parallelConfig
-        subflowsChanged++
-      }
-
-      // Add parent-child relationship if present
-      if (block.data?.parentId) {
-        addParams.parentId = block.data.parentId
-        addParams.extent = block.data.extent
       }
 
       operations.push({
@@ -121,17 +139,7 @@ export function computeEditSequence(
     if (blockId in startBlocks) {
       const startBlock = startBlocks[blockId]
       const endBlock = endBlocks[blockId]
-      const changes = computeBlockChanges(
-        startBlock,
-        endBlock,
-        blockId,
-        startEdges,
-        endEdges,
-        startLoops,
-        endLoops,
-        startParallels,
-        endParallels
-      )
+      const changes = computeBlockChanges(startBlock, endBlock, blockId, startEdges, endEdges)
 
       if (changes) {
         operations.push({
@@ -140,22 +148,14 @@ export function computeEditSequence(
           params: changes,
         })
         blocksModified++
-        if (changes.connections || changes.removeEdges) {
+        if (changes.connections) {
           edgesChanged++
         }
-        if (changes.loopConfig || changes.parallelConfig) {
+        if (changes.nestedNodes) {
           subflowsChanged++
         }
       }
     }
-  }
-
-  // 4. Check for standalone loop/parallel changes (not tied to specific blocks)
-  const loopChanges = detectSubflowChanges(startLoops, endLoops, 'loop')
-  const parallelChanges = detectSubflowChanges(startParallels, endParallels, 'parallel')
-
-  if (loopChanges > 0 || parallelChanges > 0) {
-    subflowsChanged += loopChanges + parallelChanges
   }
 
   return {
@@ -171,20 +171,21 @@ export function computeEditSequence(
 }
 
 /**
- * Extract input values from a block's subBlocks
+ * Extract input values from a block
+ * Works with sanitized format where inputs is Record<string, value>
  */
 function extractInputValues(block: any): Record<string, any> {
-  const inputs: Record<string, any> = {}
-
-  if (block.subBlocks) {
-    for (const [subBlockId, subBlock] of Object.entries(block.subBlocks)) {
-      if ((subBlock as any).value !== undefined && (subBlock as any).value !== null) {
-        inputs[subBlockId] = (subBlock as any).value
-      }
-    }
+  // New sanitized format uses 'inputs' field
+  if (block.inputs) {
+    return { ...block.inputs }
   }
 
-  return inputs
+  // Fallback for any legacy data
+  if (block.subBlocks) {
+    return { ...block.subBlocks }
+  }
+
+  return {}
 }
 
 /**
@@ -234,101 +235,6 @@ function extractConnections(
 }
 
 /**
- * Find loop configuration for a block
- */
-function findLoopConfigForBlock(
-  blockId: string,
-  loops: Record<string, any>
-):
-  | {
-      nodes?: string[]
-      iterations?: number
-      loopType?: 'for' | 'forEach'
-      forEachItems?: any
-    }
-  | undefined {
-  for (const loop of Object.values(loops)) {
-    if (loop.id === blockId || loop.nodes?.includes(blockId)) {
-      return {
-        nodes: loop.nodes,
-        iterations: loop.iterations,
-        loopType: loop.loopType,
-        forEachItems: loop.forEachItems,
-      }
-    }
-  }
-  return undefined
-}
-
-/**
- * Find parallel configuration for a block
- */
-function findParallelConfigForBlock(
-  blockId: string,
-  parallels: Record<string, any>
-):
-  | {
-      nodes?: string[]
-      distribution?: any
-      count?: number
-      parallelType?: 'count' | 'collection'
-    }
-  | undefined {
-  for (const parallel of Object.values(parallels)) {
-    if (parallel.id === blockId || parallel.nodes?.includes(blockId)) {
-      return {
-        nodes: parallel.nodes,
-        distribution: parallel.distribution,
-        count: parallel.count,
-        parallelType: parallel.parallelType,
-      }
-    }
-  }
-  return undefined
-}
-
-/**
- * Detect changes in subflow configurations
- */
-function detectSubflowChanges(
-  startSubflows: Record<string, any>,
-  endSubflows: Record<string, any>,
-  type: 'loop' | 'parallel'
-): number {
-  let changes = 0
-
-  // Check for added/removed subflows
-  const startIds = new Set(Object.keys(startSubflows))
-  const endIds = new Set(Object.keys(endSubflows))
-
-  for (const id of endIds) {
-    if (!startIds.has(id)) {
-      changes++ // New subflow
-    }
-  }
-
-  for (const id of startIds) {
-    if (!endIds.has(id)) {
-      changes++ // Removed subflow
-    }
-  }
-
-  // Check for modified subflows
-  for (const id of endIds) {
-    if (startIds.has(id)) {
-      const startSubflow = startSubflows[id]
-      const endSubflow = endSubflows[id]
-
-      if (JSON.stringify(startSubflow) !== JSON.stringify(endSubflow)) {
-        changes++ // Modified subflow
-      }
-    }
-  }
-
-  return changes
-}
-
-/**
  * Compute what changed in a block between two states
  */
 function computeBlockChanges(
@@ -346,11 +252,7 @@ function computeBlockChanges(
     target: string
     sourceHandle?: string | null
     targetHandle?: string | null
-  }>,
-  startLoops: Record<string, any>,
-  endLoops: Record<string, any>,
-  startParallels: Record<string, any>,
-  endParallels: Record<string, any>
+  }>
 ): Record<string, any> | null {
   const changes: Record<string, any> = {}
   let hasChanges = false
@@ -375,6 +277,14 @@ function computeBlockChanges(
     hasChanges = true
   }
 
+  // Check advanced mode change
+  const startAdvanced = Boolean(startBlock?.advancedMode)
+  const endAdvanced = Boolean(endBlock?.advancedMode)
+  if (startAdvanced !== endAdvanced) {
+    changes.advancedMode = endAdvanced
+    hasChanges = true
+  }
+
   // Check input value changes
   const startInputs = extractInputValues(startBlock)
   const endInputs = extractInputValues(endBlock)
@@ -389,79 +299,16 @@ function computeBlockChanges(
   const endConnections = extractConnections(blockId, endEdges)
 
   if (JSON.stringify(startConnections) !== JSON.stringify(endConnections)) {
-    // Compute which edges were removed
-    const removedEdges: Array<{ targetBlockId: string; sourceHandle?: string }> = []
-
-    for (const handle in startConnections) {
-      const startTargets = Array.isArray(startConnections[handle])
-        ? startConnections[handle]
-        : [startConnections[handle]]
-      const endTargets = endConnections[handle]
-        ? Array.isArray(endConnections[handle])
-          ? endConnections[handle]
-          : [endConnections[handle]]
-        : []
-
-      for (const target of startTargets) {
-        const targetId = typeof target === 'object' ? target.block : target
-        const isPresent = endTargets.some(
-          (t: any) => (typeof t === 'object' ? t.block : t) === targetId
-        )
-
-        if (!isPresent) {
-          removedEdges.push({
-            targetBlockId: targetId,
-            sourceHandle: handle !== 'default' ? handle : undefined,
-          })
-        }
-      }
-    }
-
-    if (removedEdges.length > 0) {
-      changes.removeEdges = removedEdges
-    }
-
-    // Add new connections
-    if (Object.keys(endConnections).length > 0) {
-      changes.connections = endConnections
-    }
-
+    changes.connections = endConnections
     hasChanges = true
   }
 
-  // Check loop membership changes
-  const startLoopConfig = findLoopConfigForBlock(blockId, startLoops)
-  const endLoopConfig = findLoopConfigForBlock(blockId, endLoops)
+  // Check nested nodes changes (for loops/parallels)
+  const startNestedNodes = startBlock.nestedNodes || {}
+  const endNestedNodes = endBlock.nestedNodes || {}
 
-  if (JSON.stringify(startLoopConfig) !== JSON.stringify(endLoopConfig)) {
-    if (endLoopConfig) {
-      ;(changes as any).loopConfig = endLoopConfig
-    }
-    hasChanges = true
-  }
-
-  // Check parallel membership changes
-  const startParallelConfig = findParallelConfigForBlock(blockId, startParallels)
-  const endParallelConfig = findParallelConfigForBlock(blockId, endParallels)
-
-  if (JSON.stringify(startParallelConfig) !== JSON.stringify(endParallelConfig)) {
-    if (endParallelConfig) {
-      ;(changes as any).parallelConfig = endParallelConfig
-    }
-    hasChanges = true
-  }
-
-  // Check parent-child relationship changes
-  const startParentId = startBlock.data?.parentId
-  const endParentId = endBlock.data?.parentId
-  const startExtent = startBlock.data?.extent
-  const endExtent = endBlock.data?.extent
-
-  if (startParentId !== endParentId || startExtent !== endExtent) {
-    if (endParentId) {
-      changes.parentId = endParentId
-      changes.extent = endExtent
-    }
+  if (JSON.stringify(startNestedNodes) !== JSON.stringify(endNestedNodes)) {
+    changes.nestedNodes = endNestedNodes
     hasChanges = true
   }
 
@@ -482,16 +329,25 @@ export function formatEditSequence(operations: EditOperation[]): string[] {
         const changes: string[] = []
         if (op.params?.type) changes.push(`type to ${op.params.type}`)
         if (op.params?.name) changes.push(`name to "${op.params.name}"`)
-        if (op.params?.inputs) changes.push('inputs')
+        if (op.params?.triggerMode !== undefined)
+          changes.push(`trigger mode to ${op.params.triggerMode}`)
+        if (op.params?.advancedMode !== undefined)
+          changes.push(`advanced mode to ${op.params.advancedMode}`)
+        if (op.params?.inputs) {
+          const inputKeys = Object.keys(op.params.inputs)
+          if (inputKeys.length > 0) {
+            changes.push(`inputs (${inputKeys.join(', ')})`)
+          }
+        }
         if (op.params?.connections) changes.push('connections')
-        if (op.params?.removeEdges) changes.push(`remove ${op.params.removeEdges.length} edge(s)`)
-        if ((op.params as any)?.loopConfig) changes.push('loop configuration')
-        if ((op.params as any)?.parallelConfig) changes.push('parallel configuration')
-        if (op.params?.parentId) changes.push('parent-child relationship')
+        if (op.params?.nestedNodes) {
+          const nestedCount = Object.keys(op.params.nestedNodes).length
+          changes.push(`nested nodes (${nestedCount} blocks)`)
+        }
         return `Edit block "${op.block_id}": ${changes.join(', ')}`
       }
       default:
-        return `Unknown operation on block "${op.block_id}"`
+        return `Unknown operation: ${op.operation_type}`
     }
   })
 }
