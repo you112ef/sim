@@ -69,6 +69,8 @@ export function TrainingModal() {
   const [sendingLiveWorkflow, setSendingLiveWorkflow] = useState(false)
   const [liveWorkflowSent, setLiveWorkflowSent] = useState(false)
   const [liveWorkflowFailed, setLiveWorkflowFailed] = useState(false)
+  const [liveWorkflowTitle, setLiveWorkflowTitle] = useState('')
+  const [liveWorkflowDescription, setLiveWorkflowDescription] = useState('')
 
   const handleStart = () => {
     if (localTitle.trim() && localPrompt.trim()) {
@@ -292,6 +294,10 @@ export function TrainingModal() {
   }
 
   const handleSendLiveWorkflow = async () => {
+    if (!liveWorkflowTitle.trim() || !liveWorkflowDescription.trim()) {
+      return
+    }
+
     setLiveWorkflowSent(false)
     setLiveWorkflowFailed(false)
     setSendingLiveWorkflow(true)
@@ -304,8 +310,8 @@ export function TrainingModal() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           json: JSON.stringify(sanitizedWorkflow),
-          source_path: 'live_workflow_state',
-          summary: `Live workflow state with ${currentWorkflow.getBlockCount()} blocks and ${currentWorkflow.getEdgeCount()} edges`,
+          source_path: liveWorkflowTitle,
+          summary: liveWorkflowDescription,
         }),
       })
 
@@ -315,6 +321,8 @@ export function TrainingModal() {
       }
 
       setLiveWorkflowSent(true)
+      setLiveWorkflowTitle('')
+      setLiveWorkflowDescription('')
       setTimeout(() => setLiveWorkflowSent(false), 5000)
     } catch (error) {
       console.error('Failed to send live workflow:', error)
@@ -375,54 +383,20 @@ export function TrainingModal() {
         )}
 
         <Tabs defaultValue={isTraining ? 'datasets' : 'new'} className='mt-4'>
-          <TabsList className='grid w-full grid-cols-2'>
+          <TabsList className='grid w-full grid-cols-3'>
             <TabsTrigger value='new' disabled={isTraining}>
               New Session
             </TabsTrigger>
             <TabsTrigger value='datasets'>Datasets ({datasets.length})</TabsTrigger>
+            <TabsTrigger value='live'>Send Live State</TabsTrigger>
           </TabsList>
 
           {/* New Training Session Tab */}
           <TabsContent value='new' className='space-y-4'>
             <div className='rounded-lg border bg-muted/50 p-3'>
-              <div className='mb-2 flex items-center justify-between'>
-                <p className='font-medium text-muted-foreground text-sm'>Current Workflow State</p>
-                <Button
-                  variant={
-                    liveWorkflowSent ? 'outline' : liveWorkflowFailed ? 'destructive' : 'outline'
-                  }
-                  size='sm'
-                  onClick={handleSendLiveWorkflow}
-                  disabled={sendingLiveWorkflow || currentWorkflow.getBlockCount() === 0}
-                  className={
-                    liveWorkflowSent
-                      ? 'border-green-500 text-green-600 hover:bg-green-50 dark:border-green-400 dark:text-green-400 dark:hover:bg-green-950'
-                      : ''
-                  }
-                >
-                  {sendingLiveWorkflow ? (
-                    <>
-                      <div className='mr-2 h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent' />
-                      Sending...
-                    </>
-                  ) : liveWorkflowSent ? (
-                    <>
-                      <CheckCircle2 className='mr-2 h-4 w-4' />
-                      Sent
-                    </>
-                  ) : liveWorkflowFailed ? (
-                    <>
-                      <XCircle className='mr-2 h-4 w-4' />
-                      Failed
-                    </>
-                  ) : (
-                    <>
-                      <Send className='mr-2 h-4 w-4' />
-                      Send Live State
-                    </>
-                  )}
-                </Button>
-              </div>
+              <p className='mb-2 font-medium text-muted-foreground text-sm'>
+                Current Workflow State
+              </p>
               <p className='text-sm'>
                 {currentWorkflow.getBlockCount()} blocks, {currentWorkflow.getEdgeCount()} edges
               </p>
@@ -700,6 +674,94 @@ export function TrainingModal() {
                   </div>
                 </ScrollArea>
               </>
+            )}
+          </TabsContent>
+
+          {/* Send Live State Tab */}
+          <TabsContent value='live' className='space-y-4'>
+            <div className='rounded-lg border bg-muted/50 p-3'>
+              <p className='mb-2 font-medium text-muted-foreground text-sm'>
+                Current Workflow State
+              </p>
+              <p className='text-sm'>
+                {currentWorkflow.getBlockCount()} blocks, {currentWorkflow.getEdgeCount()} edges
+              </p>
+            </div>
+
+            <div className='space-y-2'>
+              <Label htmlFor='live-title'>Title</Label>
+              <Input
+                id='live-title'
+                placeholder='e.g., Customer Onboarding Workflow'
+                value={liveWorkflowTitle}
+                onChange={(e) => setLiveWorkflowTitle(e.target.value)}
+              />
+              <p className='text-muted-foreground text-xs'>
+                A short title identifying this workflow
+              </p>
+            </div>
+
+            <div className='space-y-2'>
+              <Label htmlFor='live-description'>Description</Label>
+              <Textarea
+                id='live-description'
+                placeholder='Describe what this workflow does...'
+                value={liveWorkflowDescription}
+                onChange={(e) => setLiveWorkflowDescription(e.target.value)}
+                rows={3}
+              />
+              <p className='text-muted-foreground text-xs'>
+                Explain the purpose and functionality of this workflow
+              </p>
+            </div>
+
+            <Button
+              onClick={handleSendLiveWorkflow}
+              disabled={
+                !liveWorkflowTitle.trim() ||
+                !liveWorkflowDescription.trim() ||
+                sendingLiveWorkflow ||
+                currentWorkflow.getBlockCount() === 0
+              }
+              className='w-full'
+            >
+              {sendingLiveWorkflow ? (
+                <>
+                  <div className='mr-2 h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent' />
+                  Sending...
+                </>
+              ) : liveWorkflowSent ? (
+                <>
+                  <CheckCircle2 className='mr-2 h-4 w-4' />
+                  Sent Successfully
+                </>
+              ) : liveWorkflowFailed ? (
+                <>
+                  <XCircle className='mr-2 h-4 w-4' />
+                  Failed - Try Again
+                </>
+              ) : (
+                <>
+                  <Send className='mr-2 h-4 w-4' />
+                  Send Live Workflow State
+                </>
+              )}
+            </Button>
+
+            {liveWorkflowSent && (
+              <div className='rounded-lg border bg-green-50 p-3 dark:bg-green-950/30'>
+                <p className='text-green-700 text-sm dark:text-green-300'>
+                  Workflow state sent successfully!
+                </p>
+              </div>
+            )}
+
+            {liveWorkflowFailed && (
+              <div className='rounded-lg border bg-red-50 p-3 dark:bg-red-950/30'>
+                <p className='text-red-700 text-sm dark:text-red-300'>
+                  Failed to send workflow state. Please try again.
+                </p>
+              </div>
             )}
           </TabsContent>
         </Tabs>
