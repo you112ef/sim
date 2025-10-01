@@ -16,6 +16,7 @@ jobs:
     uses: ./.github/workflows/test-build.yml
     secrets: inherit
 
+<<<<<<< HEAD
   # Deploy Trigger.dev FIRST (right after test-build, before images)
   trigger-deploy:
     name: Deploy Trigger.dev
@@ -27,10 +28,12 @@ jobs:
       id-token: write
       contents: read
 
+=======
+>>>>>>> 27b05ad97 (Revert trigger promotion)
   # Build AMD64 images and push to ECR immediately (+ GHCR for main)
   build-amd64:
     name: Build AMD64
-    needs: trigger-deploy
+    needs: test-build
     if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/staging')
     runs-on: blacksmith-4vcpu-ubuntu-2404
     permissions:
@@ -122,7 +125,7 @@ jobs:
   # Build ARM64 images for GHCR (main branch only, runs in parallel)
   build-ghcr-arm64:
     name: Build ARM64 (GHCR Only)
-    needs: trigger-deploy
+    needs: test-build
     runs-on: linux-arm64-8-core
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     permissions:
@@ -169,6 +172,14 @@ jobs:
           tags: ${{ steps.meta.outputs.tags }}
           provenance: false
           sbom: false
+
+  # Deploy Trigger.dev (after ECR images are pushed)
+  trigger-deploy:
+    name: Deploy Trigger.dev
+    needs: build-amd64
+    if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/staging')
+    uses: ./.github/workflows/trigger-deploy.yml
+    secrets: inherit
 
   # Create GHCR multi-arch manifests (only for main, after both builds)
   create-ghcr-manifests:
