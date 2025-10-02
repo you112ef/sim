@@ -97,8 +97,6 @@ const WorkflowStateSchema = z.object({
   lastSaved: z.number().optional(),
   isDeployed: z.boolean().optional(),
   deployedAt: z.coerce.date().optional(),
-  hasActiveWebhook: z.boolean().optional(),
-  // Note: deploymentStatuses is UI-only state, not persisted to DB
 })
 
 /**
@@ -197,7 +195,6 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
       lastSaved: state.lastSaved || Date.now(),
       isDeployed: state.isDeployed || false,
       deployedAt: state.deployedAt,
-      hasActiveWebhook: state.hasActiveWebhook || false,
     }
 
     const saveResult = await saveWorkflowToNormalizedTables(workflowId, workflowState as any)
