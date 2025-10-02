@@ -17,7 +17,13 @@ import {
   SelectValue,
 } from '@/components/ui'
 import { ScrollArea } from '@/components/ui/scroll-area'
-import { MAX_TAG_SLOTS, TAG_SLOTS, type TagSlot } from '@/lib/knowledge/consts'
+import {
+  FIELD_TYPE_METADATA,
+  MAX_TAG_SLOTS,
+  SUPPORTED_FIELD_TYPES,
+  TAG_SLOTS,
+  type TagSlot,
+} from '@/lib/knowledge/consts'
 import { createLogger } from '@/lib/logs/console/logger'
 import type { DocumentTag } from '@/app/workspace/[workspaceId]/knowledge/components/document-tag-entry/document-tag-entry'
 import { TypedTagInput } from '@/app/workspace/[workspaceId]/knowledge/components/tag-input/typed-tag-input'
@@ -37,7 +43,6 @@ interface KnowledgeTagsProps {
   documentId: string
 }
 
-// Predetermined colors for each tag slot
 const TAG_SLOT_COLORS = [
   'var(--brand-primary-hex)', // Purple
   '#FF6B35', // Orange
@@ -80,44 +85,13 @@ export function KnowledgeTags({ knowledgeBaseId, documentId }: KnowledgeTagsProp
   })
   const [isValueValid, setIsValueValid] = useState(true)
 
-  // State for field types
-  const [fieldTypes, setFieldTypes] = useState<
-    Array<{
-      value: string
-      label: string
-      description: string
-      placeholder: string
-    }>
-  >([
-    {
-      value: 'text',
-      label: 'Text',
-      description: 'Free-form text content',
-      placeholder: 'Enter text',
-    },
-  ])
+  const fieldTypes = SUPPORTED_FIELD_TYPES.map((fieldType) => ({
+    value: fieldType,
+    label: FIELD_TYPE_METADATA[fieldType].label,
+    description: FIELD_TYPE_METADATA[fieldType].description,
+    placeholder: FIELD_TYPE_METADATA[fieldType].placeholder,
+  }))
 
-  // Fetch field types on component mount
-  useEffect(() => {
-    const fetchFieldTypes = async () => {
-      try {
-        const response = await fetch('/api/knowledge/field-types')
-        if (response.ok) {
-          const result = await response.json()
-          if (result.success) {
-            setFieldTypes(result.data.fieldTypes)
-          }
-        }
-      } catch (error) {
-        logger.error('Error fetching field types:', error)
-        // Keep the default fallback
-      }
-    }
-
-    fetchFieldTypes()
-  }, [])
-
-  // Function to build document tags from data and definitions
   const buildDocumentTags = useCallback(
     (docData: DocumentData, definitions: TagDefinition[], currentTags?: DocumentTag[]) => {
       const tags: DocumentTag[] = []
@@ -128,7 +102,6 @@ export function KnowledgeTags({ knowledgeBaseId, documentId }: KnowledgeTagsProp
         const definition = definitions.find((def) => def.tagSlot === slot)
         const currentTag = currentTags?.find((tag) => tag.slot === slot)
 
-        // Only include tag if the document has a value AND a corresponding KB tag definition exists
         if (value?.trim() && definition) {
           tags.push({
             slot,
@@ -144,35 +117,28 @@ export function KnowledgeTags({ knowledgeBaseId, documentId }: KnowledgeTagsProp
     []
   )
 
-  // Handle tag updates (local state only, no API calls)
   const handleTagsChange = useCallback((newTags: DocumentTag[]) => {
-    // Only update local state, don't save to API
     setDocumentTags(newTags)
   }, [])
 
-  // Handle saving document tag values to the API
   const handleSaveDocumentTags = useCallback(
     async (tagsToSave: DocumentTag[]) => {
       if (!documentData) return
 
       try {
-        // Convert DocumentTag array to tag data for API
         const tagData: Record<string, string> = {}
         const tagSlots = TAG_SLOTS
 
-        // Clear all tags first
         tagSlots.forEach((slot) => {
           tagData[slot] = ''
         })
 
-        // Set values from tagsToSave
         tagsToSave.forEach((tag) => {
           if (tag.value.trim()) {
             tagData[tag.slot] = tag.value.trim()
           }
         })
 
-        // Update document via API
         const response = await fetch(`/api/knowledge/${knowledgeBaseId}/documents/${documentId}`, {
           method: 'PUT',
           headers: {
@@ -185,11 +151,9 @@ export function KnowledgeTags({ knowledgeBaseId, documentId }: KnowledgeTagsProp
           throw new Error('Failed to update document tags')
         }
 
-        // Update the document in the store and local state
         updateDocumentInStore(knowledgeBaseId, documentId, tagData)
         setDocumentData((prev) => (prev ? { ...prev, ...tagData } : null))
 
-        // Refresh tag definitions to update the display
         await fetchTagDefinitions()
       } catch (error) {
         logger.error('Error updating document tags:', error)

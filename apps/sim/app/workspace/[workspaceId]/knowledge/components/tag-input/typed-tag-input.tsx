@@ -36,16 +36,13 @@ export function TypedTagInput({
   const [isValid, setIsValid] = useState(true)
   const [error, setError] = useState<string | undefined>()
 
-  // Update internal state when value prop changes
   useEffect(() => {
     setInputValue(value || '')
   }, [value])
 
-  // Clear validation errors when field type changes
   useEffect(() => {
     setIsValid(true)
     setError(undefined)
-    // Re-validate the current value for the new field type if there is a value
     if (inputValue.trim()) {
       validateAndUpdate(inputValue)
     }
@@ -54,7 +51,6 @@ export function TypedTagInput({
   const validateAndUpdate = (newValue: string) => {
     setInputValue(newValue)
 
-    // Simple client-side validation
     let valid = true
     let errorMessage: string | undefined
 
@@ -96,9 +92,6 @@ export function TypedTagInput({
     }
   }
 
-  // Minimal UI: we don't show validation messages, only subtle border changes.
-
-  // Render different input types based on field type
   switch (fieldType) {
     case 'boolean':
       return (
@@ -169,7 +162,6 @@ export function TypedTagInput({
       )
 
     default:
-      // text, select, or unknown types use regular input
       return (
         <div className={className}>
           <Input

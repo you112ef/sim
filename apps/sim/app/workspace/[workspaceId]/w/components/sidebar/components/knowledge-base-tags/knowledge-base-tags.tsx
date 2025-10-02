@@ -26,7 +26,7 @@ import {
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog'
 import { ScrollArea } from '@/components/ui/scroll-area'
-import { MAX_TAG_SLOTS } from '@/lib/knowledge/consts'
+import { FIELD_TYPE_METADATA, MAX_TAG_SLOTS, SUPPORTED_FIELD_TYPES } from '@/lib/knowledge/consts'
 import { createLogger } from '@/lib/logs/console/logger'
 import { useUserPermissionsContext } from '@/app/workspace/[workspaceId]/providers/workspace-permissions-provider'
 import {
@@ -79,52 +79,20 @@ export function KnowledgeBaseTags({ knowledgeBaseId }: KnowledgeBaseTagsProps) {
     displayName: '',
     fieldType: 'text',
   })
-  const [fieldTypes, setFieldTypes] = useState<
-    Array<{
-      value: string
-      label: string
-      description: string
-      placeholder: string
-    }>
-  >([])
-  const [isLoadingFieldTypes, setIsLoadingFieldTypes] = useState(false)
 
-  // Get color for a tag based on its slot
+  const fieldTypes = SUPPORTED_FIELD_TYPES.map((fieldType) => ({
+    value: fieldType,
+    label: FIELD_TYPE_METADATA[fieldType].label,
+    description: FIELD_TYPE_METADATA[fieldType].description,
+    placeholder: FIELD_TYPE_METADATA[fieldType].placeholder,
+  }))
+
   const getTagColor = (slot: string) => {
     const slotMatch = slot.match(/tag(\d+)/)
     const slotNumber = slotMatch ? Number.parseInt(slotMatch[1]) - 1 : 0
     return TAG_SLOT_COLORS[slotNumber % TAG_SLOT_COLORS.length]
   }
 
-  // Fetch field types data from API
-  const fetchFieldTypes = async () => {
-    setIsLoadingFieldTypes(true)
-    try {
-      const response = await fetch('/api/knowledge/field-types')
-      if (!response.ok) {
-        throw new Error('Failed to fetch field types')
-      }
-      const result = await response.json()
-      if (result.success) {
-        setFieldTypes(result.data.fieldTypes)
-      }
-    } catch (error) {
-      logger.error('Error fetching field types:', error)
-      // Fallback to default field types
-      setFieldTypes([
-        {
-          value: 'text',
-          label: 'Text',
-          description: 'Free-form text content',
-          placeholder: 'Enter text',
-        },
-      ])
-    } finally {
-      setIsLoadingFieldTypes(false)
-    }
-  }
-
-  // Fetch tag usage data from API
   const fetchTagUsage = async () => {
     if (!knowledgeBaseId) return
 
@@ -145,17 +113,10 @@ export function KnowledgeBaseTags({ knowledgeBaseId }: KnowledgeBaseTagsProps) {
     }
   }
 
-  // Load field types when component mounts
-  useEffect(() => {
-    fetchFieldTypes()
-  }, [])
-
-  // Load tag usage data when component mounts or knowledge base changes
   useEffect(() => {
     fetchTagUsage()
   }, [knowledgeBaseId])
 
-  // Get usage data for a tag
   const getTagUsage = (tagName: string): TagUsageData => {
     return (
       tagUsageData.find((usage) => usage.tagName === tagName) || {
@@ -169,7 +130,6 @@ export function KnowledgeBaseTags({ knowledgeBaseId }: KnowledgeBaseTagsProps) {
 
   const handleDeleteTag = async (tag: TagDefinition) => {
     setSelectedTag(tag)
-    // Fetch fresh usage data before showing the delete dialog
     await fetchTagUsage()
     setDeleteDialogOpen(true)
   }

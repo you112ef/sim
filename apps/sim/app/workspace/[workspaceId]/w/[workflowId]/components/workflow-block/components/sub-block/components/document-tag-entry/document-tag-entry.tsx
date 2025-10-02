@@ -1,12 +1,12 @@
 'use client'
 
-import { useEffect, useMemo, useState } from 'react'
+import { useMemo, useState } from 'react'
 import { Calendar, Hash, Plus, ToggleLeft, Trash2, Type as TypeIcon } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { formatDisplayText } from '@/components/ui/formatted-text'
 import { Input } from '@/components/ui/input'
 import { TagDropdown } from '@/components/ui/tag-dropdown'
-import { MAX_TAG_SLOTS } from '@/lib/knowledge/consts'
+import { FIELD_TYPE_METADATA, MAX_TAG_SLOTS, SUPPORTED_FIELD_TYPES } from '@/lib/knowledge/consts'
 import { cn } from '@/lib/utils'
 import { TypedTagInput } from '@/app/workspace/[workspaceId]/knowledge/components/tag-input/typed-tag-input'
 import { useSubBlockValue } from '@/app/workspace/[workspaceId]/w/[workflowId]/components/workflow-block/components/sub-block/hooks/use-sub-block-value'
@@ -51,41 +51,15 @@ export function DocumentTagEntry({
 
   const emitTagSelection = useTagSelection(blockId, subBlock.id)
 
-  // State for field types
-  const [fieldTypes, setFieldTypes] = useState<
-    Array<{
-      value: string
-      label: string
-      description: string
-    }>
-  >([{ value: 'text', label: 'Text', description: 'Free-form text content' }])
+  const fieldTypes = SUPPORTED_FIELD_TYPES.map((fieldType) => ({
+    value: fieldType,
+    label: FIELD_TYPE_METADATA[fieldType].label,
+    description: FIELD_TYPE_METADATA[fieldType].description,
+  }))
 
-  // Fetch field types on component mount
-  useEffect(() => {
-    const fetchFieldTypes = async () => {
-      try {
-        const response = await fetch('/api/knowledge/field-types')
-        if (response.ok) {
-          const result = await response.json()
-          if (result.success) {
-            setFieldTypes(result.data.fieldTypes)
-          }
-        }
-      } catch (error) {
-        console.error('Error fetching field types:', error)
-        // Keep the default fallback
-      }
-    }
-
-    fetchFieldTypes()
-  }, [])
-
-  // State for dropdown visibility - one for each row
   const [dropdownStates, setDropdownStates] = useState<Record<number, boolean>>({})
-  // State for type dropdown visibility - one for each row
   const [typeDropdownStates, setTypeDropdownStates] = useState<Record<number, boolean>>({})
 
-  // State for managing tag dropdown
   const [activeTagDropdown, setActiveTagDropdown] = useState<{
     rowIndex: number
     showTags: boolean
@@ -94,12 +68,9 @@ export function DocumentTagEntry({
     element?: HTMLElement | null
   } | null>(null)
 
-  // Use preview value when in preview mode, otherwise use store value
   const currentValue = isPreview ? previewValue : storeValue
 
-  // Transform stored JSON string to table format for display
   const rows = useMemo(() => {
-    // If we have stored data, use it
     if (currentValue) {
       try {
         const tagData = JSON.parse(currentValue)
@@ -113,12 +84,9 @@ export function DocumentTagEntry({
             },
           }))
         }
-      } catch {
-        // If parsing fails, fall through to default
-      }
+      } catch {}
     }
 
-    // Default: just one empty row
     return [
       {
         id: 'empty-row-0',

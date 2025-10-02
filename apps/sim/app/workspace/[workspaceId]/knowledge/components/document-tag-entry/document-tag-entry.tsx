@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
 import { ChevronDown, Info, Plus, X } from 'lucide-react'
 import {
   Badge,
@@ -25,7 +25,12 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from '@/components/ui'
-import { MAX_TAG_SLOTS, type TagSlot } from '@/lib/knowledge/consts'
+import {
+  FIELD_TYPE_METADATA,
+  MAX_TAG_SLOTS,
+  SUPPORTED_FIELD_TYPES,
+  type TagSlot,
+} from '@/lib/knowledge/consts'
 import { createLogger } from '@/lib/logs/console/logger'
 import { useKnowledgeBaseTagDefinitions } from '@/hooks/use-knowledge-base-tag-definitions'
 import { useNextAvailableSlot } from '@/hooks/use-next-available-slot'
@@ -67,44 +72,13 @@ export function DocumentTagEntry({
   const { saveTagDefinitions } = documentTagHook
   const { tagDefinitions: kbTagDefinitions, fetchTagDefinitions: refreshTagDefinitions } = kbTagHook
 
-  // State for field types
-  const [fieldTypes, setFieldTypes] = useState<
-    Array<{
-      value: string
-      label: string
-      description: string
-      placeholder: string
-    }>
-  >([
-    {
-      value: 'text',
-      label: 'Text',
-      description: 'Free-form text content',
-      placeholder: 'Enter text',
-    },
-  ])
+  const fieldTypes = SUPPORTED_FIELD_TYPES.map((fieldType) => ({
+    value: fieldType,
+    label: FIELD_TYPE_METADATA[fieldType].label,
+    description: FIELD_TYPE_METADATA[fieldType].description,
+    placeholder: FIELD_TYPE_METADATA[fieldType].placeholder,
+  }))
 
-  // Fetch field types on component mount
-  useEffect(() => {
-    const fetchFieldTypes = async () => {
-      try {
-        const response = await fetch('/api/knowledge/field-types')
-        if (response.ok) {
-          const result = await response.json()
-          if (result.success) {
-            setFieldTypes(result.data.fieldTypes)
-          }
-        }
-      } catch (error) {
-        logger.error('Error fetching field types:', error)
-        // Keep the default fallback
-      }
-    }
-
-    fetchFieldTypes()
-  }, [])
-
-  // Modal state for tag editing
   const [editingTagIndex, setEditingTagIndex] = useState<number | null>(null)
   const [modalOpen, setModalOpen] = useState(false)
   const [editForm, setEditForm] = useState({
@@ -117,18 +91,13 @@ export function DocumentTagEntry({
     const updatedTags = tags.filter((_, i) => i !== index)
     onTagsChange(updatedTags)
 
-    // Persist the changes if onSave is provided
     if (onSave) {
       try {
         await onSave(updatedTags)
-      } catch (error) {
-        // Handle error silently - the UI will show the optimistic update
-        // but the user can retry if needed
-      }
+      } catch (error) {}
     }
   }
 
-  // Open modal to edit tag
   const openTagModal = (index: number) => {
     const tag = tags[index]
     setEditingTagIndex(index)
@@ -140,7 +109,6 @@ export function DocumentTagEntry({
     setModalOpen(true)
   }
 
-  // Open modal to create new tag
   const openNewTagModal = () => {
     setEditingTagIndex(null)
     setEditForm({
@@ -151,7 +119,6 @@ export function DocumentTagEntry({
     setModalOpen(true)
   }
 
-  // Save tag from modal
   const saveTagFromModal = async () => {
     if (!editForm.displayName.trim() || !editForm.value.trim()) return
 
@@ -450,12 +417,12 @@ export function DocumentTagEntry({
                 value={editForm.fieldType}
                 onValueChange={(value) => setEditForm({ ...editForm, fieldType: value })}
                 disabled={
-                  editingTagIndex !== null || // Disable in edit mode
+                  editingTagIndex !== null ||
                   (editingTagIndex === null &&
                     kbTagDefinitions.some(
                       (def) => def.displayName.toLowerCase() === editForm.displayName.toLowerCase()
                     ))
-                } // Also disable when using existing definition in create mode
+                }
               >
                 <SelectTrigger className='h-8 w-full justify-between rounded-[10px] border-[#E5E5E5] bg-[#FFFFFF] text-sm dark:border-[#414141] dark:bg-[var(--surface-elevated)]'>
                   <SelectValue placeholder='Select type' />
@@ -483,11 +450,7 @@ export function DocumentTagEntry({
                 }
                 showInlineError={true}
                 onValidityChange={(valid) => {
-                  // Disable save when invalid
-                  // We just store validity in state via a refactor-free approach by toggling a hidden flag on form
-                  // Use a no-op set to trigger re-render when invalid so button disabled reflects it
                   if (!valid) {
-                    // noop – re-render by updating same state value
                     setEditForm((prev) => ({ ...prev }))
                   }
                 }}
@@ -517,18 +480,14 @@ export function DocumentTagEntry({
               disabled={(() => {
                 if (!editForm.displayName.trim()) return true
 
-                // In edit mode, always allow
                 if (editingTagIndex !== null) return false
 
-                // In create mode, check if we're creating a new definition at max slots
                 const existingDefinition = kbTagDefinitions.find(
                   (def) => def.displayName.toLowerCase() === editForm.displayName.toLowerCase()
                 )
 
-                // If using existing definition, allow
                 if (existingDefinition) return false
 
-                // If creating new definition and at max slots, disable
                 return kbTagDefinitions.length >= MAX_TAG_SLOTS
               })()}
             >
