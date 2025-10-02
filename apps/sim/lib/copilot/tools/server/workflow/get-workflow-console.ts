@@ -192,7 +192,8 @@ function deriveExecutionErrorSummary(params: {
       message: executionDataError.message,
       block: {
         blockId: executionDataError.blockId,
-        blockName: executionDataError.blockName || (executionDataError.blockId ? undefined : 'Workflow'),
+        blockName:
+          executionDataError.blockName || (executionDataError.blockId ? undefined : 'Workflow'),
         blockType: executionDataError.blockType,
       },
     }
