@@ -130,13 +130,26 @@ export function computeEditSequence(
   let edgesChanged = 0
   let subflowsChanged = 0
 
+  // Track which blocks are being deleted (including subflows)
+  const deletedBlocks = new Set<string>()
+  for (const blockId in startFlattened) {
+    if (!(blockId in endFlattened)) {
+      deletedBlocks.add(blockId)
+    }
+  }
+
   // 1. Find deleted blocks (exist in start but not in end)
   for (const blockId in startFlattened) {
     if (!(blockId in endFlattened)) {
       const { parentId } = startFlattened[blockId]
 
+      // Skip if parent is also being deleted (cascade delete is implicit)
+      if (parentId && deletedBlocks.has(parentId)) {
+        continue
+      }
+
       if (parentId) {
-        // Block was inside a subflow and was removed
+        // Block was inside a subflow and was removed (but subflow still exists)
         operations.push({
           operation_type: 'extract_from_subflow',
           block_id: blockId,
