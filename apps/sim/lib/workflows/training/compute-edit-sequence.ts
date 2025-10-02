@@ -181,8 +181,14 @@ export function computeEditSequence(
           name: block.name,
           outputs: block.outputs,
           enabled: block.enabled !== undefined ? block.enabled : true,
-          ...(block?.triggerMode !== undefined && { triggerMode: Boolean(block.triggerMode) }),
-          ...(block?.advancedMode !== undefined && { advancedMode: Boolean(block.advancedMode) }),
+        }
+
+        // Only include triggerMode/advancedMode if true
+        if (block?.triggerMode === true) {
+          addParams.triggerMode = true
+        }
+        if (block?.advancedMode === true) {
+          addParams.advancedMode = true
         }
 
         // Add inputs if present
@@ -208,8 +214,14 @@ export function computeEditSequence(
         const addParams: EditOperation['params'] = {
           type: block.type,
           name: block.name,
-          ...(block?.triggerMode !== undefined && { triggerMode: Boolean(block.triggerMode) }),
-          ...(block?.advancedMode !== undefined && { advancedMode: Boolean(block.advancedMode) }),
+        }
+
+        if (block?.triggerMode === true) {
+          addParams.triggerMode = true
+        }
+
+        if (block?.advancedMode === true) {
+          addParams.advancedMode = true
         }
 
         // Add inputs if present
@@ -266,12 +278,14 @@ export function computeEditSequence(
             name: endBlock.name,
             outputs: endBlock.outputs,
             enabled: endBlock.enabled !== undefined ? endBlock.enabled : true,
-            ...(endBlock?.triggerMode !== undefined && {
-              triggerMode: Boolean(endBlock.triggerMode),
-            }),
-            ...(endBlock?.advancedMode !== undefined && {
-              advancedMode: Boolean(endBlock.advancedMode),
-            }),
+          }
+
+          // Only include triggerMode/advancedMode if true
+          if (endBlock?.triggerMode === true) {
+            addParams.triggerMode = true
+          }
+          if (endBlock?.advancedMode === true) {
+            addParams.advancedMode = true
           }
 
           const inputs = extractInputValues(endBlock)
