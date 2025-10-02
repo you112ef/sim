@@ -23,6 +23,78 @@ interface EditWorkflowParams {
 }
 
 /**
+ * Helper to create a block state from operation params
+ */
+function createBlockFromParams(blockId: string, params: any, parentId?: string): any {
+  const blockConfig = getAllBlocks().find((b) => b.type === params.type)
+
+  const blockState: any = {
+    id: blockId,
+    type: params.type,
+    name: params.name,
+    position: { x: 0, y: 0 },
+    enabled: params.enabled !== undefined ? params.enabled : true,
+    horizontalHandles: true,
+    isWide: false,
+    advancedMode: params.advancedMode || false,
+    height: 0,
+    triggerMode: params.triggerMode || false,
+    subBlocks: {},
+    outputs: params.outputs || (blockConfig ? resolveOutputType(blockConfig.outputs) : {}),
+    data: parentId ? { parentId, extent: 'parent' as const } : {},
+  }
+
+  // Add inputs as subBlocks
+  if (params.inputs) {
+    Object.entries(params.inputs).forEach(([key, value]) => {
+      blockState.subBlocks[key] = {
+        id: key,
+        type: 'short-input',
+        value: value,
+      }
+    })
+  }
+
+  // Set up subBlocks from block configuration
+  if (blockConfig) {
+    blockConfig.subBlocks.forEach((subBlock) => {
+      if (!blockState.subBlocks[subBlock.id]) {
+        blockState.subBlocks[subBlock.id] = {
+          id: subBlock.id,
+          type: subBlock.type,
+          value: null,
+        }
+      }
+    })
+  }
+
+  return blockState
+}
+
+/**
+ * Helper to add connections as edges for a block
+ */
+function addConnectionsAsEdges(
+  modifiedState: any,
+  blockId: string,
+  connections: Record<string, any>
+): void {
+  Object.entries(connections).forEach(([sourceHandle, targets]) => {
+    const targetArray = Array.isArray(targets) ? targets : [targets]
+    targetArray.forEach((targetId: string) => {
+      modifiedState.edges.push({
+        id: crypto.randomUUID(),
+        source: blockId,
+        sourceHandle,
+        target: targetId,
+        targetHandle: 'target',
+        type: 'default',
+      })
+    })
+  })
+}
+
+/**
  * Apply operations directly to the workflow JSON state
  */
 function applyOperationsToWorkflowState(
@@ -169,70 +241,12 @@ function applyOperationsToWorkflowState(
 
             // Add new nested blocks
             Object.entries(params.nestedNodes).forEach(([childId, childBlock]: [string, any]) => {
-              const childBlockConfig = getAllBlocks().find((b) => b.type === childBlock.type)
-
-              const childBlockState: any = {
-                id: childId,
-                type: childBlock.type,
-                name: childBlock.name,
-                position: { x: 0, y: 0 },
-                enabled: childBlock.enabled !== undefined ? childBlock.enabled : true,
-                horizontalHandles: true,
-                isWide: false,
-                advancedMode: childBlock.advancedMode || false,
-                height: 0,
-                triggerMode: childBlock.triggerMode || false,
-                subBlocks: {},
-                outputs:
-                  childBlock.outputs ||
-                  (childBlockConfig ? resolveOutputType(childBlockConfig.outputs) : {}),
-                data: {
-                  parentId: block_id,
-                  extent: 'parent' as const,
-                },
-              }
-
-              // Add child inputs as subBlocks
-              if (childBlock.inputs) {
-                Object.entries(childBlock.inputs).forEach(([key, value]) => {
-                  childBlockState.subBlocks[key] = {
-                    id: key,
-                    type: 'short-input',
-                    value: value,
-                  }
-                })
-              }
-
-              // Set up child subBlocks from config
-              if (childBlockConfig) {
-                childBlockConfig.subBlocks.forEach((subBlock) => {
-                  if (!childBlockState.subBlocks[subBlock.id]) {
-                    childBlockState.subBlocks[subBlock.id] = {
-                      id: subBlock.id,
-                      type: subBlock.type,
-                      value: null,
-                    }
-                  }
-                })
-              }
-
+              const childBlockState = createBlockFromParams(childId, childBlock, block_id)
               modifiedState.blocks[childId] = childBlockState
 
               // Add connections for child block
               if (childBlock.connections) {
-                Object.entries(childBlock.connections).forEach(([sourceHandle, targets]) => {
-                  const targetArray = Array.isArray(targets) ? targets : [targets]
-                  targetArray.forEach((targetId: string) => {
-                    modifiedState.edges.push({
-                      id: crypto.randomUUID(),
-                      source: childId,
-                      sourceHandle,
-                      target: targetId,
-                      targetHandle: 'target',
-                      type: 'default',
-                    })
-                  })
-                })
+                addConnectionsAsEdges(modifiedState, childId, childBlock.connections)
               }
             })
 
@@ -318,117 +332,17 @@ function applyOperationsToWorkflowState(
 
       case 'add': {
         if (params?.type && params?.name) {
-          // Get block configuration
-          const blockConfig = getAllBlocks().find((block) => block.type === params.type)
-
           // Create new block with proper structure
-          const newBlock: any = {
-            id: block_id,
-            type: params.type,
-            name: params.name,
-            position: { x: 0, y: 0 }, // Default position
-            enabled: true,
-            horizontalHandles: true,
-            isWide: false,
-            advancedMode: params.advancedMode || false,
-            height: 0,
-            triggerMode: params.triggerMode || false,
-            subBlocks: {},
-            outputs: blockConfig ? resolveOutputType(blockConfig.outputs) : {},
-            data: {},
-          }
+          const newBlock = createBlockFromParams(block_id, params)
 
-          // Add inputs as subBlocks
-          if (params.inputs) {
-            Object.entries(params.inputs).forEach(([key, value]) => {
-              newBlock.subBlocks[key] = {
-                id: key,
-                type: 'short-input',
-                value: value,
-              }
-            })
-          }
-
-          // Set up subBlocks from block configuration
-          if (blockConfig) {
-            blockConfig.subBlocks.forEach((subBlock) => {
-              if (!newBlock.subBlocks[subBlock.id]) {
-                newBlock.subBlocks[subBlock.id] = {
-                  id: subBlock.id,
-                  type: subBlock.type,
-                  value: null,
-                }
-              }
-            })
-          }
-
-          // Handle nested nodes (for loops/parallels)
+          // Handle nested nodes (for loops/parallels created from scratch)
           if (params.nestedNodes) {
             Object.entries(params.nestedNodes).forEach(([childId, childBlock]: [string, any]) => {
-              const childBlockConfig = getAllBlocks().find((b) => b.type === childBlock.type)
-
-              const childBlockState: any = {
-                id: childId,
-                type: childBlock.type,
-                name: childBlock.name,
-                position: { x: 0, y: 0 },
-                enabled: childBlock.enabled !== undefined ? childBlock.enabled : true,
-                horizontalHandles: true,
-                isWide: false,
-                advancedMode: childBlock.advancedMode || false,
-                height: 0,
-                triggerMode: childBlock.triggerMode || false,
-                subBlocks: {},
-                outputs:
-                  childBlock.outputs ||
-                  (childBlockConfig ? resolveOutputType(childBlockConfig.outputs) : {}),
-                data: {
-                  parentId: block_id,
-                  extent: 'parent' as const,
-                },
-              }
-
-              // Add child inputs as subBlocks
-              if (childBlock.inputs) {
-                Object.entries(childBlock.inputs).forEach(([key, value]) => {
-                  childBlockState.subBlocks[key] = {
-                    id: key,
-                    type: 'short-input',
-                    value: value,
-                  }
-                })
-              }
-
-              // Set up child subBlocks from config
-              if (childBlockConfig) {
-                childBlockConfig.subBlocks.forEach((subBlock) => {
-                  if (!childBlockState.subBlocks[subBlock.id]) {
-                    childBlockState.subBlocks[subBlock.id] = {
-                      id: subBlock.id,
-                      type: subBlock.type,
-                      value: null,
-                    }
-                  }
-                })
-              }
-
+              const childBlockState = createBlockFromParams(childId, childBlock, block_id)
               modifiedState.blocks[childId] = childBlockState
 
-              // Add connections for child block
               if (childBlock.connections) {
-                Object.entries(childBlock.connections).forEach(([sourceHandle, targets]) => {
-                  const targetArray = Array.isArray(targets) ? targets : [targets]
-                  targetArray.forEach((targetId: string) => {
-                    modifiedState.edges.push({
-                      id: crypto.randomUUID(),
-                      source: childId,
-                      sourceHandle,
-                      target: targetId,
-                      targetHandle: 'target',
-                      type: 'default',
-                    })
-                  })
-                })
+                addConnectionsAsEdges(modifiedState, childId, childBlock.connections)
               }
             })
 
@@ -454,32 +368,7 @@ function applyOperationsToWorkflowState(
 
           // Add connections as edges
           if (params.connections) {
-            Object.entries(params.connections).forEach(([sourceHandle, targets]) => {
-              const addEdge = (targetBlock: string, targetHandle?: string) => {
-                modifiedState.edges.push({
-                  id: crypto.randomUUID(),
-                  source: block_id,
-                  sourceHandle: sourceHandle,
-                  target: targetBlock,
-                  targetHandle: targetHandle || 'target',
-                  type: 'default',
-                })
-              }
-
-              if (typeof targets === 'string') {
-                addEdge(targets)
-              } else if (Array.isArray(targets)) {
-                targets.forEach((target: any) => {
-                  if (typeof target === 'string') {
-                    addEdge(target)
-                  } else if (target?.block) {
-                    addEdge(target.block, target.handle)
-                  }
-                })
-              } else if (typeof targets === 'object' && (targets as any)?.block) {
-                addEdge((targets as any).block, (targets as any).handle)
-              }
-            })
+            addConnectionsAsEdges(modifiedState, block_id, params.connections)
           }
         }
         break
@@ -527,49 +416,7 @@ function applyOperationsToWorkflowState(
           }
         } else {
           // Create new block as child of subflow
-          const newBlock: any = {
-            id: block_id,
-            type: params.type,
-            name: params.name,
-            position: { x: 0, y: 0 },
-            enabled: params.enabled !== undefined ? params.enabled : true,
-            horizontalHandles: true,
-            isWide: false,
-            advancedMode: params.advancedMode || false,
-            height: 0,
-            triggerMode: params.triggerMode || false,
-            subBlocks: {},
-            outputs: params.outputs || (blockConfig ? resolveOutputType(blockConfig.outputs) : {}),
-            data: {
-              parentId: subflowId,
-              extent: 'parent' as const,
-            },
-          }
-
-          // Add inputs as subBlocks
-          if (params.inputs) {
-            Object.entries(params.inputs).forEach(([key, value]) => {
-              newBlock.subBlocks[key] = {
-                id: key,
-                type: 'short-input',
-                value: value,
-              }
-            })
-          }
-
-          // Set up subBlocks from block configuration
-          if (blockConfig) {
-            blockConfig.subBlocks.forEach((subBlock) => {
-              if (!newBlock.subBlocks[subBlock.id]) {
-                newBlock.subBlocks[subBlock.id] = {
-                  id: subBlock.id,
-                  type: subBlock.type,
-                  value: null,
-                }
-              }
-            })
-          }
-
+          const newBlock = createBlockFromParams(block_id, params, subflowId)
           modifiedState.blocks[block_id] = newBlock
         }
 
@@ -579,19 +426,7 @@ function applyOperationsToWorkflowState(
           modifiedState.edges = modifiedState.edges.filter((edge: any) => edge.source !== block_id)
 
           // Add new connections
-          Object.entries(params.connections).forEach(([sourceHandle, targets]) => {
-            const targetArray = Array.isArray(targets) ? targets : [targets]
-            targetArray.forEach((targetId: string) => {
-              modifiedState.edges.push({
-                id: crypto.randomUUID(),
-                source: block_id,
-                sourceHandle,
-                target: targetId,
-                targetHandle: 'target',
-                type: 'default',
-              })
-            })
-          })
+          addConnectionsAsEdges(modifiedState, block_id, params.connections)
         }
         break
       }
