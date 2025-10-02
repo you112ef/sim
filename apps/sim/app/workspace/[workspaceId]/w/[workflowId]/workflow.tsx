@@ -3,7 +3,6 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import ReactFlow, {
-  Background,
   ConnectionLineType,
   type Edge,
   type EdgeTypes,
@@ -1847,14 +1846,7 @@ const WorkflowContent = React.memo(() => {
             <Panel />
           </div>
           <ControlBar hasValidationErrors={nestedSubflowErrors.size > 0} />
-          <div className='workflow-container h-full'>
-            <Background
-              color='hsl(var(--workflow-dots))'
-              size={4}
-              gap={40}
-              style={{ backgroundColor: 'hsl(var(--workflow-background))' }}
-            />
-          </div>
+          <div className='workflow-container h-full' />
         </div>
       </div>
     )
@@ -1921,14 +1913,7 @@ const WorkflowContent = React.memo(() => {
           elevateNodesOnSelect={true}
           autoPanOnConnect={effectivePermissions.canEdit}
           autoPanOnNodeDrag={effectivePermissions.canEdit}
-        >
-          <Background
-            color='hsl(var(--workflow-dots))'
-            size={4}
-            gap={40}
-            style={{ backgroundColor: 'hsl(var(--workflow-background))' }}
-          />
-        </ReactFlow>
+        />
 
         {/* Show DiffControls if diff is available (regardless of current view mode) */}
         <DiffControls />
