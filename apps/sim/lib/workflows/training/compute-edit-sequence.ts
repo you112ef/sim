@@ -1,16 +1,19 @@
 import type { CopilotWorkflowState } from '@/lib/workflows/json-sanitizer'
 
 export interface EditOperation {
-  operation_type: 'add' | 'edit' | 'delete'
+  operation_type: 'add' | 'edit' | 'delete' | 'insert_into_subflow' | 'extract_from_subflow'
   block_id: string
   params?: {
     type?: string
     name?: string
+    outputs?: Record<string, any>
+    enabled?: boolean
     triggerMode?: boolean
     advancedMode?: boolean
     inputs?: Record<string, any>
     connections?: Record<string, any>
     nestedNodes?: Record<string, any>
+    subflowId?: string
   }
 }
 
@@ -26,7 +29,34 @@ export interface WorkflowDiff {
 }
 
 /**
- * Extract all edges from blocks with embedded connections
+ * Flatten nested blocks into a single-level map for comparison
+ * Returns map of blockId -> {block, parentId}
+ */
+function flattenBlocks(
+  blocks: Record<string, any>
+): Record<string, { block: any; parentId?: string }> {
+  const flattened: Record<string, { block: any; parentId?: string }> = {}
+
+  const processBlock = (blockId: string, block: any, parentId?: string) => {
+    flattened[blockId] = { block, parentId }
+
+    // Recursively process nested nodes
+    if (block.nestedNodes) {
+      Object.entries(block.nestedNodes).forEach(([nestedId, nestedBlock]) => {
+        processBlock(nestedId, nestedBlock, blockId)
+      })
+    }
+  }
+
+  Object.entries(blocks).forEach(([blockId, block]) => {
+    processBlock(blockId, block)
+  })
+
+  return flattened
+}
+
+/**
+ * Extract all edges from blocks with embedded connections (including nested)
  */
 function extractAllEdgesFromBlocks(blocks: Record<string, any>): Array<{
   source: string
@@ -41,7 +71,7 @@ function extractAllEdgesFromBlocks(blocks: Record<string, any>): Array<{
     targetHandle?: string | null
   }> = []
 
-  Object.entries(blocks).forEach(([blockId, block]) => {
+  const processBlockConnections = (block: any, blockId: string) => {
     if (block.connections) {
       Object.entries(block.connections).forEach(([sourceHandle, targets]) => {
         const targetArray = Array.isArray(targets) ? targets : [targets]
@@ -55,6 +85,17 @@ function extractAllEdgesFromBlocks(blocks: Record<string, any>): Array<{
         })
       })
     }
+
+    // Process nested nodes
+    if (block.nestedNodes) {
+      Object.entries(block.nestedNodes).forEach(([nestedId, nestedBlock]) => {
+        processBlockConnections(nestedBlock, nestedId)
+      })
+    }
+  }
+
+  Object.entries(blocks).forEach(([blockId, block]) => {
+    processBlockConnections(block, blockId)
   })
 
   return edges
@@ -74,6 +115,10 @@ export function computeEditSequence(
   const startBlocks = startState.blocks || {}
   const endBlocks = endState.blocks || {}
 
+  // Flatten nested blocks for comparison (includes nested nodes at top level)
+  const startFlattened = flattenBlocks(startBlocks)
+  const endFlattened = flattenBlocks(endBlocks)
+
   // Extract edges from connections for tracking
   const startEdges = extractAllEdgesFromBlocks(startBlocks)
   const endEdges = extractAllEdgesFromBlocks(endBlocks)
@@ -86,61 +131,157 @@ export function computeEditSequence(
   let subflowsChanged = 0
 
   // 1. Find deleted blocks (exist in start but not in end)
-  for (const blockId in startBlocks) {
-    if (!(blockId in endBlocks)) {
-      operations.push({
-        operation_type: 'delete',
-        block_id: blockId,
-      })
-      blocksDeleted++
+  for (const blockId in startFlattened) {
+    if (!(blockId in endFlattened)) {
+      const { parentId } = startFlattened[blockId]
+
+      if (parentId) {
+        // Block was inside a subflow and was removed
+        operations.push({
+          operation_type: 'extract_from_subflow',
+          block_id: blockId,
+          params: {
+            subflowId: parentId,
+          },
+        })
+        subflowsChanged++
+      } else {
+        // Regular block deletion
+        operations.push({
+          operation_type: 'delete',
+          block_id: blockId,
+        })
+        blocksDeleted++
+      }
     }
   }
 
   // 2. Find added blocks (exist in end but not in start)
-  for (const blockId in endBlocks) {
-    if (!(blockId in startBlocks)) {
-      const block = endBlocks[blockId]
-      const addParams: EditOperation['params'] = {
-        type: block.type,
-        name: block.name,
-        ...(block?.triggerMode !== undefined && { triggerMode: Boolean(block.triggerMode) }),
-        ...(block?.advancedMode !== undefined && { advancedMode: Boolean(block.advancedMode) }),
-      }
+  for (const blockId in endFlattened) {
+    if (!(blockId in startFlattened)) {
+      const { block, parentId } = endFlattened[blockId]
+      if (parentId) {
+        // Block was added inside a subflow - include full block state
+        const addParams: EditOperation['params'] = {
+          subflowId: parentId,
+          type: block.type,
+          name: block.name,
+          outputs: block.outputs,
+          enabled: block.enabled !== undefined ? block.enabled : true,
+          ...(block?.triggerMode !== undefined && { triggerMode: Boolean(block.triggerMode) }),
+          ...(block?.advancedMode !== undefined && { advancedMode: Boolean(block.advancedMode) }),
+        }
 
-      // Add inputs if present
-      const inputs = extractInputValues(block)
-      if (Object.keys(inputs).length > 0) {
-        addParams.inputs = inputs
-      }
+        // Add inputs if present
+        const inputs = extractInputValues(block)
+        if (Object.keys(inputs).length > 0) {
+          addParams.inputs = inputs
+        }
 
-      // Add connections if present
-      const connections = extractConnections(blockId, endEdges)
-      if (connections && Object.keys(connections).length > 0) {
-        addParams.connections = connections
-      }
+        // Add connections if present
+        const connections = extractConnections(blockId, endEdges)
+        if (connections && Object.keys(connections).length > 0) {
+          addParams.connections = connections
+        }
 
-      // Add nested nodes if present (for loops/parallels)
-      if (block.nestedNodes && Object.keys(block.nestedNodes).length > 0) {
-        addParams.nestedNodes = block.nestedNodes
+        operations.push({
+          operation_type: 'insert_into_subflow',
+          block_id: blockId,
+          params: addParams,
+        })
         subflowsChanged++
-      }
+      } else {
+        // Regular block addition at root level
+        const addParams: EditOperation['params'] = {
+          type: block.type,
+          name: block.name,
+          ...(block?.triggerMode !== undefined && { triggerMode: Boolean(block.triggerMode) }),
+          ...(block?.advancedMode !== undefined && { advancedMode: Boolean(block.advancedMode) }),
+        }
 
-      operations.push({
-        operation_type: 'add',
-        block_id: blockId,
-        params: addParams,
-      })
-      blocksAdded++
+        // Add inputs if present
+        const inputs = extractInputValues(block)
+        if (Object.keys(inputs).length > 0) {
+          addParams.inputs = inputs
+        }
+
+        // Add connections if present
+        const connections = extractConnections(blockId, endEdges)
+        if (connections && Object.keys(connections).length > 0) {
+          addParams.connections = connections
+        }
+
+        // Add nested nodes if present (for loops/parallels created from scratch)
+        if (block.nestedNodes && Object.keys(block.nestedNodes).length > 0) {
+          addParams.nestedNodes = block.nestedNodes
+          subflowsChanged++
+        }
+
+        operations.push({
+          operation_type: 'add',
+          block_id: blockId,
+          params: addParams,
+        })
+        blocksAdded++
+      }
     }
   }
 
   // 3. Find modified blocks (exist in both but have changes)
-  for (const blockId in endBlocks) {
-    if (blockId in startBlocks) {
-      const startBlock = startBlocks[blockId]
-      const endBlock = endBlocks[blockId]
-      const changes = computeBlockChanges(startBlock, endBlock, blockId, startEdges, endEdges)
+  for (const blockId in endFlattened) {
+    if (blockId in startFlattened) {
+      const { block: startBlock, parentId: startParentId } = startFlattened[blockId]
+      const { block: endBlock, parentId: endParentId } = endFlattened[blockId]
 
+      // Check if parent changed (moved in/out of subflow)
+      if (startParentId !== endParentId) {
+        // Extract from old parent if it had one
+        if (startParentId) {
+          operations.push({
+            operation_type: 'extract_from_subflow',
+            block_id: blockId,
+            params: { subflowId: startParentId },
+          })
+          subflowsChanged++
+        }
+
+        // Insert into new parent if it has one - include full block state
+        if (endParentId) {
+          const addParams: EditOperation['params'] = {
+            subflowId: endParentId,
+            type: endBlock.type,
+            name: endBlock.name,
+            outputs: endBlock.outputs,
+            enabled: endBlock.enabled !== undefined ? endBlock.enabled : true,
+            ...(endBlock?.triggerMode !== undefined && {
+              triggerMode: Boolean(endBlock.triggerMode),
+            }),
+            ...(endBlock?.advancedMode !== undefined && {
+              advancedMode: Boolean(endBlock.advancedMode),
+            }),
+          }
+
+          const inputs = extractInputValues(endBlock)
+          if (Object.keys(inputs).length > 0) {
+            addParams.inputs = inputs
+          }
+
+          const connections = extractConnections(blockId, endEdges)
+          if (connections && Object.keys(connections).length > 0) {
+            addParams.connections = connections
+          }
+
+          operations.push({
+            operation_type: 'insert_into_subflow',
+            block_id: blockId,
+            params: addParams,
+          })
+          subflowsChanged++
+        }
+      }
+
+      // Check for other changes (only if parent didn't change)
+      const changes = computeBlockChanges(startBlock, endBlock, blockId, startEdges, endEdges)
       if (changes) {
         operations.push({
           operation_type: 'edit',
@@ -150,9 +291,6 @@ export function computeEditSequence(
         blocksModified++
         if (changes.connections) {
           edgesChanged++
-        }
-        if (changes.nestedNodes) {
-          subflowsChanged++
         }
       }
     }
@@ -303,15 +441,6 @@ function computeBlockChanges(
     hasChanges = true
   }
 
-  // Check nested nodes changes (for loops/parallels)
-  const startNestedNodes = startBlock.nestedNodes || {}
-  const endNestedNodes = endBlock.nestedNodes || {}
-
-  if (JSON.stringify(startNestedNodes) !== JSON.stringify(endNestedNodes)) {
-    changes.nestedNodes = endNestedNodes
-    hasChanges = true
-  }
-
   return hasChanges ? changes : null
 }
 
@@ -325,6 +454,10 @@ export function formatEditSequence(operations: EditOperation[]): string[] {
         return `Add block "${op.params?.name || op.block_id}" (${op.params?.type || 'unknown'})`
       case 'delete':
         return `Delete block "${op.block_id}"`
+      case 'insert_into_subflow':
+        return `Insert "${op.params?.name || op.block_id}" into subflow "${op.params?.subflowId}"`
+      case 'extract_from_subflow':
+        return `Extract "${op.block_id}" from subflow "${op.params?.subflowId}"`
       case 'edit': {
         const changes: string[] = []
         if (op.params?.type) changes.push(`type to ${op.params.type}`)
@@ -340,10 +473,6 @@ export function formatEditSequence(operations: EditOperation[]): string[] {
           }
         }
         if (op.params?.connections) changes.push('connections')
-        if (op.params?.nestedNodes) {
-          const nestedCount = Object.keys(op.params.nestedNodes).length
-          changes.push(`nested nodes (${nestedCount} blocks)`)
-        }
         return `Edit block "${op.block_id}": ${changes.join(', ')}`
       }
       default:

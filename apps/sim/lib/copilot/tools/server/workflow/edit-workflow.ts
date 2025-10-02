@@ -11,7 +11,7 @@ import { resolveOutputType } from '@/blocks/utils'
 import { generateLoopBlocks, generateParallelBlocks } from '@/stores/workflows/workflow/utils'
 
 interface EditWorkflowOperation {
-  operation_type: 'add' | 'edit' | 'delete'
+  operation_type: 'add' | 'edit' | 'delete' | 'insert_into_subflow' | 'extract_from_subflow'
   block_id: string
   params?: Record<string, any>
 }
@@ -43,11 +43,19 @@ function applyOperationsToWorkflowState(
     })),
   })
 
-  // Reorder operations: delete -> add -> edit to ensure consistent application semantics
+  // Reorder operations: delete -> extract -> add -> insert -> edit
   const deletes = operations.filter((op) => op.operation_type === 'delete')
+  const extracts = operations.filter((op) => op.operation_type === 'extract_from_subflow')
   const adds = operations.filter((op) => op.operation_type === 'add')
+  const inserts = operations.filter((op) => op.operation_type === 'insert_into_subflow')
   const edits = operations.filter((op) => op.operation_type === 'edit')
-  const orderedOperations: EditWorkflowOperation[] = [...deletes, ...adds, ...edits]
+  const orderedOperations: EditWorkflowOperation[] = [
+    ...deletes,
+    ...extracts,
+    ...adds,
+    ...inserts,
+    ...edits,
+  ]
 
   for (const operation of orderedOperations) {
     const { operation_type, block_id, params } = operation
@@ -474,6 +482,150 @@ function applyOperationsToWorkflowState(
             })
           }
         }
+        break
+      }
+
+      case 'insert_into_subflow': {
+        const subflowId = params?.subflowId
+        if (!subflowId || !params?.type || !params?.name) {
+          logger.warn('Missing required params for insert_into_subflow', { block_id, params })
+          break
+        }
+
+        const subflowBlock = modifiedState.blocks[subflowId]
+        if (!subflowBlock || (subflowBlock.type !== 'loop' && subflowBlock.type !== 'parallel')) {
+          logger.warn('Subflow block not found or invalid type', {
+            subflowId,
+            type: subflowBlock?.type,
+          })
+          break
+        }
+
+        // Get block configuration
+        const blockConfig = getAllBlocks().find((block) => block.type === params.type)
+
+        // Check if block already exists (moving into subflow) or is new
+        const existingBlock = modifiedState.blocks[block_id]
+
+        if (existingBlock) {
+          // Moving existing block into subflow - just update parent
+          existingBlock.data = {
+            ...existingBlock.data,
+            parentId: subflowId,
+            extent: 'parent' as const,
+          }
+
+          // Update inputs if provided
+          if (params.inputs) {
+            Object.entries(params.inputs).forEach(([key, value]) => {
+              if (!existingBlock.subBlocks[key]) {
+                existingBlock.subBlocks[key] = { id: key, type: 'short-input', value }
+              } else {
+                existingBlock.subBlocks[key].value = value
+              }
+            })
+          }
+        } else {
+          // Create new block as child of subflow
+          const newBlock: any = {
+            id: block_id,
+            type: params.type,
+            name: params.name,
+            position: { x: 0, y: 0 },
+            enabled: params.enabled !== undefined ? params.enabled : true,
+            horizontalHandles: true,
+            isWide: false,
+            advancedMode: params.advancedMode || false,
+            height: 0,
+            triggerMode: params.triggerMode || false,
+            subBlocks: {},
+            outputs: params.outputs || (blockConfig ? resolveOutputType(blockConfig.outputs) : {}),
+            data: {
+              parentId: subflowId,
+              extent: 'parent' as const,
+            },
+          }
+
+          // Add inputs as subBlocks
+          if (params.inputs) {
+            Object.entries(params.inputs).forEach(([key, value]) => {
+              newBlock.subBlocks[key] = {
+                id: key,
+                type: 'short-input',
+                value: value,
+              }
+            })
+          }
+
+          // Set up subBlocks from block configuration
+          if (blockConfig) {
+            blockConfig.subBlocks.forEach((subBlock) => {
+              if (!newBlock.subBlocks[subBlock.id]) {
+                newBlock.subBlocks[subBlock.id] = {
+                  id: subBlock.id,
+                  type: subBlock.type,
+                  value: null,
+                }
+              }
+            })
+          }
+
+          modifiedState.blocks[block_id] = newBlock
+        }
+
+        // Add/update connections as edges
+        if (params.connections) {
+          // Remove existing edges from this block
+          modifiedState.edges = modifiedState.edges.filter((edge: any) => edge.source !== block_id)
+
+          // Add new connections
+          Object.entries(params.connections).forEach(([sourceHandle, targets]) => {
+            const targetArray = Array.isArray(targets) ? targets : [targets]
+            targetArray.forEach((targetId: string) => {
+              modifiedState.edges.push({
+                id: crypto.randomUUID(),
+                source: block_id,
+                sourceHandle,
+                target: targetId,
+                targetHandle: 'target',
+                type: 'default',
+              })
+            })
+          })
+        }
+        break
+      }
+
+      case 'extract_from_subflow': {
+        const subflowId = params?.subflowId
+        if (!subflowId) {
+          logger.warn('Missing subflowId for extract_from_subflow', { block_id })
+          break
+        }
+
+        const block = modifiedState.blocks[block_id]
+        if (!block) {
+          logger.warn('Block not found for extraction', { block_id })
+          break
+        }
+
+        // Verify it's actually a child of this subflow
+        if (block.data?.parentId !== subflowId) {
+          logger.warn('Block is not a child of specified subflow', {
+            block_id,
+            actualParent: block.data?.parentId,
+            specifiedParent: subflowId,
+          })
+        }
+
+        // Remove parent relationship
+        if (block.data) {
+          block.data.parentId = undefined
+          block.data.extent = undefined
+        }
+
+        // Note: We keep the block and its edges, just remove parent relationship
+        // The block becomes a root-level block
         break
       }
     }
