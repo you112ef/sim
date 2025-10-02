@@ -5,11 +5,11 @@ import { Calendar, Hash, Plus, ToggleLeft, Trash2, Type as TypeIcon } from 'luci
 import { Button } from '@/components/ui/button'
 import { formatDisplayText } from '@/components/ui/formatted-text'
 import { Input } from '@/components/ui/input'
-import { TagDropdown } from '@/components/ui/tag-dropdown'
+import { checkTagTrigger, TagDropdown } from '@/components/ui/tag-dropdown'
 import { FIELD_TYPE_METADATA, MAX_TAG_SLOTS, SUPPORTED_FIELD_TYPES } from '@/lib/knowledge/consts'
 import { cn } from '@/lib/utils'
-import { TypedTagInput } from '@/app/workspace/[workspaceId]/knowledge/components/tag-input/typed-tag-input'
 import { useSubBlockValue } from '@/app/workspace/[workspaceId]/w/[workflowId]/components/workflow-block/components/sub-block/hooks/use-sub-block-value'
+import { useAccessibleReferencePrefixes } from '@/app/workspace/[workspaceId]/w/[workflowId]/hooks/use-accessible-reference-prefixes'
 import type { SubBlockConfig } from '@/blocks/types'
 import { useKnowledgeBaseTagDefinitions } from '@/hooks/use-knowledge-base-tag-definitions'
 import { useTagSelection } from '@/hooks/use-tag-selection'
@@ -67,6 +67,9 @@ export function DocumentTagEntry({
     activeSourceBlockId: string | null
     element?: HTMLElement | null
   } | null>(null)
+
+  // Get accessible prefixes for tag dropdown
+  const accessiblePrefixes = useAccessibleReferencePrefixes(blockId)
 
   const currentValue = isPreview ? previewValue : storeValue
 
@@ -272,7 +275,7 @@ export function DocumentTagEntry({
       e.preventDefault()
       e.stopPropagation()
       if (!disabled && !isConnecting) {
-        setShowDropdown(!showDropdown && matchedDefinitions.length > 0)
+        setShowDropdown(!showDropdown || matchedDefinitions.length > 0)
       }
     }
 
@@ -437,16 +440,66 @@ export function DocumentTagEntry({
     const cellValue = row.cells.value || ''
     const fieldType = row.cells.type || 'text'
 
+    // All types use Input with TagDropdown support
     return (
       <td className='p-1 pr-12'>
-        <TypedTagInput
-          fieldType={fieldType}
-          value={cellValue}
-          onChange={(newValue) => handleCellChange(rowIndex, 'value', newValue)}
-          disabled={disabled || isConnecting}
-          showInlineError={true}
-          className='w-full'
-        />
+        <div className='relative w-full'>
+          <Input
+            value={cellValue}
+            onChange={(e) => {
+              const newValue = e.target.value
+              const cursorPosition = e.target.selectionStart ?? 0
+
+              handleCellChange(rowIndex, 'value', newValue)
+
+              // Check for tag trigger
+              const tagTrigger = checkTagTrigger(newValue, cursorPosition)
+
+              setActiveTagDropdown({
+                rowIndex,
+                showTags: tagTrigger.show,
+                cursorPosition,
+                activeSourceBlockId: null,
+                element: e.target,
+              })
+            }}
+            onFocus={(e) => {
+              if (!disabled && !isConnecting) {
+                setActiveTagDropdown({
+                  rowIndex,
+                  showTags: false,
+                  cursorPosition: 0,
+                  activeSourceBlockId: null,
+                  element: e.target,
+                })
+              }
+            }}
+            onBlur={() => {
+              setTimeout(() => setActiveTagDropdown(null), 200)
+            }}
+            onKeyDown={(e) => {
+              if (e.key === 'Escape') {
+                setActiveTagDropdown(null)
+              }
+            }}
+            disabled={disabled || isConnecting}
+            placeholder={
+              FIELD_TYPE_METADATA[fieldType as keyof typeof FIELD_TYPE_METADATA]?.placeholder ||
+              'Enter value'
+            }
+            type={fieldType === 'number' ? 'text' : 'text'}
+            inputMode={fieldType === 'number' ? 'numeric' : undefined}
+            className='w-full border-0 text-transparent caret-foreground placeholder:text-muted-foreground/50 focus-visible:ring-0 focus-visible:ring-offset-0'
+          />
+          <div className='pointer-events-none absolute inset-0 flex items-center overflow-hidden bg-transparent px-3 text-sm'>
+            <div className='whitespace-pre'>
+              {formatDisplayText(cellValue, {
+                accessiblePrefixes,
+                highlightAll: !accessiblePrefixes,
+              })}
+            </div>
+          </div>
+        </div>
       </td>
     )
   }

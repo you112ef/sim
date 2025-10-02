@@ -86,6 +86,7 @@ export function DocumentTagEntry({
     fieldType: 'text',
     value: '',
   })
+  const [isValueValid, setIsValueValid] = useState(true)
 
   const handleRemoveTag = async (index: number) => {
     const updatedTags = tags.filter((_, i) => i !== index)
@@ -449,11 +450,7 @@ export function DocumentTagEntry({
                   'Enter tag value'
                 }
                 showInlineError={true}
-                onValidityChange={(valid) => {
-                  if (!valid) {
-                    setEditForm((prev) => ({ ...prev }))
-                  }
-                }}
+                onValidityChange={(valid) => setIsValueValid(valid)}
               />
             </div>
           </div>
@@ -478,7 +475,8 @@ export function DocumentTagEntry({
             <Button
               onClick={saveTagFromModal}
               disabled={(() => {
-                if (!editForm.displayName.trim()) return true
+                if (!editForm.displayName.trim() || !editForm.value.trim() || !isValueValid)
+                  return true
 
                 if (editingTagIndex !== null) return false
 

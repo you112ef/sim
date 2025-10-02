@@ -632,6 +632,7 @@ export function KnowledgeTags({ knowledgeBaseId, documentId }: KnowledgeTagsProp
                                   }
                                   showInlineError={true}
                                   onValidityChange={(valid) => setIsValueValid(valid)}
+                                  className='h-8 rounded-[10px] border-[#E5E5E5] bg-[#FFFFFF] text-sm dark:border-[#414141] dark:bg-[var(--surface-elevated)]'
                                 />
                               </div>
                             </div>
@@ -800,6 +801,9 @@ export function KnowledgeTags({ knowledgeBaseId, documentId }: KnowledgeTagsProp
                           fieldTypes.find((ft) => ft.value === editForm.fieldType)?.placeholder ||
                           'Enter tag value'
                         }
+                        showInlineError={true}
+                        onValidityChange={(valid) => setIsValueValid(valid)}
+                        className='h-8 rounded-[10px] border-[#E5E5E5] bg-[#FFFFFF] text-sm dark:border-[#414141] dark:bg-[var(--surface-elevated)]'
                       />
                     </div>
                   </div>

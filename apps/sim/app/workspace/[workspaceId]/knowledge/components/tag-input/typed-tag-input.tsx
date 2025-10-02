@@ -9,6 +9,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
+import { FIELD_TYPE_METADATA, validateFieldValue } from '@/lib/knowledge/consts'
 import { cn } from '@/lib/utils'
 
 interface TypedTagInputProps {
@@ -28,157 +29,59 @@ export function TypedTagInput({
   onChange,
   placeholder,
   disabled = false,
-  className = '',
+  className,
   showInlineError = false,
   onValidityChange,
 }: TypedTagInputProps) {
-  const [inputValue, setInputValue] = useState(value || '')
-  const [isValid, setIsValid] = useState(true)
-  const [error, setError] = useState<string | undefined>()
+  const [error, setError] = useState<string>('')
 
+  // Validate on value or fieldType change
   useEffect(() => {
-    setInputValue(value || '')
-  }, [value])
-
-  useEffect(() => {
-    setIsValid(true)
-    setError(undefined)
-    if (inputValue.trim()) {
-      validateAndUpdate(inputValue)
-    }
-  }, [fieldType])
-
-  const validateAndUpdate = (newValue: string) => {
-    setInputValue(newValue)
-
-    let valid = true
-    let errorMessage: string | undefined
-
-    if (newValue.trim()) {
-      switch (fieldType) {
-        case 'number': {
-          const num = Number(newValue.trim())
-          if (Number.isNaN(num) || !Number.isFinite(num)) {
-            valid = false
-            errorMessage = 'Must be a valid number'
-          }
-          break
-        }
-        case 'date': {
-          const date = new Date(newValue.trim())
-          if (Number.isNaN(date.getTime())) {
-            valid = false
-            errorMessage = 'Must be a valid date'
-          }
-          break
-        }
-        case 'boolean': {
-          const lower = newValue.trim().toLowerCase()
-          if (!['true', 'false', '1', '0', 'yes', 'no'].includes(lower)) {
-            valid = false
-            errorMessage = 'Must be true, false, yes, no, 1, or 0'
-          }
-          break
-        }
-      }
+    if (!value.trim()) {
+      setError('')
+      onValidityChange?.(true)
+      return
     }
 
-    setIsValid(valid)
-    setError(errorMessage)
-    if (onValidityChange) onValidityChange(valid)
+    const validation = validateFieldValue(fieldType, value)
+    setError(validation.isValid ? '' : validation.error || '')
+    onValidityChange?.(validation.isValid)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [value, fieldType])
 
-    if (valid) {
-      onChange(newValue)
-    }
+  const metadata =
+    FIELD_TYPE_METADATA[fieldType as keyof typeof FIELD_TYPE_METADATA] || FIELD_TYPE_METADATA.text
+
+  // Boolean type uses Select
+  if (fieldType === 'boolean') {
+    return (
+      <div className='space-y-1'>
+        <Select value={value || 'true'} onValueChange={onChange} disabled={disabled}>
+          <SelectTrigger className={cn('w-full', className)}>
+            <SelectValue placeholder={placeholder || metadata.placeholder} />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value='true'>True</SelectItem>
+            <SelectItem value='false'>False</SelectItem>
+          </SelectContent>
+        </Select>
+      </div>
+    )
   }
 
-  switch (fieldType) {
-    case 'boolean':
-      return (
-        <div className={className}>
-          <Select
-            value={inputValue || undefined}
-            onValueChange={validateAndUpdate}
-            disabled={disabled}
-          >
-            <SelectTrigger
-              className={cn(
-                'h-8 w-full justify-between rounded-[10px] border-[#E5E5E5] bg-[#FFFFFF] text-sm dark:border-[#414141] dark:bg-[var(--surface-elevated)]',
-                !isValid && 'border-red-300 focus:border-red-500 focus:ring-0'
-              )}
-            >
-              <SelectValue placeholder='Select' />
-            </SelectTrigger>
-            <SelectContent className='rounded-lg border-[#E5E5E5] bg-[#FFFFFF] dark:border-[#414141] dark:bg-[var(--surface-elevated)]'>
-              <SelectItem value='true'>True</SelectItem>
-              <SelectItem value='false'>False</SelectItem>
-            </SelectContent>
-          </Select>
-          {showInlineError && !isValid && error && (
-            <p className='mt-1 text-red-600 text-xs'>{error}</p>
-          )}
-        </div>
-      )
-
-    case 'date':
-      return (
-        <div className={className}>
-          <Input
-            type='text'
-            value={inputValue}
-            onChange={(e) => validateAndUpdate(e.target.value)}
-            placeholder={placeholder || 'mm/dd/yyyy'}
-            disabled={disabled}
-            className={cn(
-              'h-8 rounded-[10px] border-[#E5E5E5] bg-[#FFFFFF] text-sm dark:border-[#414141] dark:bg-[var(--surface-elevated)]',
-              !isValid && 'border-red-300 focus:border-red-500 focus:ring-0'
-            )}
-          />
-          {showInlineError && !isValid && error && (
-            <p className='mt-1 text-red-600 text-xs'>{error}</p>
-          )}
-        </div>
-      )
-
-    case 'number':
-      return (
-        <div className={className}>
-          <Input
-            type='text'
-            inputMode='numeric'
-            value={inputValue}
-            onChange={(e) => validateAndUpdate(e.target.value)}
-            placeholder={placeholder || 'Number'}
-            disabled={disabled}
-            className={cn(
-              'h-8 rounded-[10px] border-[#E5E5E5] bg-[#FFFFFF] text-sm dark:border-[#414141] dark:bg-[var(--surface-elevated)]',
-              !isValid && 'border-red-300 focus:border-red-500 focus:ring-0'
-            )}
-          />
-          {showInlineError && !isValid && error && (
-            <p className='mt-1 text-red-600 text-xs'>{error}</p>
-          )}
-        </div>
-      )
-
-    default:
-      return (
-        <div className={className}>
-          <Input
-            type='text'
-            value={inputValue}
-            onChange={(e) => validateAndUpdate(e.target.value)}
-            placeholder={placeholder || 'Value'}
-            disabled={disabled}
-            className={cn(
-              'h-8 rounded-[10px] border-[#E5E5E5] bg-[#FFFFFF] text-sm dark:border-[#414141] dark:bg-[var(--surface-elevated)]',
-              !isValid && 'border-red-300 focus:border-red-500 focus:ring-0'
-            )}
-          />
-          {showInlineError && !isValid && error && (
-            <p className='mt-1 text-red-600 text-xs'>{error}</p>
-          )}
-        </div>
-      )
-  }
+  // All other types use Input
+  return (
+    <div className='space-y-1'>
+      <Input
+        type={fieldType === 'number' ? 'text' : 'text'}
+        inputMode={fieldType === 'number' ? 'numeric' : undefined}
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        placeholder={placeholder || metadata.placeholder}
+        disabled={disabled}
+        className={cn(error && showInlineError && 'border-red-500', className)}
+      />
+      {showInlineError && error && <p className='text-red-600 text-xs'>{error}</p>}
+    </div>
+  )
 }
