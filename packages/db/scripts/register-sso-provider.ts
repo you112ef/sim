@@ -134,19 +134,26 @@ const logger = {
 }
 
 // Get database URL from environment
-const CONNECTION_STRING = process.env.POSTGRES_URL ?? process.env.DATABASE_URL
+const CONNECTION_STRING = process.env.DATABASE_URL
 if (!CONNECTION_STRING) {
-  console.error('❌ POSTGRES_URL or DATABASE_URL environment variable is required')
+  console.error('❌ DATABASE_URL environment variable is required')
   process.exit(1)
 }
 
-// Initialize database connection (following migration script pattern)
+function isTruthy(value: string | undefined): boolean {
+  if (!value) return false
+  return value.toLowerCase() === 'true' || value === '1'
+}
+
+const useSSL = process.env.DATABASE_SSL === undefined ? false : isTruthy(process.env.DATABASE_SSL)
+
 const postgresClient = postgres(CONNECTION_STRING, {
   prepare: false,
   idle_timeout: 20,
   connect_timeout: 30,
   max: 10,
   onnotice: () => {},
+  ssl: useSSL ? 'require' : false,
 })
 const db = drizzle(postgresClient)
 

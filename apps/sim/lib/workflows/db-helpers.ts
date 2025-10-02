@@ -36,10 +36,34 @@ export interface NormalizedWorkflowData {
   isFromNormalizedTables: boolean // Flag to indicate source (true = normalized tables, false = deployed state)
 }
 
-/**
- * Load deployed workflow state for execution
- * Returns deployed state if available, otherwise throws error
- */
+export async function blockExistsInDeployment(
+  workflowId: string,
+  blockId: string
+): Promise<boolean> {
+  try {
+    const [result] = await db
+      .select({ state: workflowDeploymentVersion.state })
+      .from(workflowDeploymentVersion)
+      .where(
+        and(
+          eq(workflowDeploymentVersion.workflowId, workflowId),
+          eq(workflowDeploymentVersion.isActive, true)
+        )
+      )
+      .limit(1)
+
+    if (!result?.state) {
+      return false
+    }
+
+    const state = result.state as WorkflowState
+    return !!state.blocks?.[blockId]
+  } catch (error) {
+    logger.error(`Error checking block ${blockId} in deployment for workflow ${workflowId}:`, error)
+    return false
+  }
+}
+
 export async function loadDeployedWorkflowState(
   workflowId: string
 ): Promise<NormalizedWorkflowData> {
@@ -126,12 +150,7 @@ export async function loadWorkflowFromNormalizedTables(
     })
 
     // Sanitize any invalid custom tools in agent blocks to prevent client crashes
-    const { blocks: sanitizedBlocks, warnings } = sanitizeAgentToolsInBlocks(blocksMap)
-    if (warnings.length > 0) {
-      logger.warn(`Sanitized workflow ${workflowId} tools with ${warnings.length} warning(s)`, {
-        warnings,
-      })
-    }
+    const { blocks: sanitizedBlocks } = sanitizeAgentToolsInBlocks(blocksMap)
 
     // Convert edges to the expected format
     const edgesArray: Edge[] = edges.map((edge) => ({
@@ -197,12 +216,11 @@ export async function loadWorkflowFromNormalizedTables(
 
 /**
  * Save workflow state to normalized tables
- * Also returns the JSON blob for backward compatibility
  */
 export async function saveWorkflowToNormalizedTables(
   workflowId: string,
   state: WorkflowState
-): Promise<{ success: boolean; jsonBlob?: any; error?: string }> {
+): Promise<{ success: boolean; error?: string }> {
   try {
     // Start a transaction
     await db.transaction(async (tx) => {
@@ -278,27 +296,9 @@ export async function saveWorkflowToNormalizedTables(
       if (subflowInserts.length > 0) {
         await tx.insert(workflowSubflows).values(subflowInserts)
       }
-
-      return { success: true }
     })
 
-    // Create JSON blob for backward compatibility
-    const jsonBlob = {
-      blocks: state.blocks,
-      edges: state.edges,
-      loops: state.loops || {},
-      parallels: state.parallels || {},
-      lastSaved: Date.now(),
-      isDeployed: state.isDeployed,
-      deployedAt: state.deployedAt,
-      deploymentStatuses: state.deploymentStatuses,
-      hasActiveWebhook: state.hasActiveWebhook,
-    }
-
-    return {
-      success: true,
-      jsonBlob,
-    }
+    return { success: true }
   } catch (error) {
     logger.error(`Error saving workflow ${workflowId} to normalized tables:`, error)
     return {
@@ -335,6 +335,7 @@ export async function migrateWorkflowToNormalizedTables(
 ): Promise<{ success: boolean; error?: string }> {
   try {
     // Convert JSON state to WorkflowState format
+    // Only include fields that are actually persisted to normalized tables
     const workflowState: WorkflowState = {
       blocks: jsonState.blocks || {},
       edges: jsonState.edges || [],
@@ -343,16 +344,9 @@ export async function migrateWorkflowToNormalizedTables(
       lastSaved: jsonState.lastSaved,
       isDeployed: jsonState.isDeployed,
       deployedAt: jsonState.deployedAt,
-      deploymentStatuses: jsonState.deploymentStatuses || {},
-      hasActiveWebhook: jsonState.hasActiveWebhook,
     }
 
-    const result = await saveWorkflowToNormalizedTables(workflowId, workflowState)
-
-    if (result.success) {
-      return { success: true }
-    }
-    return { success: false, error: result.error }
+    return await saveWorkflowToNormalizedTables(workflowId, workflowState)
   } catch (error) {
     logger.error(`Error migrating workflow ${workflowId} to normalized tables:`, error)
     return {

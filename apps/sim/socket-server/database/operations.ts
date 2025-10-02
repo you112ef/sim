@@ -3,14 +3,15 @@ import { workflow, workflowBlocks, workflowEdges, workflowSubflows } from '@sim/
 import { and, eq, or, sql } from 'drizzle-orm'
 import { drizzle } from 'drizzle-orm/postgres-js'
 import postgres from 'postgres'
-import { env } from '@/lib/env'
+import { env, isTruthy } from '@/lib/env'
 import { createLogger } from '@/lib/logs/console/logger'
 import { loadWorkflowFromNormalizedTables } from '@/lib/workflows/db-helpers'
 
 const logger = createLogger('SocketDatabase')
 
-// Create dedicated database connection for socket server with optimized settings
-const connectionString = env.POSTGRES_URL ?? env.DATABASE_URL
+const connectionString = env.DATABASE_URL
+const useSSL = env.DATABASE_SSL === undefined ? false : isTruthy(env.DATABASE_SSL)
+
 const socketDb = drizzle(
   postgres(connectionString, {
     prepare: false,
@@ -19,6 +20,7 @@ const socketDb = drizzle(
     max: 25,
     onnotice: () => {},
     debug: false,
+    ssl: useSSL ? 'require' : false,
   }),
   { schema }
 )
@@ -133,7 +135,6 @@ export async function getWorkflowState(workflowId: string) {
       const finalState = {
         // Default values for expected properties
         deploymentStatuses: {},
-        hasActiveWebhook: false,
         // Data from normalized tables
         blocks: normalizedData.blocks,
         edges: normalizedData.edges,
@@ -167,24 +168,8 @@ export async function persistWorkflowOperation(workflowId: string, operation: an
   try {
     const { operation: op, target, payload, timestamp, userId } = operation
 
-    // Log high-frequency operations for monitoring
-    if (op === 'update-position' && Math.random() < 0.01) {
-      // Log 1% of position updates
-      logger.debug('Socket DB operation sample:', {
-        operation: op,
-        target,
-        workflowId: `${workflowId.substring(0, 8)}...`,
-      })
-    }
-
     await db.transaction(async (tx) => {
-      // Update the workflow's last modified timestamp first
-      await tx
-        .update(workflow)
-        .set({ updatedAt: new Date(timestamp) })
-        .where(eq(workflow.id, workflowId))
-
-      // Handle different operation types within the transaction
+      // Handle different operation types within the transaction first
       switch (target) {
         case 'block':
           await handleBlockOperationTx(tx, workflowId, op, payload, userId)
@@ -200,6 +185,13 @@ export async function persistWorkflowOperation(workflowId: string, operation: an
           break
         default:
           throw new Error(`Unknown operation target: ${target}`)
+      }
+
+      if (op !== 'update-position') {
+        await tx
+          .update(workflow)
+          .set({ updatedAt: new Date(timestamp) })
+          .where(eq(workflow.id, workflowId))
       }
     })
 
