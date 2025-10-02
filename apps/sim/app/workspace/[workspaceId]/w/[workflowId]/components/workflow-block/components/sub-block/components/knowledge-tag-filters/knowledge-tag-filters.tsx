@@ -6,7 +6,8 @@ import { Button } from '@/components/ui/button'
 import { formatDisplayText } from '@/components/ui/formatted-text'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import { checkTagTrigger, TagDropdown } from '@/components/ui/tag-dropdown'
+import { TagDropdown } from '@/components/ui/tag-dropdown'
+import { TypedTagInput } from '@/app/workspace/[workspaceId]/knowledge/components/tag-input/typed-tag-input'
 import { useAccessibleReferencePrefixes } from '@/app/workspace/[workspaceId]/w/[workflowId]/hooks/use-accessible-reference-prefixes'
 import type { SubBlockConfig } from '@/blocks/types'
 import { useKnowledgeBaseTagDefinitions } from '@/hooks/use-knowledge-base-tag-definitions'
@@ -191,8 +192,8 @@ export function KnowledgeTagFilters({
   const renderHeader = () => (
     <thead>
       <tr className='border-b'>
-        <th className='w-2/5 border-r px-4 py-2 text-center font-medium text-sm'>Tag Name</th>
-        <th className='w-1/5 border-r px-4 py-2 text-center font-medium text-sm'>Type</th>
+        <th className='w-[35%] border-r px-4 py-2 text-center font-medium text-sm'>Tag Name</th>
+        <th className='w-[65px] border-r px-4 py-2 text-center font-medium text-sm'>Type</th>
         <th className='px-4 py-2 text-center font-medium text-sm'>Value</th>
       </tr>
     </thead>
@@ -309,60 +310,20 @@ export function KnowledgeTagFilters({
 
   const renderValueCell = (row: TagFilterRow, rowIndex: number) => {
     const cellValue = row.cells.value || ''
+    const tagName = row.cells.tagName || ''
+    const def = tagDefinitions.find((d) => d.displayName.toLowerCase() === tagName.toLowerCase())
+    const fieldType = def?.fieldType || 'text'
 
     return (
-      <td className='p-1'>
-        <div className='relative w-full'>
-          <Input
-            value={cellValue}
-            onChange={(e) => {
-              const newValue = e.target.value
-              const cursorPosition = e.target.selectionStart ?? 0
-
-              handleCellChange(rowIndex, 'value', newValue)
-
-              // Check for tag trigger
-              const tagTrigger = checkTagTrigger(newValue, cursorPosition)
-
-              setActiveTagDropdown({
-                rowIndex,
-                showTags: tagTrigger.show,
-                cursorPosition,
-                activeSourceBlockId: null,
-                element: e.target,
-              })
-            }}
-            onFocus={(e) => {
-              if (!disabled && !isConnecting) {
-                setActiveTagDropdown({
-                  rowIndex,
-                  showTags: false,
-                  cursorPosition: 0,
-                  activeSourceBlockId: null,
-                  element: e.target,
-                })
-              }
-            }}
-            onBlur={() => {
-              setTimeout(() => setActiveTagDropdown(null), 200)
-            }}
-            onKeyDown={(e) => {
-              if (e.key === 'Escape') {
-                setActiveTagDropdown(null)
-              }
-            }}
-            disabled={disabled || isConnecting}
-            className='w-full border-0 text-transparent caret-foreground placeholder:text-muted-foreground/50 focus-visible:ring-0 focus-visible:ring-offset-0'
-          />
-          <div className='pointer-events-none absolute inset-0 flex items-center overflow-hidden bg-transparent px-3 text-sm'>
-            <div className='whitespace-pre'>
-              {formatDisplayText(cellValue, {
-                accessiblePrefixes,
-                highlightAll: !accessiblePrefixes,
-              })}
-            </div>
-          </div>
-        </div>
+      <td className='p-1 pr-12'>
+        <TypedTagInput
+          fieldType={fieldType}
+          value={cellValue}
+          onChange={(newValue) => handleCellChange(rowIndex, 'value', newValue)}
+          disabled={disabled || isConnecting}
+          showInlineError={true}
+          className='w-full'
+        />
       </td>
     )
   }

@@ -1,7 +1,6 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { CalendarIcon } from 'lucide-react'
 import { Input } from '@/components/ui/input'
 import {
   Select,
@@ -131,19 +130,17 @@ export function TypedTagInput({
     case 'date':
       return (
         <div className={className}>
-          <div className='relative'>
-            <Input
-              type='date'
-              value={inputValue ? inputValue.split('T')[0] : ''}
-              onChange={(e) => validateAndUpdate(e.target.value)}
-              disabled={disabled}
-              className={cn(
-                'h-8 rounded-[10px] border-[#E5E5E5] bg-[#FFFFFF] pr-9 text-sm dark:border-[#414141] dark:bg-[var(--surface-elevated)]',
-                !isValid && 'border-red-300 focus:border-red-500 focus:ring-0'
-              )}
-            />
-            <CalendarIcon className='-translate-y-1/2 pointer-events-none absolute top-1/2 right-3 h-4 w-4 text-muted-foreground' />
-          </div>
+          <Input
+            type='text'
+            value={inputValue}
+            onChange={(e) => validateAndUpdate(e.target.value)}
+            placeholder={placeholder || 'mm/dd/yyyy'}
+            disabled={disabled}
+            className={cn(
+              'h-8 rounded-[10px] border-[#E5E5E5] bg-[#FFFFFF] text-sm dark:border-[#414141] dark:bg-[var(--surface-elevated)]',
+              !isValid && 'border-red-300 focus:border-red-500 focus:ring-0'
+            )}
+          />
           {showInlineError && !isValid && error && (
             <p className='mt-1 text-red-600 text-xs'>{error}</p>
           )}

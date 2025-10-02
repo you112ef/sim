@@ -39,21 +39,12 @@ export async function getNextAvailableSlot(
   let usedSlots: Set<string>
 
   if (existingBySlot) {
-    usedSlots = new Set(
-      Array.from(existingBySlot.entries())
-        .filter(([_, def]) => def.fieldType === fieldType)
-        .map(([slot, _]) => slot)
-    )
+    usedSlots = new Set(Array.from(existingBySlot.keys()))
   } else {
     const existingDefinitions = await db
       .select({ tagSlot: knowledgeBaseTagDefinitions.tagSlot })
       .from(knowledgeBaseTagDefinitions)
-      .where(
-        and(
-          eq(knowledgeBaseTagDefinitions.knowledgeBaseId, knowledgeBaseId),
-          eq(knowledgeBaseTagDefinitions.fieldType, fieldType)
-        )
-      )
+      .where(eq(knowledgeBaseTagDefinitions.knowledgeBaseId, knowledgeBaseId))
 
     usedSlots = new Set(existingDefinitions.map((def) => def.tagSlot))
   }

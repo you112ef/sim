@@ -66,12 +66,12 @@ export const FIELD_TYPE_METADATA = {
   date: {
     label: 'Date',
     description: 'Date and time values',
-    placeholder: 'YYYY-MM-DD or YYYY-MM-DD HH:mm',
+    placeholder: 'mm/dd/yyyy',
     validate: (value: string): { isValid: boolean; error?: string } => {
       if (!value.trim()) return { isValid: true }
       const date = new Date(value.trim())
       if (Number.isNaN(date.getTime())) {
-        return { isValid: false, error: 'Must be a valid date (YYYY-MM-DD or ISO format)' }
+        return { isValid: false, error: 'Must be a valid date' }
       }
       return { isValid: true }
     },
