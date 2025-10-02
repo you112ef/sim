@@ -14,6 +14,7 @@ export enum BlockType {
   RESPONSE = 'response',
   WORKFLOW = 'workflow',
   STARTER = 'starter',
+  WAIT = 'wait',
 }
 
 /**
