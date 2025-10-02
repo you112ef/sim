@@ -336,7 +336,7 @@ export function useWorkflowExecution() {
           async start(controller) {
             const encoder = new TextEncoder()
             const executionId = uuidv4()
-            setExecutionIdentifiers({ executionId, workflowId: activeWorkflowId })
+            setExecutionIdentifiers({ executionId, workflowId: activeWorkflowId, isResuming: false })
             const streamedContent = new Map<string, string>()
             const streamReadingPromises: Promise<void>[] = []
 
@@ -539,7 +539,7 @@ export function useWorkflowExecution() {
               setIsExecuting(false)
               setIsDebugging(false)
               setActiveBlocks(new Set())
-              setExecutionIdentifiers({ executionId: null })
+              // Don't clear executionId here - it should be managed based on execution results
             }
           },
         })
@@ -548,7 +548,7 @@ export function useWorkflowExecution() {
 
       // For manual (non-chat) execution
       const executionId = uuidv4()
-      setExecutionIdentifiers({ executionId, workflowId: activeWorkflowId })
+      setExecutionIdentifiers({ executionId, workflowId: activeWorkflowId, isResuming: false })
       try {
         const result = await executeWorkflow(workflowInput, undefined, executionId)
         if (result && 'metadata' in result && result.metadata?.isDebugSession) {
@@ -571,7 +571,7 @@ export function useWorkflowExecution() {
               setIsExecuting(false)
               setIsDebugging(false)
               setActiveBlocks(new Set())
-              setExecutionIdentifiers({ executionId: null })
+              setExecutionIdentifiers({ executionId: null, isResuming: false })
             }
 
             if (isChatExecution) {
@@ -592,7 +592,7 @@ export function useWorkflowExecution() {
         persistLogs(executionId, errorResult).catch((err) => {
           logger.error('Error persisting logs:', { error: err })
         })
-        setExecutionIdentifiers({ executionId: null })
+        setExecutionIdentifiers({ executionId: null, isResuming: false })
         return errorResult
       }
     },
