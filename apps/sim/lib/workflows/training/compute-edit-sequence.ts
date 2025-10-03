@@ -436,12 +436,13 @@ function computeBlockChanges(
     hasChanges = true
   }
 
-  // Check input value changes
+  // Check input value changes - only include changed fields
   const startInputs = extractInputValues(startBlock)
   const endInputs = extractInputValues(endBlock)
 
-  if (JSON.stringify(startInputs) !== JSON.stringify(endInputs)) {
-    changes.inputs = endInputs
+  const changedInputs = computeInputDelta(startInputs, endInputs)
+  if (Object.keys(changedInputs).length > 0) {
+    changes.inputs = changedInputs
     hasChanges = true
   }
 
@@ -455,6 +456,28 @@ function computeBlockChanges(
   }
 
   return hasChanges ? changes : null
+}
+
+/**
+ * Compute delta between two input objects
+ * Only returns fields that actually changed or were added
+ */
+function computeInputDelta(
+  startInputs: Record<string, any>,
+  endInputs: Record<string, any>
+): Record<string, any> {
+  const delta: Record<string, any> = {}
+
+  for (const key in endInputs) {
+    if (
+      !(key in startInputs) ||
+      JSON.stringify(startInputs[key]) !== JSON.stringify(endInputs[key])
+    ) {
+      delta[key] = endInputs[key]
+    }
+  }
+
+  return delta
 }
 
 /**
