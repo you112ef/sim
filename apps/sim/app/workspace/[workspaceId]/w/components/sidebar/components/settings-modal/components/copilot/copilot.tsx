@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { Check, Copy, Plus, Brain, BrainCircuit, Zap } from 'lucide-react'
 import {
   AlertDialog,
@@ -32,26 +32,40 @@ interface ModelOption {
 
 const OPENAI_MODELS: ModelOption[] = [
   // Zap models first
-  { value: 'gpt-4o', label: 'GPT-4o', icon: 'zap' },
-  { value: 'gpt-4.1', label: 'GPT-4.1', icon: 'zap' },
-  { value: 'gpt-5-fast', label: 'GPT-5 Fast', icon: 'zap' },
+  { value: 'gpt-4o', label: 'gpt-4o', icon: 'zap' },
+  { value: 'gpt-4.1', label: 'gpt-4.1', icon: 'zap' },
+  { value: 'gpt-5-fast', label: 'gpt-5-fast', icon: 'zap' },
   // Brain models
-  { value: 'gpt-5', label: 'GPT-5', icon: 'brain' },
-  { value: 'gpt-5-medium', label: 'GPT-5 Medium', icon: 'brain' },
+  { value: 'gpt-5', label: 'gpt-5', icon: 'brain' },
+  { value: 'gpt-5-medium', label: 'gpt-5-medium', icon: 'brain' },
   // BrainCircuit models
-  { value: 'gpt-5-high', label: 'GPT-5 High', icon: 'brainCircuit' },
+  { value: 'gpt-5-high', label: 'gpt-5-high', icon: 'brainCircuit' },
   { value: 'o3', label: 'o3', icon: 'brainCircuit' },
 ]
 
 const ANTHROPIC_MODELS: ModelOption[] = [
   // Brain models
-  { value: 'claude-4-sonnet', label: 'Claude 4 Sonnet', icon: 'brain' },
-  { value: 'claude-4.5-sonnet', label: 'Claude 4.5 Sonnet', icon: 'brain' },
+  { value: 'claude-4-sonnet', label: 'claude-4-sonnet', icon: 'brain' },
+  { value: 'claude-4.5-sonnet', label: 'claude-4.5-sonnet', icon: 'brain' },
   // BrainCircuit models
-  { value: 'claude-4.1-opus', label: 'Claude 4.1 Opus', icon: 'brainCircuit' },
+  { value: 'claude-4.1-opus', label: 'claude-4.1-opus', icon: 'brainCircuit' },
 ]
 
 const ALL_MODELS: ModelOption[] = [...OPENAI_MODELS, ...ANTHROPIC_MODELS]
+
+// Default enabled/disabled state for all models
+const DEFAULT_ENABLED_MODELS: Record<string, boolean> = {
+  'gpt-4o': false,
+  'gpt-4.1': false,
+  'gpt-5-fast': false,
+  'gpt-5': true,
+  'gpt-5-medium': true,
+  'gpt-5-high': false,
+  'o3': true,
+  'claude-4-sonnet': true,
+  'claude-4.5-sonnet': true,
+  'claude-4.1-opus': true,
+}
 
 const getModelIcon = (iconType: 'brain' | 'brainCircuit' | 'zap') => {
   switch (iconType) {
@@ -67,8 +81,9 @@ const getModelIcon = (iconType: 'brain' | 'brainCircuit' | 'zap') => {
 export function Copilot() {
   const [keys, setKeys] = useState<CopilotKey[]>([])
   const [isLoading, setIsLoading] = useState(true)
-  const [enabledModels, setEnabledModels] = useState<string[]>([])
+  const [enabledModelsMap, setEnabledModelsMap] = useState<Record<string, boolean>>({})
   const [isModelsLoading, setIsModelsLoading] = useState(true)
+  const hasFetchedModels = useRef(false)
   
   const { setEnabledModels: setStoreEnabledModels } = useCopilotStore()
 
@@ -102,19 +117,27 @@ export function Copilot() {
       return
     }
     
+    if (hasFetchedModels.current) return
+    hasFetchedModels.current = true
+    
     try {
       setIsModelsLoading(true)
       const res = await fetch('/api/copilot/user-models')
       if (!res.ok) throw new Error(`Failed to fetch: ${res.status}`)
       const data = await res.json()
-      const models = Array.isArray(data.enabledModels) ? data.enabledModels : []
-      setEnabledModels(models)
-      // Update store with enabled models
-      setStoreEnabledModels(models)
+      const modelsMap = data.enabledModels || DEFAULT_ENABLED_MODELS
+      
+      setEnabledModelsMap(modelsMap)
+      
+      // Convert to array for store (API already merged with defaults)
+      const enabledArray = Object.entries(modelsMap)
+        .filter(([_, enabled]) => enabled)
+        .map(([modelId]) => modelId)
+      setStoreEnabledModels(enabledArray)
     } catch (error) {
       logger.error('Failed to fetch enabled models', { error })
-      setEnabledModels([])
-      setStoreEnabledModels([])
+      setEnabledModelsMap(DEFAULT_ENABLED_MODELS)
+      setStoreEnabledModels(Object.keys(DEFAULT_ENABLED_MODELS).filter(key => DEFAULT_ENABLED_MODELS[key]))
     } finally {
       setIsModelsLoading(false)
     }
@@ -123,7 +146,7 @@ export function Copilot() {
   useEffect(() => {
     fetchKeys()
     fetchEnabledModels()
-  }, [fetchKeys, fetchEnabledModels])
+  }, [])
 
   const onGenerate = async () => {
     try {
@@ -178,18 +201,20 @@ export function Copilot() {
   const toggleModel = async (modelValue: string, enabled: boolean) => {
     if (!isHosted) return
 
-    const newEnabledModels = enabled
-      ? [...enabledModels, modelValue]
-      : enabledModels.filter((m) => m !== modelValue)
-
-    setEnabledModels(newEnabledModels)
-    setStoreEnabledModels(newEnabledModels)
+    const newModelsMap = { ...enabledModelsMap, [modelValue]: enabled }
+    setEnabledModelsMap(newModelsMap)
+    
+    // Convert to array for store
+    const enabledArray = Object.entries(newModelsMap)
+      .filter(([_, isEnabled]) => isEnabled)
+      .map(([modelId]) => modelId)
+    setStoreEnabledModels(enabledArray)
 
     try {
       const res = await fetch('/api/copilot/user-models', {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ enabledModels: newEnabledModels }),
+        body: JSON.stringify({ enabledModels: newModelsMap }),
       })
 
       if (!res.ok) {
@@ -198,12 +223,15 @@ export function Copilot() {
     } catch (error) {
       logger.error('Failed to update enabled models', { error })
       // Revert on error
-      setEnabledModels(enabledModels)
-      setStoreEnabledModels(enabledModels)
+      setEnabledModelsMap(enabledModelsMap)
+      const revertedArray = Object.entries(enabledModelsMap)
+        .filter(([_, isEnabled]) => isEnabled)
+        .map(([modelId]) => modelId)
+      setStoreEnabledModels(revertedArray)
     }
   }
 
-  const enabledCount = enabledModels.length
+  const enabledCount = Object.values(enabledModelsMap).filter(Boolean).length
   const totalCount = ALL_MODELS.length
 
   return (
@@ -304,7 +332,7 @@ export function Copilot() {
                   </div>
                   <div className='space-y-1'>
                     {OPENAI_MODELS.map((model) => {
-                      const isEnabled = enabledModels.includes(model.value)
+                      const isEnabled = enabledModelsMap[model.value] ?? false
                       return (
                         <div
                           key={model.value}
@@ -332,7 +360,7 @@ export function Copilot() {
                   </div>
                   <div className='space-y-1'>
                     {ANTHROPIC_MODELS.map((model) => {
-                      const isEnabled = enabledModels.includes(model.value)
+                      const isEnabled = enabledModelsMap[model.value] ?? false
                       return (
                         <div
                           key={model.value}

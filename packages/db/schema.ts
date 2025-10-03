@@ -375,19 +375,8 @@ export const settings = pgTable('settings', {
   showFloatingControls: boolean('show_floating_controls').notNull().default(true),
   showTrainingControls: boolean('show_training_controls').notNull().default(false),
 
-  // Copilot preferences
-  copilotEnabledModels: jsonb('copilot_enabled_models')
-    .notNull()
-    .default(
-      JSON.stringify([
-        'gpt-5',
-        'gpt-5-medium',
-        'o3',
-        'claude-4-sonnet',
-        'claude-4.5-sonnet',
-        'claude-4.1-opus',
-      ])
-    ),
+  // Copilot preferences - maps model_id to enabled/disabled boolean
+  copilotEnabledModels: jsonb('copilot_enabled_models').notNull().default('{}'),
 
   updatedAt: timestamp('updated_at').notNull().defaultNow(),
 })

@@ -1,1 +1,0 @@
-ALTER TABLE "settings" ADD COLUMN "copilot_enabled_models" jsonb DEFAULT '["gpt-5","gpt-5-medium","o3","claude-4-sonnet","claude-4.5-sonnet","claude-4.1-opus"]' NOT NULL;

@@ -7,14 +7,18 @@ import { createLogger } from '@/lib/logs/console/logger'
 
 const logger = createLogger('CopilotUserModelsAPI')
 
-const DEFAULT_ENABLED_MODELS = [
-  'gpt-5',
-  'gpt-5-medium',
-  'o3',
-  'claude-4-sonnet',
-  'claude-4.5-sonnet',
-  'claude-4.1-opus',
-]
+const DEFAULT_ENABLED_MODELS: Record<string, boolean> = {
+  'gpt-4o': false,
+  'gpt-4.1': false,
+  'gpt-5-fast': false,
+  'gpt-5': true,
+  'gpt-5-medium': true,
+  'gpt-5-high': false,
+  'o3': true,
+  'claude-4-sonnet': true,
+  'claude-4.5-sonnet': true,
+  'claude-4.1-opus': true,
+}
 
 // GET - Fetch user's enabled models
 export async function GET(request: NextRequest) {
@@ -35,23 +39,46 @@ export async function GET(request: NextRequest) {
       .limit(1)
 
     if (userSettings) {
+      const userModelsMap = (userSettings.copilotEnabledModels as Record<string, boolean>) || {}
+      
+      // Merge: start with defaults, then override with user's existing preferences
+      const mergedModels = { ...DEFAULT_ENABLED_MODELS }
+      for (const [modelId, enabled] of Object.entries(userModelsMap)) {
+        mergedModels[modelId] = enabled
+      }
+      
+      // If we added any new models, update the database
+      const hasNewModels = Object.keys(DEFAULT_ENABLED_MODELS).some(
+        key => !(key in userModelsMap)
+      )
+      
+      if (hasNewModels) {
+        await db
+          .update(settings)
+          .set({
+            copilotEnabledModels: mergedModels,
+            updatedAt: new Date(),
+          })
+          .where(eq(settings.userId, userId))
+      }
+      
       return NextResponse.json({
-        enabledModels: userSettings.copilotEnabledModels || DEFAULT_ENABLED_MODELS,
+        enabledModels: mergedModels,
       })
     }
 
-    // If no settings record exists, create one with defaults
+    // If no settings record exists, create one with empty object (client will use defaults)
     const [created] = await db
       .insert(settings)
       .values({
         id: userId,
         userId,
-        copilotEnabledModels: DEFAULT_ENABLED_MODELS,
+        copilotEnabledModels: {},
       })
       .returning()
 
     return NextResponse.json({
-      enabledModels: created.copilotEnabledModels || DEFAULT_ENABLED_MODELS,
+      enabledModels: DEFAULT_ENABLED_MODELS,
     })
   } catch (error) {
     logger.error('Failed to fetch user models', { error })
@@ -71,9 +98,9 @@ export async function PUT(request: NextRequest) {
     const userId = session.user.id
     const body = await request.json()
 
-    if (!body.enabledModels || !Array.isArray(body.enabledModels)) {
+    if (!body.enabledModels || typeof body.enabledModels !== 'object') {
       return NextResponse.json(
-        { error: 'enabledModels must be an array' },
+        { error: 'enabledModels must be an object' },
         { status: 400 }
       )
     }
