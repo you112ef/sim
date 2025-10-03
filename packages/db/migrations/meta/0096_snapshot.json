@@ -1,5 +1,5 @@
 {
-  "id": "fab02888-02c5-4554-8278-6018d05d8978",
+  "id": "fdcc2936-f05b-4eec-be51-ca8018cc21aa",
   "prevId": "a116a676-ee5a-417c-bea4-dc43296de3bb",
   "version": "7",
   "dialect": "postgresql",
@@ -3526,7 +3526,7 @@
           "type": "jsonb",
           "primaryKey": false,
           "notNull": true,
-          "default": "'[\"gpt-5\",\"gpt-5-medium\",\"o3\",\"claude-4-sonnet\",\"claude-4.5-sonnet\",\"claude-4.1-opus\"]'"
+          "default": "'{}'"
         },
         "updated_at": {
           "name": "updated_at",

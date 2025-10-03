@@ -3,6 +3,7 @@
 import {
   forwardRef,
   type KeyboardEvent,
+  useCallback,
   useEffect,
   useImperativeHandle,
   useRef,
@@ -225,27 +226,28 @@ const UserInput = forwardRef<UserInputRef, UserInputProps>(
       }
     }, [workflowId])
 
-    // Fetch enabled models on mount (only for hosted and if not already loaded)
-    useEffect(() => {
+    // Fetch enabled models when dropdown is opened for the first time
+    const fetchEnabledModelsOnce = useCallback(async () => {
       if (!isHosted) return
       if (enabledModels !== null) return // Already loaded
 
-      const fetchEnabledModels = async () => {
-        try {
-          const res = await fetch('/api/copilot/user-models')
-          if (!res.ok) {
-            logger.error('Failed to fetch enabled models')
-            return
-          }
-          const data = await res.json()
-          const models = Array.isArray(data.enabledModels) ? data.enabledModels : []
-          setEnabledModels(models)
-        } catch (error) {
-          logger.error('Error fetching enabled models', { error })
+      try {
+        const res = await fetch('/api/copilot/user-models')
+        if (!res.ok) {
+          logger.error('Failed to fetch enabled models')
+          return
         }
+        const data = await res.json()
+        const modelsMap = data.enabledModels || {}
+        
+        // Convert to array for store (API already merged with defaults)
+        const enabledArray = Object.entries(modelsMap)
+          .filter(([_, enabled]) => enabled)
+          .map(([modelId]) => modelId)
+        setEnabledModels(enabledArray)
+      } catch (error) {
+        logger.error('Error fetching enabled models', { error })
       }
-
-      fetchEnabledModels()
     }, [enabledModels, setEnabledModels])
 
     // Track the last chat ID we've seen to detect chat changes
@@ -1824,7 +1826,7 @@ const UserInput = forwardRef<UserInputRef, UserInputProps>(
 
     const getCollapsedModeLabel = () => {
       const model = modelOptions.find((m) => m.value === selectedModel)
-      return model ? model.label : 'Claude 4.5 Sonnet'
+      return model ? model.label : 'claude-4.5-sonnet'
     }
 
     const getModelIcon = () => {
@@ -3171,7 +3173,11 @@ const UserInput = forwardRef<UserInputRef, UserInputProps>(
                   const showPurple = (isBrainModel || isBrainCircuitModel) && !agentPrefetch
                   
                   return (
-                    <DropdownMenu>
+                    <DropdownMenu onOpenChange={(open) => {
+                      if (open) {
+                        fetchEnabledModelsOnce()
+                      }
+                    }}>
                       <DropdownMenuTrigger asChild>
                         <Button
                           variant='ghost'
