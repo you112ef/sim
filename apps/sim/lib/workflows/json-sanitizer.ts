@@ -329,14 +329,10 @@ export function sanitizeForExport(state: WorkflowState): ExportWorkflowState {
   Object.values(clonedState.blocks).forEach((block: any) => {
     if (block.subBlocks) {
       Object.entries(block.subBlocks).forEach(([key, subBlock]: [string, any]) => {
-        // Clear OAuth credentials and API keys using regex patterns
+        // Clear OAuth credentials and API keys based on field name only
         if (
           /credential|oauth|api[_-]?key|token|secret|auth|password|bearer/i.test(key) ||
-          /credential|oauth|api[_-]?key|token|secret|auth|password|bearer/i.test(
-            subBlock.type || ''
-          ) ||
-          (typeof subBlock.value === 'string' &&
-            /credential|oauth|api[_-]?key|token|secret|auth|password|bearer/i.test(subBlock.value))
+          subBlock.type === 'oauth-input'
         ) {
           subBlock.value = ''
         }
