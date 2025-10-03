@@ -84,6 +84,28 @@ function isSensitiveSubBlock(key: string, subBlock: BlockState['subBlocks'][stri
 }
 
 /**
+ * Sanitize condition blocks by removing UI-specific metadata
+ * Returns cleaned JSON string (not parsed array)
+ */
+function sanitizeConditions(conditionsJson: string): string {
+  try {
+    const conditions = JSON.parse(conditionsJson)
+    if (!Array.isArray(conditions)) return conditionsJson
+
+    // Keep only id, title, and value - remove UI state
+    const cleaned = conditions.map((cond: any) => ({
+      id: cond.id,
+      title: cond.title,
+      value: cond.value || '',
+    }))
+
+    return JSON.stringify(cleaned)
+  } catch {
+    return conditionsJson
+  }
+}
+
+/**
  * Sanitize subblocks by removing null values, secrets, and simplifying structure
  * Maps each subblock key directly to its value instead of the full object
  */
@@ -109,6 +131,13 @@ function sanitizeSubBlocks(
         sanitized[key] = subBlock.value
       }
       // Otherwise omit the sensitive value entirely
+      return
+    }
+
+    // Special handling for condition-input type - clean UI metadata
+    if (subBlock.type === 'condition-input' && typeof subBlock.value === 'string') {
+      const cleanedConditions: string = sanitizeConditions(subBlock.value)
+      sanitized[key] = cleanedConditions
       return
     }
 
