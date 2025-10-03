@@ -195,29 +195,6 @@ function sanitizeSubBlocks(
 }
 
 /**
- * Reconstruct full subBlock structure from simplified copilot format
- * Uses existing block structure as template for id and type fields
- */
-function reconstructSubBlocks(
-  simplifiedSubBlocks: Record<string, string | number | string[][]>,
-  existingSubBlocks?: BlockState['subBlocks']
-): BlockState['subBlocks'] {
-  const reconstructed: BlockState['subBlocks'] = {}
-
-  Object.entries(simplifiedSubBlocks).forEach(([key, value]) => {
-    const existingSubBlock = existingSubBlocks?.[key]
-
-    reconstructed[key] = {
-      id: existingSubBlock?.id || key,
-      type: existingSubBlock?.type || 'short-input',
-      value,
-    }
-  })
-
-  return reconstructed
-}
-
-/**
  * Extract connections for a block from edges and format as operations-style connections
  */
 function extractConnectionsForBlock(
