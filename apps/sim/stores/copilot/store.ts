@@ -40,6 +40,7 @@ import { GetWorkflowFromNameClientTool } from '@/lib/copilot/tools/client/workfl
 import { ListUserWorkflowsClientTool } from '@/lib/copilot/tools/client/workflow/list-user-workflows'
 import { RunWorkflowClientTool } from '@/lib/copilot/tools/client/workflow/run-workflow'
 import { SetGlobalWorkflowVariablesClientTool } from '@/lib/copilot/tools/client/workflow/set-global-workflow-variables'
+import { GetOperationsExamplesClientTool } from '@/lib/copilot/tools/client/examples/get-operations-examples'
 import { createLogger } from '@/lib/logs/console/logger'
 import type {
   ChatContext,
@@ -90,6 +91,7 @@ const CLIENT_TOOL_INSTANTIATORS: Record<string, (id: string) => any> = {
   set_global_workflow_variables: (id) => new SetGlobalWorkflowVariablesClientTool(id),
   get_trigger_examples: (id) => new GetTriggerExamplesClientTool(id),
   get_examples_rag: (id) => new GetExamplesRagClientTool(id),
+  get_operations_examples: (id) => new GetOperationsExamplesClientTool(id),
 }
 
 // Read-only static metadata for class-based tools (no instances)
@@ -120,6 +122,7 @@ export const CLASS_TOOL_METADATA: Record<string, BaseClientToolMetadata | undefi
   get_trigger_examples: (GetTriggerExamplesClientTool as any)?.metadata,
   get_examples_rag: (GetExamplesRagClientTool as any)?.metadata,
   oauth_request_access: (OAuthRequestAccessClientTool as any)?.metadata,
+  get_operations_examples: (GetOperationsExamplesClientTool as any)?.metadata,
 }
 
 function ensureClientToolInstance(toolName: string | undefined, toolCallId: string | undefined) {
