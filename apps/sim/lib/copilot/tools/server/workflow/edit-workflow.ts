@@ -4,6 +4,7 @@ import { workflow as workflowTable } from '@sim/db/schema'
 import { eq } from 'drizzle-orm'
 import type { BaseServerTool } from '@/lib/copilot/tools/server/base-tool'
 import { createLogger } from '@/lib/logs/console/logger'
+import { getBlockOutputs } from '@/lib/workflows/block-outputs'
 import { loadWorkflowFromNormalizedTables } from '@/lib/workflows/db-helpers'
 import { validateWorkflowState } from '@/lib/workflows/validation'
 import { getAllBlocks } from '@/blocks/registry'
@@ -28,6 +29,26 @@ interface EditWorkflowParams {
 function createBlockFromParams(blockId: string, params: any, parentId?: string): any {
   const blockConfig = getAllBlocks().find((b) => b.type === params.type)
 
+  // Determine outputs based on trigger mode
+  const triggerMode = params.triggerMode || false
+  let outputs: Record<string, any>
+
+  if (params.outputs) {
+    outputs = params.outputs
+  } else if (blockConfig) {
+    const subBlocks: Record<string, any> = {}
+    if (params.inputs) {
+      Object.entries(params.inputs).forEach(([key, value]) => {
+        subBlocks[key] = { id: key, type: 'short-input', value: value }
+      })
+    }
+    outputs = triggerMode
+      ? getBlockOutputs(params.type, subBlocks, triggerMode)
+      : resolveOutputType(blockConfig.outputs)
+  } else {
+    outputs = {}
+  }
+
   const blockState: any = {
     id: blockId,
     type: params.type,
@@ -38,9 +59,9 @@ function createBlockFromParams(blockId: string, params: any, parentId?: string):
     isWide: false,
     advancedMode: params.advancedMode || false,
     height: 0,
-    triggerMode: params.triggerMode || false,
+    triggerMode: triggerMode,
     subBlocks: {},
-    outputs: params.outputs || (blockConfig ? resolveOutputType(blockConfig.outputs) : {}),
+    outputs: outputs,
     data: parentId ? { parentId, extent: 'parent' as const } : {},
   }
 

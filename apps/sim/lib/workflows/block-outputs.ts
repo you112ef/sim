@@ -1,15 +1,29 @@
 import { getBlock } from '@/blocks'
 import type { BlockConfig } from '@/blocks/types'
+import { getTrigger } from '@/triggers'
 
 /**
  * Get the effective outputs for a block, including dynamic outputs from inputFormat
+ * and trigger outputs for blocks in trigger mode
  */
 export function getBlockOutputs(
   blockType: string,
-  subBlocks?: Record<string, any>
+  subBlocks?: Record<string, any>,
+  triggerMode?: boolean
 ): Record<string, any> {
   const blockConfig = getBlock(blockType)
   if (!blockConfig) return {}
+
+  // If block is in trigger mode, use trigger outputs instead of block outputs
+  if (triggerMode && blockConfig.triggers?.enabled) {
+    const triggerId = subBlocks?.triggerId?.value || blockConfig.triggers?.available?.[0]
+    if (triggerId) {
+      const trigger = getTrigger(triggerId)
+      if (trigger?.outputs) {
+        return trigger.outputs
+      }
+    }
+  }
 
   // Start with the static outputs defined in the config
   let outputs = { ...(blockConfig.outputs || {}) }
@@ -88,27 +102,66 @@ function hasInputFormat(blockConfig: BlockConfig): boolean {
 /**
  * Get output paths for a block (for tag dropdown)
  */
-export function getBlockOutputPaths(blockType: string, subBlocks?: Record<string, any>): string[] {
-  const outputs = getBlockOutputs(blockType, subBlocks)
-  return Object.keys(outputs)
+export function getBlockOutputPaths(
+  blockType: string,
+  subBlocks?: Record<string, any>,
+  triggerMode?: boolean
+): string[] {
+  const outputs = getBlockOutputs(blockType, subBlocks, triggerMode)
+
+  // Recursively collect all paths from nested outputs
+  const paths: string[] = []
+
+  function collectPaths(obj: Record<string, any>, prefix = ''): void {
+    for (const [key, value] of Object.entries(obj)) {
+      const path = prefix ? `${prefix}.${key}` : key
+
+      // If value has 'type' property, it's a leaf node (output definition)
+      if (value && typeof value === 'object' && 'type' in value) {
+        paths.push(path)
+      }
+      // If value is an object without 'type', recurse into it
+      else if (value && typeof value === 'object' && !Array.isArray(value)) {
+        collectPaths(value, path)
+      }
+      // Otherwise treat as a leaf node
+      else {
+        paths.push(path)
+      }
+    }
+  }
+
+  collectPaths(outputs)
+  return paths
 }
 
 /**
- * Get the type of a specific output path
+ * Get the type of a specific output path (supports nested paths like "email.subject")
  */
 export function getBlockOutputType(
   blockType: string,
   outputPath: string,
-  subBlocks?: Record<string, any>
+  subBlocks?: Record<string, any>,
+  triggerMode?: boolean
 ): string {
-  const outputs = getBlockOutputs(blockType, subBlocks)
-  const output = outputs[outputPath]
+  const outputs = getBlockOutputs(blockType, subBlocks, triggerMode)
 
-  if (!output) return 'any'
+  // Navigate through nested path
+  const pathParts = outputPath.split('.')
+  let current: any = outputs
 
-  if (typeof output === 'object' && 'type' in output) {
-    return output.type
+  for (const part of pathParts) {
+    if (!current || typeof current !== 'object') {
+      return 'any'
+    }
+    current = current[part]
   }
 
-  return typeof output === 'string' ? output : 'any'
+  if (!current) return 'any'
+
+  if (typeof current === 'object' && 'type' in current) {
+    return current.type
+  }
+
+  return typeof current === 'string' ? current : 'any'
 }
