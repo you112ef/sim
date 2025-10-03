@@ -180,6 +180,14 @@ function sanitizeSubBlocks(
       return
     }
 
+    // Special handling for responseFormat - normalize JSON to ensure consistent comparison
+    if (key === 'responseFormat' && typeof subBlock.value === 'string' && subBlock.value.trim()) {
+      const parsed = JSON.parse(subBlock.value)
+      // Re-stringify with consistent formatting (no whitespace)
+      sanitized[key] = JSON.stringify(parsed)
+      return
+    }
+
     sanitized[key] = subBlock.value
   })
 
