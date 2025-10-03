@@ -96,7 +96,7 @@ const allNavigationItems: NavigationItem[] = [
   },
   {
     id: 'copilot',
-    label: 'Copilot Keys',
+    label: 'Copilot',
     icon: Bot,
   },
   {

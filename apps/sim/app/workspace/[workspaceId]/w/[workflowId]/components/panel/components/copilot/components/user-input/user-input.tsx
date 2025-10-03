@@ -54,6 +54,7 @@ import { cn } from '@/lib/utils'
 import { useCopilotStore } from '@/stores/copilot/store'
 import type { ChatContext } from '@/stores/copilot/types'
 import { useWorkflowStore } from '@/stores/workflows/workflow/store'
+import { isHosted } from '@/lib/environment'
 
 const logger = createLogger('CopilotUserInput')
 
@@ -179,7 +180,7 @@ const UserInput = forwardRef<UserInputRef, UserInputProps>(
     const [isLoadingLogs, setIsLoadingLogs] = useState(false)
 
     const { data: session } = useSession()
-    const { currentChat, workflowId } = useCopilotStore()
+    const { currentChat, workflowId, enabledModels, setEnabledModels } = useCopilotStore()
     const params = useParams()
     const workspaceId = params.workspaceId as string
     // Track per-chat preference for auto-adding workflow context
@@ -223,6 +224,29 @@ const UserInput = forwardRef<UserInputRef, UserInputProps>(
         ensureWorkflowsLoaded()
       }
     }, [workflowId])
+
+    // Fetch enabled models on mount (only for hosted and if not already loaded)
+    useEffect(() => {
+      if (!isHosted) return
+      if (enabledModels !== null) return // Already loaded
+
+      const fetchEnabledModels = async () => {
+        try {
+          const res = await fetch('/api/copilot/user-models')
+          if (!res.ok) {
+            logger.error('Failed to fetch enabled models')
+            return
+          }
+          const data = await res.json()
+          const models = Array.isArray(data.enabledModels) ? data.enabledModels : []
+          setEnabledModels(models)
+        } catch (error) {
+          logger.error('Error fetching enabled models', { error })
+        }
+      }
+
+      fetchEnabledModels()
+    }, [enabledModels, setEnabledModels])
 
     // Track the last chat ID we've seen to detect chat changes
     const [lastChatId, setLastChatId] = useState<string | undefined>(undefined)
@@ -1780,7 +1804,7 @@ const UserInput = forwardRef<UserInputRef, UserInputProps>(
     const { selectedModel, agentPrefetch, setSelectedModel, setAgentPrefetch } = useCopilotStore()
 
     // Model configurations with their display names
-    const modelOptions = [
+    const allModelOptions = [
       { value: 'gpt-5-fast', label: 'gpt-5-fast' },
       { value: 'gpt-5', label: 'gpt-5' },
       { value: 'gpt-5-medium', label: 'gpt-5-medium' },
@@ -1793,23 +1817,29 @@ const UserInput = forwardRef<UserInputRef, UserInputProps>(
       { value: 'claude-4.1-opus', label: 'claude-4.1-opus' },
     ] as const
 
+    // Filter models based on user preferences (only for hosted)
+    const modelOptions = isHosted && enabledModels !== null
+      ? allModelOptions.filter((model) => enabledModels.includes(model.value))
+      : allModelOptions
+
     const getCollapsedModeLabel = () => {
       const model = modelOptions.find((m) => m.value === selectedModel)
       return model ? model.label : 'Claude 4.5 Sonnet'
     }
 
     const getModelIcon = () => {
-      const colorClass = !agentPrefetch
+      // Only Brain and BrainCircuit models show purple when agentPrefetch is false
+      const isBrainModel = ['gpt-5', 'gpt-5-medium', 'claude-4-sonnet', 'claude-4.5-sonnet'].includes(selectedModel)
+      const isBrainCircuitModel = ['gpt-5-high', 'o3', 'claude-4.1-opus'].includes(selectedModel)
+      const colorClass = (isBrainModel || isBrainCircuitModel) && !agentPrefetch
         ? 'text-[var(--brand-primary-hover-hex)]'
         : 'text-muted-foreground'
 
       // Match the dropdown icon logic exactly
-      if (['gpt-5-high', 'o3', 'claude-4.1-opus'].includes(selectedModel)) {
+      if (isBrainCircuitModel) {
         return <BrainCircuit className={`h-3 w-3 ${colorClass}`} />
       }
-      if (
-        ['gpt-5', 'gpt-5-medium', 'claude-4-sonnet', 'claude-4.5-sonnet'].includes(selectedModel)
-      ) {
+      if (isBrainModel) {
         return <Brain className={`h-3 w-3 ${colorClass}`} />
       }
       if (['gpt-4o', 'gpt-4.1', 'gpt-5-fast'].includes(selectedModel)) {
@@ -3068,7 +3098,7 @@ const UserInput = forwardRef<UserInputRef, UserInputProps>(
                     variant='ghost'
                     size='sm'
                     disabled={!onModeChange}
-                    className='flex h-6 items-center gap-1.5 rounded-full border px-2 py-1 font-medium text-xs'
+                    className='flex h-6 items-center gap-1.5 rounded-full border px-2 py-1 font-medium text-xs focus-visible:ring-0 focus-visible:ring-offset-0'
                   >
                     {getModeIcon()}
                     <span>{getModeText()}</span>
@@ -3135,80 +3165,39 @@ const UserInput = forwardRef<UserInputRef, UserInputProps>(
                 </DropdownMenuContent>
               </DropdownMenu>
               {
-                <DropdownMenu>
-                  <DropdownMenuTrigger asChild>
-                    <Button
-                      variant='ghost'
-                      size='sm'
-                      className={cn(
-                        'flex h-6 items-center gap-1.5 rounded-full border px-2 py-1 font-medium text-xs',
-                        !agentPrefetch
-                          ? 'border-[var(--brand-primary-hover-hex)] text-[var(--brand-primary-hover-hex)] hover:bg-[color-mix(in_srgb,var(--brand-primary-hover-hex)_8%,transparent)] hover:text-[var(--brand-primary-hover-hex)]'
-                          : 'border-border text-foreground'
-                      )}
-                      title='Choose mode'
-                    >
-                      {getModelIcon()}
-                      <span>
-                        {getCollapsedModeLabel()}
-                        {!agentPrefetch &&
-                          !['gpt-4o', 'gpt-4.1', 'gpt-5-fast'].includes(selectedModel) && (
-                            <span className='ml-1 font-semibold'>MAX</span>
+                (() => {
+                  const isBrainModel = ['gpt-5', 'gpt-5-medium', 'claude-4-sonnet', 'claude-4.5-sonnet'].includes(selectedModel)
+                  const isBrainCircuitModel = ['gpt-5-high', 'o3', 'claude-4.1-opus'].includes(selectedModel)
+                  const showPurple = (isBrainModel || isBrainCircuitModel) && !agentPrefetch
+                  
+                  return (
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <Button
+                          variant='ghost'
+                          size='sm'
+                          className={cn(
+                            'flex h-6 items-center gap-1.5 rounded-full border px-2 py-1 font-medium text-xs focus-visible:ring-0 focus-visible:ring-offset-0',
+                            showPurple
+                              ? 'border-[var(--brand-primary-hover-hex)] text-[var(--brand-primary-hover-hex)] hover:bg-[color-mix(in_srgb,var(--brand-primary-hover-hex)_8%,transparent)] hover:text-[var(--brand-primary-hover-hex)]'
+                              : 'border-border text-foreground'
                           )}
-                      </span>
-                    </Button>
-                  </DropdownMenuTrigger>
+                          title='Choose mode'
+                        >
+                          {getModelIcon()}
+                          <span>
+                            {getCollapsedModeLabel()}
+                            {agentPrefetch &&
+                              !['gpt-4o', 'gpt-4.1', 'gpt-5-fast'].includes(selectedModel) && (
+                                <span className='ml-1 font-semibold'>Lite</span>
+                              )}
+                          </span>
+                        </Button>
+                      </DropdownMenuTrigger>
                   <DropdownMenuContent align='start' side='top' className='max-h-[400px] p-0'>
                     <TooltipProvider delayDuration={100} skipDelayDuration={0}>
                       <div className='w-[220px]'>
-                        <div className='p-2 pb-0'>
-                          <div className='mb-2 flex items-center justify-between'>
-                            <div className='flex items-center gap-1.5'>
-                              <span className='font-medium text-xs'>MAX mode</span>
-                              <Tooltip>
-                                <TooltipTrigger asChild>
-                                  <button
-                                    type='button'
-                                    className='h-3.5 w-3.5 rounded text-muted-foreground transition-colors hover:text-foreground'
-                                    aria-label='MAX mode info'
-                                  >
-                                    <Info className='h-3.5 w-3.5' />
-                                  </button>
-                                </TooltipTrigger>
-                                <TooltipContent
-                                  side='right'
-                                  sideOffset={6}
-                                  align='center'
-                                  className='max-w-[220px] border bg-popover p-2 text-[11px] text-popover-foreground leading-snug shadow-md'
-                                >
-                                  Significantly increases depth of reasoning
-                                  <br />
-                                  <span className='text-[10px] text-muted-foreground italic'>
-                                    Only available for advanced models
-                                  </span>
-                                </TooltipContent>
-                              </Tooltip>
-                            </div>
-                            <Switch
-                              checked={!agentPrefetch}
-                              disabled={['gpt-4o', 'gpt-4.1', 'gpt-5-fast'].includes(selectedModel)}
-                              title={
-                                ['gpt-4o', 'gpt-4.1', 'gpt-5-fast'].includes(selectedModel)
-                                  ? 'MAX mode is only available for advanced models'
-                                  : undefined
-                              }
-                              onCheckedChange={(checked) => {
-                                if (['gpt-4o', 'gpt-4.1', 'gpt-5-fast'].includes(selectedModel))
-                                  return
-                                setAgentPrefetch(!checked)
-                              }}
-                            />
-                          </div>
-                          <div className='my-1.5 flex justify-center'>
-                            <div className='h-px w-[100%] bg-border' />
-                          </div>
-                        </div>
-                        <div className='max-h-[280px] overflow-y-auto px-2 pb-2'>
+                        <div className='max-h-[280px] overflow-y-auto p-2'>
                           <div>
                             <div className='mb-1'>
                               <span className='font-medium text-xs'>Model</span>
@@ -3247,14 +3236,14 @@ const UserInput = forwardRef<UserInputRef, UserInputProps>(
                                     key={option.value}
                                     onSelect={() => {
                                       setSelectedModel(option.value)
-                                      // Automatically turn off max mode for fast models (Zap icon)
+                                      // Automatically turn off Lite mode for fast models (Zap icon)
                                       if (
                                         ['gpt-4o', 'gpt-4.1', 'gpt-5-fast'].includes(
                                           option.value
                                         ) &&
-                                        !agentPrefetch
+                                        agentPrefetch
                                       ) {
-                                        setAgentPrefetch(true)
+                                        setAgentPrefetch(false)
                                       }
                                     }}
                                     className={cn(
@@ -3308,6 +3297,26 @@ const UserInput = forwardRef<UserInputRef, UserInputProps>(
                                           .map(renderModelOption)}
                                       </div>
                                     </div>
+
+                                    {/* More Models Button (only for hosted) */}
+                                    {isHosted && (
+                                      <div className='border-t pt-1 mt-1'>
+                                        <button
+                                          type='button'
+                                          onClick={() => {
+                                            // Dispatch event to open settings modal on copilot tab
+                                            window.dispatchEvent(
+                                              new CustomEvent('open-settings', {
+                                                detail: { tab: 'copilot' },
+                                              })
+                                            )
+                                          }}
+                                          className='w-full rounded-sm px-2 py-1.5 text-left text-xs text-muted-foreground hover:bg-muted/50 transition-colors'
+                                        >
+                                          More Models...
+                                        </button>
+                                      </div>
+                                    )}
                                   </>
                                 )
                               })()}
@@ -3318,6 +3327,8 @@ const UserInput = forwardRef<UserInputRef, UserInputProps>(
                     </TooltipProvider>
                   </DropdownMenuContent>
                 </DropdownMenu>
+                  )
+                })()
               }
               <Button
                 variant='ghost'

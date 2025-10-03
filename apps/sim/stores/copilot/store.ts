@@ -1276,7 +1276,8 @@ async function* parseSSEStream(
 const initialState = {
   mode: 'agent' as const,
   selectedModel: 'claude-4.5-sonnet' as CopilotStore['selectedModel'],
-  agentPrefetch: true,
+  agentPrefetch: false,
+  enabledModels: null as string[] | null, // Null means not loaded yet, empty array means all disabled
   isCollapsed: false,
   currentChat: null as CopilotChat | null,
   chats: [] as CopilotChat[],
@@ -2184,6 +2185,7 @@ export const useCopilotStore = create<CopilotStore>()(
 
     setSelectedModel: (model) => set({ selectedModel: model }),
     setAgentPrefetch: (prefetch) => set({ agentPrefetch: prefetch }),
+    setEnabledModels: (models) => set({ enabledModels: models }),
   }))
 )
 
