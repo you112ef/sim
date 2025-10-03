@@ -32,12 +32,20 @@ export function getBlockOutputs(
       startWorkflowValue === 'manual'
     ) {
       // API/manual mode - use inputFormat fields only
-      const inputFormatValue = subBlocks?.inputFormat?.value
+      let inputFormatValue = subBlocks?.inputFormat?.value
       outputs = {}
+
+      if (
+        inputFormatValue !== null &&
+        inputFormatValue !== undefined &&
+        !Array.isArray(inputFormatValue)
+      ) {
+        inputFormatValue = []
+      }
 
       if (Array.isArray(inputFormatValue)) {
         inputFormatValue.forEach((field: { name?: string; type?: string }) => {
-          if (field.name && field.name.trim() !== '') {
+          if (field && field.name && field.name.trim() !== '') {
             outputs[field.name] = {
               type: (field.type || 'any') as any,
               description: `Field from input format`,
@@ -52,7 +60,17 @@ export function getBlockOutputs(
 
   // For blocks with inputFormat, add dynamic outputs
   if (hasInputFormat(blockConfig) && subBlocks?.inputFormat?.value) {
-    const inputFormatValue = subBlocks.inputFormat.value
+    let inputFormatValue = subBlocks.inputFormat.value
+
+    // Sanitize inputFormat - ensure it's an array
+    if (
+      inputFormatValue !== null &&
+      inputFormatValue !== undefined &&
+      !Array.isArray(inputFormatValue)
+    ) {
+      // Invalid format, default to empty array
+      inputFormatValue = []
+    }
 
     if (Array.isArray(inputFormatValue)) {
       // For API and Input triggers, only use inputFormat fields
@@ -61,7 +79,7 @@ export function getBlockOutputs(
 
         // Add each field from inputFormat as an output at root level
         inputFormatValue.forEach((field: { name?: string; type?: string }) => {
-          if (field.name && field.name.trim() !== '') {
+          if (field && field.name && field.name.trim() !== '') {
             outputs[field.name] = {
               type: (field.type || 'any') as any,
               description: `Field from input format`,

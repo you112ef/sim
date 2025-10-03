@@ -47,10 +47,20 @@ function createBlockFromParams(blockId: string, params: any, parentId?: string):
   // Add inputs as subBlocks
   if (params.inputs) {
     Object.entries(params.inputs).forEach(([key, value]) => {
+      let sanitizedValue = value
+
+      // Special handling for inputFormat - ensure it's an array
+      if (key === 'inputFormat' && value !== null && value !== undefined) {
+        if (!Array.isArray(value)) {
+          // Invalid format, default to empty array
+          sanitizedValue = []
+        }
+      }
+
       blockState.subBlocks[key] = {
         id: key,
         type: 'short-input',
-        value: value,
+        value: sanitizedValue,
       }
     })
   }
@@ -175,14 +185,24 @@ function applyOperationsToWorkflowState(
           if (params?.inputs) {
             if (!block.subBlocks) block.subBlocks = {}
             Object.entries(params.inputs).forEach(([key, value]) => {
+              let sanitizedValue = value
+
+              // Special handling for inputFormat - ensure it's an array
+              if (key === 'inputFormat' && value !== null && value !== undefined) {
+                if (!Array.isArray(value)) {
+                  // Invalid format, default to empty array
+                  sanitizedValue = []
+                }
+              }
+
               if (!block.subBlocks[key]) {
                 block.subBlocks[key] = {
                   id: key,
                   type: 'short-input',
-                  value: value,
+                  value: sanitizedValue,
                 }
               } else {
-                block.subBlocks[key].value = value
+                block.subBlocks[key].value = sanitizedValue
               }
             })
 
@@ -407,10 +427,22 @@ function applyOperationsToWorkflowState(
           // Update inputs if provided
           if (params.inputs) {
             Object.entries(params.inputs).forEach(([key, value]) => {
+              let sanitizedValue = value
+
+              if (key === 'inputFormat' && value !== null && value !== undefined) {
+                if (!Array.isArray(value)) {
+                  sanitizedValue = []
+                }
+              }
+
               if (!existingBlock.subBlocks[key]) {
-                existingBlock.subBlocks[key] = { id: key, type: 'short-input', value }
+                existingBlock.subBlocks[key] = {
+                  id: key,
+                  type: 'short-input',
+                  value: sanitizedValue,
+                }
               } else {
-                existingBlock.subBlocks[key].value = value
+                existingBlock.subBlocks[key].value = sanitizedValue
               }
             })
           }
