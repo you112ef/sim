@@ -106,6 +106,40 @@ function sanitizeConditions(conditionsJson: string): string {
 }
 
 /**
+ * Sanitize tools array by removing UI state and redundant fields
+ */
+function sanitizeTools(tools: any[]): any[] {
+  return tools.map((tool) => {
+    if (tool.type === 'custom-tool') {
+      const sanitized: any = {
+        type: tool.type,
+        title: tool.title,
+        toolId: tool.toolId,
+        usageControl: tool.usageControl,
+      }
+
+      if (tool.schema?.function) {
+        sanitized.schema = {
+          function: {
+            description: tool.schema.function.description,
+            parameters: tool.schema.function.parameters,
+          },
+        }
+      }
+
+      if (tool.code) {
+        sanitized.code = tool.code
+      }
+
+      return sanitized
+    }
+
+    const { isExpanded, ...cleanTool } = tool
+    return cleanTool
+  })
+}
+
+/**
  * Sanitize subblocks by removing null values, secrets, and simplifying structure
  * Maps each subblock key directly to its value instead of the full object
  */
@@ -141,7 +175,11 @@ function sanitizeSubBlocks(
       return
     }
 
-    // For non-sensitive, non-null values, include them
+    if (key === 'tools' && Array.isArray(subBlock.value)) {
+      sanitized[key] = sanitizeTools(subBlock.value)
+      return
+    }
+
     sanitized[key] = subBlock.value
   })
 

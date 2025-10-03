@@ -78,6 +78,11 @@ function createBlockFromParams(blockId: string, params: any, parentId?: string):
         }
       }
 
+      // Special handling for tools - normalize to restore sanitized fields
+      if (key === 'tools' && Array.isArray(value)) {
+        sanitizedValue = normalizeTools(value)
+      }
+
       blockState.subBlocks[key] = {
         id: key,
         type: 'short-input',
@@ -100,6 +105,42 @@ function createBlockFromParams(blockId: string, params: any, parentId?: string):
   }
 
   return blockState
+}
+
+/**
+ * Normalize tools array by adding back fields that were sanitized for training
+ */
+function normalizeTools(tools: any[]): any[] {
+  return tools.map((tool) => {
+    if (tool.type === 'custom-tool') {
+      // Reconstruct sanitized custom tool fields
+      const normalized: any = {
+        ...tool,
+        params: tool.params || {},
+        isExpanded: tool.isExpanded ?? true,
+      }
+
+      // Ensure schema has proper structure
+      if (normalized.schema?.function) {
+        normalized.schema = {
+          type: 'function',
+          function: {
+            name: tool.title, // Derive name from title
+            description: normalized.schema.function.description,
+            parameters: normalized.schema.function.parameters,
+          },
+        }
+      }
+
+      return normalized
+    }
+
+    // For other tool types, just ensure isExpanded exists
+    return {
+      ...tool,
+      isExpanded: tool.isExpanded ?? true,
+    }
+  })
 }
 
 /**
@@ -214,6 +255,11 @@ function applyOperationsToWorkflowState(
                   // Invalid format, default to empty array
                   sanitizedValue = []
                 }
+              }
+
+              // Special handling for tools - normalize to restore sanitized fields
+              if (key === 'tools' && Array.isArray(value)) {
+                sanitizedValue = normalizeTools(value)
               }
 
               if (!block.subBlocks[key]) {
