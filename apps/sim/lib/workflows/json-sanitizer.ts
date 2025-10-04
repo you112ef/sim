@@ -18,7 +18,7 @@ export interface CopilotWorkflowState {
 export interface CopilotBlockState {
   type: string
   name: string
-  inputs?: Record<string, string | number | string[][]>
+  inputs?: Record<string, string | number | string[][] | object>
   outputs: BlockState['outputs']
   connections?: Record<string, string | string[]>
   nestedNodes?: Record<string, CopilotBlockState>
@@ -142,14 +142,68 @@ function sanitizeTools(tools: any[]): any[] {
 /**
  * Sanitize subblocks by removing null values, secrets, and simplifying structure
  * Maps each subblock key directly to its value instead of the full object
+ * Note: responseFormat is kept as an object for better copilot understanding
  */
 function sanitizeSubBlocks(
   subBlocks: BlockState['subBlocks']
-): Record<string, string | number | string[][]> {
-  const sanitized: Record<string, string | number | string[][]> = {}
+): Record<string, string | number | string[][] | object> {
+  const sanitized: Record<string, string | number | string[][] | object> = {}
 
   Object.entries(subBlocks).forEach(([key, subBlock]) => {
-    // Skip null/undefined values
+    // Special handling for responseFormat - process BEFORE null check
+    // so we can detect when it's added/removed
+    if (key === 'responseFormat') {
+      try {
+        // Handle null/undefined - skip if no value
+        if (subBlock.value === null || subBlock.value === undefined) {
+          return
+        }
+
+        let obj = subBlock.value
+
+        // Handle string values - parse them first
+        if (typeof subBlock.value === 'string') {
+          const trimmed = subBlock.value.trim()
+          if (!trimmed) {
+            // Empty string - skip this field
+            return
+          }
+          obj = JSON.parse(trimmed)
+        }
+
+        // Handle object values - normalize keys and keep as object for copilot
+        if (obj && typeof obj === 'object') {
+          // Sort keys recursively for consistent comparison
+          const sortKeys = (item: any): any => {
+            if (Array.isArray(item)) {
+              return item.map(sortKeys)
+            }
+            if (item !== null && typeof item === 'object') {
+              return Object.keys(item)
+                .sort()
+                .reduce((result: any, key: string) => {
+                  result[key] = sortKeys(item[key])
+                  return result
+                }, {})
+            }
+            return item
+          }
+
+          // Keep as object (not stringified) for better copilot understanding
+          const normalized = sortKeys(obj)
+          sanitized[key] = normalized
+          return
+        }
+
+        // If we get here, obj is not an object (maybe null or primitive) - skip it
+        return
+      } catch (error) {
+        // Invalid JSON - skip this field to avoid crashes
+        return
+      }
+    }
+
+    // Skip null/undefined values for other fields
     if (subBlock.value === null || subBlock.value === undefined) {
       return
     }
@@ -177,14 +231,6 @@ function sanitizeSubBlocks(
 
     if (key === 'tools' && Array.isArray(subBlock.value)) {
       sanitized[key] = sanitizeTools(subBlock.value)
-      return
-    }
-
-    // Special handling for responseFormat - normalize JSON to ensure consistent comparison
-    if (key === 'responseFormat' && typeof subBlock.value === 'string' && subBlock.value.trim()) {
-      const parsed = JSON.parse(subBlock.value)
-      // Re-stringify with consistent formatting (no whitespace)
-      sanitized[key] = JSON.stringify(parsed)
       return
     }
 
@@ -250,14 +296,16 @@ export function sanitizeForCopilot(state: WorkflowState): CopilotWorkflowState {
     const connections = extractConnectionsForBlock(blockId, state.edges)
 
     // For loop/parallel blocks, extract config from block.data instead of subBlocks
-    let inputs: Record<string, string | number | string[][]> = {}
+    let inputs: Record<string, string | number | string[][] | object>
 
     if (block.type === 'loop' || block.type === 'parallel') {
       // Extract configuration from block.data
-      if (block.data?.loopType) inputs.loopType = block.data.loopType
-      if (block.data?.count !== undefined) inputs.iterations = block.data.count
-      if (block.data?.collection !== undefined) inputs.collection = block.data.collection
-      if (block.data?.parallelType) inputs.parallelType = block.data.parallelType
+      const loopInputs: Record<string, string | number | string[][] | object> = {}
+      if (block.data?.loopType) loopInputs.loopType = block.data.loopType
+      if (block.data?.count !== undefined) loopInputs.iterations = block.data.count
+      if (block.data?.collection !== undefined) loopInputs.collection = block.data.collection
+      if (block.data?.parallelType) loopInputs.parallelType = block.data.parallelType
+      inputs = loopInputs
     } else {
       // For regular blocks, sanitize subBlocks
       inputs = sanitizeSubBlocks(block.subBlocks)

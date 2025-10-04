@@ -83,6 +83,11 @@ function createBlockFromParams(blockId: string, params: any, parentId?: string):
         sanitizedValue = normalizeTools(value)
       }
 
+      // Special handling for responseFormat - normalize to ensure consistent format
+      if (key === 'responseFormat' && value) {
+        sanitizedValue = normalizeResponseFormat(value)
+      }
+
       blockState.subBlocks[key] = {
         id: key,
         type: 'short-input',
@@ -141,6 +146,54 @@ function normalizeTools(tools: any[]): any[] {
       isExpanded: tool.isExpanded ?? true,
     }
   })
+}
+
+/**
+ * Normalize responseFormat to ensure consistent storage
+ * Handles both string (JSON) and object formats
+ * Returns pretty-printed JSON for better UI readability
+ */
+function normalizeResponseFormat(value: any): string {
+  try {
+    let obj = value
+
+    // If it's already a string, parse it first
+    if (typeof value === 'string') {
+      const trimmed = value.trim()
+      if (!trimmed) {
+        return ''
+      }
+      obj = JSON.parse(trimmed)
+    }
+
+    // If it's an object, stringify it with consistent formatting
+    if (obj && typeof obj === 'object') {
+      // Sort keys recursively for consistent comparison
+      const sortKeys = (item: any): any => {
+        if (Array.isArray(item)) {
+          return item.map(sortKeys)
+        }
+        if (item !== null && typeof item === 'object') {
+          return Object.keys(item)
+            .sort()
+            .reduce((result: any, key: string) => {
+              result[key] = sortKeys(item[key])
+              return result
+            }, {})
+        }
+        return item
+      }
+
+      // Return pretty-printed with 2-space indentation for UI readability
+      // The sanitizer will normalize it to minified format for comparison
+      return JSON.stringify(sortKeys(obj), null, 2)
+    }
+
+    return String(value)
+  } catch (error) {
+    // If parsing fails, return the original value as string
+    return String(value)
+  }
 }
 
 /**
@@ -260,6 +313,11 @@ function applyOperationsToWorkflowState(
               // Special handling for tools - normalize to restore sanitized fields
               if (key === 'tools' && Array.isArray(value)) {
                 sanitizedValue = normalizeTools(value)
+              }
+
+              // Special handling for responseFormat - normalize to ensure consistent format
+              if (key === 'responseFormat' && value) {
+                sanitizedValue = normalizeResponseFormat(value)
               }
 
               if (!block.subBlocks[key]) {
@@ -500,6 +558,16 @@ function applyOperationsToWorkflowState(
                 if (!Array.isArray(value)) {
                   sanitizedValue = []
                 }
+              }
+
+              // Special handling for tools - normalize to restore sanitized fields
+              if (key === 'tools' && Array.isArray(value)) {
+                sanitizedValue = normalizeTools(value)
+              }
+
+              // Special handling for responseFormat - normalize to ensure consistent format
+              if (key === 'responseFormat' && value) {
+                sanitizedValue = normalizeResponseFormat(value)
               }
 
               if (!existingBlock.subBlocks[key]) {
