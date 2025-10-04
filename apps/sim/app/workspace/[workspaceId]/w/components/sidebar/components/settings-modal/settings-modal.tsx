@@ -181,7 +181,7 @@ export function SettingsModal({ open, onOpenChange }: SettingsModalProps) {
                 <SSO />
               </div>
             )}
-            {isHosted && activeSection === 'copilot' && (
+            {activeSection === 'copilot' && (
               <div className='h-full'>
                 <Copilot />
               </div>

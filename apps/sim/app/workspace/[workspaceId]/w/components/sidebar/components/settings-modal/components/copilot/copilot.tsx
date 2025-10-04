@@ -112,11 +112,6 @@ export function Copilot() {
   }, [])
 
   const fetchEnabledModels = useCallback(async () => {
-    if (!isHosted) {
-      setIsModelsLoading(false)
-      return
-    }
-    
     if (hasFetchedModels.current) return
     hasFetchedModels.current = true
     
@@ -144,7 +139,9 @@ export function Copilot() {
   }, [setStoreEnabledModels])
 
   useEffect(() => {
-    fetchKeys()
+    if (isHosted) {
+      fetchKeys()
+    }
     fetchEnabledModels()
   }, [])
 
@@ -199,8 +196,6 @@ export function Copilot() {
   }
 
   const toggleModel = async (modelValue: string, enabled: boolean) => {
-    if (!isHosted) return
-
     const newModelsMap = { ...enabledModelsMap, [modelValue]: enabled }
     setEnabledModelsMap(newModelsMap)
     
@@ -236,69 +231,70 @@ export function Copilot() {
 
   return (
     <div className='relative flex h-full flex-col'>
-      {/* Sticky Header with API Keys */}
-      <div className='sticky top-0 z-10 border-b bg-background px-6 py-4'>
-        <div className='space-y-3'>
-          {/* API Keys Header */}
-          <div className='flex items-center justify-between'>
-            <div>
-              <h3 className='font-semibold text-foreground text-sm'>API Keys</h3>
-              <p className='text-muted-foreground text-xs'>
-                Generate keys for programmatic access
-              </p>
-            </div>
-            <Button
-              onClick={onGenerate}
-              variant='ghost'
-              size='sm'
-              className='h-8 rounded-[8px] border bg-background px-3 shadow-xs hover:bg-muted focus:outline-none focus-visible:ring-0 focus-visible:ring-offset-0'
-              disabled={isLoading}
-            >
-              <Plus className='h-3.5 w-3.5 stroke-[2px]' />
-              Create
-            </Button>
-          </div>
-
-          {/* API Keys List */}
-          <div className='space-y-2'>
-            {isLoading ? (
-              <>
-                <CopilotKeySkeleton />
-                <CopilotKeySkeleton />
-              </>
-            ) : keys.length === 0 ? (
-              <div className='py-3 text-center text-muted-foreground text-xs'>
-                No API keys yet
+      {/* Sticky Header with API Keys (only for hosted) */}
+      {isHosted && (
+        <div className='sticky top-0 z-10 border-b bg-background px-6 py-4'>
+          <div className='space-y-3'>
+            {/* API Keys Header */}
+            <div className='flex items-center justify-between'>
+              <div>
+                <h3 className='font-semibold text-foreground text-sm'>API Keys</h3>
+                <p className='text-muted-foreground text-xs'>
+                  Generate keys for programmatic access
+                </p>
               </div>
-            ) : (
-              keys.map((k) => (
-                <div key={k.id} className='flex items-center justify-between gap-4 rounded-lg border bg-muted/30 px-3 py-2'>
-                  <div className='flex items-center gap-3 min-w-0'>
-                    <code className='font-mono text-foreground text-xs truncate'>{k.displayKey}</code>
-                  </div>
+              <Button
+                onClick={onGenerate}
+                variant='ghost'
+                size='sm'
+                className='h-8 rounded-[8px] border bg-background px-3 shadow-xs hover:bg-muted focus:outline-none focus-visible:ring-0 focus-visible:ring-offset-0'
+                disabled={isLoading}
+              >
+                <Plus className='h-3.5 w-3.5 stroke-[2px]' />
+                Create
+              </Button>
+            </div>
 
-                  <Button
-                    variant='ghost'
-                    size='sm'
-                    onClick={() => {
-                      setDeleteKey(k)
-                      setShowDeleteDialog(true)
-                    }}
-                    className='h-7 flex-shrink-0 text-muted-foreground text-xs hover:text-foreground'
-                  >
-                    Delete
-                  </Button>
+            {/* API Keys List */}
+            <div className='space-y-2'>
+              {isLoading ? (
+                <>
+                  <CopilotKeySkeleton />
+                  <CopilotKeySkeleton />
+                </>
+              ) : keys.length === 0 ? (
+                <div className='py-3 text-center text-muted-foreground text-xs'>
+                  No API keys yet
                 </div>
-              ))
-            )}
+              ) : (
+                keys.map((k) => (
+                  <div key={k.id} className='flex items-center justify-between gap-4 rounded-lg border bg-muted/30 px-3 py-2'>
+                    <div className='flex items-center gap-3 min-w-0'>
+                      <code className='font-mono text-foreground text-xs truncate'>{k.displayKey}</code>
+                    </div>
+
+                    <Button
+                      variant='ghost'
+                      size='sm'
+                      onClick={() => {
+                        setDeleteKey(k)
+                        setShowDeleteDialog(true)
+                      }}
+                      className='h-7 flex-shrink-0 text-muted-foreground text-xs hover:text-foreground'
+                    >
+                      Delete
+                    </Button>
+                  </div>
+                ))
+              )}
+            </div>
           </div>
         </div>
-      </div>
+      )}
 
       {/* Scrollable Content - Models Section */}
-      {isHosted && (
-        <div className='scrollbar-thin scrollbar-thumb-muted scrollbar-track-transparent flex-1 overflow-y-auto px-6 py-4'>
-          <div className='space-y-3'>
+      <div className='scrollbar-thin scrollbar-thumb-muted scrollbar-track-transparent flex-1 overflow-y-auto px-6 py-4'>
+        <div className='space-y-3'>
             {/* Models Header */}
             <div>
               <h3 className='font-semibold text-foreground text-sm'>Models</h3>
@@ -382,9 +378,8 @@ export function Copilot() {
                 </div>
               </div>
             )}
-          </div>
         </div>
-      )}
+      </div>
 
       {/* New API Key Dialog */}
       <AlertDialog
