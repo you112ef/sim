@@ -94,6 +94,7 @@ interface UserInputProps {
   onModeChange?: (mode: 'ask' | 'agent') => void
   value?: string // Controlled value from outside
   onChange?: (value: string) => void // Callback when value changes
+  panelWidth?: number // Panel width to adjust truncation
 }
 
 interface UserInputRef {
@@ -114,6 +115,7 @@ const UserInput = forwardRef<UserInputRef, UserInputProps>(
       onModeChange,
       value: controlledValue,
       onChange: onControlledChange,
+      panelWidth = 308,
     },
     ref
   ) => {
@@ -3191,7 +3193,7 @@ const UserInput = forwardRef<UserInputRef, UserInputProps>(
                           title='Choose mode'
                         >
                           {getModelIcon()}
-                          <span>
+                          <span className={cn(panelWidth < 360 ? 'max-w-[72px] truncate' : '')}>
                             {getCollapsedModeLabel()}
                             {agentPrefetch &&
                               !['gpt-4o', 'gpt-4.1', 'gpt-5-fast'].includes(selectedModel) && (
