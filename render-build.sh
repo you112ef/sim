@@ -10,44 +10,27 @@ export NODE_OPTIONS="--max-old-space-size=1024 --max-semi-space-size=128"
 export NEXT_TELEMETRY_DISABLED=1
 export VERCEL_TELEMETRY_DISABLED=1
 
-# Install Bun if not already installed
-if ! command -v bun &> /dev/null; then
-    echo "📦 Installing Bun..."
-    curl -fsSL https://bun.sh/install | bash
-    export PATH="$HOME/.bun/bin:$PATH"
-fi
-
-# Install Yarn if not already installed
-if ! command -v yarn &> /dev/null; then
-    echo "📦 Installing Yarn..."
-    npm install -g yarn
-fi
-
-# Enable corepack for proper package manager handling
-echo "🔧 Enabling corepack..."
-corepack enable
-
-# Verify installations
+# Verify Bun installation (should be pre-installed by Render)
 echo "✅ Bun version: $(bun --version)"
-echo "✅ Yarn version: $(yarn --version)"
 
-# Install dependencies with optimizations
-echo "📦 Installing dependencies with Yarn..."
-yarn install --production --frozen-lockfile
+# Install dependencies with Bun
+echo "📦 Installing dependencies with Bun..."
+bun install --production --frozen-lockfile
 
 # Install sharp for image optimization
 echo "🖼️ Installing image optimization dependencies..."
 cd apps/sim
-yarn add sharp
+bun add sharp
+cd ../..
 
 # Build the application with optimizations
 echo "🔨 Building application with optimizations..."
 bun run build
 
 # Verify build output
-if [ -d ".next" ]; then
+if [ -d "apps/sim/.next" ]; then
     echo "✅ Build output verified: .next directory exists"
-    echo "📊 Build size: $(du -sh .next | cut -f1)"
+    echo "📊 Build size: $(du -sh apps/sim/.next | cut -f1)"
 else
     echo "❌ Build failed: .next directory not found"
     exit 1
