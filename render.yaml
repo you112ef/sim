@@ -8,7 +8,7 @@ services:
     startCommand: |
       export PATH="$HOME/.bun/bin:$PATH"
       cd apps/sim
-      bun run start
+      yarn start
     healthCheckPath: /
     envVars:
       - key: NODE_ENV

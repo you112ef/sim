@@ -17,17 +17,28 @@ if ! command -v bun &> /dev/null; then
     export PATH="$HOME/.bun/bin:$PATH"
 fi
 
-# Verify Bun installation
+# Install Yarn if not already installed
+if ! command -v yarn &> /dev/null; then
+    echo "📦 Installing Yarn..."
+    npm install -g yarn
+fi
+
+# Enable corepack for proper package manager handling
+echo "🔧 Enabling corepack..."
+corepack enable
+
+# Verify installations
 echo "✅ Bun version: $(bun --version)"
+echo "✅ Yarn version: $(yarn --version)"
 
 # Install dependencies with optimizations
-echo "📦 Installing dependencies..."
-bun install --production --frozen-lockfile
+echo "📦 Installing dependencies with Yarn..."
+yarn install --production --frozen-lockfile
 
 # Install sharp for image optimization
 echo "🖼️ Installing image optimization dependencies..."
 cd apps/sim
-bun add sharp
+yarn add sharp
 
 # Build the application with optimizations
 echo "🔨 Building application with optimizations..."
