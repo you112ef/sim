@@ -19,6 +19,8 @@ services:
         fromDatabase:
           name: simstudio-db
           property: connectionString
+      - key: DATABASE_SSL
+        value: "require"
       - key: BETTER_AUTH_URL
         value: https://simstudio.onrender.com
       - key: NEXT_PUBLIC_APP_URL
@@ -37,6 +39,30 @@ services:
         value: "1"
       - key: DISABLE_REGISTRATION
         value: "false"
+      - key: LOG_LEVEL
+        value: "INFO"
+      - key: RATE_LIMIT_WINDOW_MS
+        value: "60000"
+      - key: RATE_LIMIT_FREE_SYNC
+        value: "10"
+      - key: RATE_LIMIT_FREE_ASYNC
+        value: "50"
+      - key: FREE_TIER_COST_LIMIT
+        value: "100"
+      - key: BILLING_ENABLED
+        value: "false"
+      - key: EMAIL_VERIFICATION_ENABLED
+        value: "false"
+      - key: POSTHOG_ENABLED
+        value: "false"
+      - key: NEXT_PUBLIC_BILLING_ENABLED
+        value: "false"
+      - key: NEXT_PUBLIC_POSTHOG_ENABLED
+        value: "false"
+      - key: NEXT_PUBLIC_EMAIL_PASSWORD_SIGNUP_ENABLED
+        value: "true"
+      - key: ALLOWED_ORIGINS
+        value: "https://simstudio.onrender.com,https://www.simstudio.onrender.com"
 
   - type: pserv
     name: simstudio-db
@@ -44,3 +70,8 @@ services:
     plan: starter
     region: oregon
     postgresMajorVersion: "15"
+    maxConnections: 20
+    disk:
+      name: simstudio-db-disk
+      mountPath: /var/lib/postgresql/data
+      sizeGB: 1

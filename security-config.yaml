@@ -1,0 +1,85 @@
+# Security Configuration for SimStudio
+# This file defines security settings for production deployment
+
+security:
+  # CORS Configuration
+  cors:
+    allowed_origins:
+      - "https://simstudio.onrender.com"
+      - "https://www.simstudio.onrender.com"
+    allowed_methods:
+      - "GET"
+      - "POST"
+      - "PUT"
+      - "DELETE"
+      - "OPTIONS"
+    allowed_headers:
+      - "Content-Type"
+      - "Authorization"
+      - "X-Requested-With"
+      - "X-API-Key"
+    credentials: true
+
+  # Rate Limiting
+  rate_limiting:
+    window_ms: 60000  # 1 minute
+    limits:
+      free_sync: 10
+      free_async: 50
+      pro_sync: 25
+      pro_async: 200
+      team_sync: 75
+      team_async: 500
+      enterprise_sync: 150
+      enterprise_async: 1000
+
+  # Authentication
+  auth:
+    session_timeout: 86400  # 24 hours
+    max_login_attempts: 5
+    lockout_duration: 900   # 15 minutes
+    password_min_length: 8
+    require_email_verification: false
+
+  # Data Protection
+  data_protection:
+    encryption_algorithm: "aes-256-gcm"
+    key_rotation_days: 90
+    data_retention_days: 365
+    log_retention_days: 30
+
+  # API Security
+  api_security:
+    require_https: true
+    enable_csrf_protection: true
+    enable_xss_protection: true
+    enable_content_type_nosniff: true
+    enable_frame_options: "SAMEORIGIN"
+    enable_hsts: true
+    hsts_max_age: 31536000  # 1 year
+
+  # Database Security
+  database:
+    ssl_required: true
+    connection_pool_size: 20
+    query_timeout: 30000  # 30 seconds
+    enable_query_logging: false
+
+  # Monitoring
+  monitoring:
+    enable_health_checks: true
+    health_check_interval: 30
+    enable_error_tracking: true
+    log_level: "INFO"
+    enable_performance_monitoring: true
+
+  # Feature Flags
+  features:
+    billing_enabled: false
+    email_verification: false
+    analytics_enabled: false
+    registration_enabled: true
+    sso_enabled: false
+    api_rate_limiting: true
+    file_upload_enabled: true
+    real_time_features: true

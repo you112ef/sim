@@ -1,0 +1,63 @@
+# Performance Configuration for SimStudio on Render
+# This file contains performance optimizations for production deployment
+
+performance:
+  # Memory Configuration
+  memory:
+    node_heap_size: "512m"
+    max_old_space_size: "1024m"
+    gc_interval: 100
+
+  # Database Performance
+  database:
+    connection_pool_size: 20
+    query_timeout: 30000
+    idle_timeout: 60000
+    max_connections: 100
+
+  # Caching
+  cache:
+    redis_enabled: false  # Set to true if Redis is configured
+    memory_cache_size: "256m"
+    cache_ttl: 3600  # 1 hour
+
+  # Build Optimizations
+  build:
+    enable_compression: true
+    enable_minification: true
+    enable_tree_shaking: true
+    enable_code_splitting: true
+    enable_lazy_loading: true
+
+  # Runtime Optimizations
+  runtime:
+    enable_keep_alive: true
+    keep_alive_timeout: 5000
+    enable_gzip: true
+    enable_brotli: true
+    static_file_caching: true
+    cache_control_max_age: 31536000  # 1 year
+
+  # Monitoring
+  monitoring:
+    enable_performance_metrics: true
+    enable_memory_monitoring: true
+    enable_cpu_monitoring: true
+    metrics_interval: 60000  # 1 minute
+
+  # Security Performance
+  security:
+    enable_rate_limiting: true
+    rate_limit_algorithm: "sliding_window"
+    enable_ddos_protection: true
+    max_request_size: "10mb"
+    request_timeout: 30000
+
+  # Feature Performance
+  features:
+    enable_compression: true
+    enable_cdn: false  # Set to true if CDN is configured
+    enable_image_optimization: true
+    enable_font_optimization: true
+    enable_css_optimization: true
+    enable_js_optimization: true
