@@ -6,7 +6,9 @@ services:
     region: oregon
     bunVersion: "1.2.23"
     buildCommand: ./render-build.sh
-    startCommand: bun run start
+    startCommand: |
+      cd apps/sim
+      bun run start
     healthCheckPath: /
     envVars:
       - key: NODE_ENV
