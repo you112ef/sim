@@ -5,15 +5,53 @@ services:
     plan: starter
     region: oregon
     bunVersion: "1.2.23"
-    buildCommand: ./render-build.sh
-    startCommand: |
+    buildCommand: |
+      echo "🚀 Starting build process..."
+      export DOCKER_BUILD=1
+      export NODE_ENV=production
+      export NEXT_TELEMETRY_DISABLED=1
+      export VERCEL_TELEMETRY_DISABLED=1
+      echo "📁 Current directory: $(pwd)"
+      echo "📁 Directory contents:"
+      ls -la
+      echo "📦 Installing dependencies..."
+      bun install --production --frozen-lockfile
+      echo "📁 After install - apps/sim contents:"
+      ls -la apps/sim/
+      echo "🔨 Building application..."
       cd apps/sim
+      echo "📁 In apps/sim directory: $(pwd)"
+      echo "📁 Contents before sharp install:"
+      ls -la
+      bun add sharp
+      echo "🔨 Running build..."
+      bun run build
+      echo "📁 After build - .next contents:"
+      ls -la .next/ || echo "No .next directory"
+      echo "📁 After build - .next/standalone contents:"
+      ls -la .next/standalone/ || echo "No standalone directory"
+      echo "✅ Build completed!"
+    startCommand: |
+      echo "🚀 Starting application..."
+      echo "📁 Current directory: $(pwd)"
+      echo "📁 Directory contents:"
+      ls -la
+      cd apps/sim
+      echo "📁 In apps/sim directory: $(pwd)"
+      echo "📁 Contents:"
+      ls -la
+      echo "📁 .next directory:"
+      ls -la .next/ || echo "No .next directory"
       if [ -d ".next/standalone" ]; then
         echo "🚀 Starting with standalone build..."
+        echo "📁 .next/standalone contents:"
+        ls -la .next/standalone/
         cd .next/standalone
         bun run server.js
       else
         echo "🚀 Starting with regular build..."
+        echo "📁 .next contents:"
+        ls -la .next/ || echo "No .next directory"
         bun run start
       fi
     healthCheckPath: /
