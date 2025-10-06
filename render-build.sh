@@ -36,10 +36,15 @@ echo "📁 Current directory before build: $(pwd)"
 echo "📁 Contents before build:"
 ls -la
 echo "🔨 Running build command..."
-export DOCKER_BUILD=true
+export DOCKER_BUILD=1
 export NODE_ENV=production
 export NEXT_TELEMETRY_DISABLED=1
 export VERCEL_TELEMETRY_DISABLED=1
+echo "🔧 Environment variables:"
+echo "DOCKER_BUILD=$DOCKER_BUILD"
+echo "NODE_ENV=$NODE_ENV"
+echo "NEXT_TELEMETRY_DISABLED=$NEXT_TELEMETRY_DISABLED"
+echo "VERCEL_TELEMETRY_DISABLED=$VERCEL_TELEMETRY_DISABLED"
 bun run build
 echo "📁 Contents after build:"
 ls -la
@@ -47,6 +52,10 @@ echo "📁 .next directory contents:"
 ls -la .next/ || echo "No .next directory found"
 echo "📁 .next/standalone directory contents:"
 ls -la .next/standalone/ || echo "No .next/standalone directory found"
+echo "📁 .next/build-manifest.json contents:"
+cat .next/build-manifest.json || echo "No build-manifest.json found"
+echo "📁 .next/package.json contents:"
+cat .next/package.json || echo "No package.json found"
 cd ../..
 
 # Verify build output

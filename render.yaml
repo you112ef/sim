@@ -39,7 +39,7 @@ services:
       - key: INTERNAL_API_SECRET
         generateValue: true
       - key: DOCKER_BUILD
-        value: "true"
+        value: "1"
       - key: NEXT_TELEMETRY_DISABLED
         value: "1"
       - key: VERCEL_TELEMETRY_DISABLED
