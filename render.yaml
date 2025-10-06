@@ -8,7 +8,14 @@ services:
     buildCommand: ./render-build.sh
     startCommand: |
       cd apps/sim
-      bun run start
+      if [ -d ".next/standalone" ]; then
+        echo "🚀 Starting with standalone build..."
+        cd .next/standalone
+        bun run server.js
+      else
+        echo "🚀 Starting with regular build..."
+        bun run start
+      fi
     healthCheckPath: /
     envVars:
       - key: NODE_ENV

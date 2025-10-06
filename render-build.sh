@@ -36,11 +36,17 @@ echo "📁 Current directory before build: $(pwd)"
 echo "📁 Contents before build:"
 ls -la
 echo "🔨 Running build command..."
+export DOCKER_BUILD=true
+export NODE_ENV=production
+export NEXT_TELEMETRY_DISABLED=1
+export VERCEL_TELEMETRY_DISABLED=1
 bun run build
 echo "📁 Contents after build:"
 ls -la
 echo "📁 .next directory contents:"
 ls -la .next/ || echo "No .next directory found"
+echo "📁 .next/standalone directory contents:"
+ls -la .next/standalone/ || echo "No .next/standalone directory found"
 cd ../..
 
 # Verify build output
